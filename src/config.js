@@ -1,9 +1,6 @@
 import convict from 'convict'
 import convictFormatWithValidator from 'convict-format-with-validator'
 
-import { convictValidateMongoUri } from './common/helpers/convict/validate-mongo-uri.js'
-
-convict.addFormat(convictValidateMongoUri)
 convict.addFormats(convictFormatWithValidator)
 
 const isProduction = process.env.NODE_ENV === 'production'
@@ -49,6 +46,12 @@ const config = convict({
     default: 'local',
     env: 'ENVIRONMENT'
   },
+  awsRegion: {
+    doc: 'AWS region for RDS and other AWS services',
+    format: String,
+    default: 'eu-west-2',
+    env: 'AWS_REGION'
+  },
   log: {
     isEnabled: {
       doc: 'Is logging enabled',
@@ -76,39 +79,56 @@ const config = convict({
         : ['req', 'res', 'responseTime']
     }
   },
-  mongo: {
-    mongoUrl: {
-      doc: 'URI for mongodb',
+  postgres: {
+    host: {
+      doc: 'PostgreSQL database host',
       format: String,
-      default: 'mongodb://127.0.0.1:27017/',
-      env: 'MONGO_URI'
+      default: '127.0.0.1',
+      env: 'DB_HOST'
     },
-    databaseName: {
-      doc: 'database for mongodb',
+    port: {
+      doc: 'PostgreSQL database port',
+      format: 'port',
+      default: 5432,
+      env: 'DB_PORT'
+    },
+    database: {
+      doc: 'PostgreSQL database name',
       format: String,
-      default: 'pafs-backend-api',
-      env: 'MONGO_DATABASE'
+      default: 'pafs',
+      env: 'DB_DATABASE'
     },
-    mongoOptions: {
-      retryWrites: {
-        doc: 'Enable Mongo write retries, overrides mongo URI when set.',
-        format: Boolean,
-        default: null,
-        nullable: true,
-        env: 'MONGO_RETRY_WRITES'
+    username: {
+      doc: 'PostgreSQL username',
+      format: String,
+      default: 'postgres',
+      env: 'DB_USERNAME'
+    },
+    password: {
+      doc: 'PostgreSQL password (only used for local development, not with IAM auth)',
+      format: String,
+      default: 'postgres',
+      sensitive: true,
+      env: 'DB_PASSWORD'
+    },
+    useIamAuth: {
+      doc: 'Use AWS IAM authentication with short-lived tokens (auto-enabled in production)',
+      format: Boolean,
+      default: isProduction,
+      env: 'DB_USE_IAM_AUTHENTICATION'
+    },
+    pool: {
+      max: {
+        doc: 'Maximum number of connections in pool',
+        format: 'nat',
+        default: 10,
+        env: 'POSTGRES_POOL_MAX'
       },
-      readPreference: {
-        doc: 'Mongo read preference, overrides mongo URI when set.',
-        format: [
-          'primary',
-          'primaryPreferred',
-          'secondary',
-          'secondaryPreferred',
-          'nearest'
-        ],
-        default: null,
-        nullable: true,
-        env: 'MONGO_READ_PREFERENCE'
+      maxLifetimeSeconds: {
+        doc: 'Maximum lifetime of a connection in seconds (important for IAM token refresh)',
+        format: 'nat',
+        default: 10 * 60,
+        env: 'POSTGRES_POOL_MAX_LIFETIME'
       }
     }
   },
