@@ -5,7 +5,7 @@ import { secureContext } from '@defra/hapi-secure-context'
 import { config } from './config.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
-import { mongoDb } from './common/helpers/mongodb.js'
+import { postgres } from './common/helpers/postgres.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
@@ -17,6 +17,9 @@ async function createServer() {
     host: config.get('host'),
     port: config.get('port'),
     routes: {
+      timeout: {
+        server: 30000 // 30 seconds
+      },
       validate: {
         options: {
           abortEarly: false
@@ -42,9 +45,8 @@ async function createServer() {
   // Hapi Plugins:
   // requestLogger  - automatically logs incoming requests
   // requestTracing - trace header logging and propagation
-  // secureContext  - loads CA certificates from environment config
   // pulse          - provides shutdown handlers
-  // mongoDb        - sets up mongo connection pool and attaches to `server` and `request` objects
+  // postgres       - sets up PostgreSQL connection pool and attaches to `server` and `request` objects
   // router         - routes used in the app
   await server.register([
     requestLogger,
@@ -52,8 +54,11 @@ async function createServer() {
     secureContext,
     pulse,
     {
-      plugin: mongoDb,
-      options: config.get('mongo')
+      plugin: postgres,
+      options: {
+        ...config.get('postgres'),
+        awsRegion: config.get('awsRegion')
+      }
     },
     router
   ])
