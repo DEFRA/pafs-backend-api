@@ -1,4 +1,4 @@
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi } from 'vitest'
 
 vi.mock('./common/helpers/start-server.js', () => ({
   startServer: vi.fn().mockResolvedValue({
@@ -11,9 +11,12 @@ describe('index.js', () => {
     const processOnSpy = vi.spyOn(process, 'on')
     await import('./index.js')
 
-    expect(processOnSpy).toHaveBeenCalledWith('unhandledRejection', expect.any(Function))
+    expect(processOnSpy).toHaveBeenCalledWith(
+      'unhandledRejection',
+      expect.any(Function)
+    )
 
-    processOnSpy.mockRestore();
+    processOnSpy.mockRestore()
   })
 
   test('unhandledRejection handler logs error and sets exit code', () => {

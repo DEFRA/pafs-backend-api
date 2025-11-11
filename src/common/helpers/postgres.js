@@ -69,12 +69,12 @@ export const postgres = {
       if (options.useIamAuth) {
         poolConfig.ssl = server.secureContext
           ? {
-            rejectUnauthorized: false,
-            secureContext: server.secureContext
-          }
+              rejectUnauthorized: false,
+              secureContext: server.secureContext
+            }
           : {
-            rejectUnauthorized: false
-          }
+              rejectUnauthorized: false
+            }
         server.logger.info(
           'SSL enabled (required for AWS RDS IAM authentication)'
         )
@@ -131,5 +131,3 @@ export const postgres = {
     }
   }
 }
-
-

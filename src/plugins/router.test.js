@@ -9,7 +9,7 @@ describe('Router plugin', () => {
     await server.register(router)
 
     const routes = server.table()
-    const healthRoute = routes.find(r => r.path === '/health')
+    const healthRoute = routes.find((r) => r.path === '/health')
 
     expect(healthRoute).toBeDefined()
     expect(healthRoute.method).toBe('get')
