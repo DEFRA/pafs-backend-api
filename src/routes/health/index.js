@@ -28,7 +28,10 @@ const health = {
   path: '/health',
   handler: async (request, h) => {
     const healthStatus = await performHealthChecks(request)
-    const statusCode = healthStatus.status === 'healthy' ? HTTP_STATUS.OK : HTTP_STATUS.SERVICE_UNAVAILABLE
+    const statusCode =
+      healthStatus.status === 'healthy'
+        ? HTTP_STATUS.OK
+        : HTTP_STATUS.SERVICE_UNAVAILABLE
 
     return h.response(healthStatus).code(statusCode)
   }
