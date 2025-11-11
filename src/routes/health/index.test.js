@@ -1,4 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
+import { HTTP_STATUS } from '../../common/constants.js'
 
 // Mock the postgres-health module
 const mockCheckPostgresHealth = vi.fn()
@@ -172,7 +173,7 @@ describe('health route', () => {
           message: 'success'
         })
       )
-      expect(mockH.code).toHaveBeenCalledWith(200)
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })
 
     test('Should return 503 status code when unhealthy', async () => {
@@ -190,7 +191,7 @@ describe('health route', () => {
           message: 'one or more health checks failed'
         })
       )
-      expect(mockH.code).toHaveBeenCalledWith(503)
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.SERVICE_UNAVAILABLE)
     })
 
     test('Should include all health check details in response', async () => {
@@ -242,7 +243,7 @@ describe('health route', () => {
 
       const responseCall = mockH.response.mock.calls[0][0]
       expect(responseCall.checks.postgres).toEqual(errorDetails)
-      expect(mockH.code).toHaveBeenCalledWith(503)
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.SERVICE_UNAVAILABLE)
     })
   })
 

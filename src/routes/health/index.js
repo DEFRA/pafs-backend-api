@@ -1,4 +1,5 @@
 import { checkPostgresHealth } from './postgres-health.js'
+import { HTTP_STATUS } from '../../common/constants.js'
 
 /**
  * Aggregate all health checks and determine overall system health
@@ -6,7 +7,7 @@ import { checkPostgresHealth } from './postgres-health.js'
  * @returns {Promise<Object>} Complete health status
  */
 async function performHealthChecks(request) {
-  const [postgresHealth] = await Promise.all([checkPostgresHealth(request)])
+  const postgresHealth = await checkPostgresHealth(request)
 
   const checks = [postgresHealth]
   const allHealthy = checks.every((check) => check.healthy)
@@ -27,7 +28,7 @@ const health = {
   path: '/health',
   handler: async (request, h) => {
     const healthStatus = await performHealthChecks(request)
-    const statusCode = healthStatus.status === 'healthy' ? 200 : 503
+    const statusCode = healthStatus.status === 'healthy' ? HTTP_STATUS.OK : HTTP_STATUS.SERVICE_UNAVAILABLE
 
     return h.response(healthStatus).code(statusCode)
   }
