@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1-001-enable-extensions" author="migration-team">
+        <comment>Enable PostgreSQL extensions required for PAFS</comment>
+
+        <sql>CREATE EXTENSION IF NOT EXISTS citext;</sql>
+        <sql>CREATE EXTENSION IF NOT EXISTS hstore;</sql>
+        <sql>CREATE EXTENSION IF NOT EXISTS plpgsql;</sql>
+
+        <rollback>
+            <sql>DROP EXTENSION IF EXISTS citext CASCADE;</sql>
+            <sql>DROP EXTENSION IF EXISTS hstore CASCADE;</sql>
+            <sql>DROP EXTENSION IF EXISTS plpgsql CASCADE;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <include file="changelog/1-001-extensions.xml"/>
+
+    <include file="changelog/1-002-old-passwords.xml"/>
+    <include file="changelog/1-003-account-requests.xml"/>
+    <include file="changelog/1-004-areas.xml"/>
+    <include file="changelog/1-005-user-areas.xml"/>
+    <include file="changelog/1-006-users.xml"/>
+
+    <include file="changelog/1-007-user-areas-keys.xml"/>
+
+</databaseChangeLog>

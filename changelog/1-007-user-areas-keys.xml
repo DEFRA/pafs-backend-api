@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1-007-add-user-areas-foreign-key-constraints" author="migration-team">
+        <comment>Add User Areas foreign key constraints to maintain referential integrity</comment>
+
+        <!-- User Areas Foreign Keys -->
+        <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="user_id" constraintName="fk_user_areas_user_id" referencedTableName="pafs_core_users" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="area_id" constraintName="fk_user_areas_area_id" referencedTableName="pafs_core_areas" referencedColumnNames="id" onDelete="CASCADE"/>
+
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="pafs_core_user_areas" constraintName="fk_user_areas_user_id"/>
+            <dropForeignKeyConstraint baseTableName="pafs_core_user_areas" constraintName="fk_user_areas_area_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

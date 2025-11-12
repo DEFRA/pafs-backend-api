@@ -1,0 +1,36 @@
+name: Publish Liquibase Schema
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+        default: ""
+        description: "Version to publish"
+
+env:
+  AWS_REGION: eu-west-2
+  AWS_ACCOUNT_ID: "094954420758"
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  build:
+    name: PAFS Liquibase Schema Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and Publish
+        uses: DEFRA/cdp-build-action/publish-db-migrate@main
+        with:
+          path: ./changelog
+          force: true
+          version: ${{ inputs.version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+
