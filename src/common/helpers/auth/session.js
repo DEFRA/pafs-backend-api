@@ -4,7 +4,7 @@ import { SESSION } from '../../constants.js'
 
 export function generateSessionId() {
   const timestamp = Date.now().toString(SESSION.BASE_36)
-  const randomBytes = crypto.randomBytes(SESSION.RANDOM_BYTES_SIZE)
+  const randomBytes = crypto.randomBytes(SESSION.RANDOM_BYTES_8)
   const randomPart = randomBytes
     .toString('hex')
     .substring(SESSION.RANDOM_STRING_START, SESSION.RANDOM_STRING_END)

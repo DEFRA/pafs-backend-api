@@ -28,7 +28,7 @@ export const AUTH_ERRORS = {
  */
 export const SESSION = {
   BASE_36: 36,
-  RANDOM_BYTES_SIZE: 8,
+  RANDOM_BYTES_8: 8,
   RANDOM_STRING_START: 0,
   RANDOM_STRING_END: 13
 }
