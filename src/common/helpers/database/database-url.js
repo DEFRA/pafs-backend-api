@@ -29,7 +29,9 @@ export function buildDatabaseUrl(options = {}) {
   const schema = getConfigValue(options.schema, undefined, DB_DEFAULTS.SCHEMA)
 
   if (!dbPassword) {
-    throw new Error('Database password is required. Provide via DB_PASSWORD environment variable or options.password')
+    throw new Error(
+      'Database password is required. Provide via DB_PASSWORD environment variable or options.password'
+    )
   }
 
   return `postgresql://${dbUsername}:${dbPassword}@${dbHost}:${dbPort}/${dbDatabase}?schema=${schema}`
