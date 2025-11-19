@@ -48,6 +48,6 @@ export const DB_DEFAULTS = {
   PORT: '5432',
   DATABASE: 'pafs_backend_api',
   USERNAME: 'postgres',
-  PASSWORD: 'pgadmin',
+  PASSWORD: '',
   SCHEMA: 'public'
 }
