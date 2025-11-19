@@ -15,5 +15,6 @@
     <include file="changelog/1-006-users.xml"/>
 
     <include file="changelog/1-007-user-areas-keys.xml"/>
+    <include file="changelog/2-001-alter-user-areas-foreign-keys.xml" />
 
 </databaseChangeLog>

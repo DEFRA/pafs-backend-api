@@ -1,10 +1,16 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, vi } from 'vitest'
 import Hapi from '@hapi/hapi'
 import { router } from './router.js'
 
 describe('Router plugin', () => {
   test('registers health route', async () => {
     const server = Hapi.server()
+
+    // Mock JWT authentication strategy to prevent "Unknown authentication strategy jwt" error
+    server.auth.scheme('jwt', () => ({
+      authenticate: vi.fn()
+    }))
+    server.auth.strategy('jwt', 'jwt')
 
     await server.register(router)
 
