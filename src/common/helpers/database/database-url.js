@@ -1,4 +1,4 @@
-import { DB_DEFAULTS } from '../../constants'
+import { DB_DEFAULTS } from '../../constants.js'
 
 function getConfigValue(optionValue, envValue, defaultValue) {
   return optionValue || envValue || defaultValue

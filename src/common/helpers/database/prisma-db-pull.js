@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process'
+import { execSync } from 'node:child_process'
 import { buildDatabaseUrl } from './database-url.js'
 
-process.env.DATABASE_URL = buildDatabaseUrl()
+try {
+  process.env.DATABASE_URL = buildDatabaseUrl()
 
-const prisma = spawn('prisma', ['db', 'pull'], {
-  stdio: 'inherit',
-  shell: true,
-  env: process.env
-})
-
-prisma.on('exit', (code) => {
-  process.exit(code)
-})
+  // Execute prisma db pull
+  execSync('prisma db pull', {
+    stdio: 'inherit',
+    env: process.env
+  })
+} catch (error) {
+  console.error('Failed to pull database schema:', error.message)
+  process.exit(1)
+}

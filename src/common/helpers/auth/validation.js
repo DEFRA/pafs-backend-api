@@ -1,27 +1,42 @@
+import Joi from 'joi'
+
+const emailSchema = Joi.string()
+  .email({ tlds: { allow: false } })
+  .max(254)
+  .trim()
+  .lowercase()
+  .required()
+
+const passwordSchema = Joi.string().required()
+
 export function validateEmail(email) {
-  if (!email || typeof email !== 'string') {
-    return { valid: false, error: 'validation.email.required' }
-  }
+  const { error, value } = emailSchema.validate(email)
 
-  const trimmed = email.trim()
-
-  if (trimmed.length === 0) {
-    return { valid: false, error: 'validation.email.required' }
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-  if (!emailRegex.test(trimmed)) {
+  if (error) {
+    if (
+      error.details[0]?.type === 'any.required' ||
+      error.details[0]?.type === 'string.empty'
+    ) {
+      return { valid: false, error: 'validation.email.required' }
+    }
     return { valid: false, error: 'validation.email.invalid_format' }
   }
 
-  return { valid: true, value: trimmed.toLowerCase() }
+  return { valid: true, value }
 }
 
 export function validatePassword(password) {
-  if (!password || typeof password !== 'string' || password.length === 0) {
-    return { valid: false, error: 'validation.password.required' }
+  const { error, value } = passwordSchema.validate(password)
+
+  if (error) {
+    const errorType = error.details[0]?.type
+
+    if (errorType === 'any.required' || errorType === 'string.empty') {
+      return { valid: false, error: 'validation.password.required' }
+    }
+
+    return { valid: false, error: 'validation.password.invalid' }
   }
 
-  return { valid: true, value: password }
+  return { valid: true, value }
 }

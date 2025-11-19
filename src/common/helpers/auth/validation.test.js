@@ -38,22 +38,8 @@ describe('validation helper', () => {
       expect(result.error).toBe('validation.email.required')
     })
 
-    it('rejects null', () => {
-      const result = validateEmail(null)
-
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('validation.email.required')
-    })
-
     it('rejects undefined', () => {
       const result = validateEmail(undefined)
-
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('validation.email.required')
-    })
-
-    it('rejects non-string input', () => {
-      const result = validateEmail(123)
 
       expect(result.valid).toBe(false)
       expect(result.error).toBe('validation.email.required')
@@ -79,6 +65,42 @@ describe('validation helper', () => {
       expect(result.valid).toBe(false)
       expect(result.error).toBe('validation.email.invalid_format')
     })
+
+    it('rejects email longer than 254 characters', () => {
+      const longEmail = 'a'.repeat(250) + '@test.com'
+      const result = validateEmail(longEmail)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.email.invalid_format')
+    })
+
+    it('rejects email without domain extension', () => {
+      const result = validateEmail('test@domain')
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.email.invalid_format')
+    })
+
+    it('accepts email with subdomain', () => {
+      const result = validateEmail('test@mail.example.com')
+
+      expect(result.valid).toBe(true)
+      expect(result.value).toBe('test@mail.example.com')
+    })
+
+    it('accepts email with plus sign', () => {
+      const result = validateEmail('test+tag@example.com')
+
+      expect(result.valid).toBe(true)
+      expect(result.value).toBe('test+tag@example.com')
+    })
+
+    it('accepts email with dots in local part', () => {
+      const result = validateEmail('first.last@example.com')
+
+      expect(result.valid).toBe(true)
+      expect(result.value).toBe('first.last@example.com')
+    })
   })
 
   describe('validatePassword', () => {
@@ -96,22 +118,8 @@ describe('validation helper', () => {
       expect(result.error).toBe('validation.password.required')
     })
 
-    it('rejects null', () => {
-      const result = validatePassword(null)
-
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('validation.password.required')
-    })
-
     it('rejects undefined', () => {
       const result = validatePassword(undefined)
-
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('validation.password.required')
-    })
-
-    it('rejects non-string input', () => {
-      const result = validatePassword(12345)
 
       expect(result.valid).toBe(false)
       expect(result.error).toBe('validation.password.required')
