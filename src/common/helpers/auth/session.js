@@ -1,8 +1,9 @@
 import { config } from '../../../config.js'
+import { SESSION } from '../../constants.js'
 
 export function generateSessionId() {
-  const timestamp = Date.now().toString(36)
-  const randomPart = Math.random().toString(36).substring(2, 15)
+  const timestamp = Date.now().toString(SESSION.BASE_36)
+  const randomPart = Math.random().toString(SESSION.BASE_36).substring(SESSION.RANDOM_STRING_START, SESSION.RANDOM_STRING_END)
   return `${timestamp}${randomPart}`
 }
 

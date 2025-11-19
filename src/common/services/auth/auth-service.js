@@ -15,6 +15,7 @@ import {
   validatePassword
 } from '../../helpers/auth/validation.js'
 import { config } from '../../../config.js'
+import { AUTH_ERRORS } from '../../constants.js'
 
 export class AuthService {
   constructor(prisma, logger) {
@@ -45,7 +46,7 @@ export class AuthService {
         { email: validationResult.email },
         'Login attempt for non-existent user'
       )
-      return { success: false, error: 'auth.invalid_credentials' }
+      return { success: false, error: AUTH_ERRORS.INVALID_CREDENTIALS }
     }
 
     const securityCheck = await this.performSecurityChecks(user)
@@ -58,10 +59,10 @@ export class AuthService {
       user.encrypted_password
     )
     if (!passwordMatch) {
-      return await this.handleInvalidPassword(user, ipAddress)
+      return this.handleInvalidPassword(user, ipAddress)
     }
 
-    return await this.createSuccessfulLoginResponse(user, ipAddress)
+    return this.createSuccessfulLoginResponse(user, ipAddress)
   }
 
   validateCredentials(email, password) {
@@ -146,12 +147,12 @@ export class AuthService {
     if (isLastAttempt({ ...user, failed_attempts: newFailedAttempts })) {
       return {
         success: false,
-        error: 'auth.invalid_credentials',
+        error: AUTH_ERRORS.INVALID_CREDENTIALS,
         warning: 'auth.last_attempt_warning'
       }
     }
 
-    return { success: false, error: 'auth.invalid_credentials' }
+    return { success: false, error: AUTH_ERRORS.INVALID_CREDENTIALS }
   }
 
   async createSuccessfulLoginResponse(user, ipAddress) {

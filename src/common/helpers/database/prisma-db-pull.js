@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'child_process'
+import { spawn } from 'node:child_process'
 import { buildDatabaseUrl } from './database-url.js'
 
 process.env.DATABASE_URL = buildDatabaseUrl()

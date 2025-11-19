@@ -16,7 +16,7 @@ async function buildDatabaseUrl(pgConfig, awsRegion, logger) {
 
     const token = await generateRdsAuthToken({
       host,
-      port: parseInt(port, 10),
+      port: Number.parseInt(port, 10),
       username,
       awsRegion
     })

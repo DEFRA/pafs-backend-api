@@ -18,9 +18,9 @@ export function getPrismaClient(options) {
     { emit: 'event', level: 'error' },
     ...(isDevelopment
       ? [
-          { emit: 'event', level: 'query' },
-          { emit: 'event', level: 'warn' }
-        ]
+        { emit: 'event', level: 'query' },
+        { emit: 'event', level: 'warn' }
+      ]
       : [])
   ]
 
@@ -55,5 +55,3 @@ export async function disconnectPrisma() {
     prismaInstance = null
   }
 }
-
-export { prismaInstance }

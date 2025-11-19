@@ -15,3 +15,39 @@ export const HTTP_STATUS = {
   INTERNAL_SERVER_ERROR: 500,
   SERVICE_UNAVAILABLE: 503
 }
+
+/**
+ * Authentication Error Messages
+ */
+export const AUTH_ERRORS = {
+  INVALID_CREDENTIALS: 'auth.invalid_credentials'
+}
+
+/**
+ * Session Generation Constants
+ */
+export const SESSION = {
+  BASE_36: 36,
+  RANDOM_STRING_START: 2,
+  RANDOM_STRING_END: 15
+}
+
+/**
+ * Password Hashing Constants
+ */
+export const PASSWORD = {
+  BCRYPT_ROUNDS: 12,
+  BCRYPT_PREFIX: '$2'
+}
+
+/**
+ * Database Configuration Defaults
+ */
+export const DB_DEFAULTS = {
+  HOST: '127.0.0.1',
+  PORT: '5432',
+  DATABASE: 'pafs_backend_api',
+  USERNAME: 'postgres',
+  PASSWORD: 'pgadmin',
+  SCHEMA: 'public'
+}

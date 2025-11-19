@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken'
 import { config } from '../../../config.js'
 
+const JWT_ISSUER = config.get('auth.jwt.issuer')
+const JWT_AUDIENCE = config.get('auth.jwt.audience')
+
 export function generateAccessToken(user, sessionId) {
   const payload = {
     userId: Number(user.id),
@@ -11,8 +14,8 @@ export function generateAccessToken(user, sessionId) {
 
   return jwt.sign(payload, config.get('auth.jwt.accessSecret'), {
     expiresIn: config.get('auth.jwt.accessExpiresIn'),
-    issuer: config.get('auth.jwt.issuer'),
-    audience: config.get('auth.jwt.audience')
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE
   })
 }
 
@@ -25,16 +28,16 @@ export function generateRefreshToken(user, sessionId) {
 
   return jwt.sign(payload, config.get('auth.jwt.refreshSecret'), {
     expiresIn: config.get('auth.jwt.refreshExpiresIn'),
-    issuer: config.get('auth.jwt.issuer'),
-    audience: config.get('auth.jwt.audience')
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE
   })
 }
 
 export function verifyAccessToken(token) {
   try {
     const decoded = jwt.verify(token, config.get('auth.jwt.accessSecret'), {
-      issuer: config.get('auth.jwt.issuer'),
-      audience: config.get('auth.jwt.audience')
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE
     })
 
     if (decoded.type !== 'access') {
@@ -50,8 +53,8 @@ export function verifyAccessToken(token) {
 export function verifyRefreshToken(token) {
   try {
     const decoded = jwt.verify(token, config.get('auth.jwt.refreshSecret'), {
-      issuer: config.get('auth.jwt.issuer'),
-      audience: config.get('auth.jwt.audience')
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE
     })
 
     if (decoded.type !== 'refresh') {

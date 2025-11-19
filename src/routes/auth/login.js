@@ -17,12 +17,12 @@ export default {
       const result = await authService.login(email, password, ipAddress)
 
       if (!result.success) {
-        const errorCode = result.error.replace(/\./g, '_').toUpperCase()
+        const errorCode = result.error.replaceAll('.', '_').toUpperCase()
         const response = { errorCode }
 
         if (result.warning) {
           response.warningCode = result.warning
-            .replace(/\./g, '_')
+            .replaceAll('.', '_')
             .toUpperCase()
         }
 

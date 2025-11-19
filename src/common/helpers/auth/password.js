@@ -1,13 +1,12 @@
 import bcrypt from 'bcrypt'
-
-const BCRYPT_ROUNDS = 12
+import { PASSWORD } from '../../constants'
 
 export async function hashPassword(plainPassword) {
-  return bcrypt.hash(plainPassword, BCRYPT_ROUNDS)
+  return bcrypt.hash(plainPassword, PASSWORD.BCRYPT_ROUNDS)
 }
 
 export async function verifyPassword(plainPassword, hashedPassword) {
-  if (!hashedPassword || !hashedPassword.startsWith('$2')) {
+  if (!hashedPassword?.startsWith(PASSWORD.BCRYPT_PREFIX)) {
     return false
   }
 
