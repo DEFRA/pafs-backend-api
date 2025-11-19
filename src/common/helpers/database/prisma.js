@@ -1,9 +1,12 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import pg from 'pg'
 
 // Liquibase manages schema, Prisma provides type-safe ORM
 // Schema introspection (prisma:db:pull) only needed during development
 
 let prismaInstance = null
+let pgPool = null
 
 export function getPrismaClient(options) {
   if (prismaInstance) {
@@ -18,16 +21,19 @@ export function getPrismaClient(options) {
     { emit: 'event', level: 'error' },
     ...(isDevelopment
       ? [
-          { emit: 'event', level: 'query' },
-          { emit: 'event', level: 'warn' }
-        ]
+        { emit: 'event', level: 'query' },
+        { emit: 'event', level: 'warn' }
+      ]
       : [])
   ]
+
+  pgPool = new pg.Pool({ connectionString: datasourceUrl })
+  const adapter = new PrismaPg(pgPool)
 
   prismaInstance = new PrismaClient({
     log: logConfig,
     errorFormat: isProduction ? 'minimal' : 'pretty',
-    datasources: { db: { url: datasourceUrl } }
+    adapter
   })
 
   if (logger) {
@@ -53,5 +59,9 @@ export async function disconnectPrisma() {
   if (prismaInstance) {
     await prismaInstance.$disconnect()
     prismaInstance = null
+  }
+  if (pgPool) {
+    await pgPool.end()
+    pgPool = null
   }
 }
