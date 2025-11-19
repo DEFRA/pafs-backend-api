@@ -16,7 +16,7 @@
     "git:pre-commit-hook": "npm run format:check && npm run lint && npm test",
     "lint": "eslint --cache --cache-strategy content \"**/*.{cjs,js}\"",
     "lint:fix": "npm run lint -- --fix",
-    "postinstall": "npm run setup:husky",
+    "postinstall": "npm run setup:husky && npm run prisma:generate",
     "prisma:generate": "prisma generate",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
