@@ -26,17 +26,25 @@ describe('buildDatabaseUrl', () => {
     )
   })
 
-  it('uses default values when environment variables are not set', () => {
+  it('uses default values when environment variables are not set (except password)', () => {
     delete process.env.DB_HOST
     delete process.env.DB_PORT
     delete process.env.DB_DATABASE
     delete process.env.DB_USERNAME
     delete process.env.DB_PASSWORD
 
-    const url = buildDatabaseUrl()
+    const url = buildDatabaseUrl({ password: 'test_password' })
 
     expect(url).toBe(
-      'postgresql://postgres:pgadmin@127.0.0.1:5432/pafs_backend_api?schema=public'
+      'postgresql://postgres:test_password@127.0.0.1:5432/pafs_backend_api?schema=public'
+    )
+  })
+
+  it('throws error when password is not provided', () => {
+    delete process.env.DB_PASSWORD
+
+    expect(() => buildDatabaseUrl()).toThrow(
+      'Database password is required. Provide via DB_PASSWORD environment variable or options.password'
     )
   })
 
@@ -58,6 +66,8 @@ describe('buildDatabaseUrl', () => {
   })
 
   it('allows custom schema', () => {
+    process.env.DB_PASSWORD = 'testpass'
+
     const url = buildDatabaseUrl({
       schema: 'custom_schema'
     })
@@ -71,6 +81,17 @@ describe('buildDatabaseUrl', () => {
     })
 
     expect(url).toContain('p@ssw0rd!#$')
+  })
+
+  it('prioritizes options.password over environment variable', () => {
+    process.env.DB_PASSWORD = 'env_password'
+
+    const url = buildDatabaseUrl({
+      password: 'option_password'
+    })
+
+    expect(url).toContain('option_password')
+    expect(url).not.toContain('env_password')
   })
 
   it('uses environment variables with partial options override', () => {
