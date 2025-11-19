@@ -1,7 +1,7 @@
 import hapiAuthJwt2 from 'hapi-auth-jwt2'
 
 async function validate(decoded, request) {
-  if (!decoded || !decoded.userId || !decoded.sessionId) {
+  if (!decoded?.userId || !decoded?.sessionId) {
     return { isValid: false }
   }
 

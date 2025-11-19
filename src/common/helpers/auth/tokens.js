@@ -1,5 +1,8 @@
 import jwt from 'jsonwebtoken'
 import { config } from '../../../config.js'
+import { createLogger } from '../logging/logger.js'
+
+const logger = createLogger()
 
 const JWT_ISSUER = config.get('auth.jwt.issuer')
 const JWT_AUDIENCE = config.get('auth.jwt.audience')
@@ -46,6 +49,7 @@ export function verifyAccessToken(token) {
 
     return decoded
   } catch (error) {
+    logger.debug({ err: error }, 'Access token verification failed')
     return null
   }
 }
@@ -63,6 +67,7 @@ export function verifyRefreshToken(token) {
 
     return decoded
   } catch (error) {
+    logger.debug({ err: error }, 'Refresh token verification failed')
     return null
   }
 }

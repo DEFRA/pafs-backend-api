@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import bcrypt from 'bcrypt'
 import { hashPassword, verifyPassword } from './password.js'
 
 describe('password helper', () => {
@@ -68,7 +69,57 @@ describe('password helper', () => {
     })
 
     it('returns false on bcrypt error', async () => {
-      const result = await verifyPassword('test', '$2b$10$invalid')
+      // This hash format will cause bcrypt.compare to throw an error
+      // It starts with $2b$ but has invalid salt/hash data
+      const invalidHash = '$2b$10$invalidSaltThatWillCauseError'
+      const result = await verifyPassword('test', invalidHash)
+
+      expect(result).toBe(false)
+    })
+
+    it('handles malformed hash gracefully', async () => {
+      // Test various malformed hashes to ensure error handling works
+      const malformedHashes = ['$2b$10$', '$2b$10$tooshort', '$2b$invalid$hash']
+
+      for (const hash of malformedHashes) {
+        const result = await verifyPassword('test', hash)
+        expect(result).toBe(false)
+      }
+    })
+
+    it('handles bcrypt internal errors', async () => {
+      // Use a hash that passes the prefix check but will fail during comparison
+      // This ensures the catch block is executed
+      const problematicHash = '$2b$12$' + 'x'.repeat(53) // Valid format but invalid content
+      const result = await verifyPassword('testpassword', problematicHash)
+
+      expect(result).toBe(false)
+    })
+
+    it('logs and handles bcrypt.compare exceptions', async () => {
+      // Spy on bcrypt.compare to force it to throw an error
+      const compareSpy = vi.spyOn(bcrypt, 'compare')
+      compareSpy.mockRejectedValueOnce(new Error('Bcrypt internal error'))
+
+      const validHash =
+        '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYKKVVqHqDm'
+      const result = await verifyPassword('test', validHash)
+
+      expect(result).toBe(false)
+      expect(compareSpy).toHaveBeenCalled()
+
+      compareSpy.mockRestore()
+    })
+
+    it('handles empty string password', async () => {
+      const hash = await hashPassword('test')
+      const result = await verifyPassword('', hash)
+
+      expect(result).toBe(false)
+    })
+
+    it('handles empty string hash', async () => {
+      const result = await verifyPassword('test', '')
 
       expect(result).toBe(false)
     })
