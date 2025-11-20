@@ -26,6 +26,9 @@ async function performHealthChecks(request) {
 const health = {
   method: 'GET',
   path: '/health',
+  options: {
+    auth: false
+  },
   handler: async (request, h) => {
     const healthStatus = await performHealthChecks(request)
     const statusCode =
