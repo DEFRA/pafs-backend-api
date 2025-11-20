@@ -24,6 +24,7 @@ describe('session helper', () => {
       const sessionId = generateSessionId()
 
       expect(sessionId.length).toBeGreaterThan(10)
+      expect(sessionId.length).toBeLessThanOrEqual(20)
       expect(typeof sessionId).toBe('string')
     })
   })

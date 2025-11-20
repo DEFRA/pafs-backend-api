@@ -115,6 +115,7 @@ describe('AuthService', () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('auth.account_disabled')
+      expect(result.support).toBe('auth.support.contact')
     })
 
     it('returns error for locked account', async () => {
@@ -161,6 +162,7 @@ describe('AuthService', () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('auth.account_disabled')
+      expect(result.support).toBe('auth.support.contact')
       expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { disabled: true }

@@ -93,7 +93,11 @@ export class AuthService {
       )
       return {
         passed: false,
-        error: { success: false, error: 'auth.account_disabled' }
+        error: {
+          success: false,
+          error: 'auth.account_disabled',
+          support: 'auth.support.contact'
+        }
       }
     }
 
@@ -123,7 +127,11 @@ export class AuthService {
       )
       return {
         passed: false,
-        error: { success: false, error: 'auth.account_disabled' }
+        error: {
+          success: false,
+          error: 'auth.account_disabled',
+          support: 'auth.support.contact'
+        }
       }
     }
 

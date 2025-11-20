@@ -70,14 +70,15 @@ describe('login route', () => {
   it('includes support message for disabled account', async () => {
     mockLogin.mockResolvedValue({
       success: false,
-      error: 'auth.account_disabled'
+      error: 'auth.account_disabled',
+      support: 'auth.account_contact'
     })
 
     await loginRoute.options.handler(mockRequest, mockH)
 
     expect(mockH.response).toHaveBeenCalledWith({
       errorCode: 'AUTH_ACCOUNT_DISABLED',
-      supportCode: 'AUTH_SUPPORT_CONTACT'
+      supportCode: 'AUTH_ACCOUNT_CONTACT'
     })
   })
 

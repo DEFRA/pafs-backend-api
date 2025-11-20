@@ -26,8 +26,10 @@ export default {
             .toUpperCase()
         }
 
-        if (result.error === 'auth.account_disabled') {
-          response.supportCode = 'AUTH_SUPPORT_CONTACT'
+        if (result.support) {
+          response.supportCode = result.support
+            .replaceAll('.', '_')
+            .toUpperCase()
         }
 
         return h.response(response).code(HTTP_STATUS.UNAUTHORIZED)
