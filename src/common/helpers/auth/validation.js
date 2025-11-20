@@ -1,5 +1,5 @@
 import Joi from 'joi'
-import { EMAIL } from '../../constants'
+import { EMAIL } from '../../constants.js'
 
 const emailSchema = Joi.string()
   .email({ tlds: { allow: false } })

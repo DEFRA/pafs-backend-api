@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt'
-import { PASSWORD } from '../../constants'
-import { createLogger } from '../logging/logger'
+import { PASSWORD } from '../../constants.js'
+import { createLogger } from '../logging/logger.js'
 
 const logger = createLogger()
 
