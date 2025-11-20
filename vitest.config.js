@@ -10,7 +10,8 @@ export default defineConfig({
       ...configDefaults.exclude,
       '**/mongodb.test.js',
       '**/mongo-lock.test.js',
-      '**/validate-mongo-uri.test.js'
+      '**/validate-mongo-uri.test.js',
+      '**/prisma-db-pull.js'
     ],
     coverage: {
       provider: 'v8',
@@ -23,7 +24,8 @@ export default defineConfig({
         // Exclude MongoDB files from coverage
         '**/mongodb.js',
         '**/mongo-lock.js',
-        '**/validate-mongo-uri.js'
+        '**/validate-mongo-uri.js',
+        '**/prisma-db-pull.js'
       ]
     },
     setupFiles: ['.vite/setup-files.js']

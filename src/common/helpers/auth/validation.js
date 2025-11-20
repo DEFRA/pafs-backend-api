@@ -1,8 +1,9 @@
 import Joi from 'joi'
+import { EMAIL } from '../../constants'
 
 const emailSchema = Joi.string()
   .email({ tlds: { allow: false } })
-  .max(254)
+  .max(EMAIL.MAX_LENGTH)
   .trim()
   .lowercase()
   .required()

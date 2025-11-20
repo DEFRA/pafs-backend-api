@@ -34,7 +34,14 @@ export const SESSION = {
 }
 
 /**
- * Password Hashing Constants
+ * Email Constants
+ */
+export const EMAIL = {
+  MAX_LENGTH: 254
+}
+
+/**
+ * Password Constants
  */
 export const PASSWORD = {
   BCRYPT_ROUNDS: 12,
