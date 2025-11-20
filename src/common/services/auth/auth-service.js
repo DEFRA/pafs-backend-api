@@ -292,4 +292,36 @@ export class AuthService {
     })
     return user?.current_sign_in_ip
   }
+
+  async logout(userId, sessionId) {
+    const user = await this.prisma.pafs_core_users.findUnique({
+      where: { id: userId },
+      select: { unique_session_id: true }
+    })
+
+    if (!user) {
+      this.logger.warn({ userId }, 'Logout attempted for non-existent user')
+      return { success: false, error: 'auth.user_not_found' }
+    }
+
+    if (user.unique_session_id !== sessionId) {
+      this.logger.warn(
+        { userId, sessionId },
+        'Logout attempted with mismatched session'
+      )
+      return { success: false, error: 'auth.session_mismatch' }
+    }
+
+    await this.prisma.pafs_core_users.update({
+      where: { id: userId },
+      data: {
+        unique_session_id: null,
+        updated_at: new Date()
+      }
+    })
+
+    this.logger.info({ userId, sessionId }, 'User logged out successfully')
+
+    return { success: true }
+  }
 }

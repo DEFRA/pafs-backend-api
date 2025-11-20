@@ -62,7 +62,7 @@ describe('logout route', () => {
 
     expect(mockRequest.server.logger.info).toHaveBeenCalledWith(
       { userId: 1, sessionId: 'session-123' },
-      'User logged out'
+      'User logged out successfully'
     )
   })
 

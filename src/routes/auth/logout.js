@@ -1,3 +1,4 @@
+import { AuthService } from '../../common/services/auth/auth-service.js'
 import { HTTP_STATUS } from '../../common/constants.js'
 
 export default {
@@ -11,16 +12,10 @@ export default {
     handler: async (request, h) => {
       const { userId, sessionId } = request.auth.credentials
 
-      const user = await request.prisma.pafs_core_users.findUnique({
-        where: { id: userId },
-        select: { unique_session_id: true }
-      })
+      const authService = new AuthService(request.prisma, request.server.logger)
+      const result = await authService.logout(userId, sessionId)
 
-      if (user?.unique_session_id !== sessionId) {
-        request.server.logger.warn(
-          { userId, sessionId },
-          'Logout attempted with mismatched session'
-        )
+      if (!result.success) {
         return h
           .response({
             success: false,
@@ -28,16 +23,6 @@ export default {
           })
           .code(HTTP_STATUS.UNAUTHORIZED)
       }
-
-      await request.prisma.pafs_core_users.update({
-        where: { id: userId },
-        data: {
-          unique_session_id: null,
-          updated_at: new Date()
-        }
-      })
-
-      request.server.logger.info({ userId, sessionId }, 'User logged out')
 
       return h
         .response({
