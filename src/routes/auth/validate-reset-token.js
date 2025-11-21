@@ -1,5 +1,6 @@
 import Joi from 'joi'
 import { PasswordResetService } from '../../common/services/auth/password-reset-service.js'
+import { HTTP_STATUS } from '../../common/constants.js'
 
 export default {
   method: 'POST',
@@ -25,9 +26,9 @@ export default {
           success: false,
           error: result.error
         })
-        .code(200)
+        .code(HTTP_STATUS.OK)
     }
 
-    return h.response({ success: true }).code(200)
+    return h.response({ success: true }).code(HTTP_STATUS.OK)
   }
 }
