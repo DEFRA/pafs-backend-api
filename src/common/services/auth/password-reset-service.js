@@ -4,6 +4,10 @@ import {
   isResetTokenExpired
 } from '../../helpers/auth/reset-token.js'
 import { hashPassword } from '../../helpers/auth/password.js'
+import {
+  checkPasswordHistory,
+  getPasswordHistoryLimit
+} from '../../helpers/auth/password-history.js'
 import { config } from '../../../config.js'
 import { AUTH_ERRORS } from '../../constants.js'
 
@@ -92,9 +96,72 @@ export class PasswordResetService {
       return { success: false, error: validation.error }
     }
 
+    // Check password history if enabled
+    const historyCheck = await this.checkPasswordReuse(
+      validation.userId,
+      newPassword
+    )
+    if (!historyCheck.allowed) {
+      return { success: false, error: historyCheck.error }
+    }
+
+    // Get current password before updating
+    const currentPassword = await this.getCurrentPassword(validation.userId)
+
+    // Update to new password
+    await this.updateUserPassword(validation.userId, newPassword)
+
+    // Archive old password if history is enabled
+    await this.archiveOldPassword(validation.userId, currentPassword)
+
+    this.logger.info({ userId: validation.userId }, 'Password reset')
+    return { success: true }
+  }
+
+  async checkPasswordReuse(userId, newPassword) {
+    const historyEnabled = config.get('auth.passwordHistory.enabled')
+
+    if (!historyEnabled) {
+      return { allowed: true }
+    }
+
+    const historyLimit = getPasswordHistoryLimit()
+    const oldPasswords = await this.prisma.pafs_core_old_passwords.findMany({
+      where: { user_id: userId },
+      select: { encrypted_password: true },
+      orderBy: { created_at: 'desc' },
+      take: historyLimit
+    })
+
+    const oldPasswordHashes = oldPasswords.map((p) => p.encrypted_password)
+    const historyCheck = await checkPasswordHistory(
+      newPassword,
+      oldPasswordHashes
+    )
+
+    if (historyCheck.isReused) {
+      return {
+        allowed: false,
+        error: 'auth.password_reset.password_was_used_previously'
+      }
+    }
+
+    return { allowed: true }
+  }
+
+  async getCurrentPassword(userId) {
+    const user = await this.prisma.pafs_core_users.findUnique({
+      where: { id: userId },
+      select: { encrypted_password: true }
+    })
+    return user?.encrypted_password
+  }
+
+  async updateUserPassword(userId, newPassword) {
     const hashedPassword = await hashPassword(newPassword)
+
     await this.prisma.pafs_core_users.update({
-      where: { id: validation.userId },
+      where: { id: userId },
       data: {
         encrypted_password: hashedPassword,
         reset_password_token: null,
@@ -105,9 +172,41 @@ export class PasswordResetService {
         updated_at: new Date()
       }
     })
+  }
 
-    this.logger.info({ userId: validation.userId }, 'Password reset')
-    return { success: true }
+  async archiveOldPassword(userId, oldPassword) {
+    const historyEnabled = config.get('auth.passwordHistory.enabled')
+
+    if (!historyEnabled || !oldPassword) {
+      return
+    }
+
+    await this.prisma.pafs_core_old_passwords.create({
+      data: {
+        user_id: userId,
+        encrypted_password: oldPassword,
+        created_at: new Date()
+      }
+    })
+
+    await this.cleanupOldPasswords(userId)
+  }
+
+  async cleanupOldPasswords(userId) {
+    const historyLimit = getPasswordHistoryLimit()
+    const allOldPasswords = await this.prisma.pafs_core_old_passwords.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: 'desc' },
+      select: { id: true }
+    })
+
+    if (allOldPasswords.length > historyLimit) {
+      const idsToDelete = allOldPasswords.slice(historyLimit).map((p) => p.id)
+
+      await this.prisma.pafs_core_old_passwords.deleteMany({
+        where: { id: { in: idsToDelete } }
+      })
+    }
   }
 
   async clearToken(userId) {

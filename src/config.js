@@ -214,6 +214,20 @@ const config = convict({
         default: 6,
         env: 'AUTH_PASSWORD_RESET_EXPIRY_HOURS'
       }
+    },
+    passwordHistory: {
+      enabled: {
+        doc: 'Enable password history check to prevent reuse of recent passwords',
+        format: Boolean,
+        default: true,
+        env: 'AUTH_PASSWORD_HISTORY_ENABLED'
+      },
+      limit: {
+        doc: 'Number of previous passwords to check against',
+        format: 'nat',
+        default: 5,
+        env: 'AUTH_PASSWORD_HISTORY_LIMIT'
+      }
     }
   },
   frontendUrl: {
