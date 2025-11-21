@@ -9,7 +9,7 @@ import {
   getPasswordHistoryLimit
 } from '../../helpers/auth/password-history.js'
 import { config } from '../../../config.js'
-import { AUTH_ERRORS } from '../../constants.js'
+import { AUTH_ERRORS, PASSWORD } from '../../constants.js'
 
 export class PasswordResetService {
   constructor(prisma, logger, emailService) {
@@ -197,7 +197,7 @@ export class PasswordResetService {
     await this.prisma.old_passwords.create({
       data: {
         password_archivable_id: Number(userId),
-        password_archivable_type: 'User',
+        password_archivable_type: PASSWORD.ARCHIVABLE_TYPE.USER,
         encrypted_password: oldPassword,
         created_at: new Date()
       }
