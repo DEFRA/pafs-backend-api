@@ -20,7 +20,9 @@ export const HTTP_STATUS = {
  * Authentication Error Messages
  */
 export const AUTH_ERRORS = {
-  INVALID_CREDENTIALS: 'auth.invalid_credentials'
+  INVALID_CREDENTIALS: 'auth.invalid_credentials',
+  ACCOUNT_DISABLED: 'auth.account_disabled',
+  ACCOUNT_SUPPORT: 'auth.support.contact'
 }
 
 /**
@@ -29,6 +31,7 @@ export const AUTH_ERRORS = {
 export const SESSION = {
   BASE_36: 36,
   RANDOM_BYTES_8: 8,
+  RANDOM_BYTES_32: 32,
   RANDOM_STRING_START: 0,
   RANDOM_STRING_END: 9
 }
@@ -58,4 +61,18 @@ export const DB_DEFAULTS = {
   USERNAME: 'postgres',
   PASSWORD: '',
   SCHEMA: 'public'
+}
+
+/**
+ * Duration constants
+ */
+export const DURATION = {
+  HOUR_MS: 3600000
+}
+
+/**
+ * SIZE Constants
+ */
+export const SIZE = {
+  LENGTH_32: 32
 }

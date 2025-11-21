@@ -95,8 +95,8 @@ export class AuthService {
         passed: false,
         error: {
           success: false,
-          error: 'auth.account_disabled',
-          support: 'auth.support.contact'
+          error: AUTH_ERRORS.ACCOUNT_DISABLED,
+          support: AUTH_ERRORS.ACCOUNT_SUPPORT
         }
       }
     }
@@ -129,8 +129,8 @@ export class AuthService {
         passed: false,
         error: {
           success: false,
-          error: 'auth.account_disabled',
-          support: 'auth.support.contact'
+          error: AUTH_ERRORS.ACCOUNT_DISABLED,
+          support: AUTH_ERRORS.ACCOUNT_SUPPORT
         }
       }
     }
