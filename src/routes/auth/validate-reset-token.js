@@ -15,20 +15,35 @@ export default {
   },
   handler: async (request, h) => {
     const { token } = request.payload
-    const { prisma, logger, emailService } = request.server.app
+    try {
+      const service = new PasswordResetService(
+        request.prisma,
+        request.logger,
+        null
+      )
+      const result = await service.validateToken(token)
 
-    const service = new PasswordResetService(prisma, logger, emailService)
-    const result = await service.validateToken(token)
+      if (!result.valid) {
+        return h
+          .response({
+            success: false,
+            error: result.error
+          })
+          .code(HTTP_STATUS.BAD_REQUEST)
+      }
 
-    if (!result.valid) {
+      return h.response({ success: true }).code(HTTP_STATUS.OK)
+    } catch (error) {
+      request.logger.error({ err: error }, 'Token validation failed')
       return h
         .response({
           success: false,
-          error: result.error
+          error: {
+            errorCode: 'AUTH_PASSWORD_RESET_INVALID_TOKEN',
+            message: 'Invalid or expired reset token'
+          }
         })
-        .code(HTTP_STATUS.OK)
+        .code(HTTP_STATUS.BAD_REQUEST)
     }
-
-    return h.response({ success: true }).code(HTTP_STATUS.OK)
   }
 }

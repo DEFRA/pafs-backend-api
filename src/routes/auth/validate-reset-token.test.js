@@ -8,7 +8,6 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
   let server
   let mockPrisma
   let mockLogger
-  let mockEmailService
 
   beforeEach(async () => {
     mockPrisma = {}
@@ -16,14 +15,12 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
       info: vi.fn(),
       error: vi.fn()
     }
-    mockEmailService = {
-      sendEmail: vi.fn()
-    }
 
     server = Hapi.server()
-    server.app.prisma = mockPrisma
-    server.app.logger = mockLogger
-    server.app.emailService = mockEmailService
+
+    // Decorate request with prisma and logger
+    server.decorate('request', 'prisma', mockPrisma)
+    server.decorate('request', 'logger', mockLogger)
 
     await server.route(route)
   })
@@ -72,7 +69,7 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
       }
     })
 
-    expect(response.statusCode).toBe(200)
+    expect(response.statusCode).toBe(400)
     expect(response.result).toEqual({
       success: false,
       error: {
@@ -102,7 +99,7 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
       }
     })
 
-    expect(response.statusCode).toBe(200)
+    expect(response.statusCode).toBe(400)
     expect(response.result).toEqual({
       success: false,
       error: {
@@ -120,5 +117,35 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
     })
 
     expect(response.statusCode).toBe(400)
+  })
+
+  it('handles service exceptions and returns error', async () => {
+    const { PasswordResetService } = await import(
+      '../../common/services/auth/password-reset-service.js'
+    )
+    PasswordResetService.prototype.validateToken = vi
+      .fn()
+      .mockRejectedValue(new Error('Database connection failed'))
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/validate-reset-token',
+      payload: {
+        token: 'some-token'
+      }
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.result).toEqual({
+      success: false,
+      error: {
+        errorCode: 'AUTH_PASSWORD_RESET_INVALID_TOKEN',
+        message: 'Invalid or expired reset token'
+      }
+    })
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      'Token validation failed'
+    )
   })
 })
