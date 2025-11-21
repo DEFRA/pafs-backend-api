@@ -25,7 +25,29 @@ async function buildDatabaseUrl(pgConfig, awsRegion, logger) {
       'Database configuration'
     )
 
-    return `postgresql://${username}:${token}@${host}:${port}/${database}?schema=public&connection_limit=1`
+    logger.error({ token }, 'Generated Token')
+
+    logger.info(
+      {
+        tokenPreview: token.substring(0, 50) + '...',
+        tokenLength: token.length
+      },
+      'Generated IAM token'
+    )
+
+    // URL encode the token as it contains special characters
+    const encodedToken = encodeURIComponent(token)
+    const connectionString = `postgresql://${username}:${encodedToken}@${host}:${port}/${database}?schema=public&connection_limit=1`
+
+    logger.info(
+      {
+        urlPreview: connectionString.substring(0, 80) + '...',
+        urlLength: connectionString.length
+      },
+      'Built database connection string'
+    )
+
+    return connectionString
   }
 
   logger.info('Prisma using static password authentication')
