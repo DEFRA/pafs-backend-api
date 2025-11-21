@@ -12,6 +12,8 @@ ENV PORT=${PORT}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
 COPY --chown=node:node package*.json ./
+COPY --chown=node:node prisma ./prisma
+COPY --chown=node:node prisma.config.ts ./
 RUN npm install
 COPY --chown=node:node ./src ./src
 
@@ -28,6 +30,8 @@ RUN apk add --no-cache curl
 USER node
 
 COPY --from=development /home/node/package*.json ./
+COPY --from=development /home/node/prisma ./prisma/
+COPY --from=development /home/node/prisma.config.ts ./
 COPY --from=development /home/node/src ./src/
 
 RUN npm ci --omit=dev

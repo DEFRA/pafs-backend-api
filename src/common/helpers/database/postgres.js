@@ -1,24 +1,7 @@
 import pg from 'pg'
-import { Signer } from '@aws-sdk/rds-signer'
-import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
+import { generateRdsAuthToken } from './rds-auth.js'
 
 const { Pool } = pg
-
-/**
- * Generate AWS RDS IAM authentication token
- * This token is short-lived (15 minutes) and must be refreshed
- */
-async function generateRdsAuthToken(options) {
-  const signer = new Signer({
-    hostname: options.host,
-    port: options.port,
-    region: options.awsRegion,
-    username: options.username,
-    credentials: fromNodeProviderChain()
-  })
-
-  return signer.getAuthToken()
-}
 
 /**
  * Create password getter function
@@ -92,7 +75,7 @@ export const postgres = {
       })
 
       server.logger.info('PostgreSQL pool configured successfully')
-
+      console.log(poolConfig)
       // Test connection on startup
       try {
         server.logger.info('Testing PostgreSQL connection...')

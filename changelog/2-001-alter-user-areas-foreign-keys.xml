@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="2-001-alter-user-areas-foreign-key-types" author="migration-team">
+    <comment>Change user_id and area_id from INTEGER to BIGINT to match foreign key references</comment>
+
+    <!-- Drop foreign key constraints first -->
+    <dropForeignKeyConstraint baseTableName="pafs_core_user_areas" constraintName="fk_user_areas_user_id"/>
+    <dropForeignKeyConstraint baseTableName="pafs_core_user_areas" constraintName="fk_user_areas_area_id"/>
+
+    <!-- Alter column types -->
+    <modifyDataType tableName="pafs_core_user_areas" columnName="user_id" newDataType="BIGINT"/>
+    <modifyDataType tableName="pafs_core_user_areas" columnName="area_id" newDataType="BIGINT"/>
+
+    <!-- Recreate foreign key constraints -->
+    <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="user_id" constraintName="fk_user_areas_user_id" referencedTableName="pafs_core_users" referencedColumnNames="id" onDelete="CASCADE"/>
+    <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="area_id" constraintName="fk_user_areas_area_id" referencedTableName="pafs_core_areas" referencedColumnNames="id" onDelete="CASCADE"/>
+
+    <rollback>
+      <dropForeignKeyConstraint baseTableName="pafs_core_user_areas" constraintName="fk_user_areas_user_id"/>
+      <dropForeignKeyConstraint baseTableName="pafs_core_user_areas" constraintName="fk_user_areas_area_id"/>
+      <modifyDataType tableName="pafs_core_user_areas" columnName="user_id" newDataType="INTEGER"/>
+      <modifyDataType tableName="pafs_core_user_areas" columnName="area_id" newDataType="INTEGER"/>
+      <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="user_id" constraintName="fk_user_areas_user_id" referencedTableName="pafs_core_users" referencedColumnNames="id" onDelete="CASCADE"/>
+      <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="area_id" constraintName="fk_user_areas_area_id" referencedTableName="pafs_core_areas" referencedColumnNames="id" onDelete="CASCADE"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

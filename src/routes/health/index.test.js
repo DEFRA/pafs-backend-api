@@ -137,6 +137,11 @@ describe('health route', () => {
     test('Should have a handler function', () => {
       expect(health.handler).toBeTypeOf('function')
     })
+
+    test('Should have auth disabled for public access', () => {
+      expect(health.options).toBeDefined()
+      expect(health.options.auth).toBe(false)
+    })
   })
 
   describe('health route handler', () => {

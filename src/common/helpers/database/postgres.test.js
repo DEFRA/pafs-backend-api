@@ -5,7 +5,6 @@ const mockPoolEnd = vi.fn()
 const mockPoolOn = vi.fn()
 const mockPoolConnect = vi.fn()
 const mockPoolQuery = vi.fn()
-const mockGetAuthToken = vi.fn()
 
 // Mock pg Pool
 vi.mock('pg', () => ({
@@ -20,28 +19,18 @@ vi.mock('pg', () => ({
   }
 }))
 
-// Mock AWS RDS Signer
-vi.mock('@aws-sdk/rds-signer', () => ({
-  Signer: vi.fn(function () {
-    this.getAuthToken = mockGetAuthToken
-    return this
-  })
-}))
-
-// Mock AWS credential provider
-vi.mock('@aws-sdk/credential-providers', () => ({
-  fromNodeProviderChain: vi.fn(() => 'mock-credentials')
+// Mock rds-auth helper
+vi.mock('./rds-auth.js', () => ({
+  generateRdsAuthToken: vi.fn()
 }))
 
 // Import after mocks are set up
 const { postgres } = await import('./postgres.js')
 const pg = await import('pg')
-const { Signer } = await import('@aws-sdk/rds-signer')
-const { fromNodeProviderChain } = await import('@aws-sdk/credential-providers')
+const { generateRdsAuthToken } = await import('./rds-auth.js')
 
 const mockPool = pg.default.Pool
-const mockSigner = Signer
-const mockFromNodeProviderChain = fromNodeProviderChain
+const mockGenerateRdsAuthToken = generateRdsAuthToken
 
 describe('postgres plugin', () => {
   let mockServer
@@ -67,8 +56,7 @@ describe('postgres plugin', () => {
       secureContext: null
     }
 
-    mockGetAuthToken.mockResolvedValue('mock-iam-token-abc123')
-    mockFromNodeProviderChain.mockReturnValue('mock-credentials')
+    mockGenerateRdsAuthToken.mockResolvedValue('mock-iam-token-abc123')
 
     // Default successful connection test
     const mockClient = {
@@ -163,23 +151,25 @@ describe('postgres plugin', () => {
 
       const token = await passwordFunction()
 
-      expect(mockSigner).toHaveBeenCalledWith({
-        hostname: 'test-db.rds.amazonaws.com',
-        port: 5432,
-        region: 'eu-west-2',
-        username: 'testuser',
-        credentials: 'mock-credentials'
-      })
+      expect(mockGenerateRdsAuthToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host: 'test-db.rds.amazonaws.com',
+          port: 5432,
+          username: 'testuser',
+          awsRegion: 'eu-west-2'
+        })
+      )
 
-      expect(mockGetAuthToken).toHaveBeenCalled()
       expect(token).toBe('mock-iam-token-abc123')
 
       expect(mockServer.logger.debug).toHaveBeenCalledWith(
         'Generated new RDS IAM auth token'
       )
     })
+  })
 
-    test('Uses AWS credential chain', async () => {
+  describe('credential provider', () => {
+    test('Uses generateRdsAuthToken helper', async () => {
       const options = {
         useIamAuth: true,
         host: 'test-db.rds.amazonaws.com',
@@ -195,7 +185,7 @@ describe('postgres plugin', () => {
       const poolConfig = mockPool.mock.calls[0][0]
       await poolConfig.password()
 
-      expect(mockFromNodeProviderChain).toHaveBeenCalled()
+      expect(mockGenerateRdsAuthToken).toHaveBeenCalled()
     })
   })
 
@@ -563,7 +553,7 @@ describe('postgres plugin', () => {
       }
 
       const tokenError = new Error('Failed to generate token')
-      mockGetAuthToken.mockRejectedValue(tokenError)
+      mockGenerateRdsAuthToken.mockRejectedValue(tokenError)
 
       await postgres.plugin.register(mockServer, options)
 
@@ -586,7 +576,7 @@ describe('postgres plugin', () => {
         pool: { max: 10, maxLifetimeSeconds: 600 }
       }
 
-      mockGetAuthToken
+      mockGenerateRdsAuthToken
         .mockResolvedValueOnce('token-1')
         .mockResolvedValueOnce('token-2')
         .mockResolvedValueOnce('token-3')
@@ -600,7 +590,7 @@ describe('postgres plugin', () => {
       const token2 = await passwordFunction()
       const token3 = await passwordFunction()
 
-      expect(mockGetAuthToken).toHaveBeenCalledTimes(3)
+      expect(mockGenerateRdsAuthToken).toHaveBeenCalledTimes(3)
       expect(token1).toBe('token-1')
       expect(token2).toBe('token-2')
       expect(token3).toBe('token-3')

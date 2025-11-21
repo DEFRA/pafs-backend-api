@@ -1,13 +1,21 @@
 import { describe, test, expect, afterEach, vi } from 'vitest'
 import { createServer } from './server.js'
 
-vi.mock('./common/helpers/postgres.js', () => ({
+vi.mock('./common/helpers/database/postgres.js', () => ({
   postgres: {
     plugin: {
       name: 'postgres',
       register: vi.fn()
     }
   }
+}))
+
+vi.mock('./common/helpers/database/prisma.js', () => ({
+  getPrismaClient: vi.fn(() => ({
+    $queryRaw: vi.fn(() => Promise.resolve()),
+    $disconnect: vi.fn(() => Promise.resolve())
+  })),
+  disconnectPrisma: vi.fn(() => Promise.resolve())
 }))
 
 describe('Server configuration', () => {
