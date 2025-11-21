@@ -11,14 +11,15 @@ vi.mock('./common/helpers/database/postgres.js', () => ({
 }))
 
 vi.mock('./common/helpers/database/prisma.js', () => ({
-  getPrismaClient: vi.fn(() => ({
-    $queryRaw: vi.fn(() => Promise.resolve()),
-    $disconnect: vi.fn(() => Promise.resolve())
-  })),
-  disconnectPrisma: vi.fn(() => Promise.resolve())
+  prisma: {
+    plugin: {
+      name: 'prisma',
+      register: vi.fn()
+    }
+  }
 }))
 
-describe('Server configuration', () => {
+describe('Server', () => {
   let server
 
   afterEach(async () => {
@@ -27,7 +28,7 @@ describe('Server configuration', () => {
     }
   })
 
-  test('creates server with correct host and port', async () => {
+  test('creates server with correct config', async () => {
     server = await createServer()
 
     expect(server.info.host).toBeDefined()
@@ -37,31 +38,31 @@ describe('Server configuration', () => {
   test('configures security headers', async () => {
     server = await createServer()
 
-    const securityConfig = server.settings.routes.security
-    expect(securityConfig.hsts.maxAge).toBe(31536000)
-    expect(securityConfig.hsts.includeSubDomains).toBe(true)
-    expect(securityConfig.xss).toBe('enabled')
-    expect(securityConfig.noSniff).toBe(true)
+    const security = server.settings.routes.security
+    expect(security.hsts.maxAge).toBe(31536000)
+    expect(security.hsts.includeSubDomains).toBe(true)
+    expect(security.xss).toBe('enabled')
+    expect(security.noSniff).toBe(true)
   })
 
-  test('registers all required plugins', async () => {
+  test('registers required plugins', async () => {
     server = await createServer()
 
-    const pluginNames = Object.keys(server.registrations)
-    expect(pluginNames).toContain('router')
-    expect(pluginNames.length).toBeGreaterThan(3)
+    const plugins = Object.keys(server.registrations)
+    expect(plugins).toContain('router')
+    expect(plugins.length).toBeGreaterThan(3)
   })
 
-  test('strips trailing slashes from routes', async () => {
+  test('strips trailing slashes', async () => {
     server = await createServer()
 
     expect(server.settings.router.stripTrailingSlash).toBe(true)
   })
 
-  test('has health endpoint registered', async () => {
+  test('has health endpoint', async () => {
     server = await createServer()
 
-    const healthRoute = server.lookup('health')
-    expect(healthRoute).toBeDefined()
+    const route = server.lookup('health')
+    expect(route).toBeDefined()
   })
 })

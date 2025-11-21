@@ -6,11 +6,11 @@ import { config } from './config.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { postgres } from './common/helpers/database/postgres.js'
+import { prisma } from './common/helpers/database/prisma.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
-import prismaPlugin from './plugins/database/prisma.js'
 import jwtAuthPlugin from './plugins/jwt/jwt-auth.js'
 
 async function createServer() {
@@ -49,7 +49,7 @@ async function createServer() {
   // requestTracing - trace header logging and propagation
   // pulse          - provides shutdown handlers
   // postgres       - sets up PostgreSQL connection pool and attaches to `server` and `request` objects
-  // prismaPlugin   - Prisma ORM integration for type-safe database access
+  // prisma         - Prisma ORM integration for type-safe database access
   // jwtAuthPlugin  - JWT authentication strategy
   // router         - routes used in the app
   await server.register([
@@ -65,9 +65,9 @@ async function createServer() {
       }
     },
     {
-      plugin: prismaPlugin,
+      plugin: prisma,
       options: {
-        postgres: config.get('postgres'),
+        ...config.get('postgres'),
         awsRegion: config.get('awsRegion')
       }
     },

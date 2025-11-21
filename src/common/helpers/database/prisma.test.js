@@ -1,198 +1,247 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { getPrismaClient, disconnectPrisma } from './prisma.js'
+import { describe, test, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@prisma/client', () => {
-  const PrismaClient = vi.fn(function () {
-    this.$connect = vi.fn()
-    this.$disconnect = vi.fn()
-    this.$queryRaw = vi.fn()
-    this.$on = vi.fn()
+const mockPrismaDisconnect = vi.fn()
+const mockPrismaQueryRaw = vi.fn()
+const mockPrismaOn = vi.fn()
+const mockPoolEnd = vi.fn()
+const mockPoolOn = vi.fn()
+
+vi.mock('@prisma/client', () => ({
+  PrismaClient: vi.fn(function () {
+    this.$disconnect = mockPrismaDisconnect
+    this.$queryRaw = mockPrismaQueryRaw
+    this.$on = mockPrismaOn
+    return this
   })
-  return { PrismaClient }
-})
+}))
 
-describe('Prisma Helper', () => {
-  let mockLogger
+vi.mock('@prisma/adapter-pg', () => ({
+  PrismaPg: vi.fn()
+}))
+
+vi.mock('pg', () => ({
+  default: {
+    Pool: vi.fn(function () {
+      this.end = mockPoolEnd
+      this.on = mockPoolOn
+      return this
+    })
+  }
+}))
+
+vi.mock('./build-rds-pool-config.js', () => ({
+  buildRdsPoolConfig: vi.fn()
+}))
+
+const { prisma } = await import('./prisma.js')
+const { buildRdsPoolConfig } = await import('./build-rds-pool-config.js')
+
+describe('Prisma Plugin', () => {
+  let mockServer
 
   beforeEach(() => {
-    mockLogger = {
-      debug: vi.fn(),
-      error: vi.fn(),
-      warn: vi.fn()
-    }
-  })
-
-  afterEach(async () => {
-    await disconnectPrisma()
     vi.clearAllMocks()
+
+    mockServer = {
+      logger: {
+        info: vi.fn(),
+        debug: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn()
+      },
+      decorate: vi.fn(),
+      events: {
+        on: vi.fn()
+      }
+    }
+
+    buildRdsPoolConfig.mockReturnValue({
+      host: 'localhost',
+      port: 5432,
+      database: 'testdb',
+      user: 'testuser',
+      password: 'testpass',
+      max: 10,
+      maxLifetimeSeconds: 600
+    })
+
+    mockPrismaQueryRaw.mockResolvedValue([{ '?column?': 1 }])
   })
 
-  describe('getPrismaClient', () => {
-    test('creates client with connection URL', () => {
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      expect(client).toBeDefined()
-      expect(client.$on).toHaveBeenCalled()
-    })
-
-    test('returns same instance on multiple calls', () => {
-      const client1 = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      const client2 = getPrismaClient({
-        datasourceUrl: 'postgresql://different:url@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      expect(client1).toBe(client2)
-    })
-
-    test('enables query logging in development', () => {
-      process.env.NODE_ENV = 'development'
-
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      expect(client.$on).toHaveBeenCalledWith('query', expect.any(Function))
-    })
-
-    test('skips query logging in production', () => {
-      process.env.NODE_ENV = 'production'
-
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      const calls = client.$on.mock.calls
-      const hasQueryLogger = calls.some(([event]) => event === 'query')
-
-      expect(hasQueryLogger).toBe(false)
-    })
-
-    test('registers error handler with logger', () => {
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      expect(client.$on).toHaveBeenCalledWith('error', expect.any(Function))
-    })
-
-    test('works without logger provided', () => {
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db'
-      })
-
-      expect(client).toBeDefined()
-    })
-
-    test('calls logger.debug when query event fires in development', () => {
-      process.env.NODE_ENV = 'development'
-
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      const queryHandler = client.$on.mock.calls.find(
-        ([event]) => event === 'query'
-      )?.[1]
-
-      queryHandler({
-        query: 'SELECT * FROM users',
-        params: '[]',
-        duration: 10
-      })
-
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        {
-          query: 'SELECT * FROM users',
-          params: '[]',
-          duration: 10
-        },
-        'Prisma query'
-      )
-    })
-
-    test('calls logger.error when error event fires', () => {
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      const errorHandler = client.$on.mock.calls.find(
-        ([event]) => event === 'error'
-      )?.[1]
-
-      const mockError = new Error('Database error')
-      errorHandler(mockError)
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        { err: mockError },
-        'Prisma error'
-      )
-    })
-
-    test('calls logger.warn when warn event fires', () => {
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
-
-      const warnHandler = client.$on.mock.calls.find(
-        ([event]) => event === 'warn'
-      )?.[1]
-
-      const mockWarning = { message: 'Deprecation warning' }
-      warnHandler(mockWarning)
-
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        { warning: mockWarning },
-        'Prisma warning'
-      )
-    })
+  test('has correct plugin metadata', () => {
+    expect(prisma.plugin.name).toBe('prisma')
+    expect(prisma.plugin.version).toBe('1.0.0')
   })
 
-  describe('disconnectPrisma', () => {
-    test('disconnects active client', async () => {
-      const client = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
+  test('builds pool config and creates Prisma client', async () => {
+    const options = {
+      host: 'localhost',
+      port: 5432,
+      database: 'testdb',
+      username: 'user',
+      password: 'pass',
+      pool: { max: 10, maxLifetimeSeconds: 600 }
+    }
 
-      await disconnectPrisma()
+    await prisma.plugin.register(mockServer, options)
 
-      expect(client.$disconnect).toHaveBeenCalled()
-    })
+    expect(buildRdsPoolConfig).toHaveBeenCalledWith(mockServer, options)
+  })
 
-    test('handles no active client gracefully', async () => {
-      await disconnectPrisma()
-      await disconnectPrisma()
-      // Should not throw
-    })
+  test('tests connection on startup', async () => {
+    await prisma.plugin.register(mockServer, {})
 
-    test('clears instance reference', async () => {
-      getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
+    expect(mockPrismaQueryRaw).toHaveBeenCalled()
+  })
 
-      await disconnectPrisma()
+  test('throws and disconnects when connection fails', async () => {
+    const error = new Error('Connection failed')
+    mockPrismaQueryRaw.mockRejectedValue(error)
 
-      const newClient = getPrismaClient({
-        datasourceUrl: 'postgresql://user:pass@localhost:5432/db',
-        logger: mockLogger
-      })
+    await expect(prisma.plugin.register(mockServer, {})).rejects.toThrow(
+      'Connection failed'
+    )
 
-      expect(newClient).toBeDefined()
-    })
+    expect(mockPrismaDisconnect).toHaveBeenCalled()
+    expect(mockPoolEnd).toHaveBeenCalled()
+  })
+
+  test('registers pool error handler', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    expect(mockPoolOn).toHaveBeenCalledWith('error', expect.any(Function))
+  })
+
+  test('logs pool errors', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const errorHandler = mockPoolOn.mock.calls[0][1]
+    const error = new Error('Pool error')
+    const client = { processID: 99 }
+
+    errorHandler(error, client)
+
+    expect(mockServer.logger.error).toHaveBeenCalledWith(
+      { err: error, clientId: 99 },
+      'Unexpected error on idle Prisma PostgreSQL client'
+    )
+  })
+
+  test('sets up Prisma event listeners', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    expect(mockPrismaOn).toHaveBeenCalledWith('error', expect.any(Function))
+    expect(mockPrismaOn).toHaveBeenCalledWith('warn', expect.any(Function))
+  })
+
+  test('logs Prisma errors', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const errorHandler = mockPrismaOn.mock.calls.find(
+      (call) => call[0] === 'error'
+    )[1]
+    const error = new Error('Prisma error')
+
+    errorHandler(error)
+
+    expect(mockServer.logger.error).toHaveBeenCalledWith(
+      { err: error },
+      'Prisma error'
+    )
+  })
+
+  test('logs Prisma warnings', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const warnHandler = mockPrismaOn.mock.calls.find(
+      (call) => call[0] === 'warn'
+    )[1]
+    const warning = { message: 'Deprecation warning' }
+
+    warnHandler(warning)
+
+    expect(mockServer.logger.warn).toHaveBeenCalledWith(
+      { warning },
+      'Prisma warning'
+    )
+  })
+
+  test('enables query logging in development', async () => {
+    process.env.NODE_ENV = 'development'
+
+    await prisma.plugin.register(mockServer, {})
+
+    expect(mockPrismaOn).toHaveBeenCalledWith('query', expect.any(Function))
+
+    const queryHandler = mockPrismaOn.mock.calls.find(
+      (call) => call[0] === 'query'
+    )[1]
+    const queryEvent = { query: 'SELECT 1', params: '[]', duration: 5 }
+
+    queryHandler(queryEvent)
+
+    expect(mockServer.logger.debug).toHaveBeenCalledWith(
+      { query: 'SELECT 1', params: '[]', duration: 5 },
+      'Prisma query'
+    )
+  })
+
+  test('skips query logging in production', async () => {
+    process.env.NODE_ENV = 'production'
+
+    await prisma.plugin.register(mockServer, {})
+
+    const hasQueryLogger = mockPrismaOn.mock.calls.some(
+      (call) => call[0] === 'query'
+    )
+
+    expect(hasQueryLogger).toBe(false)
+  })
+
+  test('decorates server with Prisma client', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    expect(mockServer.decorate).toHaveBeenCalledWith(
+      'server',
+      'prisma',
+      expect.any(Object)
+    )
+  })
+
+  test('decorates request with Prisma accessor', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const call = mockServer.decorate.mock.calls.find(
+      (c) => c[0] === 'request' && c[1] === 'prisma'
+    )
+
+    expect(call).toBeDefined()
+    expect(call[2]).toBeTypeOf('function')
+    expect(call[3]).toEqual({ apply: true })
+  })
+
+  test('disconnects Prisma and closes pool on server stop', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const stopHandler = mockServer.events.on.mock.calls[0][1]
+    await stopHandler()
+
+    expect(mockPrismaDisconnect).toHaveBeenCalled()
+    expect(mockPoolEnd).toHaveBeenCalled()
+  })
+
+  test('handles shutdown errors', async () => {
+    const error = new Error('Disconnect failed')
+    mockPrismaDisconnect.mockRejectedValue(error)
+
+    await prisma.plugin.register(mockServer, {})
+
+    const stopHandler = mockServer.events.on.mock.calls[0][1]
+    await stopHandler()
+
+    expect(mockServer.logger.error).toHaveBeenCalledWith(
+      { err: error },
+      'Error disconnecting Prisma'
+    )
   })
 })
