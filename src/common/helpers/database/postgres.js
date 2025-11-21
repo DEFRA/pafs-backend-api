@@ -1,28 +1,7 @@
 import pg from 'pg'
-import { generateRdsAuthToken } from './rds-auth.js'
+import { buildRdsPoolConfig } from './build-rds-pool-config.js'
 
 const { Pool } = pg
-
-/**
- * Create password getter function
- * For AWS: generates fresh IAM token on each connection
- * For local: returns static password
- */
-function createPasswordProvider(server, options) {
-  if (options.useIamAuth) {
-    server.logger.info('Using AWS IAM authentication with short-lived tokens')
-    // Return a function that generates a fresh token each time
-    return async () => {
-      const token = await generateRdsAuthToken(options)
-      server.logger.debug('Generated new RDS IAM auth token')
-      return token
-    }
-  } else {
-    server.logger.info('Using static password authentication')
-    // Return the static password
-    return options.password
-  }
-}
 
 export const postgres = {
   plugin: {
@@ -31,39 +10,10 @@ export const postgres = {
     register: async function (server, options) {
       server.logger.info('Setting up PostgreSQL connection pool')
 
-      // Get password provider (function for IAM auth, string for local)
-      const passwordProvider = createPasswordProvider(server, options)
+      // Build complete pool configuration (includes password provider, SSL, timeouts, etc.)
+      const poolConfig = buildRdsPoolConfig(server, options)
 
-      // Build connection configuration following CDP patterns
-      const poolConfig = {
-        host: options.host,
-        port: options.port,
-        database: options.database,
-        user: options.username,
-        password: passwordProvider,
-        max: options.pool.max,
-        maxLifetimeSeconds: options.pool.maxLifetimeSeconds,
-        connectionTimeoutMillis: 10000, // 10 seconds to establish connection
-        idleTimeoutMillis: 30000 // 30 seconds before closing idle connection
-      }
-
-      // SSL is required for AWS RDS IAM authentication
-      // For local development without IAM auth, SSL is disabled
-      if (options.useIamAuth) {
-        poolConfig.ssl = server.secureContext
-          ? {
-              rejectUnauthorized: false,
-              secureContext: server.secureContext
-            }
-          : {
-              rejectUnauthorized: false
-            }
-        server.logger.info(
-          'SSL enabled (required for AWS RDS IAM authentication)'
-        )
-      }
-
-      // Create connection pool
+      // Create connection pool with the built configuration
       const pool = new Pool(poolConfig)
 
       // Handle pool errors
@@ -75,7 +25,7 @@ export const postgres = {
       })
 
       server.logger.info('PostgreSQL pool configured successfully')
-      console.log(poolConfig)
+
       // Test connection on startup
       try {
         server.logger.info('Testing PostgreSQL connection...')
