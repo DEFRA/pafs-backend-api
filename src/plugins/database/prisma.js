@@ -20,6 +20,10 @@ async function buildDatabaseUrl(pgConfig, awsRegion, logger) {
       username,
       awsRegion
     })
+    logger.info(
+      { host, port, database, username, useIamAuth, awsRegion, token },
+      'Database configuration'
+    )
 
     return `postgresql://${username}:${token}@${host}:${port}/${database}?schema=public&connection_limit=1`
   }
