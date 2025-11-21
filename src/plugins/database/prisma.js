@@ -49,6 +49,8 @@ export const prismaPlugin = {
         server.logger
       )
 
+      server.logger.info(`Database URL: ${datasourceUrl}`)
+
       const prismaClient = getPrismaClient({
         datasourceUrl,
         logger: server.logger
