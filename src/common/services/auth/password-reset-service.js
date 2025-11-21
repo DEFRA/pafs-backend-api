@@ -74,8 +74,9 @@ export class PasswordResetService {
     if (!user) {
       return { valid: false, error: 'auth.password_reset.invalid_token' }
     }
-    if (user.disabled)
+    if (user.disabled) {
       return { valid: false, error: AUTH_ERRORS.ACCOUNT_DISABLED }
+    }
 
     if (isResetTokenExpired(user.reset_password_sent_at)) {
       await this.clearToken(user.id)

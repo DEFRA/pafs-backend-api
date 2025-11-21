@@ -48,7 +48,9 @@ export const EMAIL = {
  */
 export const PASSWORD = {
   BCRYPT_ROUNDS: 12,
-  BCRYPT_PREFIX: '$2'
+  BCRYPT_PREFIX: '$2',
+  MIN_LENGTH: 8,
+  MAX_LENGTH: 128
 }
 
 /**

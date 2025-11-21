@@ -1,5 +1,7 @@
 import login from './login.js'
 import refresh from './refresh.js'
 import logout from './logout.js'
+import forgotPassword from './forgot-password.js'
+import resetPassword from './reset-password.js'
 
-export default [login, refresh, logout]
+export default [login, refresh, logout, forgotPassword, resetPassword]

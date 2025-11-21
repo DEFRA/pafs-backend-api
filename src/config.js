@@ -206,6 +206,41 @@ const config = convict({
         default: 90,
         env: 'AUTH_INACTIVITY_DAYS'
       }
+    },
+    passwordReset: {
+      tokenExpiryHours: {
+        doc: 'Password reset token expiry time in hours',
+        format: 'nat',
+        default: 6,
+        env: 'AUTH_PASSWORD_RESET_EXPIRY_HOURS'
+      }
+    }
+  },
+  frontendUrl: {
+    doc: 'Frontend application URL for password reset links',
+    format: 'url',
+    default: 'http://localhost:3000',
+    env: 'FRONTEND_URL'
+  },
+  notify: {
+    enabled: {
+      doc: 'Enable the GOV.UK Notify',
+      format: Boolean,
+      default: true,
+      env: 'NOTIFY_ENABLED'
+    },
+    apiKey: {
+      doc: 'GOV.UK Notify API key',
+      format: String,
+      default: 'test-api-key',
+      sensitive: true,
+      env: 'NOTIFY_API_KEY'
+    },
+    templatePasswordReset: {
+      doc: 'GOV.UK Notify template ID for password reset emails',
+      format: String,
+      default: 'password-reset-template-id',
+      env: 'NOTIFY_TEMPLATE_PASSWORD_RESET'
     }
   },
   httpProxy: {

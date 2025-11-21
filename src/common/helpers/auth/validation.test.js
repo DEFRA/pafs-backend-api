@@ -103,12 +103,19 @@ describe('validation helper', () => {
     })
   })
 
-  describe('validatePassword', () => {
-    it('validates any non-empty password', () => {
-      const result = validatePassword('any')
+  describe('validatePassword - basic validation (enforceStrength=false)', () => {
+    it('validates any non-empty password without strength enforcement', () => {
+      const result = validatePassword('weak')
 
       expect(result.valid).toBe(true)
-      expect(result.value).toBe('any')
+      expect(result.value).toBe('weak')
+    })
+
+    it('accepts short password without strength enforcement', () => {
+      const result = validatePassword('abc')
+
+      expect(result.valid).toBe(true)
+      expect(result.value).toBe('abc')
     })
 
     it('rejects empty string', () => {
@@ -123,6 +130,126 @@ describe('validation helper', () => {
 
       expect(result.valid).toBe(false)
       expect(result.error).toBe('validation.password.required')
+    })
+  })
+
+  describe('validatePassword - strength validation (enforceStrength=true)', () => {
+    it('validates strong password with all requirements', () => {
+      const result = validatePassword('StrongPass123!', true)
+
+      expect(result.valid).toBe(true)
+      expect(result.value).toBe('StrongPass123!')
+    })
+
+    it('rejects password shorter than minimum length', () => {
+      const result = validatePassword('Short1!', true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.min_length')
+      expect(result.details).toEqual({ minLength: 8 })
+    })
+
+    it('rejects password longer than maximum length', () => {
+      const longPassword = 'A'.repeat(129) + 'a1!'
+      const result = validatePassword(longPassword, true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.max_length')
+      expect(result.details).toEqual({ maxLength: 128 })
+    })
+
+    it('rejects password without uppercase letter', () => {
+      const result = validatePassword('lowercase123!', true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.strength')
+      expect(result.details.missing).toBe('uppercase')
+    })
+
+    it('rejects password without lowercase letter', () => {
+      const result = validatePassword('UPPERCASE123!', true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.strength')
+      expect(result.details.missing).toBe('lowercase')
+    })
+
+    it('rejects password without number', () => {
+      const result = validatePassword('NoNumbers!', true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.strength')
+      expect(result.details.missing).toBe('number')
+    })
+
+    it('rejects password without special character', () => {
+      const result = validatePassword('NoSpecial123', true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.strength')
+      expect(result.details.missing).toBe('special')
+    })
+
+    it('rejects password missing uppercase (first pattern failure)', () => {
+      const result = validatePassword('lowercase', true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.strength')
+      expect(result.details.missing).toBe('uppercase')
+    })
+
+    it('accepts password with all special characters', () => {
+      const specialChars = '!@#$%^&*(),.?":{}|<>'
+      const result = validatePassword(`Pass123${specialChars}`, true)
+
+      expect(result.valid).toBe(true)
+    })
+
+    it('accepts password at minimum length with all requirements', () => {
+      const result = validatePassword('Pass123!', true)
+
+      expect(result.valid).toBe(true)
+      expect(result.value).toBe('Pass123!')
+    })
+
+    it('accepts password at maximum length with all requirements', () => {
+      const maxPassword = 'A' + 'a'.repeat(123) + '123!'
+      const result = validatePassword(maxPassword, true)
+
+      expect(result.valid).toBe(true)
+      expect(result.value).toBe(maxPassword)
+    })
+
+    it('rejects empty string with strength enforcement', () => {
+      const result = validatePassword('', true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.required')
+    })
+
+    it('rejects undefined with strength enforcement', () => {
+      const result = validatePassword(undefined, true)
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('validation.password.required')
+    })
+
+    it('accepts password with various special characters', () => {
+      const passwords = [
+        'Pass123()',
+        'Pass123,',
+        'Pass123.',
+        'Pass123:',
+        'Pass123"',
+        'Pass123{}',
+        'Pass123|',
+        'Pass123<>'
+      ]
+
+      passwords.forEach((password) => {
+        const result = validatePassword(password, true)
+        expect(result.valid).toBe(true)
+      })
     })
   })
 })
