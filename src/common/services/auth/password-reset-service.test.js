@@ -8,7 +8,8 @@ vi.mock('../../helpers/auth/reset-token.js', () => ({
 }))
 
 vi.mock('../../helpers/auth/password.js', () => ({
-  hashPassword: vi.fn((password) => Promise.resolve(`hashed-${password}`))
+  hashPassword: vi.fn((password) => Promise.resolve(`hashed-${password}`)),
+  verifyPassword: vi.fn(() => Promise.resolve(false))
 }))
 
 vi.mock('../../helpers/auth/password-history.js', () => ({
@@ -41,7 +42,7 @@ describe('PasswordResetService', () => {
         findFirst: vi.fn(),
         update: vi.fn()
       },
-      pafs_core_old_passwords: {
+      old_passwords: {
         findMany: vi.fn(),
         create: vi.fn(),
         deleteMany: vi.fn()
@@ -191,9 +192,9 @@ describe('PasswordResetService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         encrypted_password: 'old-hashed-password'
       })
-      mockPrisma.pafs_core_old_passwords.findMany.mockResolvedValue([])
+      mockPrisma.old_passwords.findMany.mockResolvedValue([])
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
-      mockPrisma.pafs_core_old_passwords.create.mockResolvedValue({})
+      mockPrisma.old_passwords.create.mockResolvedValue({})
 
       const result = await service.resetPassword('token', 'NewPassword123!')
 
@@ -229,9 +230,9 @@ describe('PasswordResetService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         encrypted_password: 'old-hashed-password'
       })
-      mockPrisma.pafs_core_old_passwords.findMany.mockResolvedValue([])
+      mockPrisma.old_passwords.findMany.mockResolvedValue([])
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
-      mockPrisma.pafs_core_old_passwords.create.mockResolvedValue({})
+      mockPrisma.old_passwords.create.mockResolvedValue({})
 
       await service.resetPassword('token', 'NewPassword123!')
 
@@ -253,7 +254,7 @@ describe('PasswordResetService', () => {
       }
 
       mockPrisma.pafs_core_users.findFirst.mockResolvedValue(user)
-      mockPrisma.pafs_core_old_passwords.findMany.mockResolvedValue([
+      mockPrisma.old_passwords.findMany.mockResolvedValue([
         { encrypted_password: 'hashed-OldPass1' },
         { encrypted_password: 'hashed-OldPass2' }
       ])
@@ -264,6 +265,28 @@ describe('PasswordResetService', () => {
       expect(result.error).toBe(
         'auth.password_reset.password_was_used_previously'
       )
+      expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
+    })
+
+    it('rejects password that is same as current password', async () => {
+      const { verifyPassword } = await import('../../helpers/auth/password.js')
+      verifyPassword.mockResolvedValueOnce(true)
+
+      const user = {
+        id: 1,
+        email: 'user@test.com',
+        reset_password_sent_at: new Date(),
+        disabled: false,
+        encrypted_password: 'hashed-CurrentPassword'
+      }
+
+      mockPrisma.pafs_core_users.findFirst.mockResolvedValue(user)
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(user)
+
+      const result = await service.resetPassword('token', 'CurrentPassword')
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('auth.password_reset.same_as_current')
       expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
     })
 
@@ -279,15 +302,16 @@ describe('PasswordResetService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         encrypted_password: 'old-hashed-password'
       })
-      mockPrisma.pafs_core_old_passwords.findMany.mockResolvedValue([])
+      mockPrisma.old_passwords.findMany.mockResolvedValue([])
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
-      mockPrisma.pafs_core_old_passwords.create.mockResolvedValue({})
+      mockPrisma.old_passwords.create.mockResolvedValue({})
 
       await service.resetPassword('token', 'NewPassword123!')
 
-      expect(mockPrisma.pafs_core_old_passwords.create).toHaveBeenCalledWith({
+      expect(mockPrisma.old_passwords.create).toHaveBeenCalledWith({
         data: {
-          user_id: 1,
+          password_archivable_id: 1,
+          password_archivable_type: 'User',
           encrypted_password: 'old-hashed-password',
           created_at: expect.any(Date)
         }
@@ -315,18 +339,16 @@ describe('PasswordResetService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         encrypted_password: 'old-hashed-password'
       })
-      mockPrisma.pafs_core_old_passwords.findMany
+      mockPrisma.old_passwords.findMany
         .mockResolvedValueOnce([]) // First call for history check
         .mockResolvedValueOnce(oldPasswords) // Second call for cleanup
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
-      mockPrisma.pafs_core_old_passwords.create.mockResolvedValue({})
-      mockPrisma.pafs_core_old_passwords.deleteMany.mockResolvedValue({})
+      mockPrisma.old_passwords.create.mockResolvedValue({})
+      mockPrisma.old_passwords.deleteMany.mockResolvedValue({})
 
       await service.resetPassword('token', 'NewPassword123!')
 
-      expect(
-        mockPrisma.pafs_core_old_passwords.deleteMany
-      ).toHaveBeenCalledWith({
+      expect(mockPrisma.old_passwords.deleteMany).toHaveBeenCalledWith({
         where: {
           id: { in: [6] }
         }
