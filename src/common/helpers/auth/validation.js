@@ -16,7 +16,7 @@ const strongPasswordSchema = Joi.string()
   .pattern(/[A-Z]/, 'uppercase')
   .pattern(/[a-z]/, 'lowercase')
   .pattern(/\d/, 'number')
-  .pattern(/[!@#$%^&*(),.?":{}|<>]/, 'special')
+  .pattern(/[!@#$%^&*()_.+\-=[\]]/, 'special')
   .required()
   .messages({
     'string.pattern.name': 'validation.password.strength.{#name}',

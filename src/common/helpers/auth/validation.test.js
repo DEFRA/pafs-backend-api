@@ -237,13 +237,11 @@ describe('validation helper', () => {
     it('accepts password with various special characters', () => {
       const passwords = [
         'Pass123()',
-        'Pass123,',
+        'Pass123+',
         'Pass123.',
-        'Pass123:',
-        'Pass123"',
-        'Pass123{}',
-        'Pass123|',
-        'Pass123<>'
+        'Pass123*',
+        'Pass123@',
+        'Pass123[]'
       ]
 
       passwords.forEach((password) => {
