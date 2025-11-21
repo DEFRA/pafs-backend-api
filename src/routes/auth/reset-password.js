@@ -28,7 +28,7 @@ export const resetPasswordRoute = {
     tags: ['api', 'auth'],
     validate: {
       payload: schema,
-      failAction: async (request, h, error) => {
+      failAction: async (_request, h, error) => {
         const errorMessage = error.details[0]?.message || 'Validation failed'
         return h
           .response({ success: false, error: errorMessage })
@@ -67,7 +67,7 @@ export const resetPasswordRoute = {
       const result = await resetService.resetPassword(token, password)
 
       if (!result.success) {
-        const errorCode = result.error.replace(/\./g, '_').toUpperCase()
+        const errorCode = result.error.replaceAll('.', '_').toUpperCase()
         const statusCode =
           result.error === AUTH_ERRORS.ACCOUNT_DISABLED
             ? HTTP_STATUS.FORBIDDEN

@@ -19,7 +19,7 @@ export const forgotPasswordRoute = {
     tags: ['api', 'auth'],
     validate: {
       payload: schema,
-      failAction: async (request, h, error) => {
+      failAction: async (_request, h, error) => {
         const errorMessage =
           error.details[0]?.message || 'validation.email.invalid_format'
         return h

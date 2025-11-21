@@ -18,7 +18,7 @@ export function isResetTokenExpired(sentAt) {
   const expiryHours = config.get('auth.passwordReset.tokenExpiryHours')
   const expiryMs = expiryHours * DURATION.HOUR_MS
 
-  return Date.now() - new Date(sentAt) > expiryMs
+  return Date.now() - new Date(sentAt).getTime() > expiryMs
 }
 
 export function validateResetToken(token) {

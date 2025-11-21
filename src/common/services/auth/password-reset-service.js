@@ -88,7 +88,9 @@ export class PasswordResetService {
 
   async resetPassword(token, newPassword) {
     const validation = await this.validateToken(token)
-    if (!validation.valid) return { success: false, error: validation.error }
+    if (!validation.valid) {
+      return { success: false, error: validation.error }
+    }
 
     const hashedPassword = await hashPassword(newPassword)
     await this.prisma.pafs_core_users.update({
