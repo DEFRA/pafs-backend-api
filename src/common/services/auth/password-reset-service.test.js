@@ -26,14 +26,12 @@ describe('PasswordResetService', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
 
-    const { isResetTokenExpired } = await import(
-      '../../helpers/auth/reset-token.js'
-    )
+    const { isResetTokenExpired } =
+      await import('../../helpers/auth/reset-token.js')
     isResetTokenExpired.mockReturnValue(false)
 
-    const { checkPasswordHistory } = await import(
-      '../../helpers/auth/password-history.js'
-    )
+    const { checkPasswordHistory } =
+      await import('../../helpers/auth/password-history.js')
     checkPasswordHistory.mockResolvedValue({ isReused: false })
 
     mockPrisma = {
@@ -156,9 +154,8 @@ describe('PasswordResetService', () => {
     })
 
     it('returns invalid for expired token', async () => {
-      const { isResetTokenExpired } = await import(
-        '../../helpers/auth/reset-token.js'
-      )
+      const { isResetTokenExpired } =
+        await import('../../helpers/auth/reset-token.js')
       isResetTokenExpired.mockReturnValue(true)
 
       const user = {
@@ -241,9 +238,8 @@ describe('PasswordResetService', () => {
     })
 
     it('rejects password that was used previously', async () => {
-      const { checkPasswordHistory } = await import(
-        '../../helpers/auth/password-history.js'
-      )
+      const { checkPasswordHistory } =
+        await import('../../helpers/auth/password-history.js')
       checkPasswordHistory.mockResolvedValueOnce({ isReused: true })
 
       const user = {

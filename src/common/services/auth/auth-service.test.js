@@ -12,9 +12,8 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     const { verifyPassword } = await import('../../helpers/auth/password.js')
-    const { generateAccessToken, generateRefreshToken } = await import(
-      '../../helpers/auth/tokens.js'
-    )
+    const { generateAccessToken, generateRefreshToken } =
+      await import('../../helpers/auth/tokens.js')
     const {
       generateSessionId,
       isAccountLocked,
@@ -141,9 +140,8 @@ describe('AuthService', () => {
     })
 
     it('disables inactive account and returns error', async () => {
-      const { shouldDisableAccount } = await import(
-        '../../helpers/auth/session.js'
-      )
+      const { shouldDisableAccount } =
+        await import('../../helpers/auth/session.js')
       vi.mocked(shouldDisableAccount).mockReturnValue(true)
 
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
@@ -287,9 +285,8 @@ describe('AuthService', () => {
     })
 
     it('resets lockout if duration expired', async () => {
-      const { shouldResetLockout } = await import(
-        '../../helpers/auth/session.js'
-      )
+      const { shouldResetLockout } =
+        await import('../../helpers/auth/session.js')
       vi.mocked(shouldResetLockout).mockReturnValue(true)
 
       mockPrisma.pafs_core_users.findUnique
