@@ -11,4 +11,5 @@ const authPlugin = {
 }
 
 export default authPlugin
-export { sessionRoutes, passwordRoutes }
+export { default as sessionRoutes } from './sessions/index.js'
+export { default as passwordRoutes } from './password/index.js'
