@@ -215,6 +215,14 @@ const config = convict({
         env: 'AUTH_PASSWORD_RESET_EXPIRY_HOURS'
       }
     },
+    invitation: {
+      tokenExpiryHours: {
+        doc: 'Invitation token expiry time in hours',
+        format: 'nat',
+        default: 720,
+        env: 'AUTH_INVITATION_EXPIRY_HOURS'
+      }
+    },
     passwordHistory: {
       enabled: {
         doc: 'Enable password history check to prevent reuse of recent passwords',
