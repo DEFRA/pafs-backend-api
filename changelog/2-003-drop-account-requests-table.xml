@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="2-003-drop-account-requests-table" author="migration-team">
+    <comment>Drop pafs_core_account_requests table</comment>
+
+    <!-- Drop the table - cascadeConstraints will automatically drop indexes and constraints -->
+    <dropTable tableName="pafs_core_account_requests" cascadeConstraints="true"/>
+
+    <rollback>
+      <!-- Rollback: Recreate the table as it was originally defined -->
+      <createTable tableName="pafs_core_account_requests">
+        <column name="id" type="BIGSERIAL" autoIncrement="true">
+          <constraints primaryKey="true" nullable="false"/>
+        </column>
+        <column name="first_name" type="VARCHAR(255)" defaultValue="">
+          <constraints nullable="false"/>
+        </column>
+        <column name="last_name" type="VARCHAR(255)" defaultValue="">
+          <constraints nullable="false"/>
+        </column>
+        <column name="email" type="VARCHAR(255)" defaultValue="">
+          <constraints nullable="false"/>
+        </column>
+        <column name="organisation" type="VARCHAR(255)" defaultValue="">
+          <constraints nullable="false"/>
+        </column>
+        <column name="job_title" type="VARCHAR(255)"/>
+        <column name="telephone_number" type="VARCHAR(255)"/>
+        <column name="slug" type="VARCHAR(255)"/>
+        <column name="terms_accepted" type="BOOLEAN" defaultValueBoolean="false">
+          <constraints nullable="false"/>
+        </column>
+        <column name="provisioned" type="BOOLEAN" defaultValueBoolean="false">
+          <constraints nullable="false"/>
+        </column>
+        <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
+          <constraints nullable="false"/>
+        </column>
+        <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE">
+          <constraints nullable="false"/>
+        </column>
+      </createTable>
+
+      <createIndex indexName="index_pafs_core_account_requests_on_email" tableName="pafs_core_account_requests" unique="true">
+        <column name="email"/>
+      </createIndex>
+
+      <createIndex indexName="index_pafs_core_account_requests_on_slug" tableName="pafs_core_account_requests" unique="true">
+        <column name="slug"/>
+      </createIndex>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
+

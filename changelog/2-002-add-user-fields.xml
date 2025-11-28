@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="2-002-add-user-fields" author="migration-team">
+    <comment>Add organisation, telephone_number, and status fields to pafs_core_users table</comment>
+
+    <!-- Add organisation field - NOT NULL with default empty string -->
+    <addColumn tableName="pafs_core_users">
+      <column name="organisation" type="VARCHAR(255)" defaultValue="">
+        <constraints nullable="false"/>
+      </column>
+    </addColumn>
+
+    <!-- Add telephone_number field - NULLABLE -->
+    <addColumn tableName="pafs_core_users">
+      <column name="telephone_number" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+    </addColumn>
+
+    <!-- Add status field - NOT NULL with default empty string -->
+    <addColumn tableName="pafs_core_users">
+      <column name="status" type="VARCHAR(255)" defaultValue="">
+        <constraints nullable="false"/>
+      </column>
+    </addColumn>
+
+    <rollback>
+      <dropColumn tableName="pafs_core_users" columnName="organisation"/>
+      <dropColumn tableName="pafs_core_users" columnName="telephone_number"/>
+      <dropColumn tableName="pafs_core_users" columnName="status"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
+
