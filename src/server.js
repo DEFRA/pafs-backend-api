@@ -3,10 +3,11 @@ import Hapi from '@hapi/hapi'
 import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
-import { router } from './plugins/router.js'
+import healthPlugin from './plugins/health/index.js'
+import authPlugin from './plugins/auth/index.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
-import { postgres } from './common/helpers/database/postgres.js'
-import { prisma } from './common/helpers/database/prisma.js'
+import { postgres } from './plugins/database/postgres.js'
+import { prisma } from './plugins/database/prisma.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
@@ -79,7 +80,8 @@ async function createServer() {
         audience: config.get('auth.jwt.audience')
       }
     },
-    router
+    healthPlugin,
+    authPlugin
   ])
 
   return server

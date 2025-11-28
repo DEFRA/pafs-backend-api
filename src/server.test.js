@@ -1,7 +1,7 @@
 import { describe, test, expect, afterEach, vi } from 'vitest'
 import { createServer } from './server.js'
 
-vi.mock('./common/helpers/database/postgres.js', () => ({
+vi.mock('./plugins/database/postgres.js', () => ({
   postgres: {
     plugin: {
       name: 'postgres',
@@ -10,7 +10,7 @@ vi.mock('./common/helpers/database/postgres.js', () => ({
   }
 }))
 
-vi.mock('./common/helpers/database/prisma.js', () => ({
+vi.mock('./plugins/database/prisma.js', () => ({
   prisma: {
     plugin: {
       name: 'prisma',
@@ -49,7 +49,8 @@ describe('Server', () => {
     server = await createServer()
 
     const plugins = Object.keys(server.registrations)
-    expect(plugins).toContain('router')
+    expect(plugins).toContain('hapi-pino')
+    expect(plugins).toContain('auth')
     expect(plugins.length).toBeGreaterThan(3)
   })
 
