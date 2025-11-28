@@ -16,7 +16,7 @@
 
     <include file="changelog/1-007-user-areas-keys.xml"/>
     <include file="changelog/2-001-alter-user-areas-foreign-keys.xml" />
-    <include file="changelog/2-002-add-user-fields.xml" />
-    <include file="changelog/2-003-drop-account-requests-table.xml" />
+    <include file="changelog/3-001-add-user-fields.xml" />
+    <include file="changelog/3-002-add-account-request-fields.xml" />
 
 </databaseChangeLog>
