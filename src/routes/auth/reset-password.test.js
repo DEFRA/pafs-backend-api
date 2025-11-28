@@ -279,8 +279,9 @@ describe('reset-password route', () => {
 
   describe('password validation', () => {
     it('rejects weak password', async () => {
-      const { validatePassword } =
-        await import('../../common/helpers/auth/validation.js')
+      const { validatePassword } = await import(
+        '../../common/helpers/auth/validation.js'
+      )
       validatePassword.mockReturnValueOnce({
         valid: false,
         error: 'validation.password.weak'

@@ -12,8 +12,9 @@ describe('refresh route', () => {
   beforeEach(async () => {
     const { verifyRefreshToken, generateAccessToken, generateRefreshToken } =
       await import('../../common/helpers/auth/tokens.js')
-    const { generateSessionId } =
-      await import('../../common/helpers/auth/session.js')
+    const { generateSessionId } = await import(
+      '../../common/helpers/auth/session.js'
+    )
 
     vi.mocked(verifyRefreshToken).mockReturnValue({
       userId: 1,
@@ -43,8 +44,9 @@ describe('refresh route', () => {
   })
 
   it('returns error for invalid token', async () => {
-    const { verifyRefreshToken } =
-      await import('../../common/helpers/auth/tokens.js')
+    const { verifyRefreshToken } = await import(
+      '../../common/helpers/auth/tokens.js'
+    )
     vi.mocked(verifyRefreshToken).mockReturnValue(null)
 
     await refreshRoute.options.handler(mockRequest, mockH)

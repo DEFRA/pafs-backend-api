@@ -30,8 +30,9 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
   })
 
   it('returns success for valid token', async () => {
-    const { PasswordResetService } =
-      await import('../../common/services/auth/password-reset-service.js')
+    const { PasswordResetService } = await import(
+      '../../common/services/auth/password-reset-service.js'
+    )
     PasswordResetService.prototype.validateToken = vi
       .fn()
       .mockResolvedValue({ valid: true, userId: 1 })
@@ -49,8 +50,9 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
   })
 
   it('returns error for invalid token', async () => {
-    const { PasswordResetService } =
-      await import('../../common/services/auth/password-reset-service.js')
+    const { PasswordResetService } = await import(
+      '../../common/services/auth/password-reset-service.js'
+    )
     PasswordResetService.prototype.validateToken = vi.fn().mockResolvedValue({
       valid: false,
       error: {
@@ -78,8 +80,9 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
   })
 
   it('returns error for expired token', async () => {
-    const { PasswordResetService } =
-      await import('../../common/services/auth/password-reset-service.js')
+    const { PasswordResetService } = await import(
+      '../../common/services/auth/password-reset-service.js'
+    )
     PasswordResetService.prototype.validateToken = vi.fn().mockResolvedValue({
       valid: false,
       error: {
@@ -117,8 +120,9 @@ describe('POST /api/v1/auth/validate-reset-token', () => {
   })
 
   it('handles service exceptions and returns error', async () => {
-    const { PasswordResetService } =
-      await import('../../common/services/auth/password-reset-service.js')
+    const { PasswordResetService } = await import(
+      '../../common/services/auth/password-reset-service.js'
+    )
     PasswordResetService.prototype.validateToken = vi
       .fn()
       .mockRejectedValue(new Error('Database connection failed'))
