@@ -3,7 +3,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-  <changeSet id="2-003-drop-account-requests-table" author="migration-team">
+  <changeSet id="3-002-drop-account-requests-table" author="migration-team">
     <comment>Drop pafs_core_account_requests table</comment>
 
     <!-- Drop the table - cascadeConstraints will automatically drop indexes and constraints -->

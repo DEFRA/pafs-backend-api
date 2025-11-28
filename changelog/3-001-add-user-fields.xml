@@ -3,7 +3,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-  <changeSet id="2-002-add-user-fields" author="migration-team">
+  <changeSet id="3-001-add-user-fields" author="migration-team">
     <comment>Add organisation, telephone_number, and status fields to pafs_core_users table</comment>
 
     <!-- Add organisation field - NOT NULL with default empty string -->
