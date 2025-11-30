@@ -129,11 +129,5 @@ describe('account schemas', () => {
       const { error } = tokenSchema.validate(undefined)
       expect(error.details[0].message).toBe('TOKEN_REQUIRED')
     })
-
-    it('returns VALIDATION_TOKEN_INVALID for long token', () => {
-      const longToken = 'a'.repeat(33)
-      const { error } = tokenSchema.validate(longToken)
-      expect(error.details[0].message).toBe('TOKEN_INVALID')
-    })
   })
 })

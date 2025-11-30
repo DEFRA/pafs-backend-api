@@ -106,8 +106,11 @@ describe('reset-password route', () => {
       await resetPasswordRoute.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        success: false,
-        errorCode: AUTH_ERROR_CODES.PASSWORD_WAS_USED_PREVIOUSLY
+        errors: [{
+          success: false,
+          errorCode: AUTH_ERROR_CODES.PASSWORD_WAS_USED_PREVIOUSLY
+        }
+        ],
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
     })
@@ -121,8 +124,11 @@ describe('reset-password route', () => {
       await resetPasswordRoute.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        success: false,
-        errorCode: AUTH_ERROR_CODES.PASSWORD_WAS_USED_PREVIOUSLY
+        errors: [{
+          success: false,
+          errorCode: AUTH_ERROR_CODES.PASSWORD_WAS_USED_PREVIOUSLY
+        }
+        ],
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
     })
@@ -136,8 +142,11 @@ describe('reset-password route', () => {
       await resetPasswordRoute.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        success: false,
-        errorCode: AUTH_ERROR_CODES.ACCOUNT_DISABLED
+        errors: [{
+          success: false,
+          errorCode: AUTH_ERROR_CODES.ACCOUNT_DISABLED
+        }
+        ],
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
     })
@@ -148,8 +157,11 @@ describe('reset-password route', () => {
       await resetPasswordRoute.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        success: false,
-        errorCode: AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID
+        errors: [{
+          success: false,
+          errorCode: AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID
+        }
+        ],
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.SERVICE_UNAVAILABLE)
       expect(mockRequest.logger.error).toHaveBeenCalled()

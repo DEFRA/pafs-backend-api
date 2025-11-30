@@ -55,7 +55,7 @@ const resetPassword = {
             ? HTTP_STATUS.FORBIDDEN
             : HTTP_STATUS.BAD_REQUEST
         return h
-          .response({ success: false, errorCode: result.errorCode })
+          .response({ errors: [{ success: false, errorCode: result.errorCode }] })
           .code(statusCode)
       }
       tokenService.clearResetToken(tokenResult.userId)
@@ -65,8 +65,10 @@ const resetPassword = {
       request.logger.error({ err: error }, 'Reset password failed')
       return h
         .response({
-          success: false,
-          errorCode: AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID
+          errors: [{
+            success: false,
+            errorCode: AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID
+          }]
         })
         .code(HTTP_STATUS.SERVICE_UNAVAILABLE)
     }

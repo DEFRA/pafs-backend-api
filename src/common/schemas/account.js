@@ -55,11 +55,9 @@ export const passwordStrengthSchema = Joi.string()
  */
 export const tokenSchema = Joi.string()
   .label('Token')
-  .max(SIZE.LENGTH_32)
   .trim()
   .required()
   .messages({
     'string.empty': AUTH_VALIDATION_CODES.TOKEN_REQUIRED,
-    'any.required': AUTH_VALIDATION_CODES.TOKEN_REQUIRED,
-    'string.max': AUTH_VALIDATION_CODES.TOKEN_INVALID
+    'any.required': AUTH_VALIDATION_CODES.TOKEN_REQUIRED
   })
