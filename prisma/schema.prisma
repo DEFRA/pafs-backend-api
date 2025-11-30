@@ -43,21 +43,6 @@ model old_passwords {
   @@index([password_archivable_type, password_archivable_id], map: "index_password_archivableddu")
 }
 
-model pafs_core_account_requests {
-  id               BigInt   @id @default(autoincrement())
-  first_name       String   @default("") @db.VarChar(255)
-  last_name        String   @default("") @db.VarChar(255)
-  email            String   @unique(map: "index_pafs_core_account_requests_on_email") @default("") @db.VarChar(255)
-  organisation     String   @default("") @db.VarChar(255)
-  job_title        String?  @db.VarChar(255)
-  telephone_number String?  @db.VarChar(255)
-  slug             String?  @unique(map: "index_pafs_core_account_requests_on_slug") @db.VarChar(255)
-  terms_accepted   Boolean  @default(false)
-  provisioned      Boolean  @default(false)
-  created_at       DateTime @db.Timestamp(6)
-  updated_at       DateTime @db.Timestamp(6)
-}
-
 model pafs_core_areas {
   id                   BigInt                 @id @default(autoincrement())
   name                 String?                @db.VarChar(255)
@@ -118,6 +103,9 @@ model pafs_core_users {
   admin                  Boolean                @default(false)
   disabled               Boolean                @default(false)
   unique_session_id      String?                @db.VarChar(20)
+  organisation           String                 @default("") @db.VarChar(255)
+  telephone_number       String?                @db.VarChar(255)
+  status                 String                 @default("") @db.VarChar(255)
   pafs_core_user_areas   pafs_core_user_areas[]
 
   @@index([disabled], map: "index_pafs_core_users_on_disabled")
