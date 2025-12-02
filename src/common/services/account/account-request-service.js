@@ -1,3 +1,6 @@
+// ASCII code for ESC (escape) character used in ANSI escape sequences
+const ESCAPE_CHAR_CODE = 27
+
 export class AccountRequestService {
   constructor(prisma, logger) {
     this.prisma = prisma
@@ -7,105 +10,141 @@ export class AccountRequestService {
   async createAccountRequest(userData, areas) {
     this.logger.info('Creating account request')
     try {
-      const now = new Date()
-
-      // Use Prisma transaction to ensure atomicity
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Create user with status 'pending'
-        const user = await tx.pafs_core_users.create({
-          data: {
-            first_name: userData.firstName,
-            last_name: userData.lastName,
-            email: userData.emailAddress,
-            telephone_number: userData.telephoneNumber || null,
-            organisation: userData.organisation || '',
-            job_title: userData.jobTitle || null,
-            status: 'pending',
-            encrypted_password: '', // Empty password for pending accounts
-            created_at: now,
-            updated_at: now
-          }
-        })
-
-        // Create user areas
-        const userAreas = await Promise.all(
-          areas.map((area) =>
-            tx.pafs_core_user_areas.create({
-              data: {
-                user_id: user.id,
-                area_id: BigInt(area.area_id),
-                primary: area.primary || false,
-                created_at: now,
-                updated_at: now
-              }
-            })
-          )
-        )
-
-        return { user, userAreas }
-      })
-
-      // Convert BigInt to string for JSON serialization
-      const serializedUser = {
-        ...result.user,
-        id: result.user.id.toString()
-      }
-
-      const serializedUserAreas = result.userAreas.map((ua) => ({
-        ...ua,
-        id: ua.id.toString(),
-        user_id: ua.user_id.toString(),
-        area_id: ua.area_id.toString()
-      }))
+      const result = await this._executeAccountRequestTransaction(
+        userData,
+        areas
+      )
+      const serialized = this._serializeAccountRequestResult(result)
 
       this.logger.info(
-        { userId: serializedUser.id },
+        { userId: serialized.user.id },
         'Account request created successfully'
       )
 
       return {
         success: true,
-        user: serializedUser,
-        areas: serializedUserAreas
+        user: serialized.user,
+        areas: serialized.userAreas
       }
     } catch (error) {
-      this.logger.error({ error }, 'Failed to create account request')
+      return this._handleAccountRequestError(error)
+    }
+  }
 
-      // Handle unique constraint violation (duplicate email)
-      // Prisma error code P2002 indicates unique constraint violation
-      if (
-        error.code === 'P2002' ||
-        (error.message && error.message.includes('Unique constraint failed'))
-      ) {
-        // Check if it's an email constraint
-        const isEmailError =
-          error.meta?.target?.includes('email') ||
-          error.message?.includes('(`email`)')
+  async _executeAccountRequestTransaction(userData, areas) {
+    const now = new Date()
 
-        if (isEmailError) {
-          return {
-            success: false,
-            error: 'account.email_already_exists'
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await this._createUserInTransaction(tx, userData, now)
+      const userAreas = await this._createUserAreasInTransaction(
+        tx,
+        user.id,
+        areas,
+        now
+      )
+
+      return { user, userAreas }
+    })
+  }
+
+  async _createUserInTransaction(tx, userData, now) {
+    return await tx.pafs_core_users.create({
+      data: {
+        first_name: userData.firstName,
+        last_name: userData.lastName,
+        email: userData.emailAddress,
+        telephone_number: userData.telephoneNumber || null,
+        organisation: userData.organisation || '',
+        job_title: userData.jobTitle || null,
+        status: 'pending',
+        encrypted_password: '', // Empty password for pending accounts
+        created_at: now,
+        updated_at: now
+      }
+    })
+  }
+
+  async _createUserAreasInTransaction(tx, userId, areas, now) {
+    return await Promise.all(
+      areas.map((area) =>
+        tx.pafs_core_user_areas.create({
+          data: {
+            user_id: userId,
+            area_id: BigInt(area.area_id),
+            primary: area.primary || false,
+            created_at: now,
+            updated_at: now
           }
-        }
-      }
+        })
+      )
+    )
+  }
 
-      // Return a clean error message without Prisma formatting
-      // Remove ANSI color codes using a safer approach
-      let cleanErrorMessage =
-        error.message || 'Failed to create account request'
-      if (cleanErrorMessage) {
-        // Remove ANSI escape sequences (pattern: ESC[ followed by numbers/semicolons and 'm')
-        const esc = String.fromCharCode(27) // ESC character
-        cleanErrorMessage = cleanErrorMessage
-          .replace(new RegExp(`${esc}\\[[0-9;]*m`, 'g'), '')
-          .trim()
-      }
+  _serializeAccountRequestResult(result) {
+    const serializedUser = {
+      ...result.user,
+      id: result.user.id.toString()
+    }
 
+    const serializedUserAreas = result.userAreas.map((ua) => ({
+      ...ua,
+      id: ua.id.toString(),
+      user_id: ua.user_id.toString(),
+      area_id: ua.area_id.toString()
+    }))
+
+    return { user: serializedUser, userAreas: serializedUserAreas }
+  }
+
+  _handleAccountRequestError(error) {
+    this.logger.error({ error }, 'Failed to create account request')
+
+    // Handle unique constraint violation (duplicate email)
+    if (this._isDuplicateEmailError(error)) {
       return {
         success: false,
-        error: cleanErrorMessage
+        error: 'account.email_already_exists'
       }
     }
+
+    // Return a clean error message without Prisma formatting
+    const cleanErrorMessage = this._cleanErrorMessage(error.message)
+
+    return {
+      success: false,
+      error: cleanErrorMessage
+    }
+  }
+
+  _isDuplicateEmailError(error) {
+    // Prisma error code P2002 indicates unique constraint violation
+    const isUniqueConstraintError =
+      error.code === 'P2002' ||
+      error.message?.includes('Unique constraint failed')
+
+    if (!isUniqueConstraintError) {
+      return false
+    }
+
+    // Check if it's an email constraint
+    return (
+      error.meta?.target?.includes('email') ||
+      error.message?.includes('(`email`)')
+    )
+  }
+
+  _cleanErrorMessage(errorMessage) {
+    let cleanMessage = errorMessage || 'Failed to create account request'
+
+    if (cleanMessage) {
+      // Remove ANSI escape sequences (pattern: ESC[ followed by numbers/semicolons and 'm')
+      const esc = String.fromCodePoint(ESCAPE_CHAR_CODE)
+      const ansiPattern = String.raw`${esc}\[[0-9;]*m`
+      cleanMessage = cleanMessage
+        .replaceAll(new RegExp(ansiPattern, 'g'), '')
+        .trim()
+    }
+
+    return cleanMessage
   }
 }
