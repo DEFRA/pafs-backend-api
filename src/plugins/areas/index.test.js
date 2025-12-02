@@ -6,7 +6,7 @@ const areasPlugin = module.default
 
 describe('areas plugin', () => {
   describe('plugin registration', () => {
-    test('Should register areas route', async () => {
+    test('Should register areas and account request routes', async () => {
       const server = Hapi.server()
 
       // Mock logger
@@ -17,9 +17,14 @@ describe('areas plugin', () => {
       const routes = server.table()
 
       const areasRoute = routes.find((r) => r.path === '/api/v1/areas')
+      const accountRequestRoute = routes.find(
+        (r) => r.path === '/api/v1/account-request'
+      )
 
       expect(areasRoute).toBeDefined()
       expect(areasRoute.method).toBe('get')
+      expect(accountRequestRoute).toBeDefined()
+      expect(accountRequestRoute.method).toBe('post')
     })
 
     test('Should log plugin registration', async () => {
@@ -40,16 +45,19 @@ describe('areas plugin', () => {
       expect(areasPlugin.version).toBe('1.0.0')
     })
 
-    test('Should register only one route', async () => {
+    test('Should register exactly two routes', async () => {
       const server = Hapi.server()
       server.decorate('server', 'logger', { info: vi.fn() })
 
       await server.register(areasPlugin)
 
       const routes = server.table()
-      const areasRoutes = routes.filter((r) => r.path === '/api/v1/areas')
+      const pluginRoutes = routes.filter(
+        (r) =>
+          r.path === '/api/v1/areas' || r.path === '/api/v1/account-request'
+      )
 
-      expect(areasRoutes).toHaveLength(1)
+      expect(pluginRoutes).toHaveLength(2)
     })
   })
 })
