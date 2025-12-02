@@ -18,7 +18,6 @@ const areasRoute = {
           { error: result.error },
           'Error fetching areas'
         )
-        // Return the actual error message from the service for debugging
         return h
           .response({
             statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,

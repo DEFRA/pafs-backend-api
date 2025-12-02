@@ -16,7 +16,6 @@ export class AreaService {
           sub_type: true,
           identifier: true,
           end_date: true
-          // Add other fields you need from the pafs_core_areas table
         },
         orderBy: {
           name: 'asc'
@@ -27,8 +26,6 @@ export class AreaService {
       const serializedAreas = areas.map((area) => ({
         ...area,
         id: area.id.toString()
-        // If 'parent_id' is also a BigInt, you might need to convert it too:
-        // parent_id: area.parent_id !== null ? area.parent_id.toString() : null,
       }))
 
       return { success: true, areas: serializedAreas }
