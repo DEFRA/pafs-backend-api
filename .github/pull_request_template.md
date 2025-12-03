@@ -1,6 +1,5 @@
 ## Description
 
-
 ## Related Task
 
 - Task ID: [](link-to-task)
@@ -25,7 +24,6 @@
 
 ### Endpoints/Features Tested
 
-
 ## Checklist
 
 - [ ] Code follows project style guidelines
@@ -36,4 +34,3 @@
 - [ ] Documentation updated (if needed)
 
 ## Additional Notes
-
