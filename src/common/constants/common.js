@@ -18,10 +18,27 @@ export const HTTP_STATUS = {
 }
 
 /**
- * Valdation Error Codes
+ * Validation Error Codes
  */
 export const VALIDATION_ERROR_CODES = {
   VALIDATION_INVALID_OBJECT: 'VALIDATION_INVALID_OBJECT'
+}
+
+/**
+ * Filter Validation Codes
+ */
+export const FILTER_VALIDATION_CODES = {
+  SEARCH_TOO_LONG: 'FILTER_SEARCH_TOO_LONG',
+  AREA_ID_INVALID: 'FILTER_AREA_ID_INVALID'
+}
+
+/**
+ * Pagination Validation Codes
+ */
+export const PAGINATION_VALIDATION_CODES = {
+  PAGE_INVALID: 'PAGINATION_PAGE_INVALID',
+  PAGE_SIZE_INVALID: 'PAGINATION_PAGE_SIZE_INVALID',
+  PAGE_SIZE_TOO_LARGE: 'PAGINATION_PAGE_SIZE_TOO_LARGE'
 }
 
 /**

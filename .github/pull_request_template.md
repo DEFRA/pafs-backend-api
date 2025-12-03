@@ -1,29 +1,36 @@
-### What one thing this PR does?
+## Description
 
-A sample one-liner about this task.
+## Related Task
 
-### Task details
+- Task ID: [](link-to-task)
 
-- [Activity ID - Task title/short description](activity_url)
+## Changes Made
 
-### Other notes
+## Type of Change
 
-- Additional details about the task
-- Important points that other teams or reviewers should be aware of.
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+- [ ] Refactoring
+- [ ] Test coverage improvement
 
-### How do these changes look like?
+## Testing
 
-| ![name of the screengrab](URL) |
-| ------------------------------ |
+### Manual Testing
 
-### Dev-tested in
+- [ ] Tested locally
+- [ ] Tested in dev environment
 
-1. Local environment
+### Endpoints/Features Tested
 
-- [Page name/link 1](url)
-- [Page name/link 2](url)
+## Checklist
 
-2. Dev environment
+- [ ] Code follows project style guidelines
+- [ ] Self-review completed
+- [ ] Tests added/updated
+- [ ] All tests passing
+- [ ] No console errors/warnings
+- [ ] Documentation updated (if needed)
 
-- [Page name/link 1](url)
-- ...
+## Additional Notes

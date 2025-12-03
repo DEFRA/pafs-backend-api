@@ -285,6 +285,20 @@ const config = convict({
       default: 'x-cdp-request-id',
       env: 'TRACING_HEADER'
     }
+  },
+  pagination: {
+    defaultPageSize: {
+      doc: 'Default number of records per page',
+      format: 'nat',
+      default: 20,
+      env: 'PAGINATION_DEFAULT_PAGE_SIZE'
+    },
+    maxPageSize: {
+      doc: 'Maximum allowed records per page',
+      format: 'nat',
+      default: 100,
+      env: 'PAGINATION_MAX_PAGE_SIZE'
+    }
   }
 })
 

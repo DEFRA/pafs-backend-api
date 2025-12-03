@@ -40,9 +40,6 @@ describe('AuthService', () => {
       pafs_core_users: {
         findUnique: vi.fn(),
         update: vi.fn()
-      },
-      pafs_core_account_requests: {
-        findFirst: vi.fn()
       }
     }
 
@@ -57,7 +54,6 @@ describe('AuthService', () => {
   describe('login', () => {
     it('returns error for non-existent user', async () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
-      mockPrisma.pafs_core_account_requests.findFirst.mockResolvedValue(null)
 
       const result = await authService.login(
         'test@example.com',
@@ -69,11 +65,11 @@ describe('AuthService', () => {
       expect(result.errorCode).toBe(AUTH_ERROR_CODES.INVALID_CREDENTIALS)
     })
 
-    it('returns error for pending account request', async () => {
-      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
-      mockPrisma.pafs_core_account_requests.findFirst.mockResolvedValue({
+    it('returns error for pending account', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1,
         email: 'test@example.com',
-        provisioned: false
+        status: 'pending'
       })
 
       const result = await authService.login(
@@ -90,6 +86,7 @@ describe('AuthService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 1,
         email: 'test@example.com',
+        status: 'active',
         disabled: true
       })
 
@@ -111,6 +108,7 @@ describe('AuthService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 1,
         email: 'test@example.com',
+        status: 'active',
         locked_at: new Date()
       })
 
@@ -132,6 +130,7 @@ describe('AuthService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 1,
         email: 'test@example.com',
+        status: 'active',
         last_sign_in_at: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
       })
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
@@ -162,6 +161,7 @@ describe('AuthService', () => {
         id: 1,
         email: 'test@example.com',
         encrypted_password: 'hash',
+        status: 'active',
         failed_attempts: 3
       })
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
@@ -185,6 +185,7 @@ describe('AuthService', () => {
         id: 1,
         email: 'test@example.com',
         encrypted_password: 'hash',
+        status: 'active',
         failed_attempts: 4
       })
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
@@ -215,6 +216,7 @@ describe('AuthService', () => {
         id: 1,
         email: 'test@example.com',
         encrypted_password: 'hash',
+        status: 'active',
         failed_attempts: 2
       })
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
@@ -238,12 +240,12 @@ describe('AuthService', () => {
           encrypted_password: 'hash',
           first_name: 'Test',
           last_name: 'User',
-          admin: false
+          admin: false,
+          status: 'active'
         })
         .mockResolvedValueOnce({ current_sign_in_at: null })
         .mockResolvedValueOnce({ current_sign_in_ip: null })
 
-      mockPrisma.pafs_core_account_requests.findFirst.mockResolvedValue(null)
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
 
       const result = await authService.login(
@@ -277,13 +279,13 @@ describe('AuthService', () => {
           first_name: 'Test',
           last_name: 'User',
           admin: false,
+          status: 'active',
           failed_attempts: 5,
           locked_at: new Date(Date.now() - 60 * 60 * 1000)
         })
         .mockResolvedValueOnce({ current_sign_in_at: null })
         .mockResolvedValueOnce({ current_sign_in_ip: null })
 
-      mockPrisma.pafs_core_account_requests.findFirst.mockResolvedValue(null)
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
 
       const result = await authService.login(
