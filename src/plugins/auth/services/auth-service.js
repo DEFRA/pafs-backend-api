@@ -12,7 +12,10 @@ import {
   isLastAttempt
 } from '../helpers/session.js'
 import { config } from '../../../config.js'
-import { AUTH_ERROR_CODES } from '../../../common/constants/index.js'
+import {
+  AUTH_ERROR_CODES,
+  ACCOUNT_STATUS
+} from '../../../common/constants/index.js'
 
 export class AuthService {
   constructor(prisma, logger) {
@@ -23,14 +26,13 @@ export class AuthService {
   async login(email, password, ipAddress) {
     const user = await this.findUserByEmail(email)
     if (!user) {
-      const pendingRequest = await this.checkPendingAccountRequest(email)
-      if (pendingRequest) {
-        this.logger.info({ email }, 'Login attempt for pending account')
-        return { success: false, errorCode: AUTH_ERROR_CODES.ACCOUNT_PENDING }
-      }
-
       this.logger.info({ email }, 'Login attempt for non-existent user')
       return { success: false, errorCode: AUTH_ERROR_CODES.INVALID_CREDENTIALS }
+    }
+
+    if (user.status === ACCOUNT_STATUS.PENDING) {
+      this.logger.info({ email }, 'Login attempt for pending account')
+      return { success: false, errorCode: AUTH_ERROR_CODES.ACCOUNT_PENDING }
     }
 
     const securityCheck = await this.performSecurityChecks(user)
@@ -156,15 +158,6 @@ export class AuthService {
   async findUserByEmail(email) {
     return this.prisma.pafs_core_users.findUnique({
       where: { email }
-    })
-  }
-
-  async checkPendingAccountRequest(email) {
-    return this.prisma.pafs_core_account_requests.findFirst({
-      where: {
-        email,
-        provisioned: false
-      }
     })
   }
 
