@@ -1,6 +1,9 @@
 // ASCII code for ESC (escape) character used in ANSI escape sequences
 const ESCAPE_CHAR_CODE = 27
 
+// Default error message for account request failures
+const DEFAULT_ERROR_MESSAGE = 'Failed to create account request'
+
 export class AccountRequestService {
   constructor(prisma, logger) {
     this.prisma = prisma
@@ -34,7 +37,7 @@ export class AccountRequestService {
   async _executeAccountRequestTransaction(userData, areas) {
     const now = new Date()
 
-    return await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const user = await this._createUserInTransaction(tx, userData, now)
       const userAreas = await this._createUserAreasInTransaction(
         tx,
@@ -48,7 +51,7 @@ export class AccountRequestService {
   }
 
   async _createUserInTransaction(tx, userData, now) {
-    return await tx.pafs_core_users.create({
+    return tx.pafs_core_users.create({
       data: {
         first_name: userData.firstName,
         last_name: userData.lastName,
@@ -65,7 +68,7 @@ export class AccountRequestService {
   }
 
   async _createUserAreasInTransaction(tx, userId, areas, now) {
-    return await Promise.all(
+    return Promise.all(
       areas.map((area) =>
         tx.pafs_core_user_areas.create({
           data: {
@@ -97,7 +100,7 @@ export class AccountRequestService {
   }
 
   _handleAccountRequestError(error) {
-    this.logger.error({ error }, 'Failed to create account request')
+    this.logger.error({ error }, DEFAULT_ERROR_MESSAGE)
 
     // Handle unique constraint violation (duplicate email)
     if (this._isDuplicateEmailError(error)) {
@@ -133,11 +136,11 @@ export class AccountRequestService {
     )
   }
 
-  _cleanErrorMessage(errorMessage = 'Failed to create account request') {
+  _cleanErrorMessage(errorMessage = DEFAULT_ERROR_MESSAGE) {
     // Remove ANSI escape sequences (pattern: ESC[ followed by numbers/semicolons and 'm')
     const esc = String.fromCodePoint(ESCAPE_CHAR_CODE)
     const ansiPattern = String.raw`${esc}\[[0-9;]*m`
-    const message = errorMessage || 'Failed to create account request'
+    const message = errorMessage || DEFAULT_ERROR_MESSAGE
     return message.replaceAll(new RegExp(ansiPattern, 'g'), '').trim()
   }
 }
