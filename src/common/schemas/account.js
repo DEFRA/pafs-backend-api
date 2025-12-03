@@ -1,6 +1,10 @@
 import Joi from 'joi'
 import { SIZE } from '../constants/common.js'
 import { AUTH_VALIDATION_CODES } from '../constants/auth.js'
+import {
+  ACCOUNT_STATUS,
+  ACCOUNT_VALIDATION_CODES
+} from '../constants/accounts.js'
 
 /**
  * Email schema - validates email format, max length, trims and lowercases
@@ -60,4 +64,15 @@ export const tokenSchema = Joi.string()
   .messages({
     'string.empty': AUTH_VALIDATION_CODES.TOKEN_REQUIRED,
     'any.required': AUTH_VALIDATION_CODES.TOKEN_REQUIRED
+  })
+
+/**
+ * Account status schema - validates account status (pending/active)
+ */
+export const accountStatusSchema = Joi.string()
+  .valid(ACCOUNT_STATUS.PENDING, ACCOUNT_STATUS.ACTIVE)
+  .required()
+  .messages({
+    'any.required': ACCOUNT_VALIDATION_CODES.STATUS_REQUIRED,
+    'any.only': ACCOUNT_VALIDATION_CODES.STATUS_INVALID
   })

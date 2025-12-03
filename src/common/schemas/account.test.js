@@ -3,8 +3,10 @@ import {
   emailSchema,
   passwordSchema,
   passwordStrengthSchema,
-  tokenSchema
+  tokenSchema,
+  accountStatusSchema
 } from './account.js'
+import { ACCOUNT_VALIDATION_CODES } from '../constants/accounts.js'
 
 describe('account schemas', () => {
   describe('emailSchema', () => {
@@ -128,6 +130,41 @@ describe('account schemas', () => {
     it('returns VALIDATION_TOKEN_REQUIRED for undefined', () => {
       const { error } = tokenSchema.validate(undefined)
       expect(error.details[0].message).toBe('TOKEN_REQUIRED')
+    })
+  })
+
+  describe('accountStatusSchema', () => {
+    it('validates active status', () => {
+      const { error, value } = accountStatusSchema.validate('active')
+      expect(error).toBeUndefined()
+      expect(value).toBe('active')
+    })
+
+    it('validates pending status', () => {
+      const { error, value } = accountStatusSchema.validate('pending')
+      expect(error).toBeUndefined()
+      expect(value).toBe('pending')
+    })
+
+    it('returns STATUS_REQUIRED for undefined', () => {
+      const { error } = accountStatusSchema.validate(undefined)
+      expect(error.details[0].message).toBe(
+        ACCOUNT_VALIDATION_CODES.STATUS_REQUIRED
+      )
+    })
+
+    it('returns STATUS_INVALID for invalid status', () => {
+      const { error } = accountStatusSchema.validate('invalid')
+      expect(error.details[0].message).toBe(
+        ACCOUNT_VALIDATION_CODES.STATUS_INVALID
+      )
+    })
+
+    it('returns STATUS_INVALID for empty string', () => {
+      const { error } = accountStatusSchema.validate('')
+      expect(error.details[0].message).toBe(
+        ACCOUNT_VALIDATION_CODES.STATUS_INVALID
+      )
     })
   })
 })
