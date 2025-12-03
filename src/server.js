@@ -6,6 +6,7 @@ import { config } from './config.js'
 import healthPlugin from './plugins/health/index.js'
 import authPlugin from './plugins/auth/index.js'
 import areasPlugin from './plugins/areas/index.js'
+import accountsPlugin from './plugins/accounts/index.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { postgres } from './plugins/database/postgres.js'
 import { prisma } from './plugins/database/prisma.js'
@@ -83,7 +84,8 @@ async function createServer() {
     },
     healthPlugin,
     authPlugin,
-    areasPlugin
+    areasPlugin,
+    accountsPlugin
   ])
 
   return server

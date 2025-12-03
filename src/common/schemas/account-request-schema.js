@@ -1,5 +1,5 @@
 import Joi from 'joi'
-import { SIZE } from '../../common/constants/common.js'
+import { SIZE } from '../constants/common.js'
 
 const areaSchema = Joi.object({
   area_id: Joi.number().integer().positive().required(),
