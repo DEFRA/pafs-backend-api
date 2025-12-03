@@ -1,8 +1,8 @@
-import { AccountService } from './services/account-service.js'
-import { HTTP_STATUS } from '../../common/constants/index.js'
-import { getAccountsQuerySchema } from './schema.js'
-import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
-import { ACCOUNT_ERROR_CODES } from '../../common/constants/accounts.js'
+import { AccountService } from '../services/account-service.js'
+import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { getAccountsQuerySchema } from '../schema.js'
+import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
+import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 
 const listAccounts = {
   method: 'GET',

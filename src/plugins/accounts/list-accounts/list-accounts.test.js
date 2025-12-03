@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import listAccountsRoute from './list-accounts.js'
-import { HTTP_STATUS } from '../../common/constants/index.js'
-import { getAccountsQuerySchema } from './schema.js'
-import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
-import { ACCOUNT_ERROR_CODES } from '../../common/constants/accounts.js'
+import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { getAccountsQuerySchema } from '../schema.js'
+import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
+import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 
 const mockGetAccounts = vi.fn()
 
-vi.mock('./services/account-service.js', () => ({
+vi.mock('../services/account-service.js', () => ({
   AccountService: class {
     getAccounts = mockGetAccounts
   }

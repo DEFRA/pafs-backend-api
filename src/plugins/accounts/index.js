@@ -1,4 +1,4 @@
-import listAccounts from './list-accounts.js'
+import listAccounts from './list-accounts/list-accounts.js'
 
 const accountsPlugin = {
   name: 'accounts',
@@ -10,4 +10,4 @@ const accountsPlugin = {
 }
 
 export default accountsPlugin
-export { listAccounts }
+export { default as listAccounts } from './list-accounts/list-accounts.js'
