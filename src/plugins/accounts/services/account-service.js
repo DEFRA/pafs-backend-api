@@ -40,6 +40,7 @@ export class AccountService {
           disabled: true,
           created_at: true,
           updated_at: true,
+          last_sign_in_at: true,
           pafs_core_user_areas: {
             select: {
               primary: true,
@@ -137,7 +138,8 @@ export class AccountService {
       disabled: account.disabled,
       areas,
       createdAt: account.created_at,
-      updatedAt: account.updated_at
+      updatedAt: account.updated_at,
+      lastSignIn: account.last_sign_in_at
     }
   }
 }

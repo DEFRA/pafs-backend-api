@@ -55,6 +55,7 @@ describe('AccountService', () => {
       disabled: false,
       created_at: new Date('2024-01-15'),
       updated_at: new Date('2024-06-20'),
+      last_sign_in_at: new Date('2024-04-20'),
       pafs_core_user_areas: [
         {
           primary: true,
@@ -303,6 +304,7 @@ describe('AccountService', () => {
         disabled: false,
         created_at: new Date(),
         updated_at: new Date(),
+        last_sign_in_at: new Date(),
         pafs_core_user_areas: []
       }
 
