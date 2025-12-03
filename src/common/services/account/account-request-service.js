@@ -133,18 +133,11 @@ export class AccountRequestService {
     )
   }
 
-  _cleanErrorMessage(errorMessage) {
-    let cleanMessage = errorMessage || 'Failed to create account request'
-
-    if (cleanMessage) {
-      // Remove ANSI escape sequences (pattern: ESC[ followed by numbers/semicolons and 'm')
-      const esc = String.fromCodePoint(ESCAPE_CHAR_CODE)
-      const ansiPattern = String.raw`${esc}\[[0-9;]*m`
-      cleanMessage = cleanMessage
-        .replaceAll(new RegExp(ansiPattern, 'g'), '')
-        .trim()
-    }
-
-    return cleanMessage
+  _cleanErrorMessage(errorMessage = 'Failed to create account request') {
+    // Remove ANSI escape sequences (pattern: ESC[ followed by numbers/semicolons and 'm')
+    const esc = String.fromCodePoint(ESCAPE_CHAR_CODE)
+    const ansiPattern = String.raw`${esc}\[[0-9;]*m`
+    const message = errorMessage || 'Failed to create account request'
+    return message.replaceAll(new RegExp(ansiPattern, 'g'), '').trim()
   }
 }

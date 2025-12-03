@@ -21,7 +21,7 @@ describe('#startServer', () => {
 
     createServerImport = await import('../../server.js')
     startServerImport = await import('./start-server.js')
-  })
+  }, 30000) // 30 second timeout for dynamic imports
 
   afterAll(() => {
     vi.resetAllMocks()
