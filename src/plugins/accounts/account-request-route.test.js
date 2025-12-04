@@ -4,7 +4,7 @@ import { HTTP_STATUS } from '../../common/constants/index.js'
 
 const mockCreateAccountRequest = vi.fn()
 
-vi.mock('../../common/services/account/account-request-service.js', () => ({
+vi.mock('./services/account-request-service.js', () => ({
   AccountRequestService: class {
     constructor(prisma, logger) {
       this.prisma = prisma
@@ -41,6 +41,7 @@ describe('account request route', () => {
       prisma: {},
       server: {
         logger: {
+          info: vi.fn(),
           error: vi.fn()
         }
       }

@@ -1,4 +1,4 @@
-import { AreaService } from '../../common/services/area/area-service.js'
+import { AreaService } from './services/area-service.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
 
 const areasRoute = {

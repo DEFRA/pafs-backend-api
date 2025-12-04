@@ -1,4 +1,4 @@
-import { AccountRequestService } from '../../common/services/account/account-request-service.js'
+import { AccountRequestService } from './services/account-request-service.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
 import { accountRequestSchema } from '../../common/schemas/account-request-schema.js'
 import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
