@@ -39,9 +39,15 @@ export class AreaService {
   async getAreasByIds(areaIds) {
     // Normalize to BigInt array for Prisma
     const normalizedIds = (areaIds || []).map((id) => {
-      if (typeof id === 'bigint') return id
-      if (typeof id === 'number') return BigInt(id)
-      if (typeof id === 'string') return BigInt(id)
+      if (typeof id === 'bigint') {
+        return id
+      }
+      if (typeof id === 'number') {
+        return BigInt(id)
+      }
+      if (typeof id === 'string') {
+        return BigInt(id)
+      }
       throw new TypeError('Invalid area id type')
     })
 
