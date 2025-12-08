@@ -3,16 +3,24 @@ import accountRequestRoute from './account-request-route.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
 
 const mockCreateAccountRequest = vi.fn()
+const mockSend = vi.fn()
 
 vi.mock('./services/account-request-service.js', () => ({
   AccountRequestService: class {
-    constructor(prisma, logger) {
+    constructor(prisma, logger, emailService) {
       this.prisma = prisma
       this.logger = logger
+      this.emailService = emailService
     }
 
     createAccountRequest = mockCreateAccountRequest
   }
+}))
+
+vi.mock('../../common/services/email/notify-service.js', () => ({
+  getEmailService: () => ({
+    send: mockSend
+  })
 }))
 
 describe('account request route', () => {
@@ -114,6 +122,38 @@ describe('account request route', () => {
         areas: mockAreas
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CREATED)
+    })
+
+    it('should send an email to admin on successful account request', async () => {
+      const mockUser = {
+        id: '1',
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'john.doe@example.com',
+        status: 'pending'
+      }
+      mockCreateAccountRequest.mockResolvedValue({
+        success: true,
+        user: mockUser,
+        areas: []
+      })
+
+      await accountRequestRoute.options.handler(mockRequest, mockH)
+
+      expect(mockSend).toHaveBeenCalledTimes(1)
+      expect(mockSend).toHaveBeenCalledWith(
+        'account-verification-template-id',
+        'mmpPafsAdmin@mailinator.com',
+        {
+          first_name: mockRequest.payload.user.firstName,
+          last_name: mockRequest.payload.user.lastName,
+          email_address: mockRequest.payload.user.emailAddress,
+          telephone: mockRequest.payload.user.telephoneNumber,
+          organisation: mockRequest.payload.user.organisation,
+          job_title: mockRequest.payload.user.jobTitle
+        },
+        'account-verification'
+      )
     })
 
     it('should handle duplicate email error with 409 status', async () => {

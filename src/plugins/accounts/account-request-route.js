@@ -2,6 +2,7 @@ import { AccountRequestService } from './services/account-request-service.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
 import { accountRequestSchema } from '../../common/schemas/account-request-schema.js'
 import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
+import { getEmailService } from '../../common/services/email/notify-service.js'
 
 const accountRequestRoute = {
   method: 'POST',
@@ -17,10 +18,11 @@ const accountRequestRoute = {
     },
     handler: async (request, h) => {
       const { user: userData, areas } = request.payload
-
+      const emailService = getEmailService(request.server.logger)
       const accountRequestService = new AccountRequestService(
         request.prisma,
-        request.server.logger
+        request.server.logger,
+        emailService
       )
       const result = await accountRequestService.createAccountRequest(
         userData,

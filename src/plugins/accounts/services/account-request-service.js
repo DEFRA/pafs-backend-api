@@ -1,3 +1,5 @@
+import { config } from '../../../config.js'
+
 // ASCII code for ESC (escape) character used in ANSI escape sequences
 const ESCAPE_CHAR_CODE = 27
 
@@ -5,9 +7,10 @@ const ESCAPE_CHAR_CODE = 27
 const DEFAULT_ERROR_MESSAGE = 'Failed to create account request'
 
 export class AccountRequestService {
-  constructor(prisma, logger) {
+  constructor(prisma, logger, emailService) {
     this.prisma = prisma
     this.logger = logger
+    this.emailService = emailService
   }
 
   async createAccountRequest(userData, areas) {
@@ -22,6 +25,25 @@ export class AccountRequestService {
       this.logger.info(
         { userId: serialized.user.id },
         'Account request created successfully'
+      )
+
+      const templateId = config.get('notify.templateAccountVerification')
+      const AdminEmail = config.get('notify.adminEmail')
+      await this.emailService.send(
+        templateId,
+        AdminEmail,
+        {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          email_address: userData.emailAddress,
+          telephone: userData.telephoneNumber,
+          organisation: userData.organisation,
+          job_title: userData.jobTitle,
+          responsibility_area: 'RMA',
+          main_area: 'Local Authority',
+          optional_areas: 'Optional Areas'
+        },
+        'account-verification'
       )
 
       return {
