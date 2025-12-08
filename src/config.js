@@ -270,17 +270,17 @@ const config = convict({
       default: 'account-verification-template-id',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_VERIFICATION'
     },
-    templateAutoApproved: {
+    templateAccountApprovedSetPassword: {
       doc: 'GOV.UK Notify template ID for auto-approved accounts',
       format: String,
       default: 'auto-approved-template-id',
-      env: 'NOTIFY_TEMPLATE_AUTO_APPROVED'
+      env: 'NOTIFY_TEMPLATE_ACCOUNT_APPROVED_SET_PASSWORD'
     },
-    templateAccountApproved: {
+    templateAccountApprovedToAdmin: {
       doc: 'GOV.UK Notify template ID for account approval emails',
       format: String,
       default: 'account-approved-template-id',
-      env: 'NOTIFY_TEMPLATE_ACCOUNT_APPROVED'
+      env: 'NOTIFY_TEMPLATE_AUTO_APPROVED_TO_ADMIN'
     },
     adminEmail: {
       doc: 'GOV.UK Notify admin email address',
