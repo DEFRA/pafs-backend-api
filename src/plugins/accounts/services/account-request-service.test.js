@@ -7,8 +7,21 @@ import { config } from '../../../config.js'
 vi.mock('../../../config.js', () => ({
   config: {
     get: vi.fn((key) => {
-      if (key === 'notify.templateAccountVerification') return 'tmpl-123'
-      if (key === 'notify.adminEmail') return 'admin@example.com'
+      if (key === 'notify.templateAccountVerification') {
+        return 'tmpl-123'
+      }
+      if (key === 'notify.templateAccountApprovedToAdmin') {
+        return 'tmpl-approved-admin'
+      }
+      if (key === 'notify.templateAccountApprovedSetPassword') {
+        return 'tmpl-approved-setpw'
+      }
+      if (key === 'notify.adminEmail') {
+        return 'admin@example.com'
+      }
+      if (key === 'frontendUrl') {
+        return 'https://frontend.example.com'
+      }
       return ''
     })
   }
@@ -82,8 +95,8 @@ describe('AccountRequestService', () => {
     // Provide mocks so createAccountRequest can fetch areas and send email
     const mockEmailSvc = makeEmailService()
     const mockAreaSvc = makeAreaService([
-      { id: '11', name: 'Area 11' },
-      { id: '2', name: 'Area 2' }
+      { id: '11', name: 'Area 11', area_type: 'Type A' },
+      { id: '2', name: 'Area 2', area_type: 'Type B' }
     ])
 
     accountRequestService = new AccountRequestService(
@@ -97,8 +110,8 @@ describe('AccountRequestService', () => {
     logger = makeLogger()
     emailService = makeEmailService()
     areaService = makeAreaService([
-      { id: '10', name: 'Area 10' },
-      { id: '20', name: 'Area 20' }
+      { id: '10', name: 'Area 10', area_type: 'Type X' },
+      { id: '20', name: 'Area 20', area_type: 'Type Y' }
     ])
     svc = new AccountRequestService(prisma, logger, emailService, areaService)
   })
@@ -386,6 +399,7 @@ describe('AccountRequestService', () => {
       config.get('notify.adminEmail'),
       expect.objectContaining({
         first_name: 'Jane',
+        responsibility_area: 'Type X',
         main_area: 'Area 10',
         optional_areas: 'Area 20'
       }),
@@ -424,5 +438,79 @@ describe('AccountRequestService', () => {
     const res = await badSvc.createAccountRequest(userData, [])
     expect(res.success).toBe(false)
     expect(res.error).toContain('AreaService')
+  })
+
+  // Full coverage for govUkUser path (auto-approve + emails)
+  it('auto-approves gov.uk-like users and sends set-password and admin approved emails', async () => {
+    const govUserData = {
+      firstName: 'Gov',
+      lastName: 'User',
+      emailAddress: 'gov@yopmail.com', // triggers govUkUser flag in implementation
+      telephoneNumber: '555',
+      organisation: 'Gov Org',
+      jobTitle: 'Analyst'
+    }
+    const createdUser = {
+      id: 99n,
+      first_name: 'Gov',
+      last_name: 'User',
+      email: 'gov@yopmail.com',
+      status: 'approved',
+      created_at: new Date(),
+      updated_at: new Date()
+    }
+    const createdUserAreas = [
+      { id: 300n, user_id: 99n, area_id: 10n, primary: true },
+      { id: 301n, user_id: 99n, area_id: 20n, primary: false }
+    ]
+
+    // Mock transaction to create user + areas
+    prisma.$transaction.mockImplementation(async (fn) => {
+      const tx = {
+        pafs_core_users: { create: vi.fn().mockResolvedValue(createdUser) },
+        pafs_core_user_areas: {
+          create: vi
+            .fn()
+            .mockResolvedValueOnce(createdUserAreas[0])
+            .mockResolvedValueOnce(createdUserAreas[1])
+        }
+      }
+      return fn(tx)
+    })
+
+    // Mock update for reset token persistence
+    prisma.pafs_core_users.update = vi.fn().mockResolvedValue({})
+
+    const res = await svc.createAccountRequest(govUserData, areasPayload)
+
+    expect(res.success).toBe(true)
+    expect(res.user.status).toBe('approved')
+
+    // Check set-password email to user
+    expect(emailService.send).toHaveBeenCalledWith(
+      config.get('notify.templateAccountApprovedSetPassword'),
+      'gov@yopmail.com',
+      expect.objectContaining({
+        user_name: 'Gov',
+        email_address: 'gov@yopmail.com',
+        set_password_link: expect.stringContaining(
+          `${config.get('frontendUrl')}/set-password?token=`
+        )
+      }),
+      'set-password'
+    )
+
+    // Check admin approved email using same area personalisation
+    expect(emailService.send).toHaveBeenCalledWith(
+      config.get('notify.templateAccountApprovedToAdmin'),
+      config.get('notify.adminEmail'),
+      expect.objectContaining({
+        first_name: 'Gov',
+        responsibility_area: 'Type X',
+        main_area: 'Area 10',
+        optional_areas: 'Area 20'
+      }),
+      'account-approved'
+    )
   })
 })
