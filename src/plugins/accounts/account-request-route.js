@@ -3,6 +3,7 @@ import { HTTP_STATUS } from '../../common/constants/index.js'
 import { accountRequestSchema } from '../../common/schemas/account-request-schema.js'
 import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
 import { getEmailService } from '../../common/services/email/notify-service.js'
+import { AreaService } from '../../plugins/areas/services/area-service.js'
 
 const accountRequestRoute = {
   method: 'POST',
@@ -19,10 +20,13 @@ const accountRequestRoute = {
     handler: async (request, h) => {
       const { user: userData, areas } = request.payload
       const emailService = getEmailService(request.server.logger)
+      // Create an instance of AreaService with prisma and logger
+      const areaService = new AreaService(request.prisma, request.server.logger)
       const accountRequestService = new AccountRequestService(
         request.prisma,
         request.server.logger,
-        emailService
+        emailService,
+        areaService
       )
       const result = await accountRequestService.createAccountRequest(
         userData,

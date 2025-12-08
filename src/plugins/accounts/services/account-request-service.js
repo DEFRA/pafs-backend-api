@@ -7,10 +7,18 @@ const ESCAPE_CHAR_CODE = 27
 const DEFAULT_ERROR_MESSAGE = 'Failed to create account request'
 
 export class AccountRequestService {
-  constructor(prisma, logger, emailService) {
+  constructor(prisma, logger, emailService, areaService) {
     this.prisma = prisma
     this.logger = logger
     this.emailService = emailService
+    this.areaService = areaService
+
+    if (
+      !this.areaService ||
+      typeof this.areaService.getAreasByIds !== 'function'
+    ) {
+      this.logger.warn('AreaService not provided or missing getAreasByIds')
+    }
   }
 
   async createAccountRequest(userData, areas) {
@@ -27,6 +35,31 @@ export class AccountRequestService {
         'Account request created successfully'
       )
 
+      const areaIds = serialized.userAreas.map((ua) => ua.area_id) // already stringified
+      // Always use AreaService for area lookups (no Prisma transaction for areas)
+      if (
+        !this.areaService ||
+        typeof this.areaService.getAreasByIds !== 'function'
+      ) {
+        throw new Error('AreaService unavailable or improperly constructed')
+      }
+      const areaDetails = await this.areaService.getAreasByIds(areaIds)
+      const areaMap = new Map(areaDetails.map((ad) => [ad.id, ad.name]))
+
+      let mainAreaName = ''
+      const optionalAreaNames = []
+
+      for (const userArea of serialized.userAreas) {
+        const areaName = areaMap.get(userArea.area_id)
+        if (areaName) {
+          if (userArea.primary) {
+            mainAreaName = areaName
+          } else {
+            optionalAreaNames.push(areaName)
+          }
+        }
+      }
+
       const templateId = config.get('notify.templateAccountVerification')
       const AdminEmail = config.get('notify.adminEmail')
       await this.emailService.send(
@@ -39,9 +72,9 @@ export class AccountRequestService {
           telephone: userData.telephoneNumber,
           organisation: userData.organisation,
           job_title: userData.jobTitle,
-          responsibility_area: 'RMA',
-          main_area: 'Local Authority',
-          optional_areas: 'Optional Areas'
+          responsibility_area: userData.responsibility,
+          main_area: mainAreaName,
+          optional_areas: optionalAreaNames.join(', ')
         },
         'account-verification'
       )

@@ -1,17 +1,72 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AccountRequestService } from './account-request-service.js'
 
+import { config } from '../../../config.js'
+
+// Mock config module with Vitest
+vi.mock('../../../config.js', () => ({
+  config: {
+    get: vi.fn((key) => {
+      if (key === 'notify.templateAccountVerification') return 'tmpl-123'
+      if (key === 'notify.adminEmail') return 'admin@example.com'
+      return ''
+    })
+  }
+}))
+
+const makeLogger = () => ({
+  info: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn()
+})
+
+const makePrisma = () => ({
+  $transaction: vi.fn((fn) =>
+    fn({
+      pafs_core_users: { create: vi.fn() },
+      pafs_core_user_areas: { create: vi.fn() }
+    })
+  ),
+  pafs_core_users: { create: vi.fn() },
+  pafs_core_user_areas: { create: vi.fn() }
+})
+
+const makeEmailService = () => ({
+  send: vi.fn().mockResolvedValue(undefined)
+})
+
+const makeAreaService = (areas = []) => ({
+  getAreasByIds: vi.fn().mockResolvedValue(areas)
+})
+
+const userData = {
+  firstName: 'Jane',
+  lastName: 'Doe',
+  emailAddress: 'jane@example.com',
+  telephoneNumber: '123',
+  organisation: 'Org',
+  jobTitle: 'Dev',
+  responsibility: 'Resp'
+}
+
+const areasPayload = [
+  { area_id: '10', primary: true },
+  { area_id: '20', primary: false }
+]
+
 describe('AccountRequestService', () => {
   let mockPrisma
   let mockLogger
   let accountRequestService
+  let prisma, logger, emailService, areaService, svc
 
   beforeEach(() => {
     vi.clearAllMocks()
 
     mockLogger = {
       info: vi.fn(),
-      error: vi.fn()
+      error: vi.fn(),
+      warn: vi.fn()
     }
 
     mockPrisma = {
@@ -24,7 +79,28 @@ describe('AccountRequestService', () => {
       }
     }
 
-    accountRequestService = new AccountRequestService(mockPrisma, mockLogger)
+    // Provide mocks so createAccountRequest can fetch areas and send email
+    const mockEmailSvc = makeEmailService()
+    const mockAreaSvc = makeAreaService([
+      { id: '11', name: 'Area 11' },
+      { id: '2', name: 'Area 2' }
+    ])
+
+    accountRequestService = new AccountRequestService(
+      mockPrisma,
+      mockLogger,
+      mockEmailSvc,
+      mockAreaSvc
+    )
+
+    prisma = makePrisma()
+    logger = makeLogger()
+    emailService = makeEmailService()
+    areaService = makeAreaService([
+      { id: '10', name: 'Area 10' },
+      { id: '20', name: 'Area 20' }
+    ])
+    svc = new AccountRequestService(prisma, logger, emailService, areaService)
   })
 
   describe('constructor', () => {
@@ -35,7 +111,7 @@ describe('AccountRequestService', () => {
   })
 
   describe('createAccountRequest', () => {
-    const userData = {
+    const userDataLocal = {
       firstName: 'John',
       lastName: 'Doe',
       emailAddress: 'john.doe@example.com',
@@ -44,7 +120,7 @@ describe('AccountRequestService', () => {
       jobTitle: 'Developer'
     }
 
-    const areas = [
+    const areasLocal = [
       { area_id: 11, primary: true },
       { area_id: 2, primary: false }
     ]
@@ -98,8 +174,8 @@ describe('AccountRequestService', () => {
       })
 
       const result = await accountRequestService.createAccountRequest(
-        userData,
-        areas
+        userDataLocal,
+        areasLocal
       )
 
       expect(mockLogger.info).toHaveBeenCalledWith('Creating account request')
@@ -169,8 +245,8 @@ describe('AccountRequestService', () => {
       mockPrisma.$transaction.mockRejectedValue(duplicateError)
 
       const result = await accountRequestService.createAccountRequest(
-        userData,
-        areas
+        userDataLocal,
+        areasLocal
       )
 
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -189,8 +265,8 @@ describe('AccountRequestService', () => {
       mockPrisma.$transaction.mockRejectedValue(duplicateError)
 
       const result = await accountRequestService.createAccountRequest(
-        userData,
-        areas
+        userDataLocal,
+        areasLocal
       )
 
       expect(result.success).toBe(false)
@@ -202,8 +278,8 @@ describe('AccountRequestService', () => {
       mockPrisma.$transaction.mockRejectedValue(dbError)
 
       const result = await accountRequestService.createAccountRequest(
-        userData,
-        areas
+        userDataLocal,
+        areasLocal
       )
 
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -224,8 +300,8 @@ describe('AccountRequestService', () => {
       mockPrisma.$transaction.mockRejectedValue(errorWithAnsi)
 
       const result = await accountRequestService.createAccountRequest(
-        userData,
-        areas
+        userDataLocal,
+        areasLocal
       )
 
       expect(result.success).toBe(false)
@@ -278,5 +354,75 @@ describe('AccountRequestService', () => {
       expect(typeof result.areas[0].user_id).toBe('string')
       expect(typeof result.areas[0].area_id).toBe('string')
     })
+  })
+
+  it('creates account request, fetches areas via AreaService, and sends email', async () => {
+    const createdUser = { id: 1n }
+    const createdUserAreas = [
+      { id: 100n, user_id: 1n, area_id: 10n, primary: true },
+      { id: 101n, user_id: 1n, area_id: 20n, primary: false }
+    ]
+
+    prisma.$transaction.mockImplementation(async (fn) => {
+      const tx = {
+        pafs_core_users: { create: vi.fn().mockResolvedValue(createdUser) },
+        pafs_core_user_areas: {
+          create: vi
+            .fn()
+            .mockResolvedValueOnce(createdUserAreas[0])
+            .mockResolvedValueOnce(createdUserAreas[1])
+        }
+      }
+      return fn(tx)
+    })
+
+    const res = await svc.createAccountRequest(userData, areasPayload)
+    expect(res.success).toBe(true)
+    expect(res.user.id).toBe('1')
+    expect(res.areas).toHaveLength(2)
+    expect(areaService.getAreasByIds).toHaveBeenCalledWith(['10', '20'])
+    expect(emailService.send).toHaveBeenCalledWith(
+      config.get('notify.templateAccountVerification'),
+      config.get('notify.adminEmail'),
+      expect.objectContaining({
+        first_name: 'Jane',
+        main_area: 'Area 10',
+        optional_areas: 'Area 20'
+      }),
+      'account-verification'
+    )
+  })
+
+  it('handles duplicate email error', async () => {
+    const err = new Error('Unique constraint failed on the fields: (`email`)')
+    err.code = 'P2002'
+    err.meta = { target: ['email'] }
+
+    prisma.$transaction.mockRejectedValue(err)
+
+    const res = await svc.createAccountRequest(userData, areasPayload)
+    expect(res.success).toBe(false)
+    expect(res.error).toBe('account.email_already_exists')
+  })
+
+  it('handles generic error and cleans message', async () => {
+    const err = new Error('\x1b[31mSomething went wrong\x1b[0m')
+    prisma.$transaction.mockRejectedValue(err)
+
+    const res = await svc.createAccountRequest(userData, areasPayload)
+    expect(res.success).toBe(false)
+    expect(res.error).toBe('Something went wrong')
+    expect(logger.error).toHaveBeenCalled()
+  })
+
+  it('throws if AreaService missing getAreasByIds', async () => {
+    const badSvc = new AccountRequestService(prisma, logger, emailService, {})
+    prisma.$transaction.mockResolvedValue({
+      user: { id: 1n },
+      userAreas: []
+    })
+    const res = await badSvc.createAccountRequest(userData, [])
+    expect(res.success).toBe(false)
+    expect(res.error).toContain('AreaService')
   })
 })

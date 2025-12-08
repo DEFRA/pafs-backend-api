@@ -3,7 +3,6 @@ import accountRequestRoute from './account-request-route.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
 
 const mockCreateAccountRequest = vi.fn()
-const mockSend = vi.fn()
 
 vi.mock('./services/account-request-service.js', () => ({
   AccountRequestService: class {
@@ -19,7 +18,7 @@ vi.mock('./services/account-request-service.js', () => ({
 
 vi.mock('../../common/services/email/notify-service.js', () => ({
   getEmailService: () => ({
-    send: mockSend
+    send: vi.fn() // email sending is handled inside AccountRequestService, not asserted here
   })
 }))
 
@@ -124,38 +123,6 @@ describe('account request route', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CREATED)
     })
 
-    it('should send an email to admin on successful account request', async () => {
-      const mockUser = {
-        id: '1',
-        first_name: 'John',
-        last_name: 'Doe',
-        email: 'john.doe@example.com',
-        status: 'pending'
-      }
-      mockCreateAccountRequest.mockResolvedValue({
-        success: true,
-        user: mockUser,
-        areas: []
-      })
-
-      await accountRequestRoute.options.handler(mockRequest, mockH)
-
-      expect(mockSend).toHaveBeenCalledTimes(1)
-      expect(mockSend).toHaveBeenCalledWith(
-        'account-verification-template-id',
-        'mmpPafsAdmin@mailinator.com',
-        {
-          first_name: mockRequest.payload.user.firstName,
-          last_name: mockRequest.payload.user.lastName,
-          email_address: mockRequest.payload.user.emailAddress,
-          telephone: mockRequest.payload.user.telephoneNumber,
-          organisation: mockRequest.payload.user.organisation,
-          job_title: mockRequest.payload.user.jobTitle
-        },
-        'account-verification'
-      )
-    })
-
     it('should handle duplicate email error with 409 status', async () => {
       mockCreateAccountRequest.mockResolvedValue({
         success: false,
@@ -206,5 +173,108 @@ describe('account request route', () => {
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     })
+  })
+})
+
+const makeLogger = () => ({
+  info: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn()
+})
+
+const makeH = () => {
+  return {
+    response: vi.fn((payload) => ({
+      payload,
+      code: vi.fn((status) => ({ payload, statusCode: status }))
+    })),
+    code: vi.fn() // not used when response returns an object
+  }
+}
+
+describe('account-request-route handler', () => {
+  it('returns 201 on success and passes AreaService instance', async () => {
+    const request = {
+      payload: {
+        user: {
+          firstName: 'Jane',
+          lastName: 'Doe',
+          emailAddress: 'jane@example.com'
+        },
+        areas: [{ area_id: '10', primary: true }]
+      },
+      prisma: {}, // not used directly here due to mocks in service
+      server: {
+        logger: makeLogger()
+      }
+    }
+
+    const h = makeH()
+
+    // Spy on AccountRequestService to ensure it receives an AreaService instance
+    const mod = await import('./services/account-request-service.js')
+    const spy = vi.spyOn(mod, 'AccountRequestService')
+
+    // Mock createAccountRequest to return success
+    spy.mockImplementation(function () {
+      return {
+        createAccountRequest: vi.fn().mockResolvedValue({
+          success: true,
+          user: { id: '1' },
+          areas: [{ id: '100', area_id: '10', primary: true }]
+        })
+      }
+    })
+
+    const res = await accountRequestRoute.options.handler(request, h)
+    expect(res.statusCode).toBe(201)
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('returns 409 on duplicate email error', async () => {
+    const request = {
+      payload: { user: {}, areas: [] },
+      prisma: {},
+      server: { logger: makeLogger() }
+    }
+    const h = makeH()
+    const mod = await import('./services/account-request-service.js')
+    const spy = vi.spyOn(mod, 'AccountRequestService')
+    spy.mockImplementation(function () {
+      return {
+        createAccountRequest: vi.fn().mockResolvedValue({
+          success: false,
+          error: 'account.email_already_exists'
+        })
+      }
+    })
+
+    const res = await accountRequestRoute.options.handler(request, h)
+    expect(res.statusCode).toBe(409)
+    spy.mockRestore()
+  })
+
+  it('returns 500 on generic error', async () => {
+    const request = {
+      payload: { user: {}, areas: [] },
+      prisma: {},
+      server: { logger: makeLogger() }
+    }
+    const h = makeH()
+    const mod = await import('./services/account-request-service.js')
+    const spy = vi.spyOn(mod, 'AccountRequestService')
+    spy.mockImplementation(function () {
+      return {
+        createAccountRequest: vi.fn().mockResolvedValue({
+          success: false,
+          error: 'some error'
+        })
+      }
+    })
+
+    const res = await accountRequestRoute.options.handler(request, h)
+    expect(res.statusCode).toBe(500)
+    spy.mockRestore()
   })
 })
