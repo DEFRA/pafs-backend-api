@@ -67,7 +67,6 @@ export class AccountRequestService {
       // Send emails based on gov.uk flag
       if (govUkUser) {
         await this._sendSetPasswordEmail(serialized.user)
-        // New: notify admin of approved account using same area data logic
         await this._sendAccountApprovedAdminEmail(
           userData,
           serialized.userAreas

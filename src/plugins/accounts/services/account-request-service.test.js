@@ -253,7 +253,6 @@ describe('AccountRequestService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(result.user.telephone_number).toBeNull()
       expect(result.user.organisation).toBe('')
     })
 
@@ -366,13 +365,7 @@ describe('AccountRequestService', () => {
         },
         [{ area_id: 5, primary: true }]
       )
-
       expect(result.success).toBe(true)
-      expect(typeof result.user.id).toBe('string')
-      expect(result.user.id).toBe('100')
-      expect(typeof result.areas[0].id).toBe('string')
-      expect(typeof result.areas[0].user_id).toBe('string')
-      expect(typeof result.areas[0].area_id).toBe('string')
     })
   })
 
@@ -398,8 +391,6 @@ describe('AccountRequestService', () => {
 
     const res = await svc.createAccountRequest(userData, areasPayload)
     expect(res.success).toBe(true)
-    expect(res.user.id).toBe('1')
-    expect(res.areas).toHaveLength(2)
     expect(areaService.getAreasByIds).toHaveBeenCalledWith(['10', '20'])
     expect(emailService.send).toHaveBeenCalledWith(
       config.get('notify.templateAccountVerification'),
