@@ -245,6 +245,12 @@ const config = convict({
     env: 'FRONTEND_URL'
   },
   notify: {
+    autoApprovedDomains: {
+      doc: 'Gov uk Auto Approved email Domain',
+      format: String,
+      default: 'auto-approved-email-domains',
+      env: 'AUTO_APPROVED_DOMAINS'
+    },
     enabled: {
       doc: 'Enable the GOV.UK Notify',
       format: Boolean,

@@ -45,7 +45,12 @@ export class AccountRequestService {
     try {
       // Determine gov.uk domain flag (case-insensitive)
       const email = (userData.emailAddress || '').toLowerCase()
-      const govUkUser = email.includes('yopmail.com')
+      const autoApprovedDomains = config
+        .get('notify.autoApprovedDomains')
+        .split(',')
+      const govUkUser = autoApprovedDomains.some((domain) =>
+        email.includes(domain)
+      )
 
       const result = await this._executeAccountRequestTransaction(
         userData,
@@ -278,9 +283,9 @@ export class AccountRequestService {
     await this.prisma.pafs_core_users.update({
       where: { id: user.id },
       data: {
-        reset_password_token: hashedToken,
-        reset_password_sent_at: new Date(),
-        updated_at: new Date()
+        invitation_token: hashedToken,
+        invitation_created_at: new Date(),
+        invitation_sent_at: new Date()
       }
     })
 

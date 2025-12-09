@@ -22,6 +22,10 @@ vi.mock('../../../config.js', () => ({
       if (key === 'frontendUrl') {
         return 'https://frontend.example.com'
       }
+      // Ensure auto-approved domains are non-empty and do not include example.com
+      if (key === 'notify.autoApprovedDomains') {
+        return 'gov.uk,yopmail.com'
+      }
       return ''
     })
   }
@@ -40,7 +44,7 @@ const makePrisma = () => ({
       pafs_core_user_areas: { create: vi.fn() }
     })
   ),
-  pafs_core_users: { create: vi.fn() },
+  pafs_core_users: { create: vi.fn(), update: vi.fn().mockResolvedValue({}) },
   pafs_core_user_areas: { create: vi.fn() }
 })
 
@@ -55,7 +59,8 @@ const makeAreaService = (areas = []) => ({
 const userData = {
   firstName: 'Jane',
   lastName: 'Doe',
-  emailAddress: 'jane@example.com',
+  // Ensure userData.emailAddress does NOT include any auto approved domain
+  emailAddress: 'user@example.com',
   telephoneNumber: '123',
   organisation: 'Org',
   jobTitle: 'Dev',
@@ -107,6 +112,8 @@ describe('AccountRequestService', () => {
     )
 
     prisma = makePrisma()
+    // Ensure update exists on prisma used in tests
+    prisma.pafs_core_users.update = vi.fn().mockResolvedValue({})
     logger = makeLogger()
     emailService = makeEmailService()
     areaService = makeAreaService([
