@@ -30,9 +30,15 @@ export class AuthService {
       return { success: false, errorCode: AUTH_ERROR_CODES.INVALID_CREDENTIALS }
     }
 
-    if (user.status === ACCOUNT_STATUS.PENDING) {
+    if (
+      [ACCOUNT_STATUS.PENDING, ACCOUNT_STATUS.APPROVED].includes(user.status)
+    ) {
       this.logger.info({ email }, 'Login attempt for pending account')
-      return { success: false, errorCode: AUTH_ERROR_CODES.ACCOUNT_PENDING }
+      const errorCode =
+        user.status === ACCOUNT_STATUS.APPROVED
+          ? AUTH_ERROR_CODES.ACCOUNT_SETUP_INCOMPLETE
+          : AUTH_ERROR_CODES.ACCOUNT_PENDING
+      return { success: false, errorCode }
     }
 
     const securityCheck = await this.performSecurityChecks(user)

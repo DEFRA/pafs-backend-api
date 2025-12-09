@@ -82,6 +82,23 @@ describe('AuthService', () => {
       expect(result.errorCode).toBe(AUTH_ERROR_CODES.ACCOUNT_PENDING)
     })
 
+    it('returns error for approved account when password is not set through invitation', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        status: 'approved'
+      })
+
+      const result = await authService.login(
+        'test@example.com',
+        'password',
+        '127.0.0.1'
+      )
+
+      expect(result.success).toBe(false)
+      expect(result.errorCode).toBe(AUTH_ERROR_CODES.ACCOUNT_SETUP_INCOMPLETE)
+    })
+
     it('returns error for disabled account', async () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 1,
@@ -486,6 +503,55 @@ describe('AuthService', () => {
           updated_at: expect.any(Date)
         }
       })
+    })
+  })
+
+  describe('getCurrentSignInAt', () => {
+    it('returns current sign in timestamp', async () => {
+      const timestamp = new Date()
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        current_sign_in_at: timestamp
+      })
+
+      const result = await authService.getCurrentSignInAt(1)
+
+      expect(result).toBe(timestamp)
+      expect(mockPrisma.pafs_core_users.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        select: { current_sign_in_at: true }
+      })
+    })
+
+    it('returns undefined for non-existent user', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
+
+      const result = await authService.getCurrentSignInAt(999)
+
+      expect(result).toBeUndefined()
+    })
+  })
+
+  describe('getCurrentSignInIp', () => {
+    it('returns current sign in IP', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        current_sign_in_ip: '192.168.1.1'
+      })
+
+      const result = await authService.getCurrentSignInIp(1)
+
+      expect(result).toBe('192.168.1.1')
+      expect(mockPrisma.pafs_core_users.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        select: { current_sign_in_ip: true }
+      })
+    })
+
+    it('returns undefined for non-existent user', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
+
+      const result = await authService.getCurrentSignInIp(999)
+
+      expect(result).toBeUndefined()
     })
   })
 })

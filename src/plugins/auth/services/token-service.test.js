@@ -241,4 +241,37 @@ describe('TokenService', () => {
       })
     })
   })
+
+  describe('clearInvitationToken', () => {
+    it('clears invitation token from database', async () => {
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      await service.clearInvitationToken(1)
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          invitation_token: null,
+          updated_at: expect.any(Date)
+        }
+      })
+    })
+  })
+
+  describe('acceptInvitation', () => {
+    it('marks invitation as accepted and clears token', async () => {
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      await service.acceptInvitation(1)
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          invitation_token: null,
+          invitation_accepted_at: expect.any(Date),
+          updated_at: expect.any(Date)
+        }
+      })
+    })
+  })
 })

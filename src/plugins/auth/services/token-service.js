@@ -126,7 +126,21 @@ export class TokenService {
       where: { id: userId },
       data: {
         invitation_token: null,
-        invitation_sent_at: null,
+        updated_at: new Date()
+      }
+    })
+  }
+
+  /**
+   * Mark invitation as accepted and clear token
+   * @param {number} userId - The user ID
+   */
+  async acceptInvitation(userId) {
+    await this.prisma.pafs_core_users.update({
+      where: { id: userId },
+      data: {
+        invitation_token: null,
+        invitation_accepted_at: new Date(),
         updated_at: new Date()
       }
     })

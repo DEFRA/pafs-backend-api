@@ -40,10 +40,7 @@ export const forgotPasswordSchema = Joi.object({
     'object.base': VALIDATION_ERROR_CODES.VALIDATION_INVALID_OBJECT
   })
 
-/**
- * Reset password form schema
- */
-export const resetPasswordSchema = Joi.object({
+export const passwordFormSchema = Joi.object({
   token: tokenSchema,
   password: passwordStrengthSchema,
   confirmPassword: Joi.string().valid(Joi.ref('password')).required().messages({
@@ -54,7 +51,7 @@ export const resetPasswordSchema = Joi.object({
   .options({
     abortEarly: false
   })
-  .label('Reset Password')
+  .label('Password Form')
   .messages({
     'object.base': VALIDATION_ERROR_CODES.VALIDATION_INVALID_OBJECT
   })
