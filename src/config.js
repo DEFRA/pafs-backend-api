@@ -245,6 +245,12 @@ const config = convict({
     env: 'FRONTEND_URL'
   },
   notify: {
+    autoApprovedDomains: {
+      doc: 'Gov uk Auto Approved email Domain',
+      format: String,
+      default: 'auto-approved-email-domains',
+      env: 'AUTO_APPROVED_DOMAINS'
+    },
     enabled: {
       doc: 'Enable the GOV.UK Notify',
       format: Boolean,
@@ -263,6 +269,30 @@ const config = convict({
       format: String,
       default: 'password-reset-template-id',
       env: 'NOTIFY_TEMPLATE_PASSWORD_RESET'
+    },
+    templateAccountVerification: {
+      doc: 'GOV.UK Notify template ID for account verification emails',
+      format: String,
+      default: 'account-verification-template-id',
+      env: 'NOTIFY_TEMPLATE_ACCOUNT_VERIFICATION'
+    },
+    templateAccountApprovedSetPassword: {
+      doc: 'GOV.UK Notify template ID for auto-approved accounts',
+      format: String,
+      default: 'auto-approved-template-id',
+      env: 'NOTIFY_TEMPLATE_ACCOUNT_APPROVED_SET_PASSWORD'
+    },
+    templateAccountApprovedToAdmin: {
+      doc: 'GOV.UK Notify template ID for account approval emails',
+      format: String,
+      default: 'account-approved-template-id',
+      env: 'NOTIFY_TEMPLATE_AUTO_APPROVED_TO_ADMIN'
+    },
+    adminEmail: {
+      doc: 'GOV.UK Notify admin email address',
+      format: String,
+      default: '',
+      env: 'NOTIFY_ADMIN_EMAIL'
     }
   },
   httpProxy: {

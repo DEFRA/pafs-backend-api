@@ -29,7 +29,6 @@ const userSchema = Joi.object({
     .trim()
     .pattern(/^[\d\s\-+()]+$/)
     .allow(null, '')
-    .optional()
     .messages({
       'string.pattern.base':
         'Telephone number must contain only digits, spaces, dashes, plus signs, and parentheses'
@@ -48,7 +47,7 @@ const userSchema = Joi.object({
     .optional()
     .label('Job Title'),
   responsibility: Joi.string()
-    .valid('EA', 'RMA')
+    .valid('EA', 'RMA', 'PSO')
     .optional()
     .label('Responsibility')
 })

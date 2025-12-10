@@ -128,5 +128,101 @@ describe('AreaService', () => {
       expect(result.areas[0].id).toBe('1')
       expect(result.areas[0].name).toBeNull()
     })
+
+    it('returns areas with serialized ids and success true', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        {
+          id: 1n,
+          name: 'Area A',
+          area_type: 'type',
+          parent_id: null,
+          sub_type: null,
+          identifier: 'A',
+          end_date: null
+        },
+        {
+          id: 2n,
+          name: 'Area B',
+          area_type: 'type',
+          parent_id: null,
+          sub_type: null,
+          identifier: 'B',
+          end_date: null
+        }
+      ])
+
+      const res = await areaService.getAllAreas()
+      expect(res.success).toBe(true)
+      expect(res.areas).toHaveLength(2)
+      expect(res.areas[0].id).toBe('1')
+      expect(res.areas[1].id).toBe('2')
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        select: {
+          id: true,
+          name: true,
+          area_type: true,
+          parent_id: true,
+          sub_type: true,
+          identifier: true,
+          end_date: true
+        },
+        orderBy: { name: 'asc' }
+      })
+    })
+
+    it('handles errors and returns success false with message', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockRejectedValue(
+        new Error('db error')
+      )
+      const res = await areaService.getAllAreas()
+      expect(res.success).toBe(false)
+      expect(res.error).toBe('db error')
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
+  })
+
+  describe('getAreasByIds', () => {
+    it('normalizes id types and returns serialized areas', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        {
+          id: 10n,
+          name: 'Main',
+          area_type: 't',
+          parent_id: null,
+          sub_type: null,
+          identifier: 'M',
+          end_date: null
+        }
+      ])
+      const result = await areaService.getAreasByIds(['10', 10, 10n])
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('10')
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [10n, 10n, 10n] } },
+        select: {
+          id: true,
+          name: true,
+          area_type: true,
+          parent_id: true,
+          sub_type: true,
+          identifier: true,
+          end_date: true
+        }
+      })
+    })
+
+    it('throws on invalid id type', async () => {
+      await expect(areaService.getAreasByIds([{}])).rejects.toThrow(TypeError)
+    })
+
+    it('propagates fetch errors', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockRejectedValue(
+        new Error('fetch failed')
+      )
+      await expect(areaService.getAreasByIds([1])).rejects.toThrow(
+        'fetch failed'
+      )
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
   })
 })

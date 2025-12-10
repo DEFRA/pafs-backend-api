@@ -4,7 +4,7 @@ import { HTTP_STATUS } from '../../common/constants/index.js'
 
 const mockGetAllAreas = vi.fn()
 
-vi.mock('../../common/services/area/area-service.js', () => ({
+vi.mock('./services/area-service.js', () => ({
   AreaService: class {
     constructor(prisma, logger) {
       this.prisma = prisma
