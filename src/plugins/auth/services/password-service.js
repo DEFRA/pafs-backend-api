@@ -5,7 +5,11 @@ import {
   getPasswordHistoryLimit
 } from '../helpers/password-history.js'
 import { config } from '../../../config.js'
-import { AUTH_ERROR_CODES, PASSWORD } from '../../../common/constants/index.js'
+import {
+  ACCOUNT_STATUS,
+  AUTH_ERROR_CODES,
+  PASSWORD
+} from '../../../common/constants/index.js'
 
 export class PasswordService {
   constructor(prisma, logger, emailService) {
@@ -182,5 +186,45 @@ export class PasswordService {
         where: { id: { in: idsToDelete } }
       })
     }
+  }
+
+  async setInitialPassword(userId, newPassword) {
+    // Verify user exists and is not disabled
+    const user = await this.prisma.pafs_core_users.findUnique({
+      where: { id: userId },
+      select: { id: true, disabled: true, encrypted_password: true }
+    })
+
+    if (!user) {
+      return {
+        success: false,
+        errorCode: AUTH_ERROR_CODES.ACCOUNT_NOT_FOUND
+      }
+    }
+
+    if (user.disabled) {
+      return {
+        success: false,
+        errorCode: AUTH_ERROR_CODES.ACCOUNT_DISABLED
+      }
+    }
+
+    // Hash and set the new password
+    const hashedPassword = await hashPassword(newPassword)
+
+    await this.prisma.pafs_core_users.update({
+      where: { id: userId },
+      data: {
+        encrypted_password: hashedPassword,
+        failed_attempts: 0,
+        locked_at: null,
+        unique_session_id: null,
+        status: ACCOUNT_STATUS.ACTIVE,
+        updated_at: new Date()
+      }
+    })
+
+    this.logger.info({ userId }, 'Initial password set via invitation')
+    return { success: true }
   }
 }

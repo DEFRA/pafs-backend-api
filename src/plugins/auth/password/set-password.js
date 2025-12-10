@@ -1,5 +1,4 @@
 import { PasswordService, TokenService } from '../services/index.js'
-import { getEmailService } from '../../../common/services/email/notify-service.js'
 import {
   AUTH_ERROR_CODES,
   HTTP_STATUS,
@@ -8,9 +7,13 @@ import {
 import { passwordFormSchema } from '../schema.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 
-const resetPassword = {
+/**
+ * Set password endpoint for invitation flow
+ * Used when a user accepts an invitation and sets their password for the first time
+ */
+const setPassword = {
   method: 'POST',
-  path: '/api/v1/auth/reset-password',
+  path: '/api/v1/auth/set-password',
   options: {
     auth: false,
     tags: ['api', 'auth'],
@@ -23,16 +26,17 @@ const resetPassword = {
     const { token, password } = request.payload
 
     try {
-      const emailService = getEmailService(request.logger)
       const tokenService = new TokenService(request.prisma, request.logger)
-      const resetService = new PasswordService(
+      const passwordService = new PasswordService(
         request.prisma,
         request.logger,
-        emailService
+        null // No email service needed for set password
       )
+
+      // Validate invitation token
       const tokenResult = await tokenService.validateToken(
         token,
-        TOKEN_TYPES.RESET
+        TOKEN_TYPES.INVITATION
       )
 
       if (!tokenResult.valid) {
@@ -44,7 +48,8 @@ const resetPassword = {
           .code(HTTP_STATUS.BAD_REQUEST)
       }
 
-      const result = await resetService.resetPassword(
+      // Set the password for the user
+      const result = await passwordService.setInitialPassword(
         tokenResult.userId,
         password
       )
@@ -60,11 +65,13 @@ const resetPassword = {
           })
           .code(statusCode)
       }
-      tokenService.clearResetToken(tokenResult.userId)
+
+      // Mark invitation as accepted and clear token
+      await tokenService.acceptInvitation(tokenResult.userId)
 
       return h.response({ success: true }).code(HTTP_STATUS.OK)
     } catch (error) {
-      request.logger.error({ err: error }, 'Reset password failed')
+      request.logger.error({ err: error }, 'Set password failed')
       return h
         .response({
           errors: [
@@ -79,4 +86,4 @@ const resetPassword = {
   }
 }
 
-export default resetPassword
+export default setPassword

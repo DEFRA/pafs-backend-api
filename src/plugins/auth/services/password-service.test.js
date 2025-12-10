@@ -262,4 +262,54 @@ describe('PasswordService', () => {
       expect(mockPrisma.old_passwords.create).not.toHaveBeenCalled()
     })
   })
+
+  describe('setInitialPassword', () => {
+    it('successfully sets initial password for valid user', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1,
+        disabled: false,
+        encrypted_password: null
+      })
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      const result = await service.setInitialPassword(1, 'NewPassword123!')
+
+      expect(result.success).toBe(true)
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          encrypted_password: 'hashed-NewPassword123!',
+          failed_attempts: 0,
+          locked_at: null,
+          unique_session_id: null,
+          status: 'active',
+          updated_at: expect.any(Date)
+        }
+      })
+    })
+
+    it('returns error for non-existent user', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
+
+      const result = await service.setInitialPassword(999, 'NewPassword123!')
+
+      expect(result.success).toBe(false)
+      expect(result.errorCode).toBe('AUTH_ACCOUNT_NOT_FOUND')
+      expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
+    })
+
+    it('returns error for disabled account', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1,
+        disabled: true,
+        encrypted_password: null
+      })
+
+      const result = await service.setInitialPassword(1, 'NewPassword123!')
+
+      expect(result.success).toBe(false)
+      expect(result.errorCode).toBe('AUTH_ACCOUNT_DISABLED')
+      expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
+    })
+  })
 })
