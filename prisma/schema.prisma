@@ -112,3 +112,36 @@ model pafs_core_users {
   @@index([invitations_count], map: "index_pafs_core_users_on_invitations_count")
   @@index([invited_by_id], map: "index_pafs_core_users_on_invited_by_id")
 }
+
+model pafs_core_projects {
+  id                                BigInt    @id @default(autoincrement())
+  reference_number                  String    @db.VarChar(255)
+  version                           Int
+  name                              String?   @db.VarChar(255)
+  project_type                      String?   @db.VarChar(255)
+  project_location                  String[]
+  project_location_zoom_level       Int?
+  grid_reference                    String?   @db.VarChar(255)
+  region                            String?   @db.VarChar(255)
+  parliamentary_constituency        String?   @db.VarChar(255)
+  county                            String?   @db.VarChar(255)
+  benefit_area                      String?
+  benefit_area_centre               String[]
+  benefit_area_zoom_level           Int?
+  benefit_area_file_name            String?   @db.VarChar(255)
+  benefit_area_content_type         String?   @db.VarChar(255)
+  benefit_area_file_size            Int?
+  benefit_area_file_updated_at      DateTime? @db.Timestamp(6)
+  start_outline_business_case_month Int?
+  start_outline_business_case_year  Int?
+  award_contract_month              Int?
+  award_contract_year               Int?
+  start_construction_month          Int?
+  start_construction_year           Int?
+  ready_for_service_month           Int?
+  ready_for_service_year            Int?
+  created_at                        DateTime  @db.Timestamp(6)
+  updated_at                        DateTime  @db.Timestamp(6)
+
+  @@index([reference_number], map: "index_pafs_core_projects_on_reference_number")
+}

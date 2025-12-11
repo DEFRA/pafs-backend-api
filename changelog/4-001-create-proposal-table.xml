@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="4-001-create-project-table" author="migration-team">
+        <comment>Create pafs_core_projects table</comment>
+
+        <createTable tableName="pafs_core_projects">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            
+            <column name="reference_number" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            
+            <column name="version" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            
+            <column name="name" type="VARCHAR(255)"/>
+            
+            <column name="project_type" type="VARCHAR(255)"/>
+            
+            <!-- PostgreSQL specific array type -->
+            <column name="project_location" type="TEXT[]"/>
+            
+            <column name="project_location_zoom_level" type="INTEGER"/>
+            
+            <column name="grid_reference" type="VARCHAR(255)"/>
+            
+            <column name="region" type="VARCHAR(255)"/>
+            
+            <column name="parliamentary_constituency" type="VARCHAR(255)"/>
+            
+            <column name="county" type="VARCHAR(255)"/>
+            
+            <column name="benefit_area" type="TEXT"/>
+            
+            <column name="benefit_area_centre" type="TEXT[]"/>
+            
+            <column name="benefit_area_zoom_level" type="INTEGER"/>
+            
+            <column name="benefit_area_file_name" type="VARCHAR(255)"/>
+            
+            <column name="benefit_area_content_type" type="VARCHAR(255)"/>
+            
+            <column name="benefit_area_file_size" type="INTEGER"/>
+            
+            <column name="benefit_area_file_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            
+            <!-- Milestones -->
+            <column name="start_outline_business_case_month" type="INTEGER"/>
+            <column name="start_outline_business_case_year" type="INTEGER"/>
+            
+            <column name="award_contract_month" type="INTEGER"/>
+            <column name="award_contract_year" type="INTEGER"/>
+            
+            <column name="start_construction_month" type="INTEGER"/>
+            <column name="start_construction_year" type="INTEGER"/>
+            
+            <column name="ready_for_service_month" type="INTEGER"/>
+            <column name="ready_for_service_year" type="INTEGER"/>
+
+            <!-- Timestamps -->
+            <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="index_pafs_core_projects_on_reference_number" tableName="pafs_core_projects">
+            <column name="reference_number"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="pafs_core_projects" cascadeConstraints="true"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
