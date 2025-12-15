@@ -1,22 +1,7 @@
 import { ProjectNameValidationService } from './services/project-name-validation-service.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
-import Joi from 'joi'
 import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
-
-const checkProjectNameSchema = Joi.object({
-  name: Joi.string()
-    .trim()
-    .min(1)
-    .max(255)
-    .pattern(/^[a-zA-Z0-9_-]+$/)
-    .required()
-    .messages({
-      'string.empty': 'Project name is required',
-      'string.max': 'Project name must not exceed 255 characters',
-      'string.pattern.base':
-        'Project name must only contain letters, numbers, underscores and hyphens'
-    })
-}).unknown(true)
+import { projectNameSchema } from '../../common/schemas/project-proposal-schema.js'
 
 const checkProjectNameRoute = {
   method: 'POST',
@@ -27,7 +12,7 @@ const checkProjectNameRoute = {
     notes: 'Checks if a project name already exists in the database',
     tags: ['api', 'projects'],
     validate: {
-      payload: checkProjectNameSchema,
+      payload: projectNameSchema,
       failAction: validationFailAction
     },
     handler: async (request, h) => {
