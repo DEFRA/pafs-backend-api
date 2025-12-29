@@ -4,7 +4,7 @@ import {
 } from '../../../common/helpers/pagination.js'
 import { ACCOUNT_STATUS } from '../../../common/constants/index.js'
 
-export class AccountService {
+export class AccountFilterService {
   constructor(prisma, logger) {
     this.prisma = prisma
     this.logger = logger

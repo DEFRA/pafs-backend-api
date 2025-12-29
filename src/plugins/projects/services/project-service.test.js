@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import { ProjectNameValidationService } from './project-name-validation-service.js'
+import { ProjectService } from './project-service.js'
 
-describe('ProjectNameValidationService', () => {
+describe('ProjectService', () => {
   let service
   let mockPrisma
   let mockLogger
@@ -20,10 +20,10 @@ describe('ProjectNameValidationService', () => {
       }
     }
 
-    service = new ProjectNameValidationService(mockPrisma, mockLogger)
+    service = new ProjectService(mockPrisma, mockLogger)
   })
 
-  describe('checkProjectNameExists', () => {
+  describe('checkDuplicateProjectName', () => {
     test('Should return exists: true when project name exists', async () => {
       const projectName = 'Existing_Project'
 
@@ -31,7 +31,7 @@ describe('ProjectNameValidationService', () => {
         id: 1
       })
 
-      const result = await service.checkProjectNameExists(projectName)
+      const result = await service.checkDuplicateProjectName(projectName)
 
       expect(result).toEqual({ exists: true })
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
@@ -56,7 +56,7 @@ describe('ProjectNameValidationService', () => {
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      const result = await service.checkProjectNameExists(projectName)
+      const result = await service.checkDuplicateProjectName(projectName)
 
       expect(result).toEqual({ exists: false })
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -70,7 +70,7 @@ describe('ProjectNameValidationService', () => {
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      await service.checkProjectNameExists(projectName)
+      await service.checkDuplicateProjectName(projectName)
 
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -89,7 +89,7 @@ describe('ProjectNameValidationService', () => {
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      await service.checkProjectNameExists(projectName)
+      await service.checkDuplicateProjectName(projectName)
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         { projectName },
@@ -103,9 +103,9 @@ describe('ProjectNameValidationService', () => {
 
       mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
 
-      await expect(service.checkProjectNameExists(projectName)).rejects.toThrow(
-        'Database connection error'
-      )
+      await expect(
+        service.checkDuplicateProjectName(projectName)
+      ).rejects.toThrow('Database connection error')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         { error: dbError.message, projectName },
@@ -118,7 +118,7 @@ describe('ProjectNameValidationService', () => {
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 123 })
 
-      await service.checkProjectNameExists(projectName)
+      await service.checkDuplicateProjectName(projectName)
 
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -134,7 +134,7 @@ describe('ProjectNameValidationService', () => {
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      const result = await service.checkProjectNameExists(projectName)
+      const result = await service.checkDuplicateProjectName(projectName)
 
       expect(result).toEqual({ exists: false })
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
@@ -154,7 +154,7 @@ describe('ProjectNameValidationService', () => {
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      const result = await service.checkProjectNameExists(projectName)
+      const result = await service.checkDuplicateProjectName(projectName)
 
       expect(result).toEqual({ exists: false })
     })

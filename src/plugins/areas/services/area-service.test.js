@@ -30,8 +30,8 @@ describe('AreaService', () => {
     })
   })
 
-  describe('getAllAreas', () => {
-    it('should fetch all areas successfully and convert BigInt to string', async () => {
+  describe('getAllAreasGroupedByType', () => {
+    it('should fetch all areas and group by area_type', async () => {
       const mockAreas = [
         {
           id: BigInt('1'),
@@ -46,16 +46,25 @@ describe('AreaService', () => {
           id: BigInt('2'),
           name: 'Area 2',
           area_type: 'RMA',
-          parent_id: 1,
+          parent_id: BigInt('1'),
           sub_type: 'Sub',
           identifier: 'RMA001',
           end_date: new Date('2025-12-31')
+        },
+        {
+          id: BigInt('3'),
+          name: 'Area 3',
+          area_type: 'EA',
+          parent_id: null,
+          sub_type: 'Main',
+          identifier: 'EA002',
+          end_date: null
         }
       ]
 
       mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
 
-      const result = await areaService.getAllAreas()
+      const result = await areaService.getAllAreasGroupedByType()
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Fetching all areas from pafs_core_areas table'
@@ -75,154 +84,254 @@ describe('AreaService', () => {
         }
       })
 
-      expect(result.success).toBe(true)
-      expect(result.areas).toHaveLength(2)
-      expect(result.areas[0].id).toBe('1')
-      expect(result.areas[1].id).toBe('2')
-      expect(typeof result.areas[0].id).toBe('string')
-      expect(typeof result.areas[1].id).toBe('string')
+      expect(result).toHaveProperty('EA')
+      expect(result).toHaveProperty('RMA')
+      expect(result.EA).toHaveLength(2)
+      expect(result.RMA).toHaveLength(1)
+      expect(result.EA[0].id).toBe('1')
+      expect(result.EA[1].id).toBe('3')
+      expect(result.RMA[0].id).toBe('2')
+      expect(result.RMA[0].parent_id).toBe('1')
     })
 
-    it('should return empty array when no areas found', async () => {
+    it('should return empty object when no areas found', async () => {
       mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
 
-      const result = await areaService.getAllAreas()
+      const result = await areaService.getAllAreasGroupedByType()
 
-      expect(result.success).toBe(true)
-      expect(result.areas).toEqual([])
+      expect(result).toEqual({})
     })
 
-    it('should handle database errors and return error message', async () => {
-      const mockError = new Error('Database connection failed')
-      mockPrisma.pafs_core_areas.findMany.mockRejectedValue(mockError)
-
-      const result = await areaService.getAllAreas()
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        { error: mockError },
-        'Failed to fetch areas from the database'
-      )
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Database connection failed')
-    })
-
-    it('should handle null values in area data', async () => {
+    it('should handle areas with null area_type', async () => {
       const mockAreas = [
         {
           id: BigInt('1'),
-          name: null,
+          name: 'Area 1',
           area_type: null,
           parent_id: null,
           sub_type: null,
-          identifier: null,
+          identifier: 'A001',
           end_date: null
         }
       ]
 
       mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
 
-      const result = await areaService.getAllAreas()
+      const result = await areaService.getAllAreasGroupedByType()
 
-      expect(result.success).toBe(true)
-      expect(result.areas).toHaveLength(1)
-      expect(result.areas[0].id).toBe('1')
-      expect(result.areas[0].name).toBeNull()
+      expect(result).toHaveProperty('unknown')
+      expect(result.unknown).toHaveLength(1)
+      expect(result.unknown[0].id).toBe('1')
     })
 
-    it('returns areas with serialized ids and success true', async () => {
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+    it('should convert parent_id BigInt to string', async () => {
+      const mockAreas = [
         {
-          id: 1n,
-          name: 'Area A',
-          area_type: 'type',
-          parent_id: null,
-          sub_type: null,
-          identifier: 'A',
-          end_date: null
-        },
-        {
-          id: 2n,
-          name: 'Area B',
-          area_type: 'type',
-          parent_id: null,
-          sub_type: null,
-          identifier: 'B',
+          id: BigInt('2'),
+          name: 'Child Area',
+          area_type: 'RMA',
+          parent_id: BigInt('1'),
+          sub_type: 'Sub',
+          identifier: 'RMA001',
           end_date: null
         }
-      ])
+      ]
 
-      const res = await areaService.getAllAreas()
-      expect(res.success).toBe(true)
-      expect(res.areas).toHaveLength(2)
-      expect(res.areas[0].id).toBe('1')
-      expect(res.areas[1].id).toBe('2')
-      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
-        select: {
-          id: true,
-          name: true,
-          area_type: true,
-          parent_id: true,
-          sub_type: true,
-          identifier: true,
-          end_date: true
-        },
-        orderBy: { name: 'asc' }
-      })
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
+
+      const result = await areaService.getAllAreasGroupedByType()
+
+      expect(result.RMA[0].parent_id).toBe('1')
+      expect(typeof result.RMA[0].parent_id).toBe('string')
     })
 
-    it('handles errors and returns success false with message', async () => {
-      mockPrisma.pafs_core_areas.findMany.mockRejectedValue(
-        new Error('db error')
+    it('should handle null parent_id', async () => {
+      const mockAreas = [
+        {
+          id: BigInt('1'),
+          name: 'Parent Area',
+          area_type: 'EA',
+          parent_id: null,
+          sub_type: 'Main',
+          identifier: 'EA001',
+          end_date: null
+        }
+      ]
+
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
+
+      const result = await areaService.getAllAreasGroupedByType()
+
+      expect(result.EA[0].parent_id).toBeNull()
+    })
+
+    it('should log grouped area types', async () => {
+      const mockAreas = [
+        {
+          id: BigInt('1'),
+          name: 'Area 1',
+          area_type: 'EA',
+          parent_id: null,
+          sub_type: null,
+          identifier: 'EA001',
+          end_date: null
+        },
+        {
+          id: BigInt('2'),
+          name: 'Area 2',
+          area_type: 'RMA',
+          parent_id: null,
+          sub_type: null,
+          identifier: 'RMA001',
+          end_date: null
+        }
+      ]
+
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
+
+      await areaService.getAllAreasGroupedByType()
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { types: expect.arrayContaining(['EA', 'RMA']) },
+        'Areas grouped by type'
       )
-      const res = await areaService.getAllAreas()
-      expect(res.success).toBe(false)
-      expect(res.error).toBe('db error')
-      expect(mockLogger.error).toHaveBeenCalled()
     })
   })
 
-  describe('getAreasByIds', () => {
-    it('normalizes id types and returns serialized areas', async () => {
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+  describe('getAreaDetailsByIds', () => {
+    it('should fetch area details by IDs', async () => {
+      const mockAreas = [
         {
-          id: 10n,
-          name: 'Main',
-          area_type: 't',
-          parent_id: null,
-          sub_type: null,
-          identifier: 'M',
-          end_date: null
+          id: BigInt('1'),
+          name: 'Thames',
+          area_type: 'EA Area'
+        },
+        {
+          id: BigInt('2'),
+          name: 'Anglian',
+          area_type: 'EA Area'
         }
-      ])
-      const result = await areaService.getAreasByIds(['10', 10, 10n])
-      expect(result).toHaveLength(1)
-      expect(result[0].id).toBe('10')
+      ]
+
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
+
+      const result = await areaService.getAreaDetailsByIds(['1', '2'])
+
       expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
-        where: { id: { in: [10n, 10n, 10n] } },
+        where: {
+          id: {
+            in: [BigInt('1'), BigInt('2')]
+          }
+        },
         select: {
           id: true,
           name: true,
-          area_type: true,
-          parent_id: true,
-          sub_type: true,
-          identifier: true,
-          end_date: true
+          area_type: true
+        }
+      })
+
+      expect(result).toEqual([
+        { id: 1, name: 'Thames', areaType: 'EA Area' },
+        { id: 2, name: 'Anglian', areaType: 'EA Area' }
+      ])
+    })
+
+    it('should return empty array when no area IDs provided', async () => {
+      const result = await areaService.getAreaDetailsByIds([])
+
+      expect(mockPrisma.pafs_core_areas.findMany).not.toHaveBeenCalled()
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array when area IDs is null', async () => {
+      const result = await areaService.getAreaDetailsByIds(null)
+
+      expect(mockPrisma.pafs_core_areas.findMany).not.toHaveBeenCalled()
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array when area IDs is undefined', async () => {
+      const result = await areaService.getAreaDetailsByIds(undefined)
+
+      expect(mockPrisma.pafs_core_areas.findMany).not.toHaveBeenCalled()
+      expect(result).toEqual([])
+    })
+
+    it('should handle single area ID', async () => {
+      const mockAreas = [
+        {
+          id: BigInt('5'),
+          name: 'North East',
+          area_type: 'RMA'
+        }
+      ]
+
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
+
+      const result = await areaService.getAreaDetailsByIds(['5'])
+
+      expect(result).toEqual([{ id: 5, name: 'North East', areaType: 'RMA' }])
+    })
+
+    it('should convert string IDs to BigInt for query', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
+
+      await areaService.getAreaDetailsByIds(['123', '456'])
+
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        where: {
+          id: {
+            in: [BigInt('123'), BigInt('456')]
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          area_type: true
         }
       })
     })
 
-    it('throws on invalid id type', async () => {
-      await expect(areaService.getAreasByIds([{}])).rejects.toThrow(TypeError)
+    it('should convert BigInt IDs back to numbers in result', async () => {
+      const mockAreas = [
+        {
+          id: BigInt('999999999999'),
+          name: 'Large ID Area',
+          area_type: 'PSO Area'
+        }
+      ]
+
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
+
+      const result = await areaService.getAreaDetailsByIds(['999999999999'])
+
+      expect(result[0].id).toBe(999999999999)
+      expect(typeof result[0].id).toBe('number')
     })
 
-    it('propagates fetch errors', async () => {
-      mockPrisma.pafs_core_areas.findMany.mockRejectedValue(
-        new Error('fetch failed')
-      )
-      await expect(areaService.getAreasByIds([1])).rejects.toThrow(
-        'fetch failed'
-      )
-      expect(mockLogger.error).toHaveBeenCalled()
+    it('should return empty array when no areas found', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
+
+      const result = await areaService.getAreaDetailsByIds(['1', '2', '3'])
+
+      expect(result).toEqual([])
+    })
+
+    it('should handle partial matches', async () => {
+      const mockAreas = [
+        {
+          id: BigInt('1'),
+          name: 'Thames',
+          area_type: 'EA Area'
+        }
+      ]
+
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue(mockAreas)
+
+      const result = await areaService.getAreaDetailsByIds(['1', '999'])
+
+      expect(result).toEqual([{ id: 1, name: 'Thames', areaType: 'EA Area' }])
+      expect(result).toHaveLength(1)
     })
   })
 })

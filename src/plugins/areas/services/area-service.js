@@ -4,76 +4,76 @@ export class AreaService {
     this.logger = logger
   }
 
-  async getAllAreas() {
+  async getAllAreasGroupedByType() {
     this.logger.info('Fetching all areas from pafs_core_areas table')
-    try {
-      const areas = await this.prisma.pafs_core_areas.findMany({
-        select: {
-          id: true,
-          name: true,
-          area_type: true,
-          parent_id: true,
-          sub_type: true,
-          identifier: true,
-          end_date: true
-        },
-        orderBy: {
-          name: 'asc'
-        }
-      })
 
-      // Convert BigInt values to strings for JSON serialization
-      const serializedAreas = areas.map((area) => ({
-        ...area,
-        id: area.id.toString()
-      }))
-
-      return { success: true, areas: serializedAreas }
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to fetch areas from the database')
-      return { success: false, error: error.message }
-    }
-  }
-
-  // Fetch areas by a list of IDs (accepts BigInt | string | number)
-  async getAreasByIds(areaIds) {
-    // Normalize to BigInt array for Prisma
-    const normalizedIds = (areaIds || []).map((id) => {
-      if (typeof id === 'bigint') {
-        return id
+    const areas = await this.prisma.pafs_core_areas.findMany({
+      select: {
+        id: true,
+        name: true,
+        area_type: true,
+        parent_id: true,
+        sub_type: true,
+        identifier: true,
+        end_date: true
+      },
+      orderBy: {
+        name: 'asc'
       }
-      if (typeof id === 'number') {
-        return BigInt(id)
-      }
-      if (typeof id === 'string') {
-        return BigInt(id)
-      }
-      throw new TypeError('Invalid area id type')
     })
 
-    this.logger.info({ count: normalizedIds.length }, 'Fetching areas by IDs')
-    try {
-      const areas = await this.prisma.pafs_core_areas.findMany({
-        where: { id: { in: normalizedIds } },
-        select: {
-          id: true,
-          name: true,
-          area_type: true,
-          parent_id: true,
-          sub_type: true,
-          identifier: true,
-          end_date: true
-        }
-      })
+    // Convert BigInt values to strings for JSON serialization
+    const serializedAreas = areas.map((area) => ({
+      ...area,
+      id: area.id.toString(),
+      parent_id: area.parent_id ? area.parent_id.toString() : null
+    }))
 
-      // Convert BigInt id to string for serialization
-      return areas.map((area) => ({
-        ...area,
-        id: area.id.toString()
-      }))
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to fetch areas by IDs')
-      throw error
+    // Group areas by area_type
+    const groupedAreas = serializedAreas.reduce((acc, area) => {
+      const areaType = area.area_type || 'unknown'
+      if (!acc[areaType]) {
+        acc[areaType] = []
+      }
+      acc[areaType].push(area)
+      return acc
+    }, {})
+
+    this.logger.info(
+      { types: Object.keys(groupedAreas) },
+      'Areas grouped by type'
+    )
+
+    return groupedAreas
+  }
+
+  async getAreaDetailsByIds(areaIds) {
+    if (!areaIds || areaIds.length === 0) {
+      return []
     }
+
+    this.logger.info(
+      { areaCount: areaIds.length },
+      'Fetching area details by IDs'
+    )
+
+    const areas = await this.prisma.pafs_core_areas.findMany({
+      where: {
+        id: {
+          in: areaIds.map((id) => BigInt(id))
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        area_type: true
+      }
+    })
+
+    return areas.map((area) => ({
+      id: Number(area.id),
+      name: area.name,
+      areaType: area.area_type
+    }))
   }
 }

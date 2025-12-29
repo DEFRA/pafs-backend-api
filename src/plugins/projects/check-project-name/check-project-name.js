@@ -1,7 +1,7 @@
-import { ProjectNameValidationService } from './services/project-name-validation-service.js'
-import { HTTP_STATUS } from '../../common/constants/index.js'
-import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
-import { projectNameSchema } from '../../common/schemas/project-proposal-schema.js'
+import { ProjectService } from '../services/project-service.js'
+import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
+import { projectNameSchema } from '../../../common/schemas/project-proposal-schema.js'
 
 const checkProjectNameRoute = {
   method: 'POST',
@@ -19,13 +19,12 @@ const checkProjectNameRoute = {
       const { name } = request.payload
 
       try {
-        const projectNameValidationService = new ProjectNameValidationService(
+        const projectService = new ProjectService(
           request.prisma,
           request.server.logger
         )
 
-        const result =
-          await projectNameValidationService.checkProjectNameExists(name)
+        const result = await projectService.checkDuplicateProjectName(name)
 
         return h
           .response({

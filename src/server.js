@@ -7,6 +7,7 @@ import healthPlugin from './plugins/health/index.js'
 import authPlugin from './plugins/auth/index.js'
 import areasPlugin from './plugins/areas/index.js'
 import accountsPlugin from './plugins/accounts/index.js'
+import emailValidationPlugin from './plugins/email-validation/index.js'
 import projectsPlugin from './plugins/projects/index.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { postgres } from './plugins/database/postgres.js'
@@ -87,6 +88,7 @@ async function createServer() {
     authPlugin,
     areasPlugin,
     accountsPlugin,
+    emailValidationPlugin,
     projectsPlugin
   ])
 

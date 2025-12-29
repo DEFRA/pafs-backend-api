@@ -1,4 +1,4 @@
-import checkProjectNameRoute from './check-project-name-route.js'
+import checkProjectNameRoute from './check-project-name/check-project-name.js'
 
 const projectsPlugin = {
   name: 'projects',
@@ -10,4 +10,4 @@ const projectsPlugin = {
 }
 
 export default projectsPlugin
-export { default as checkProjectNameRoute } from './check-project-name-route.js'
+export { default as checkProjectNameRoute } from './check-project-name/check-project-name.js'

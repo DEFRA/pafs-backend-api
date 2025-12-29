@@ -16,7 +16,7 @@ describe('areas plugin', () => {
 
       const routes = server.table()
 
-      const areasRoute = routes.find((r) => r.path === '/api/v1/areas')
+      const areasRoute = routes.find((r) => r.path === '/api/v1/areas-by-type')
 
       expect(areasRoute).toBeDefined()
       expect(areasRoute.method).toBe('get')
@@ -47,7 +47,9 @@ describe('areas plugin', () => {
       await server.register(areasPlugin)
 
       const routes = server.table()
-      const pluginRoutes = routes.filter((r) => r.path === '/api/v1/areas')
+      const pluginRoutes = routes.filter(
+        (r) => r.path === '/api/v1/areas-by-type'
+      )
 
       expect(pluginRoutes).toHaveLength(1)
     })

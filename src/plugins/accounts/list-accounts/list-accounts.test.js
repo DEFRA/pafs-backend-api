@@ -7,8 +7,8 @@ import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 
 const mockGetAccounts = vi.fn()
 
-vi.mock('../services/account-service.js', () => ({
-  AccountService: class {
+vi.mock('../services/account-filter-service.js', () => ({
+  AccountFilterService: class {
     getAccounts = mockGetAccounts
   }
 }))

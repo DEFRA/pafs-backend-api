@@ -7,6 +7,7 @@
         <comment>Create pafs_core_projects table</comment>
 
         <createTable tableName="pafs_core_projects">
+            <!-- Bootstrap the proposal -->
             <column name="id" type="BIGSERIAL" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -19,28 +20,46 @@
                 <constraints nullable="false"/>
             </column>
             
+            <column name="slug" type="VARCHAR(255)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+            
             <column name="name" type="VARCHAR(255)"/>
+            
+            <column name="rma_name" type="VARCHAR(255)"/>
             
             <column name="project_type" type="VARCHAR(255)"/>
             
-            <!-- PostgreSQL specific array type -->
-            <column name="project_location" type="TEXT[]"/>
+            <column name="project_intervention_types" type="VARCHAR(255)"/>
             
-            <column name="project_location_zoom_level" type="INTEGER"/>
+            <column name="main_intervention_type" type="VARCHAR(255)"/>
             
+            <column name="earliest_start_year" type="INTEGER"/>
+            
+            <column name="project_end_financial_year" type="INTEGER"/>
+            
+            <column name="pending_earliest_start_year" type="INTEGER"/>
+            
+            <column name="pending_financial_year" type="INTEGER"/>
+            
+            <column name="date_change_requires_confirmation" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            
+            <!-- Location fields -->
             <column name="grid_reference" type="VARCHAR(255)"/>
-            
+
             <column name="region" type="VARCHAR(255)"/>
             
             <column name="parliamentary_constituency" type="VARCHAR(255)"/>
-            
+
             <column name="county" type="VARCHAR(255)"/>
+
+            <column name="project_location" type="TEXT[]"/>
             
-            <column name="benefit_area" type="TEXT"/>
+            <column name="project_location_zoom_level" type="INTEGER" defaultValueNumeric="15"/>
             
-            <column name="benefit_area_centre" type="TEXT[]"/>
-            
-            <column name="benefit_area_zoom_level" type="INTEGER"/>
+            <!-- Benefit area fields -->
             
             <column name="benefit_area_file_name" type="VARCHAR(255)"/>
             
@@ -49,19 +68,80 @@
             <column name="benefit_area_file_size" type="INTEGER"/>
             
             <column name="benefit_area_file_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+
+            <column name="benefit_area" type="TEXT"/>
             
-            <!-- Milestones -->
+            <column name="benefit_area_centre" type="TEXT[]"/>
+            
+            <column name="benefit_area_zoom_level" type="INTEGER"/>
+            
+            <!-- Important dates -->
             <column name="start_outline_business_case_month" type="INTEGER"/>
+            
             <column name="start_outline_business_case_year" type="INTEGER"/>
             
+            <column name="complete_outline_business_case_month" type="INTEGER"/>
+            
+            <column name="complete_outline_business_case_year" type="INTEGER"/>
+            
             <column name="award_contract_month" type="INTEGER"/>
+            
             <column name="award_contract_year" type="INTEGER"/>
             
             <column name="start_construction_month" type="INTEGER"/>
+            
             <column name="start_construction_year" type="INTEGER"/>
             
             <column name="ready_for_service_month" type="INTEGER"/>
+            
             <column name="ready_for_service_year" type="INTEGER"/>
+            
+            <column name="could_start_early" type="BOOLEAN"/>
+            
+            <column name="earliest_with_gia_month" type="INTEGER"/>
+            
+            <column name="earliest_with_gia_year" type="INTEGER"/>
+            
+            <!-- Funding sources -->
+            <column name="fcerm_gia" type="BOOLEAN"/>
+            
+            <column name="local_levy" type="BOOLEAN"/>
+            
+            <column name="internal_drainage_boards" type="BOOLEAN"/>
+            
+            <column name="public_contributions" type="BOOLEAN"/>
+            
+            <column name="public_contributor_names" type="VARCHAR(255)"/>
+            
+            <column name="private_contributions" type="BOOLEAN"/>
+            
+            <column name="private_contributor_names" type="VARCHAR(255)"/>
+            
+            <column name="other_ea_contributions" type="BOOLEAN"/>
+            
+            <column name="other_ea_contributor_names" type="VARCHAR(255)"/>
+            
+            <column name="growth_funding" type="BOOLEAN"/>
+            
+            <column name="not_yet_identified" type="BOOLEAN"/>
+            
+            <column name="funding_sources_visited" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <column name="asset_replacement_allowance" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <column name="environment_statutory_funding" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <column name="frequently_flooded_communities" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <column name="other_additional_grant_in_aid" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <column name="other_government_department" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <column name="recovery" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <column name="summer_economic_fund" type="BOOLEAN" defaultValueBoolean="false"/>
+
+            <column name="creator_id" type="INTEGER"/>
 
             <!-- Timestamps -->
             <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
@@ -74,6 +154,19 @@
 
         <createIndex indexName="index_pafs_core_projects_on_reference_number" tableName="pafs_core_projects">
             <column name="reference_number"/>
+        </createIndex>
+        
+        <createIndex indexName="index_pafs_core_projects_on_name" tableName="pafs_core_projects" unique="true">
+            <column name="name"/>
+        </createIndex>
+        
+        <createIndex indexName="index_pafs_core_projects_on_slug" tableName="pafs_core_projects" unique="true">
+            <column name="slug"/>
+        </createIndex>
+        
+        <createIndex indexName="index_pafs_core_projects_on_reference_number_and_version" tableName="pafs_core_projects" unique="true">
+            <column name="reference_number"/>
+            <column name="version"/>
         </createIndex>
 
         <rollback>

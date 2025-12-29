@@ -40,6 +40,9 @@ export const forgotPasswordSchema = Joi.object({
     'object.base': VALIDATION_ERROR_CODES.VALIDATION_INVALID_OBJECT
   })
 
+/**
+ * Password form schema - combines token, password and confirm password
+ */
 export const passwordFormSchema = Joi.object({
   token: tokenSchema,
   password: passwordStrengthSchema,
@@ -69,3 +72,10 @@ export const validateTokenSchema = Joi.object({
       'any.only': AUTH_VALIDATION_CODES.TOKEN_TYPE_INVALID
     })
 })
+  .options({
+    abortEarly: false
+  })
+  .label('Validate Token')
+  .messages({
+    'object.base': VALIDATION_ERROR_CODES.VALIDATION_INVALID_OBJECT
+  })

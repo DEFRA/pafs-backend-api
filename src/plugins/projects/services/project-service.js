@@ -1,4 +1,4 @@
-export class ProjectNameValidationService {
+export class ProjectService {
   constructor(prisma, logger) {
     this.prisma = prisma
     this.logger = logger
@@ -9,7 +9,7 @@ export class ProjectNameValidationService {
    * @param {string} name - Project name to check
    * @returns {Promise<{exists: boolean}>}
    */
-  async checkProjectNameExists(name) {
+  async checkDuplicateProjectName(name) {
     this.logger.info({ projectName: name }, 'Checking if project name exists')
 
     try {

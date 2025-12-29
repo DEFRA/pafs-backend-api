@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import checkProjectNameRoute from './check-project-name-route.js'
-import { HTTP_STATUS } from '../../common/constants/index.js'
+import checkProjectNameRoute from './check-project-name.js'
+import { HTTP_STATUS } from '../../../common/constants/index.js'
 
 describe('checkProjectNameRoute', () => {
   let mockRequest

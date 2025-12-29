@@ -14,6 +14,7 @@ describe('jwt-auth plugin', () => {
         strategy: vi.fn(),
         default: vi.fn()
       },
+      ext: vi.fn(),
       logger: {
         info: vi.fn()
       }
@@ -106,6 +107,15 @@ describe('jwt-auth plugin', () => {
       expect(registerCall).toBeLessThan(strategyCall)
       expect(strategyCall).toBeLessThan(defaultCall)
     })
+
+    it('registers onPreResponse extension', async () => {
+      await jwtAuthPlugin.register(mockServer, mockOptions)
+
+      expect(mockServer.ext).toHaveBeenCalledWith(
+        'onPreResponse',
+        expect.any(Function)
+      )
+    })
   })
 
   describe('validate function', () => {
@@ -127,7 +137,8 @@ describe('jwt-auth plugin', () => {
             error: vi.fn(),
             warn: vi.fn()
           }
-        }
+        },
+        app: {}
       }
     })
 
@@ -136,6 +147,9 @@ describe('jwt-auth plugin', () => {
         const result = await validateFn(null, mockRequest)
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
         expect(result.credentials).toBeUndefined()
       })
 
@@ -143,12 +157,18 @@ describe('jwt-auth plugin', () => {
         const result = await validateFn(undefined, mockRequest)
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
       })
 
       it('returns invalid for empty decoded token', async () => {
         const result = await validateFn({}, mockRequest)
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
         expect(
           mockRequest.prisma.pafs_core_users.findUnique
         ).not.toHaveBeenCalled()
@@ -161,6 +181,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
         expect(
           mockRequest.prisma.pafs_core_users.findUnique
         ).not.toHaveBeenCalled()
@@ -170,6 +193,9 @@ describe('jwt-auth plugin', () => {
         const result = await validateFn({ userId: 1 }, mockRequest)
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
         expect(
           mockRequest.prisma.pafs_core_users.findUnique
         ).not.toHaveBeenCalled()
@@ -182,6 +208,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
       })
 
       it('returns invalid for null sessionId', async () => {
@@ -191,6 +220,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
       })
 
       it('returns invalid for zero userId', async () => {
@@ -200,6 +232,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
       })
 
       it('returns invalid for empty string sessionId', async () => {
@@ -209,6 +244,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
       })
     })
 
@@ -222,6 +260,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_ACCOUNT_NOT_FOUND'
+        })
         expect(
           mockRequest.prisma.pafs_core_users.findUnique
         ).toHaveBeenCalledWith({
@@ -267,6 +308,7 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({ errorCode: 'AUTH_ACCOUNT_DISABLED' })
       })
 
       it('logs warning for disabled account', async () => {
@@ -327,6 +369,7 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({ errorCode: 'AUTH_ACCOUNT_LOCKED' })
       })
 
       it('logs warning for locked account', async () => {
@@ -402,6 +445,7 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({ errorCode: 'AUTH_SESSION_MISMATCH' })
       })
 
       it('logs warning for session mismatch with token session', async () => {
@@ -587,6 +631,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
       })
 
       it('logs error on database failure', async () => {
@@ -614,6 +661,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
         expect(mockRequest.server.logger.error).toHaveBeenCalled()
       })
 
@@ -630,6 +680,9 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
       })
 
       it('does not expose error details in return value', async () => {
@@ -641,7 +694,10 @@ describe('jwt-auth plugin', () => {
           mockRequest
         )
 
-        expect(result).toEqual({ isValid: false })
+        expect(result.isValid).toBe(false)
+        expect(result.artifacts).toEqual({
+          errorCode: 'AUTH_TOKEN_EXPIRED_INVALID'
+        })
         expect(result.error).toBeUndefined()
         expect(result.message).toBeUndefined()
       })
@@ -736,6 +792,161 @@ describe('jwt-auth plugin', () => {
         expect(result.credentials.firstName).toBe('François')
         expect(result.credentials.lastName).toBe("O'Brien-Smith")
       })
+    })
+  })
+
+  describe('onPreResponse handler', () => {
+    let onPreResponseHandler
+    let mockRequest
+    let mockH
+
+    beforeEach(async () => {
+      await jwtAuthPlugin.register(mockServer, mockOptions)
+      onPreResponseHandler = mockServer.ext.mock.calls[0][1]
+
+      mockH = {
+        response: vi.fn().mockReturnThis(),
+        code: vi.fn().mockReturnThis(),
+        continue: Symbol('continue')
+      }
+    })
+
+    it('returns error code in response body for 401 auth errors', () => {
+      mockRequest = {
+        response: {
+          isBoom: true,
+          output: {
+            statusCode: 401
+          }
+        },
+        app: {
+          jwtErrorCode: 'AUTH_SESSION_MISMATCH'
+        },
+        server: {
+          logger: {
+            info: vi.fn()
+          }
+        }
+      }
+
+      onPreResponseHandler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        errorCode: 'AUTH_SESSION_MISMATCH'
+      })
+      expect(mockH.code).toHaveBeenCalledWith(401)
+    })
+
+    it('returns error code for account disabled', () => {
+      mockRequest = {
+        response: {
+          isBoom: true,
+          output: {
+            statusCode: 401
+          }
+        },
+        app: {
+          jwtErrorCode: 'AUTH_ACCOUNT_DISABLED'
+        },
+        server: {
+          logger: {
+            info: vi.fn()
+          }
+        }
+      }
+
+      onPreResponseHandler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        errorCode: 'AUTH_ACCOUNT_DISABLED'
+      })
+      expect(mockH.code).toHaveBeenCalledWith(401)
+    })
+
+    it('continues for non-401 errors', () => {
+      mockRequest = {
+        response: {
+          isBoom: true,
+          output: {
+            statusCode: 500
+          }
+        },
+        auth: {
+          artifacts: {
+            errorCode: 'SOME_ERROR'
+          }
+        }
+      }
+
+      const result = onPreResponseHandler(mockRequest, mockH)
+
+      expect(result).toBe(mockH.continue)
+      expect(mockH.response).not.toHaveBeenCalled()
+    })
+
+    it('continues when response is not a Boom error', () => {
+      mockRequest = {
+        response: {
+          isBoom: false
+        },
+        auth: {
+          artifacts: {
+            errorCode: 'SOME_ERROR'
+          }
+        }
+      }
+
+      const result = onPreResponseHandler(mockRequest, mockH)
+
+      expect(result).toBe(mockH.continue)
+      expect(mockH.response).not.toHaveBeenCalled()
+    })
+
+    it('continues when no error code in request.app', () => {
+      mockRequest = {
+        response: {
+          isBoom: true,
+          output: {
+            statusCode: 401
+          }
+        },
+        app: {}
+      }
+
+      const result = onPreResponseHandler(mockRequest, mockH)
+
+      expect(result).toBe(mockH.continue)
+      expect(mockH.response).not.toHaveBeenCalled()
+    })
+
+    it('continues when request.app is undefined', () => {
+      mockRequest = {
+        response: {
+          isBoom: true,
+          output: {
+            statusCode: 401
+          }
+        }
+      }
+
+      const result = onPreResponseHandler(mockRequest, mockH)
+
+      expect(result).toBe(mockH.continue)
+      expect(mockH.response).not.toHaveBeenCalled()
+    })
+
+    it('continues for successful responses', () => {
+      mockRequest = {
+        response: {
+          isBoom: false,
+          statusCode: 200
+        }
+      }
+
+      const result = onPreResponseHandler(mockRequest, mockH)
+
+      expect(result).toBe(mockH.continue)
+      expect(mockH.response).not.toHaveBeenCalled()
     })
   })
 })

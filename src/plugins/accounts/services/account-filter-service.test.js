@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { AccountService } from './account-service.js'
+import { AccountFilterService } from './account-filter-service.js'
 
 vi.mock('../../../common/helpers/pagination.js', () => ({
   normalizePaginationParams: vi.fn((page, pageSize) => ({
@@ -20,7 +20,7 @@ vi.mock('../../../common/helpers/pagination.js', () => ({
   }))
 }))
 
-describe('AccountService', () => {
+describe('AccountFilterService', () => {
   let accountService
   let mockPrisma
   let mockLogger
@@ -38,7 +38,7 @@ describe('AccountService', () => {
       warn: vi.fn()
     }
 
-    accountService = new AccountService(mockPrisma, mockLogger)
+    accountService = new AccountFilterService(mockPrisma, mockLogger)
   })
 
   describe('getAccounts', () => {
