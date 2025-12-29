@@ -3,7 +3,7 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { projectNameSchema } from '../../../common/schemas/project-proposal-schema.js'
 
-const checkProjectNameRoute = {
+const checkProjectName = {
   method: 'POST',
   path: '/api/v1/project-proposal/check-name',
   options: {
@@ -48,4 +48,4 @@ const checkProjectNameRoute = {
   }
 }
 
-export default checkProjectNameRoute
+export default checkProjectName

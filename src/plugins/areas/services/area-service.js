@@ -60,7 +60,7 @@ export class AreaService {
     const areas = await this.prisma.pafs_core_areas.findMany({
       where: {
         id: {
-          in: areaIds.map((id) => BigInt(id))
+          in: areaIds.map(BigInt)
         }
       },
       select: {

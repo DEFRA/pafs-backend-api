@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import checkProjectNameRoute from './check-project-name.js'
+import checkProjectName from './check-project-name.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 
-describe('checkProjectNameRoute', () => {
+describe('checkProjectName', () => {
   let mockRequest
   let mockH
   let mockPrisma
@@ -40,28 +40,26 @@ describe('checkProjectNameRoute', () => {
 
   describe('Route configuration', () => {
     test('Should have correct method', () => {
-      expect(checkProjectNameRoute.method).toBe('POST')
+      expect(checkProjectName.method).toBe('POST')
     })
 
     test('Should have correct path', () => {
-      expect(checkProjectNameRoute.path).toBe(
-        '/api/v1/project-proposal/check-name'
-      )
+      expect(checkProjectName.path).toBe('/api/v1/project-proposal/check-name')
     })
 
     test('Should require JWT authentication', () => {
-      expect(checkProjectNameRoute.options.auth).toBe('jwt')
+      expect(checkProjectName.options.auth).toBe('jwt')
     })
 
     test('Should have proper tags', () => {
-      expect(checkProjectNameRoute.options.tags).toEqual(['api', 'projects'])
+      expect(checkProjectName.options.tags).toEqual(['api', 'projects'])
     })
 
     test('Should have description and notes', () => {
-      expect(checkProjectNameRoute.options.description).toBe(
+      expect(checkProjectName.options.description).toBe(
         'Check if project name exists'
       )
-      expect(checkProjectNameRoute.options.notes).toBe(
+      expect(checkProjectName.options.notes).toBe(
         'Checks if a project name already exists in the database'
       )
     })
@@ -71,10 +69,7 @@ describe('checkProjectNameRoute', () => {
     test('Should return exists: false when project name does not exist', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      const result = await checkProjectNameRoute.options.handler(
-        mockRequest,
-        mockH
-      )
+      const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.data).toEqual({ exists: false })
       expect(result.statusCode).toBe(HTTP_STATUS.OK)
@@ -84,10 +79,7 @@ describe('checkProjectNameRoute', () => {
     test('Should return exists: true when project name exists', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
 
-      const result = await checkProjectNameRoute.options.handler(
-        mockRequest,
-        mockH
-      )
+      const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.data).toEqual({ exists: true })
       expect(result.statusCode).toBe(HTTP_STATUS.OK)
@@ -98,10 +90,7 @@ describe('checkProjectNameRoute', () => {
       const dbError = new Error('Database connection failed')
       mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
 
-      const result = await checkProjectNameRoute.options.handler(
-        mockRequest,
-        mockH
-      )
+      const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.statusCode).toBe(HTTP_STATUS.INTERNAL_SERVER_ERROR)
       expect(result.data).toEqual({
@@ -118,7 +107,7 @@ describe('checkProjectNameRoute', () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
       mockRequest.payload.name = 'Custom_Project_Name'
 
-      await checkProjectNameRoute.options.handler(mockRequest, mockH)
+      await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -136,10 +125,7 @@ describe('checkProjectNameRoute', () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 5 })
       mockRequest.payload.name = 'TEST_project_NAME'
 
-      const result = await checkProjectNameRoute.options.handler(
-        mockRequest,
-        mockH
-      )
+      const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.data).toEqual({ exists: true })
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
@@ -157,7 +143,7 @@ describe('checkProjectNameRoute', () => {
     test('Should log info messages during operation', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      await checkProjectNameRoute.options.handler(mockRequest, mockH)
+      await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         { projectName: 'Test_Project' },
@@ -173,10 +159,7 @@ describe('checkProjectNameRoute', () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
       mockRequest.payload.name = 'Test-Project_123'
 
-      const result = await checkProjectNameRoute.options.handler(
-        mockRequest,
-        mockH
-      )
+      const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.data).toEqual({ exists: false })
       expect(result.statusCode).toBe(HTTP_STATUS.OK)
@@ -185,10 +168,7 @@ describe('checkProjectNameRoute', () => {
     test('Should return OK status code on success', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      const result = await checkProjectNameRoute.options.handler(
-        mockRequest,
-        mockH
-      )
+      const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.statusCode).toBe(HTTP_STATUS.OK)
     })
@@ -196,11 +176,11 @@ describe('checkProjectNameRoute', () => {
 
   describe('Validation schema', () => {
     test('Should have payload validation', () => {
-      expect(checkProjectNameRoute.options.validate.payload).toBeDefined()
+      expect(checkProjectName.options.validate.payload).toBeDefined()
     })
 
     test('Should have validation fail action', () => {
-      expect(checkProjectNameRoute.options.validate.failAction).toBeDefined()
+      expect(checkProjectName.options.validate.failAction).toBeDefined()
     })
   })
 })

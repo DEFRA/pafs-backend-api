@@ -1,5 +1,5 @@
 import MailChecker from 'mailchecker'
-import { promises as dns } from 'dns'
+import { promises as dns } from 'node:dns'
 import {
   ACCOUNT_VALIDATION_CODES,
   AUTH_VALIDATION_CODES
@@ -228,12 +228,12 @@ export class EmailValidationService {
    * @returns {string} Masked email
    */
   maskEmail(email) {
-    if (!email || !email.includes('@')) return '***'
+    if (!email?.includes('@')) {
+      return '***'
+    }
     const [localPart, domain] = email.split('@')
     const maskedLocal =
-      localPart.length > 2
-        ? `${localPart[0]}***${localPart[localPart.length - 1]}`
-        : '***'
+      localPart.length > 2 ? `${localPart[0]}***${localPart.at(-1)}` : '***'
     return `${maskedLocal}@${domain}`
   }
 }

@@ -1,13 +1,13 @@
-import checkProjectNameRoute from './check-project-name/check-project-name.js'
+import checkProjectName from './check-project-name/check-project-name.js'
 
 const projectsPlugin = {
   name: 'projects',
   version: '1.0.0',
   register: (server, _options) => {
-    server.route([checkProjectNameRoute])
+    server.route([checkProjectName])
     server.logger.info('Projects plugin registered')
   }
 }
 
 export default projectsPlugin
-export { default as checkProjectNameRoute } from './check-project-name/check-project-name.js'
+export { default as checkProjectName } from './check-project-name/check-project-name.js'

@@ -42,23 +42,12 @@ export class AccountUpsertService {
       )
     }
 
-    // Determine unique identifier: use id if provided, otherwise email
-    const uniqueWhere = data.id
-      ? { id: BigInt(data.id) }
-      : { email: data.email }
+    // Determine unique identifier
+    const uniqueWhere = this._determineUniqueWhere(data)
 
-    // For new accounts, determine invitation details and token
-    const invitationDetails = this.determineInvitationDetails(
-      data.email,
-      authenticatedUser
-    )
-    let invitationToken = null
-    let hashedToken = null
-    if (invitationDetails.status === ACCOUNT_STATUS.APPROVED) {
-      const tokenData = this.generateInvitationToken()
-      invitationToken = tokenData.token
-      hashedToken = tokenData.hashedToken
-    }
+    // Prepare invitation details & tokens
+    const { invitationDetails, invitationToken, hashedToken } =
+      this._prepareInvitationData(data.email, authenticatedUser)
 
     // Prepare fields and upsert user record
     const commonFields = this._prepareCommonFields(dbData)
@@ -68,19 +57,67 @@ export class AccountUpsertService {
       hashedToken
     )
 
-    const user = await this.prisma.pafs_core_users.upsert({
-      where: uniqueWhere,
-      update: commonFields,
-      create: createOnlyFields
-    })
+    const user = await this._upsertUser(
+      uniqueWhere,
+      commonFields,
+      createOnlyFields
+    )
 
     // Determine if this was a new account (no id provided)
     const isNewAccount = !data.id
 
-    // Manage user areas
+    // Manage user areas (always run)
     await this.manageUserAreas(user.id, data.areas)
 
-    // Send emails only for approved accounts
+    // Post-upsert notifications and logging
+    await this._handlePostUpsert(user, {
+      isNewAccount,
+      authenticatedUser,
+      dbData,
+      invitationToken,
+      areas: data.areas || []
+    })
+
+    return {
+      message: `Account ${isNewAccount ? 'created' : 'updated'} successfully`,
+      email: user.email,
+      status: user.status,
+      userId: Number(user.id)
+    }
+  }
+
+  _determineUniqueWhere(data) {
+    return data.id ? { id: BigInt(data.id) } : { email: data.email }
+  }
+
+  _prepareInvitationData(email, authenticatedUser) {
+    const invitationDetails = this.determineInvitationDetails(
+      email,
+      authenticatedUser
+    )
+    let invitationToken = null
+    let hashedToken = null
+    if (invitationDetails.status === ACCOUNT_STATUS.APPROVED) {
+      const tokenData = this.generateInvitationToken()
+      invitationToken = tokenData.token
+      hashedToken = tokenData.hashedToken
+    }
+    return { invitationDetails, invitationToken, hashedToken }
+  }
+
+  async _upsertUser(uniqueWhere, updateFields, createFields) {
+    return this.prisma.pafs_core_users.upsert({
+      where: uniqueWhere,
+      update: updateFields,
+      create: createFields
+    })
+  }
+
+  async _handlePostUpsert(
+    user,
+    { isNewAccount, authenticatedUser, dbData, invitationToken, areas }
+  ) {
+    // Send emails only for approved accounts created now
     if (isNewAccount && user.status === ACCOUNT_STATUS.APPROVED) {
       await this.sendInvitationEmail(user, invitationToken)
     }
@@ -89,7 +126,7 @@ export class AccountUpsertService {
     if (isNewAccount && !authenticatedUser) {
       await this.sendAdminNotification(
         { ...user, responsibility: dbData.responsibility },
-        data.areas || []
+        areas
       )
     }
 
@@ -97,13 +134,6 @@ export class AccountUpsertService {
       { userId: user.id, email: user.email, isNewAccount, status: user.status },
       `Account ${isNewAccount ? 'created' : 'updated'}`
     )
-
-    return {
-      message: `Account ${isNewAccount ? 'created' : 'updated'} successfully`,
-      email: user.email,
-      status: user.status,
-      userId: Number(user.id)
-    }
   }
 
   convertToDbFields(data) {
