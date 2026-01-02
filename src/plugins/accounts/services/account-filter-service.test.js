@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { AccountService } from './account-service.js'
+import { AccountFilterService } from './account-filter-service.js'
 
 vi.mock('../../../common/helpers/pagination.js', () => ({
   normalizePaginationParams: vi.fn((page, pageSize) => ({
@@ -20,7 +20,7 @@ vi.mock('../../../common/helpers/pagination.js', () => ({
   }))
 }))
 
-describe('AccountService', () => {
+describe('AccountFilterService', () => {
   let accountService
   let mockPrisma
   let mockLogger
@@ -38,7 +38,7 @@ describe('AccountService', () => {
       warn: vi.fn()
     }
 
-    accountService = new AccountService(mockPrisma, mockLogger)
+    accountService = new AccountFilterService(mockPrisma, mockLogger)
   })
 
   describe('getAccounts', () => {
@@ -158,7 +158,7 @@ describe('AccountService', () => {
       expect(mockPrisma.pafs_core_users.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: 'active',
+            status: { in: ['active', 'approved'] },
             OR: expect.any(Array),
             pafs_core_user_areas: expect.any(Object)
           })
@@ -266,16 +266,16 @@ describe('AccountService', () => {
       expect(where.status).toBe('pending')
     })
 
-    it('builds clause for active status', () => {
+    it('builds clause for active status including approved', () => {
       const where = accountService.buildWhereClause('active', null, null)
 
-      expect(where.status).toBe('active')
+      expect(where.status).toEqual({ in: ['active', 'approved'] })
     })
 
     it('builds clause with all filters', () => {
       const where = accountService.buildWhereClause('active', 'test', 5)
 
-      expect(where.status).toBe('active')
+      expect(where.status).toEqual({ in: ['active', 'approved'] })
       expect(where.OR).toBeDefined()
       expect(where.pafs_core_user_areas).toBeDefined()
     })

@@ -18,5 +18,17 @@
     <include file="changelog/2-001-alter-user-areas-foreign-keys.xml" />
     <include file="changelog/3-001-add-user-fields.xml" />
     <include file="changelog/3-002-drop-account-requests-table.xml" />
+    <include file="changelog/4-001-create-proposal-table.xml" />
+
+    <include file="changelog/4-002-create-area-projects-table.xml" />
+    <include file="changelog/4-003-create-reference-counters-table.xml" />
+    <include file="changelog/4-004-create-states-table.xml" />
+    <include file="changelog/4-005-create-funding-values-table.xml" />
+    <include file="changelog/4-006-create-funding-contributors-table.xml" />
+    <include file="changelog/4-007-create-area-downloads-table.xml" />
+    <include file="changelog/4-008-create-asite-submissions-table.xml" />
+    <include file="changelog/4-009-create-asite-files-table.xml" />
+    <include file="changelog/4-010-create-nfm-measures-table.xml" />
+    <include file="changelog/4-011-create-nfm-land-use-changes-table.xml" />
 
 </databaseChangeLog>

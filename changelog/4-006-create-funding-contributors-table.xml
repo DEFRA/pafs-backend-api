@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="4-006-create-funding-contributors-table" author="migration-team">
+        <comment>Create pafs_core_funding_contributors table</comment>
+
+        <createTable tableName="pafs_core_funding_contributors">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            
+            <column name="name" type="VARCHAR(255)"/>
+            
+            <column name="contributor_type" type="VARCHAR(255)"/>
+            
+            <column name="funding_value_id" type="INTEGER"/>
+            
+            <column name="amount" type="BIGINT"/>
+            
+            <column name="secured" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            
+            <column name="constrained" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="index_pafs_core_funding_contributors_on_contributor_type" tableName="pafs_core_funding_contributors">
+            <column name="contributor_type"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_funding_contributors_on_funding_value_id" tableName="pafs_core_funding_contributors">
+            <column name="funding_value_id"/>
+        </createIndex>
+
+        <createIndex indexName="funding_contributors_on_funding_value_id_and_type" tableName="pafs_core_funding_contributors">
+            <column name="funding_value_id"/>
+            <column name="contributor_type"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="pafs_core_funding_contributors" cascadeConstraints="true"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

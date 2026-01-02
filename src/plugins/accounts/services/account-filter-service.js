@@ -4,7 +4,7 @@ import {
 } from '../../../common/helpers/pagination.js'
 import { ACCOUNT_STATUS } from '../../../common/constants/index.js'
 
-export class AccountService {
+export class AccountFilterService {
   constructor(prisma, logger) {
     this.prisma = prisma
     this.logger = logger
@@ -54,7 +54,7 @@ export class AccountService {
             }
           }
         },
-        orderBy: [{ last_name: 'asc' }, { first_name: 'asc' }],
+        orderBy: [{ created_at: 'desc' }, { updated_at: 'desc' }],
         skip: pagination.skip,
         take: pagination.take
       }),
@@ -89,7 +89,9 @@ export class AccountService {
     if (status === ACCOUNT_STATUS.PENDING) {
       where.status = ACCOUNT_STATUS.PENDING
     } else if (status === ACCOUNT_STATUS.ACTIVE) {
-      where.status = ACCOUNT_STATUS.ACTIVE
+      where.status = {
+        in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED]
+      }
     } else {
       where.status = ACCOUNT_STATUS.PENDING
     }

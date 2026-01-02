@@ -1,13 +1,13 @@
-import areasRoute from './areas-route.js'
+import listAreasByType from './list-areas-by-type/list-areas-by-type.js'
 
 const areasPlugin = {
   name: 'areas',
   version: '1.0.0',
   register: (server, _options) => {
-    server.route([areasRoute])
+    server.route([listAreasByType])
     server.logger.info('Areas plugin registered')
   }
 }
 
 export default areasPlugin
-export { default as areasRoute } from './areas-route.js'
+export { default as listAreasByType } from './list-areas-by-type/list-areas-by-type.js'

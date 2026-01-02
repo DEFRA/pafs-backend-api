@@ -1,4 +1,4 @@
-import { AccountService } from '../services/account-service.js'
+import { AccountFilterService } from '../services/account-filter-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { getAccountsQuerySchema } from '../schema.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
@@ -8,6 +8,7 @@ const listAccounts = {
   method: 'GET',
   path: '/api/v1/accounts',
   options: {
+    auth: 'jwt',
     description: 'List user accounts',
     notes: 'Returns paginated list of accounts filtered by status',
     tags: ['api', 'accounts'],
@@ -20,7 +21,7 @@ const listAccounts = {
     try {
       const { status, search, areaId, page, pageSize } = request.query
 
-      const accountService = new AccountService(
+      const accountService = new AccountFilterService(
         request.prisma,
         request.server.logger
       )

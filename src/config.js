@@ -245,12 +245,6 @@ const config = convict({
     env: 'FRONTEND_URL'
   },
   notify: {
-    autoApprovedDomains: {
-      doc: 'Gov uk Auto Approved email Domain',
-      format: String,
-      default: 'auto-approved-email-domains',
-      env: 'AUTO_APPROVED_DOMAINS'
-    },
     enabled: {
       doc: 'Enable the GOV.UK Notify',
       format: Boolean,
@@ -328,6 +322,32 @@ const config = convict({
       format: 'nat',
       default: 100,
       env: 'PAGINATION_MAX_PAGE_SIZE'
+    }
+  },
+  emailValidation: {
+    autoApprovedDomains: {
+      doc: 'Auto Approved email Domain',
+      format: String,
+      default: 'auto-approved-email-domains',
+      env: 'AUTO_APPROVED_EMAIL_DOMAINS'
+    },
+    checkDisposable: {
+      doc: 'Enable disposable email domain blocking',
+      format: Boolean,
+      default: true,
+      env: 'EMAIL_VALIDATION_CHECK_DISPOSABLE'
+    },
+    checkDnsMx: {
+      doc: 'Enable DNS MX record verification',
+      format: Boolean,
+      default: true,
+      env: 'EMAIL_VALIDATION_CHECK_DNS_MX'
+    },
+    checkDuplicate: {
+      doc: 'Enable duplicate email checking',
+      format: Boolean,
+      default: true,
+      env: 'EMAIL_VALIDATION_CHECK_DUPLICATE'
     }
   }
 })

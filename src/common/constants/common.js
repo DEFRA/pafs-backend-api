@@ -86,9 +86,14 @@ export const DURATION = {
  * SIZE Constants
  */
 export const SIZE = {
+  LENGTH_3: 3,
   LENGTH_8: 8,
   LENGTH_32: 32,
   LENGTH_128: 128,
   LENGTH_254: 254,
   LENGTH_255: 255
+}
+
+export const STATIC_TEXT = {
+  not_specified: 'Not specified'
 }
