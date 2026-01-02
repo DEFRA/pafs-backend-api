@@ -11,137 +11,172 @@
             <column name="id" type="BIGSERIAL" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            
             <column name="reference_number" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            
             <column name="version" type="INTEGER">
                 <constraints nullable="false"/>
             </column>
-            
             <column name="slug" type="VARCHAR(255)" defaultValue="">
                 <constraints nullable="false"/>
             </column>
-            
             <column name="name" type="VARCHAR(255)"/>
-            
             <column name="rma_name" type="VARCHAR(255)"/>
-            
             <column name="project_type" type="VARCHAR(255)"/>
-            
             <column name="project_intervention_types" type="VARCHAR(255)"/>
-            
             <column name="main_intervention_type" type="VARCHAR(255)"/>
-            
             <column name="earliest_start_year" type="INTEGER"/>
-            
             <column name="project_end_financial_year" type="INTEGER"/>
-            
             <column name="pending_earliest_start_year" type="INTEGER"/>
-            
             <column name="pending_financial_year" type="INTEGER"/>
-            
             <column name="date_change_requires_confirmation" type="BOOLEAN" defaultValueBoolean="false">
                 <constraints nullable="false"/>
             </column>
-            
+
             <!-- Location fields -->
             <column name="grid_reference" type="VARCHAR(255)"/>
-
             <column name="region" type="VARCHAR(255)"/>
-            
             <column name="parliamentary_constituency" type="VARCHAR(255)"/>
-
             <column name="county" type="VARCHAR(255)"/>
-
             <column name="project_location" type="TEXT[]"/>
-            
             <column name="project_location_zoom_level" type="INTEGER" defaultValueNumeric="15"/>
-            
-            <!-- Benefit area fields -->
-            
-            <column name="benefit_area_file_name" type="VARCHAR(255)"/>
-            
-            <column name="benefit_area_content_type" type="VARCHAR(255)"/>
-            
-            <column name="benefit_area_file_size" type="INTEGER"/>
-            
-            <column name="benefit_area_file_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
 
+            <!-- Benefit area fields -->
+            <column name="benefit_area_file_name" type="VARCHAR(255)"/>
+            <column name="benefit_area_content_type" type="VARCHAR(255)"/>
+            <column name="benefit_area_file_size" type="INTEGER"/>
+            <column name="benefit_area_file_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
             <column name="benefit_area" type="TEXT"/>
-            
             <column name="benefit_area_centre" type="TEXT[]"/>
-            
             <column name="benefit_area_zoom_level" type="INTEGER"/>
-            
+
             <!-- Important dates -->
             <column name="start_outline_business_case_month" type="INTEGER"/>
-            
             <column name="start_outline_business_case_year" type="INTEGER"/>
-            
             <column name="complete_outline_business_case_month" type="INTEGER"/>
-            
             <column name="complete_outline_business_case_year" type="INTEGER"/>
-            
             <column name="award_contract_month" type="INTEGER"/>
-            
             <column name="award_contract_year" type="INTEGER"/>
-            
             <column name="start_construction_month" type="INTEGER"/>
-            
             <column name="start_construction_year" type="INTEGER"/>
-            
             <column name="ready_for_service_month" type="INTEGER"/>
-            
             <column name="ready_for_service_year" type="INTEGER"/>
-            
             <column name="could_start_early" type="BOOLEAN"/>
-            
             <column name="earliest_with_gia_month" type="INTEGER"/>
-            
             <column name="earliest_with_gia_year" type="INTEGER"/>
-            
+
             <!-- Funding sources -->
             <column name="fcerm_gia" type="BOOLEAN"/>
-            
             <column name="local_levy" type="BOOLEAN"/>
-            
             <column name="internal_drainage_boards" type="BOOLEAN"/>
-            
             <column name="public_contributions" type="BOOLEAN"/>
-            
             <column name="public_contributor_names" type="VARCHAR(255)"/>
-            
             <column name="private_contributions" type="BOOLEAN"/>
-            
             <column name="private_contributor_names" type="VARCHAR(255)"/>
-            
             <column name="other_ea_contributions" type="BOOLEAN"/>
-            
             <column name="other_ea_contributor_names" type="VARCHAR(255)"/>
-            
             <column name="growth_funding" type="BOOLEAN"/>
-            
             <column name="not_yet_identified" type="BOOLEAN"/>
-            
             <column name="funding_sources_visited" type="BOOLEAN" defaultValueBoolean="false"/>
-            
             <column name="asset_replacement_allowance" type="BOOLEAN" defaultValueBoolean="false"/>
-            
             <column name="environment_statutory_funding" type="BOOLEAN" defaultValueBoolean="false"/>
-            
             <column name="frequently_flooded_communities" type="BOOLEAN" defaultValueBoolean="false"/>
-            
             <column name="other_additional_grant_in_aid" type="BOOLEAN" defaultValueBoolean="false"/>
-            
             <column name="other_government_department" type="BOOLEAN" defaultValueBoolean="false"/>
-            
             <column name="recovery" type="BOOLEAN" defaultValueBoolean="false"/>
-            
             <column name="summer_economic_fund" type="BOOLEAN" defaultValueBoolean="false"/>
 
+            <!-- New risk and property benefit fields -->
+            <column name="project_risks_protected_against" type="TEXT"/>
+            <column name="main_source_of_risk" type="VARCHAR(255)"/>
+            <column name="current_flood_risk" type="VARCHAR(255)"/>
+            <column name="current_coastal_erosion_risk" type="VARCHAR(255)"/>
+            <column name="no_properties_at_flood_risk" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="properties_benefit_maintaining_assets" type="INTEGER"/>
+            <column name="properties_benefit_50_percent_reduction" type="INTEGER"/>
+            <column name="properties_benefit_less_50_percent_reduction" type="INTEGER"/>
+            <column name="properties_benefit_individual_intervention" type="INTEGER"/>
+            <column name="no_properties_at_coastal_erosion_risk" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="properties_benefit_maintaining_assets_coastal" type="INTEGER"/>
+            <column name="properties_benefit_investment_coastal_erosion" type="INTEGER"/>
+            <column name="percent_properties_20_percent_deprived" type="INTEGER"/>
+            <column name="percent_properties_10_percent_deprived" type="INTEGER"/>
+
+            <!-- Environmental benefits columns -->
+            <column name="environmental_benefits" type="BOOLEAN"/>
+            <column name="intertidal_habitat" type="BOOLEAN"/>
+            <column name="hectares_of_intertidal_habitat_created_or_enhanced" type="FLOAT"/>
+            <column name="woodland" type="BOOLEAN"/>
+            <column name="hectares_of_woodland_habitat_created_or_enhanced" type="FLOAT"/>
+            <column name="wet_woodland" type="BOOLEAN"/>
+            <column name="hectares_of_wet_woodland_habitat_created_or_enhanced" type="FLOAT"/>
+            <column name="wetland_or_wet_grassland" type="BOOLEAN"/>
+            <column name="hectares_of_wetland_or_wet_grassland_created_or_enhanced" type="FLOAT"/>
+            <column name="grassland" type="BOOLEAN"/>
+            <column name="hectares_of_grassland_habitat_created_or_enhanced" type="FLOAT"/>
+            <column name="heathland" type="BOOLEAN"/>
+            <column name="hectares_of_heathland_created_or_enhanced" type="FLOAT"/>
+            <column name="ponds_lakes" type="BOOLEAN"/>
+            <column name="hectares_of_pond_or_lake_habitat_created_or_enhanced" type="FLOAT"/>
+            <column name="arable_land" type="BOOLEAN"/>
+            <column name="hectares_of_arable_land_lake_habitat_created_or_enhanced" type="FLOAT"/>
+            <column name="comprehensive_restoration" type="BOOLEAN"/>
+            <column name="kilometres_of_watercourse_enhanced_or_created_comprehensive" type="FLOAT"/>
+            <column name="partial_restoration" type="BOOLEAN"/>
+            <column name="kilometres_of_watercourse_enhanced_or_created_partial" type="FLOAT"/>
+            <column name="create_habitat_watercourse" type="BOOLEAN"/>
+            <column name="kilometres_of_watercourse_enhanced_or_created_single" type="FLOAT"/>
+
+            <!-- Project goals -->
+            <column name="approach" type="TEXT"/>
+
+            <!--NFM-->
+            <column name="nfm_selected_measures" type="TEXT"/>
+            <column name="nfm_land_use_change" type="TEXT"/>
+            <column name="nfm_landowner_consent" type="VARCHAR(50)"/>
+            <column name="nfm_experience_level" type="VARCHAR(50)"/>
+            <column name="nfm_project_readiness" type="VARCHAR(50)"/>
+
+            <!-- Whole Life Costs and Benefits Section -->
+
+            <column name="wlc_estimated_whole_life_pv_costs" type="FLOAT"/>
+            <column name="wlc_estimated_design_construction_costs" type="FLOAT"/>
+            <column name="wlc_estimated_risk_contingency_costs" type="FLOAT"/>
+            <column name="wlc_estimated_future_costs" type="FLOAT"/>
+
+            <column name="wlc_estimated_whole_life_pv_benefits" type="FLOAT"/>
+            <column name="wlc_estimated_property_damages_avoided" type="FLOAT"/>
+            <column name="wlc_estimated_environmental_benefits" type="FLOAT"/>
+            <column name="wlc_estimated_recreation_tourism_benefits" type="FLOAT"/>
+            <column name="wlc_estimated_land_value_uplift_benefits" type="FLOAT"/>
+
+            <!-- Urgency fields -->
+            <column name="urgency_reason" type="VARCHAR(255)"/>
+            <column name="urgency_details" type="TEXT"/>
+            <column name="urgency_details_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+
+            <!-- Confidence assessment fields -->
+            <column name="confidence_homes_better_protected" type="VARCHAR(20)"/>
+            <column name="confidence_homes_by_gateway_four" type="VARCHAR(20)"/>
+            <column name="confidence_secured_partnership_funding" type="VARCHAR(20)"/>
+
+            <!-- Carbon impact fields -->
+            <column name="carbon_cost_build" type="DECIMAL(20,2)"/>
+            <column name="carbon_cost_operation" type="DECIMAL(20,2)"/>
+            <column name="carbon_cost_sequestered" type="DECIMAL(20,2)"/>
+            <column name="carbon_cost_avoided" type="DECIMAL(20,2)"/>
+            <column name="carbon_savings_net_economic_benefit" type="DECIMAL(20,2)"/>
+            <column name="carbon_operational_cost_forecast" type="BIGINT"/>
+            <column name="carbon_values_hexdigest" type="VARCHAR(255)"/>
+
+            <!-- Tracking and submission fields -->
             <column name="creator_id" type="INTEGER"/>
+            <column name="submitted_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="submitted_to_pol" type="TIMESTAMP WITHOUT TIME ZONE"/>
+
+            <!-- Updated by tracking (polymorphic) -->
+            <column name="updated_by_type" type="VARCHAR(255)"/>
+            <column name="updated_by_id" type="BIGINT"/>
 
             <!-- Timestamps -->
             <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
@@ -155,18 +190,27 @@
         <createIndex indexName="index_pafs_core_projects_on_reference_number" tableName="pafs_core_projects">
             <column name="reference_number"/>
         </createIndex>
-        
+
         <createIndex indexName="index_pafs_core_projects_on_name" tableName="pafs_core_projects" unique="true">
             <column name="name"/>
         </createIndex>
-        
+
         <createIndex indexName="index_pafs_core_projects_on_slug" tableName="pafs_core_projects" unique="true">
             <column name="slug"/>
         </createIndex>
-        
+
         <createIndex indexName="index_pafs_core_projects_on_reference_number_and_version" tableName="pafs_core_projects" unique="true">
             <column name="reference_number"/>
             <column name="version"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_projects_on_submitted_to_pol" tableName="pafs_core_projects">
+            <column name="submitted_to_pol"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_projects_on_updated_by" tableName="pafs_core_projects">
+            <column name="updated_by_type"/>
+            <column name="updated_by_id"/>
         </createIndex>
 
         <rollback>

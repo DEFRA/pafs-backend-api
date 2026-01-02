@@ -54,7 +54,7 @@ export class AccountFilterService {
             }
           }
         },
-        orderBy: [{ last_name: 'asc' }, { first_name: 'asc' }],
+        orderBy: [{ created_at: 'desc' }, { updated_at: 'desc' }],
         skip: pagination.skip,
         take: pagination.take
       }),
@@ -89,7 +89,9 @@ export class AccountFilterService {
     if (status === ACCOUNT_STATUS.PENDING) {
       where.status = ACCOUNT_STATUS.PENDING
     } else if (status === ACCOUNT_STATUS.ACTIVE) {
-      where.status = ACCOUNT_STATUS.ACTIVE
+      where.status = {
+        in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED]
+      }
     } else {
       where.status = ACCOUNT_STATUS.PENDING
     }

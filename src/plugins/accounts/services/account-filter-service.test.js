@@ -158,7 +158,7 @@ describe('AccountFilterService', () => {
       expect(mockPrisma.pafs_core_users.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: 'active',
+            status: { in: ['active', 'approved'] },
             OR: expect.any(Array),
             pafs_core_user_areas: expect.any(Object)
           })
@@ -266,16 +266,16 @@ describe('AccountFilterService', () => {
       expect(where.status).toBe('pending')
     })
 
-    it('builds clause for active status', () => {
+    it('builds clause for active status including approved', () => {
       const where = accountService.buildWhereClause('active', null, null)
 
-      expect(where.status).toBe('active')
+      expect(where.status).toEqual({ in: ['active', 'approved'] })
     })
 
     it('builds clause with all filters', () => {
       const where = accountService.buildWhereClause('active', 'test', 5)
 
-      expect(where.status).toBe('active')
+      expect(where.status).toEqual({ in: ['active', 'approved'] })
       expect(where.OR).toBeDefined()
       expect(where.pafs_core_user_areas).toBeDefined()
     })

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="4-011-create-nfm-land-use-changes-table" author="migration-team">
+    <comment>Create pafs_core_nfm_land_use_changes table for Natural Flood Management land use before/after data</comment>
+
+    <createTable tableName="pafs_core_nfm_land_use_changes">
+      <column name="id" type="BIGSERIAL" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <column name="project_id" type="BIGINT">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- Land use type -->
+      <column name="land_use_type" type="VARCHAR(50)">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="area_before_hectares" type="FLOAT">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="area_after_hectares" type="FLOAT">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- Timestamps -->
+      <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="false"/>
+      </column>
+      <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+
+    <!-- Foreign key constraint -->
+    <addForeignKeyConstraint baseTableName="pafs_core_nfm_land_use_changes" baseColumnNames="project_id" constraintName="fk_nfm_land_use_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
+
+    <!-- Indexes -->
+    <createIndex indexName="idx_nfm_land_use_project_id" tableName="pafs_core_nfm_land_use_changes">
+      <column name="project_id"/>
+    </createIndex>
+
+    <!-- Unique constraint: one row per project per land use type -->
+    <createIndex indexName="idx_nfm_land_use_unique" tableName="pafs_core_nfm_land_use_changes" unique="true">
+      <column name="project_id"/>
+      <column name="land_use_type"/>
+    </createIndex>
+
+    <rollback>
+      <dropTable tableName="pafs_core_nfm_land_use_changes" cascadeConstraints="true"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
