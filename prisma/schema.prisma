@@ -114,24 +114,24 @@ model pafs_core_users {
 }
 
 model pafs_core_projects {
-  id                                BigInt    @id @default(autoincrement())
-  reference_number                  String    @db.VarChar(255)
+  id                                BigInt                           @id @default(autoincrement())
+  reference_number                  String                           @db.VarChar(255)
   version                           Int
-  name                              String?   @db.VarChar(255)
-  project_type                      String?   @db.VarChar(255)
+  name                              String?                          @db.VarChar(255)
+  project_type                      String?                          @db.VarChar(255)
   project_location                  String[]
   project_location_zoom_level       Int?
-  grid_reference                    String?   @db.VarChar(255)
-  region                            String?   @db.VarChar(255)
-  parliamentary_constituency        String?   @db.VarChar(255)
-  county                            String?   @db.VarChar(255)
+  grid_reference                    String?                          @db.VarChar(255)
+  region                            String?                          @db.VarChar(255)
+  parliamentary_constituency        String?                          @db.VarChar(255)
+  county                            String?                          @db.VarChar(255)
   benefit_area                      String?
   benefit_area_centre               String[]
   benefit_area_zoom_level           Int?
-  benefit_area_file_name            String?   @db.VarChar(255)
-  benefit_area_content_type         String?   @db.VarChar(255)
+  benefit_area_file_name            String?                          @db.VarChar(255)
+  benefit_area_content_type         String?                          @db.VarChar(255)
   benefit_area_file_size            Int?
-  benefit_area_file_updated_at      DateTime? @db.Timestamp(6)
+  benefit_area_file_updated_at      DateTime?                        @db.Timestamp(6)
   start_outline_business_case_month Int?
   start_outline_business_case_year  Int?
   award_contract_month              Int?
@@ -140,8 +140,143 @@ model pafs_core_projects {
   start_construction_year           Int?
   ready_for_service_month           Int?
   ready_for_service_year            Int?
-  created_at                        DateTime  @db.Timestamp(6)
-  updated_at                        DateTime  @db.Timestamp(6)
+  created_at                        DateTime                         @db.Timestamp(6)
+  updated_at                        DateTime                         @db.Timestamp(6)
+  pafs_core_nfm_land_use_changes    pafs_core_nfm_land_use_changes[]
+  pafs_core_nfm_measures            pafs_core_nfm_measures[]
 
   @@index([reference_number], map: "index_pafs_core_projects_on_reference_number")
+}
+
+model pafs_core_area_downloads {
+  id                                  BigInt    @id @default(autoincrement())
+  area_id                             Int?
+  user_id                             Int?
+  requested_on                        DateTime? @db.Timestamp(6)
+  number_of_proposals                 Int?
+  fcerm1_filename                     String?   @db.VarChar(255)
+  benefit_areas_filename              String?   @db.VarChar(255)
+  moderation_filename                 String?   @db.VarChar(255)
+  number_of_proposals_with_moderation Int?
+  status                              String    @default("empty") @db.VarChar(255)
+  funding_calculator_filename         String?   @db.VarChar(255)
+  created_at                          DateTime? @db.Timestamp(6)
+  updated_at                          DateTime? @db.Timestamp(6)
+
+  @@index([area_id], map: "index_pafs_core_area_downloads_on_area_id")
+}
+
+model pafs_core_area_projects {
+  id         BigInt   @id @default(autoincrement())
+  area_id    Int
+  project_id Int
+  owner      Boolean? @default(false)
+  created_at DateTime @db.Timestamp(6)
+  updated_at DateTime @db.Timestamp(6)
+
+  @@index([area_id], map: "index_pafs_core_area_projects_on_area_id")
+  @@index([project_id], map: "index_pafs_core_area_projects_on_project_id")
+}
+
+model pafs_core_asite_files {
+  id                  BigInt @id @default(autoincrement())
+  asite_submission_id Int?
+  filename            String @db.VarChar(255)
+  checksum            String @db.VarChar(255)
+}
+
+model pafs_core_asite_submissions {
+  id                       BigInt    @id @default(autoincrement())
+  project_id               Int?
+  email_sent_at            DateTime  @db.Timestamp(6)
+  confirmation_received_at DateTime? @db.Timestamp(6)
+  status                   String    @default("created") @db.VarChar(255)
+}
+
+model pafs_core_funding_contributors {
+  id               BigInt   @id @default(autoincrement())
+  name             String?  @db.VarChar(255)
+  contributor_type String?  @db.VarChar(255)
+  funding_value_id Int?
+  amount           BigInt?
+  secured          Boolean  @default(false)
+  constrained      Boolean  @default(false)
+  created_at       DateTime @db.Timestamp(6)
+  updated_at       DateTime @db.Timestamp(6)
+
+  @@index([funding_value_id, contributor_type], map: "funding_contributors_on_funding_value_id_and_type")
+  @@index([contributor_type], map: "index_pafs_core_funding_contributors_on_contributor_type")
+  @@index([funding_value_id], map: "index_pafs_core_funding_contributors_on_funding_value_id")
+}
+
+model pafs_core_funding_values {
+  id                             BigInt  @id @default(autoincrement())
+  project_id                     Int?
+  financial_year                 Int
+  fcerm_gia                      BigInt?
+  local_levy                     BigInt?
+  internal_drainage_boards       BigInt?
+  public_contributions           BigInt?
+  private_contributions          BigInt?
+  other_ea_contributions         BigInt?
+  not_yet_identified             BigInt?
+  total                          BigInt  @default(0)
+  asset_replacement_allowance    BigInt?
+  environment_statutory_funding  BigInt?
+  frequently_flooded_communities BigInt?
+  other_additional_grant_in_aid  BigInt?
+  other_government_department    BigInt?
+  recovery                       BigInt?
+  summer_economic_fund           BigInt?
+
+  @@index([project_id, financial_year], map: "funding_values_on_project_id_and_financial_year")
+  @@index([financial_year], map: "index_pafs_core_funding_values_on_financial_year")
+  @@index([project_id], map: "index_pafs_core_funding_values_on_project_id")
+}
+
+model pafs_core_nfm_land_use_changes {
+  id                   BigInt             @id @default(autoincrement())
+  project_id           BigInt
+  land_use_type        String             @db.VarChar(50)
+  area_before_hectares Float
+  area_after_hectares  Float
+  created_at           DateTime           @db.Timestamp(6)
+  updated_at           DateTime           @db.Timestamp(6)
+  pafs_core_projects   pafs_core_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_nfm_land_use_project")
+
+  @@unique([project_id, land_use_type], map: "idx_nfm_land_use_unique")
+  @@index([project_id], map: "idx_nfm_land_use_project_id")
+}
+
+model pafs_core_nfm_measures {
+  id                 BigInt             @id @default(autoincrement())
+  project_id         BigInt
+  measure_type       String             @db.VarChar(100)
+  area_hectares      Float?
+  storage_volume_m3  Float?
+  length_km          Float?
+  width_m            Float?
+  created_at         DateTime           @db.Timestamp(6)
+  updated_at         DateTime           @db.Timestamp(6)
+  pafs_core_projects pafs_core_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_nfm_measures_project")
+
+  @@index([project_id], map: "idx_nfm_measures_project_id")
+  @@index([measure_type], map: "idx_nfm_measures_type")
+}
+
+model pafs_core_reference_counters {
+  id           BigInt   @id @default(autoincrement())
+  rfcc_code    String   @unique(map: "index_pafs_core_reference_counters_on_rfcc_code") @default("") @db.VarChar(255)
+  high_counter Int      @default(0)
+  low_counter  Int      @default(0)
+  created_at   DateTime @db.Timestamp(6)
+  updated_at   DateTime @db.Timestamp(6)
+}
+
+model pafs_core_states {
+  id         BigInt    @id @default(autoincrement())
+  project_id Int?
+  state      String    @default("draft") @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(6)
+  updated_at DateTime? @db.Timestamp(6)
 }
