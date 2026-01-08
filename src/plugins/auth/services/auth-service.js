@@ -146,6 +146,25 @@ export class AuthService {
 
     this.logger.info({ userId: user.id }, 'User logged in successfully')
 
+    const userAreas = await this.prisma.pafs_core_user_areas.findMany({
+      where: { user_id: user.id },
+      select: {
+        primary: true,
+        pafs_core_areas: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    })
+
+    const areas = (userAreas || []).map((ua) => ({
+      areaId: Number(ua.pafs_core_areas.id),
+      primary: Boolean(ua.primary),
+      name: ua.pafs_core_areas.name
+    }))
+
     return {
       success: true,
       user: {
@@ -153,7 +172,8 @@ export class AuthService {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        admin: user.admin
+        admin: user.admin,
+        areas
       },
       accessToken,
       refreshToken,

@@ -7,9 +7,9 @@ import { VALIDATION_ERROR_CODES } from '../../common/constants/common.js'
  */
 export const validateEmailPayloadSchema = Joi.object({
   email: emailSchema,
-  checkDisposable: Joi.boolean().default(true).optional(),
-  checkDnsMx: Joi.boolean().default(true).optional(),
-  checkDuplicate: Joi.boolean().default(true).optional(),
+  checkDisposable: Joi.boolean().optional(),
+  checkDnsMx: Joi.boolean().optional(),
+  checkDuplicate: Joi.boolean().optional(),
   excludeUserId: Joi.number().integer().positive().optional()
 })
   .options({ abortEarly: false })

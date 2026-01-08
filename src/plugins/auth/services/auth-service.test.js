@@ -43,6 +43,10 @@ describe('AuthService', () => {
       }
     }
 
+    mockPrisma.pafs_core_user_areas = {
+      findMany: vi.fn().mockResolvedValue([])
+    }
+
     mockLogger = {
       info: vi.fn(),
       warn: vi.fn()
@@ -277,11 +281,54 @@ describe('AuthService', () => {
         email: 'test@example.com',
         firstName: 'Test',
         lastName: 'User',
-        admin: false
+        admin: false,
+        areas: []
       })
       expect(result.accessToken).toBe('access-token')
       expect(result.refreshToken).toBe('refresh-token')
       expect(result.expiresIn).toBe('15m')
+    })
+
+    it('includes assigned areas with names in successful login response', async () => {
+      mockPrisma.pafs_core_users.findUnique
+        .mockResolvedValueOnce({
+          id: 2,
+          email: 'areauser@example.com',
+          encrypted_password: 'hash',
+          first_name: 'Area',
+          last_name: 'User',
+          admin: true,
+          status: 'active'
+        })
+        .mockResolvedValueOnce({ current_sign_in_at: null })
+        .mockResolvedValueOnce({ current_sign_in_ip: null })
+
+      // Return two user area records with nested area details
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { primary: true, pafs_core_areas: { id: 10, name: 'Area A' } },
+        { primary: false, pafs_core_areas: { id: 20, name: 'Area B' } }
+      ])
+
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      const result = await authService.login(
+        'areauser@example.com',
+        'password',
+        '127.0.0.1'
+      )
+
+      expect(result.success).toBe(true)
+      expect(result.user).toEqual({
+        id: 2,
+        email: 'areauser@example.com',
+        firstName: 'Area',
+        lastName: 'User',
+        admin: true,
+        areas: [
+          { areaId: 10, primary: true, name: 'Area A' },
+          { areaId: 20, primary: false, name: 'Area B' }
+        ]
+      })
     })
 
     it('resets lockout if duration expired', async () => {
