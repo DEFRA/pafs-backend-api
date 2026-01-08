@@ -243,10 +243,10 @@ export class AccountUpsertService {
     const invitedByType = authenticatedUser
       ? ACCOUNT_INVITATION_BY.USER
       : ACCOUNT_INVITATION_BY.SYSTEM
-    const invitedById = authenticatedUser?.id || null
+    const invitedById = authenticatedUser?.userId || null
 
     const isAutoApproved =
-      authenticatedUser?.admin || this.isEmailAutoApproved(email)
+      authenticatedUser?.isAdmin || this.isEmailAutoApproved(email)
 
     return {
       status: isAutoApproved ? ACCOUNT_STATUS.APPROVED : ACCOUNT_STATUS.PENDING,

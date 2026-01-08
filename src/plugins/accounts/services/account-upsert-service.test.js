@@ -66,9 +66,9 @@ describe('AccountUpsertService', () => {
     }
 
     authenticatedAdmin = {
-      id: 100,
+      userId: 100,
       email: 'admin@gov.uk',
-      admin: true
+      isAdmin: true
     }
 
     service = new AccountUpsertService(
