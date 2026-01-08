@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AccountUpsertService } from './account-upsert-service.js'
 import { ACCOUNT_STATUS } from '../../../common/constants/index.js'
 import { ACCOUNT_INVITATION_BY } from '../../../common/constants/accounts.js'
-import { BadRequestError } from '../../../common/errors/index.js'
+import { NotFoundError, BadRequestError } from '../../../common/errors/index.js'
 
 // Mock dependencies
 vi.mock('../../auth/helpers/secure-token.js', () => ({
@@ -287,6 +287,102 @@ describe('AccountUpsertService', () => {
 
         expect(mockEmailService.send).not.toHaveBeenCalled()
       })
+    })
+  })
+
+  describe('approveAccount', () => {
+    it('approves pending account and sends invitation', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1n,
+        email: 'user@example.com',
+        status: ACCOUNT_STATUS.PENDING,
+        first_name: 'John',
+        last_name: 'Doe'
+      })
+
+      mockPrisma.pafs_core_users.update.mockResolvedValue({
+        id: 1n,
+        email: 'user@example.com',
+        status: ACCOUNT_STATUS.APPROVED
+      })
+
+      const result = await service.approveAccount(1, authenticatedAdmin)
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1n },
+        data: expect.objectContaining({
+          status: ACCOUNT_STATUS.APPROVED,
+          invited_by_type: ACCOUNT_INVITATION_BY.USER,
+          invited_by_id: 100
+        })
+      })
+      expect(mockEmailService.send).toHaveBeenCalled()
+      expect(result.message).toContain('approved')
+      expect(result.userId).toBe(1)
+    })
+
+    it('throws NotFoundError when user does not exist', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
+
+      await expect(
+        service.approveAccount(999, authenticatedAdmin)
+      ).rejects.toThrow(NotFoundError)
+      await expect(
+        service.approveAccount(999, authenticatedAdmin)
+      ).rejects.toThrow('Account not found')
+    })
+
+    it('throws BadRequestError when account is not pending', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1n,
+        email: 'user@example.com',
+        status: ACCOUNT_STATUS.APPROVED
+      })
+
+      await expect(
+        service.approveAccount(1, authenticatedAdmin)
+      ).rejects.toThrow(BadRequestError)
+      await expect(
+        service.approveAccount(1, authenticatedAdmin)
+      ).rejects.toThrow('Only pending accounts can be approved')
+    })
+  })
+
+  describe('resendInvitation', () => {
+    it('resends invitation with new token', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1n,
+        email: 'user@example.com',
+        first_name: 'John',
+        last_name: 'Doe',
+        status: ACCOUNT_STATUS.APPROVED
+      })
+
+      mockPrisma.pafs_core_users.update.mockResolvedValue({
+        id: 1n,
+        email: 'user@example.com'
+      })
+
+      await service.resendInvitation(1)
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1n },
+        data: expect.objectContaining({
+          invitation_token: expect.any(String),
+          invitation_sent_at: expect.any(Date)
+        })
+      })
+      expect(mockEmailService.send).toHaveBeenCalled()
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 1 }),
+        'Invitation resent'
+      )
+    })
+
+    it('throws NotFoundError when user does not exist', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
+
+      await expect(service.resendInvitation(999)).rejects.toThrow(NotFoundError)
     })
   })
 

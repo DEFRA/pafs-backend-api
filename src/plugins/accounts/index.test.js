@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
-import accountsPlugin, { listAccounts, upsertAccount } from './index.js'
+import accountsPlugin, {
+  listAccounts,
+  upsertAccount,
+  approveAccount,
+  resendInvitation
+} from './index.js'
 
 describe('accounts plugin', () => {
   it('has correct name', () => {
@@ -22,6 +27,20 @@ describe('accounts plugin', () => {
     expect(upsertAccount.path).toBe('/api/v1/accounts')
   })
 
+  it('exports approveAccount route', () => {
+    expect(approveAccount).toBeDefined()
+    expect(approveAccount.method).toBe('PATCH')
+    expect(approveAccount.path).toBe('/api/v1/accounts/{id}/approve')
+  })
+
+  it('exports resendInvitation route', () => {
+    expect(resendInvitation).toBeDefined()
+    expect(resendInvitation.method).toBe('POST')
+    expect(resendInvitation.path).toBe(
+      '/api/v1/accounts/{id}/resend-invitation'
+    )
+  })
+
   describe('register', () => {
     it('registers routes with server', () => {
       const mockServer = {
@@ -35,7 +54,9 @@ describe('accounts plugin', () => {
 
       expect(mockServer.route).toHaveBeenCalledWith([
         listAccounts,
-        upsertAccount
+        upsertAccount,
+        approveAccount,
+        resendInvitation
       ])
     })
 

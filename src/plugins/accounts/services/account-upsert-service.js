@@ -9,7 +9,10 @@ import {
   ACCOUNT_RESPONSIBILITY,
   ACCOUNT_ERROR_CODES
 } from '../../../common/constants/accounts.js'
-import { BadRequestError } from '../../../common/errors/http-errors.js'
+import {
+  BadRequestError,
+  NotFoundError
+} from '../../../common/errors/http-errors.js'
 import { EmailValidationService } from '../../../common/services/email/email-validation-service.js'
 import { SIZE, STATIC_TEXT } from '../../../common/constants/common.js'
 
@@ -208,6 +211,80 @@ export class AccountUpsertService {
     }
 
     return { mainArea, optionalAreas }
+  }
+
+  async approveAccount(userId, authenticatedUser) {
+    // Get existing user
+    const existingUser = await this.prisma.pafs_core_users.findUnique({
+      where: { id: BigInt(userId) }
+    })
+
+    if (!existingUser) {
+      throw new NotFoundError('Account not found', 'NOT_FOUND', 'id')
+    }
+
+    if (existingUser.status !== ACCOUNT_STATUS.PENDING) {
+      throw new BadRequestError(
+        'Only pending accounts can be approved',
+        'INVALID_STATUS',
+        'status'
+      )
+    }
+
+    // Update user to approved status
+    await this.prisma.pafs_core_users.update({
+      where: { id: BigInt(userId) },
+      data: {
+        status: ACCOUNT_STATUS.APPROVED,
+        invited_by_type: ACCOUNT_INVITATION_BY.USER,
+        invited_by_id: authenticatedUser?.id || null,
+        updated_at: new Date()
+      }
+    })
+
+    // Resend invitation with new token
+    await this.resendInvitation(userId)
+
+    this.logger.info(
+      { userId, approvedBy: authenticatedUser?.id },
+      'Account approved and invitation sent'
+    )
+
+    return {
+      message: 'Account approved successfully',
+      userId: Number(userId)
+    }
+  }
+
+  async resendInvitation(userId) {
+    // Get user
+    const user = await this.prisma.pafs_core_users.findUnique({
+      where: { id: BigInt(userId) }
+    })
+
+    if (!user) {
+      throw new NotFoundError('Account not found', 'NOT_FOUND', 'id')
+    }
+
+    // Generate new invitation token
+    const { token: invitationToken, hashedToken } =
+      this.generateInvitationToken()
+
+    // Update invitation token and timestamp
+    const updatedUser = await this.prisma.pafs_core_users.update({
+      where: { id: BigInt(userId) },
+      data: {
+        invitation_token: hashedToken,
+        invitation_created_at: new Date(),
+        invitation_sent_at: new Date(),
+        updated_at: new Date()
+      }
+    })
+
+    // Send invitation email
+    await this.sendInvitationEmail(updatedUser, invitationToken)
+
+    this.logger.info({ userId }, 'Invitation resent')
   }
 
   async manageUserAreas(userId, areas) {
