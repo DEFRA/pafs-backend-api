@@ -74,7 +74,7 @@ function checkUserStatus(user, decoded, request) {
 
 function buildCredentials(user, decoded) {
   return {
-    userId: user.id,
+    userId: Number(user.id),
     email: user.email,
     firstName: user.first_name,
     lastName: user.last_name,

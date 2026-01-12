@@ -112,7 +112,9 @@ describe('upsert-account endpoint', () => {
       mockRequest.auth = {
         isAuthenticated: true,
         credentials: {
-          user: { id: 100, email: 'admin@gov.uk', admin: true }
+          userId: 100,
+          email: 'admin@gov.uk',
+          isAdmin: true
         }
       }
       mockRequest.payload = {
@@ -133,8 +135,8 @@ describe('upsert-account endpoint', () => {
         mockRequest.payload,
         {
           authenticatedUser: expect.objectContaining({
-            id: 100,
-            admin: true
+            userId: 100,
+            isAdmin: true
           })
         }
       )
@@ -147,7 +149,9 @@ describe('upsert-account endpoint', () => {
       mockRequest.auth = {
         isAuthenticated: true,
         credentials: {
-          user: { id: 100, email: 'admin@gov.uk', admin: true }
+          userId: 100,
+          email: 'admin@gov.uk',
+          isAdmin: true
         }
       }
       mockRequest.payload = {
@@ -172,7 +176,8 @@ describe('upsert-account endpoint', () => {
       mockRequest.auth = {
         isAuthenticated: true,
         credentials: {
-          user: { id: 100, admin: true }
+          userId: 100,
+          isAdmin: true
         }
       }
       mockRequest.payload = {
@@ -196,7 +201,9 @@ describe('upsert-account endpoint', () => {
       mockRequest.auth = {
         isAuthenticated: true,
         credentials: {
-          user: { id: 1, email: 'user@example.com', admin: false }
+          userId: 1,
+          email: 'user@example.com',
+          isAdmin: false
         }
       }
       mockRequest.payload = {
@@ -246,7 +253,9 @@ describe('upsert-account endpoint', () => {
       mockRequest.auth = {
         isAuthenticated: true,
         credentials: {
-          user: { id: 1, email: 'user@example.com', admin: false }
+          userId: 1,
+          email: 'user@example.com',
+          isAdmin: false
         }
       }
       mockRequest.payload = {
@@ -333,7 +342,8 @@ describe('upsert-account endpoint', () => {
       mockRequest.auth = {
         isAuthenticated: true,
         credentials: {
-          user: { id: 100, admin: true }
+          userId: 100,
+          isAdmin: true
         }
       }
       mockRequest.payload = {

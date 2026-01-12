@@ -1,4 +1,5 @@
 import { EmailValidationService } from '../../common/services/email/email-validation-service.js'
+import { config } from '../../config.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
 import { validateEmailPayloadSchema } from './schema.js'
 import { validationFailAction } from '../../common/helpers/validation-fail-action.js'
@@ -29,7 +30,7 @@ const validateEmail = {
 
       const emailValidationService = new EmailValidationService(
         request.prisma,
-        request.server.app.config,
+        config,
         request.server.logger
       )
 

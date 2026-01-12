@@ -39,7 +39,6 @@ const baseAccountDataSchema = {
   firstName: firstNameSchema,
   lastName: lastNameSchema,
   email: emailSchema,
-  responsibility: responsibilitySchema,
   isAdminContext: Joi.boolean().default(false).label('Admin Context'),
   admin: adminFlagSchema
 }
@@ -69,6 +68,13 @@ const areaItemSchema = Joi.object({
  * Uses camelCase field names for API
  */
 const conditionalAccountFields = {
+  responsibility: Joi.when('admin', {
+    is: false,
+    then: responsibilitySchema.required().messages({
+      'any.required': ACCOUNT_VALIDATION_CODES.RESPONSIBILITY_REQUIRED
+    }),
+    otherwise: responsibilitySchema.optional()
+  }),
   jobTitle: Joi.when('isAdminContext', {
     is: true,
     then: jobTitleSchema.optional(),

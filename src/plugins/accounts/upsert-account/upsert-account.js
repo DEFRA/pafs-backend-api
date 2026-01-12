@@ -28,11 +28,14 @@ const upsertAccount = {
     try {
       const accountData = request.payload
       const authenticatedUser = request.auth.isAuthenticated
-        ? request.auth.credentials.user
+        ? request.auth.credentials
         : null
 
       // Check authorization for updates and admin accounts
-      if ((accountData.id || accountData.admin) && !authenticatedUser?.admin) {
+      if (
+        (accountData.id || accountData.admin) &&
+        !authenticatedUser?.isAdmin
+      ) {
         throw new ForbiddenError(
           'Admin authentication required to update/create admin accounts',
           ACCOUNT_ERROR_CODES.UNAUTHORIZED,
