@@ -114,38 +114,142 @@ model pafs_core_users {
 }
 
 model pafs_core_projects {
-  id                                BigInt                           @id @default(autoincrement())
-  reference_number                  String                           @db.VarChar(255)
-  version                           Int
-  name                              String?                          @db.VarChar(255)
-  project_type                      String?                          @db.VarChar(255)
-  project_location                  String[]
-  project_location_zoom_level       Int?
-  grid_reference                    String?                          @db.VarChar(255)
-  region                            String?                          @db.VarChar(255)
-  parliamentary_constituency        String?                          @db.VarChar(255)
-  county                            String?                          @db.VarChar(255)
-  benefit_area                      String?
-  benefit_area_centre               String[]
-  benefit_area_zoom_level           Int?
-  benefit_area_file_name            String?                          @db.VarChar(255)
-  benefit_area_content_type         String?                          @db.VarChar(255)
-  benefit_area_file_size            Int?
-  benefit_area_file_updated_at      DateTime?                        @db.Timestamp(6)
-  start_outline_business_case_month Int?
-  start_outline_business_case_year  Int?
-  award_contract_month              Int?
-  award_contract_year               Int?
-  start_construction_month          Int?
-  start_construction_year           Int?
-  ready_for_service_month           Int?
-  ready_for_service_year            Int?
-  created_at                        DateTime                         @db.Timestamp(6)
-  updated_at                        DateTime                         @db.Timestamp(6)
-  pafs_core_nfm_land_use_changes    pafs_core_nfm_land_use_changes[]
-  pafs_core_nfm_measures            pafs_core_nfm_measures[]
+  id                                                          BigInt    @id @default(autoincrement())
+  reference_number                                            String    @db.VarChar(255)
+  version                                                     Int
+  slug                                                        String    @unique(map: "index_pafs_core_projects_on_slug") @default("") @db.VarChar(255)
+  name                                                        String?   @unique(map: "index_pafs_core_projects_on_name") @db.VarChar(255)
+  rma_name                                                    String?   @db.VarChar(255)
+  project_type                                                String?   @db.VarChar(255)
+  project_intervention_types                                  String?   @db.VarChar(255)
+  main_intervention_type                                      String?   @db.VarChar(255)
+  earliest_start_year                                         Int?
+  project_end_financial_year                                  Int?
+  pending_earliest_start_year                                 Int?
+  pending_financial_year                                      Int?
+  date_change_requires_confirmation                           Boolean   @default(false)
+  grid_reference                                              String?   @db.VarChar(255)
+  region                                                      String?   @db.VarChar(255)
+  parliamentary_constituency                                  String?   @db.VarChar(255)
+  county                                                      String?   @db.VarChar(255)
+  project_location                                            String[]
+  project_location_zoom_level                                 Int?      @default(15)
+  benefit_area_file_name                                      String?   @db.VarChar(255)
+  benefit_area_content_type                                   String?   @db.VarChar(255)
+  benefit_area_file_size                                      Int?
+  benefit_area_file_updated_at                                DateTime? @db.Timestamp(6)
+  benefit_area                                                String?
+  benefit_area_centre                                         String[]
+  benefit_area_zoom_level                                     Int?
+  start_outline_business_case_month                           Int?
+  start_outline_business_case_year                            Int?
+  complete_outline_business_case_month                        Int?
+  complete_outline_business_case_year                         Int?
+  award_contract_month                                        Int?
+  award_contract_year                                         Int?
+  start_construction_month                                    Int?
+  start_construction_year                                     Int?
+  ready_for_service_month                                     Int?
+  ready_for_service_year                                      Int?
+  could_start_early                                           Boolean?
+  earliest_with_gia_month                                     Int?
+  earliest_with_gia_year                                      Int?
+  fcerm_gia                                                   Boolean?
+  local_levy                                                  Boolean?
+  internal_drainage_boards                                    Boolean?
+  public_contributions                                        Boolean?
+  public_contributor_names                                    String?   @db.VarChar(255)
+  private_contributions                                       Boolean?
+  private_contributor_names                                   String?   @db.VarChar(255)
+  other_ea_contributions                                      Boolean?
+  other_ea_contributor_names                                  String?   @db.VarChar(255)
+  growth_funding                                              Boolean?
+  not_yet_identified                                          Boolean?
+  funding_sources_visited                                     Boolean?  @default(false)
+  asset_replacement_allowance                                 Boolean?  @default(false)
+  environment_statutory_funding                               Boolean?  @default(false)
+  frequently_flooded_communities                              Boolean?  @default(false)
+  other_additional_grant_in_aid                               Boolean?  @default(false)
+  other_government_department                                 Boolean?  @default(false)
+  recovery                                                    Boolean?  @default(false)
+  summer_economic_fund                                        Boolean?  @default(false)
+  project_risks_protected_against                             String?
+  main_source_of_risk                                         String?   @db.VarChar(255)
+  current_flood_risk                                          String?   @db.VarChar(255)
+  current_coastal_erosion_risk                                String?   @db.VarChar(255)
+  no_properties_at_flood_risk                                 Boolean?  @default(false)
+  properties_benefit_maintaining_assets                       Int?
+  properties_benefit_50_percent_reduction                     Int?
+  properties_benefit_less_50_percent_reduction                Int?
+  properties_benefit_individual_intervention                  Int?
+  no_properties_at_coastal_erosion_risk                       Boolean?  @default(false)
+  properties_benefit_maintaining_assets_coastal               Int?
+  properties_benefit_investment_coastal_erosion               Int?
+  percent_properties_20_percent_deprived                      Int?
+  percent_properties_10_percent_deprived                      Int?
+  environmental_benefits                                      Boolean?
+  intertidal_habitat                                          Boolean?
+  hectares_of_intertidal_habitat_created_or_enhanced          Float?
+  woodland                                                    Boolean?
+  hectares_of_woodland_habitat_created_or_enhanced            Float?
+  wet_woodland                                                Boolean?
+  hectares_of_wet_woodland_habitat_created_or_enhanced        Float?
+  wetland_or_wet_grassland                                    Boolean?
+  hectares_of_wetland_or_wet_grassland_created_or_enhanced    Float?
+  grassland                                                   Boolean?
+  hectares_of_grassland_habitat_created_or_enhanced           Float?
+  heathland                                                   Boolean?
+  hectares_of_heathland_created_or_enhanced                   Float?
+  ponds_lakes                                                 Boolean?
+  hectares_of_pond_or_lake_habitat_created_or_enhanced        Float?
+  arable_land                                                 Boolean?
+  hectares_of_arable_land_lake_habitat_created_or_enhanced    Float?
+  comprehensive_restoration                                   Boolean?
+  kilometres_of_watercourse_enhanced_or_created_comprehensive Float?
+  partial_restoration                                         Boolean?
+  kilometres_of_watercourse_enhanced_or_created_partial       Float?
+  create_habitat_watercourse                                  Boolean?
+  kilometres_of_watercourse_enhanced_or_created_single        Float?
+  approach                                                    String?
+  nfm_selected_measures                                       String?
+  nfm_land_use_change                                         String?
+  nfm_landowner_consent                                       String?   @db.VarChar(50)
+  nfm_experience_level                                        String?   @db.VarChar(50)
+  nfm_project_readiness                                       String?   @db.VarChar(50)
+  wlc_estimated_whole_life_pv_costs                           Float?
+  wlc_estimated_design_construction_costs                     Float?
+  wlc_estimated_risk_contingency_costs                        Float?
+  wlc_estimated_future_costs                                  Float?
+  wlc_estimated_whole_life_pv_benefits                        Float?
+  wlc_estimated_property_damages_avoided                      Float?
+  wlc_estimated_environmental_benefits                        Float?
+  wlc_estimated_recreation_tourism_benefits                   Float?
+  wlc_estimated_land_value_uplift_benefits                    Float?
+  urgency_reason                                              String?   @db.VarChar(255)
+  urgency_details                                             String?
+  urgency_details_updated_at                                  DateTime? @db.Timestamp(6)
+  confidence_homes_better_protected                           String?   @db.VarChar(20)
+  confidence_homes_by_gateway_four                            String?   @db.VarChar(20)
+  confidence_secured_partnership_funding                      String?   @db.VarChar(20)
+  carbon_cost_build                                           Decimal?  @db.Decimal(20, 2)
+  carbon_cost_operation                                       Decimal?  @db.Decimal(20, 2)
+  carbon_cost_sequestered                                     Decimal?  @db.Decimal(20, 2)
+  carbon_cost_avoided                                         Decimal?  @db.Decimal(20, 2)
+  carbon_savings_net_economic_benefit                         Decimal?  @db.Decimal(20, 2)
+  carbon_operational_cost_forecast                            BigInt?
+  carbon_values_hexdigest                                     String?   @db.VarChar(255)
+  creator_id                                                  Int?
+  submitted_at                                                DateTime? @db.Timestamp(6)
+  submitted_to_pol                                            DateTime? @db.Timestamp(6)
+  updated_by_type                                             String?   @db.VarChar(255)
+  updated_by_id                                               BigInt?
+  created_at                                                  DateTime  @db.Timestamp(6)
+  updated_at                                                  DateTime  @db.Timestamp(6)
 
+  @@unique([reference_number, version], map: "index_pafs_core_projects_on_reference_number_and_version")
   @@index([reference_number], map: "index_pafs_core_projects_on_reference_number")
+  @@index([submitted_to_pol], map: "index_pafs_core_projects_on_submitted_to_pol")
+  @@index([updated_by_type, updated_by_id], map: "index_pafs_core_projects_on_updated_by")
 }
 
 model pafs_core_area_downloads {
@@ -235,30 +339,28 @@ model pafs_core_funding_values {
 }
 
 model pafs_core_nfm_land_use_changes {
-  id                   BigInt             @id @default(autoincrement())
+  id                   BigInt   @id @default(autoincrement())
   project_id           BigInt
-  land_use_type        String             @db.VarChar(50)
+  land_use_type        String   @db.VarChar(50)
   area_before_hectares Float
   area_after_hectares  Float
-  created_at           DateTime           @db.Timestamp(6)
-  updated_at           DateTime           @db.Timestamp(6)
-  pafs_core_projects   pafs_core_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_nfm_land_use_project")
+  created_at           DateTime @db.Timestamp(6)
+  updated_at           DateTime @db.Timestamp(6)
 
   @@unique([project_id, land_use_type], map: "idx_nfm_land_use_unique")
   @@index([project_id], map: "idx_nfm_land_use_project_id")
 }
 
 model pafs_core_nfm_measures {
-  id                 BigInt             @id @default(autoincrement())
-  project_id         BigInt
-  measure_type       String             @db.VarChar(100)
-  area_hectares      Float?
-  storage_volume_m3  Float?
-  length_km          Float?
-  width_m            Float?
-  created_at         DateTime           @db.Timestamp(6)
-  updated_at         DateTime           @db.Timestamp(6)
-  pafs_core_projects pafs_core_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_nfm_measures_project")
+  id                BigInt   @id @default(autoincrement())
+  project_id        BigInt
+  measure_type      String   @db.VarChar(100)
+  area_hectares     Float?
+  storage_volume_m3 Float?
+  length_km         Float?
+  width_m           Float?
+  created_at        DateTime @db.Timestamp(6)
+  updated_at        DateTime @db.Timestamp(6)
 
   @@index([project_id], map: "idx_nfm_measures_project_id")
   @@index([measure_type], map: "idx_nfm_measures_type")
