@@ -1,3 +1,23 @@
+// Constants for reference counter logic
+const LOW_COUNTER_MAX = 999
+const COUNTER_PAD_LENGTH = 3
+const COUNTER_SUFFIX = 'A'
+const RFCC_CODES = [
+  'AC',
+  'AE',
+  'AN',
+  'NO',
+  'NW',
+  'SN',
+  'SO',
+  'SW',
+  'TH',
+  'TR',
+  'TS',
+  'WX',
+  'YO'
+]
+
 export class ProjectService {
   constructor(prisma, logger) {
     this.prisma = prisma
@@ -44,6 +64,89 @@ export class ProjectService {
   }
 
   /**
+   * Validate RFCC code
+   * @param {string} rfccCode - RFCC code to validate
+   * @throws {Error} If RFCC code is invalid
+   */
+  validateRfccCode(rfccCode) {
+    if (!RFCC_CODES.includes(rfccCode)) {
+      throw new Error(`Invalid RFCC code: ${rfccCode}`)
+    }
+  }
+
+  /**
+   * Increment counter for RFCC code
+   * @param {Object} tx - Prisma transaction
+   * @param {string} rfccCode - RFCC code
+   * @returns {Promise<Object>} Updated counter
+   */
+  async incrementCounter(tx, rfccCode) {
+    let existingCounter = await tx.pafs_core_reference_counters.findUnique({
+      where: {
+        rfcc_code: rfccCode
+      }
+    })
+
+    if (existingCounter) {
+      if (existingCounter.low_counter === LOW_COUNTER_MAX) {
+        // Increment high_counter and reset low_counter to 1
+        existingCounter = await tx.pafs_core_reference_counters.update({
+          where: {
+            rfcc_code: rfccCode
+          },
+          data: {
+            high_counter: {
+              increment: 1
+            },
+            low_counter: 1,
+            updated_at: new Date()
+          }
+        })
+      } else {
+        // Increment only low_counter
+        existingCounter = await tx.pafs_core_reference_counters.update({
+          where: {
+            rfcc_code: rfccCode
+          },
+          data: {
+            low_counter: {
+              increment: 1
+            },
+            updated_at: new Date()
+          }
+        })
+      }
+    } else {
+      // Create a new counter if it doesn't exist
+      existingCounter = await tx.pafs_core_reference_counters.create({
+        data: {
+          rfcc_code: rfccCode,
+          high_counter: 0,
+          low_counter: 1,
+          created_at: new Date(),
+          updated_at: new Date()
+        }
+      })
+    }
+
+    return existingCounter
+  }
+
+  /**
+   * Format counter values for reference number
+   * @param {number} highCounter - High counter value
+   * @param {number} lowCounter - Low counter value
+   * @returns {string} Formatted reference number suffix
+   */
+  formatCounterParts(highCounter, lowCounter) {
+    const highPart =
+      String(highCounter).padStart(COUNTER_PAD_LENGTH, '0') + COUNTER_SUFFIX
+    const lowPart =
+      String(lowCounter).padStart(COUNTER_PAD_LENGTH, '0') + COUNTER_SUFFIX
+    return `${highPart}/${lowPart}`
+  }
+
+  /**
    * Generate a unique reference number for a project
    * Format: {RFCC_CODE}C501E/{high_counter:03d}A/{low_counter:03d}A
    * e.g., ANC501E/000A/001A, AEC501E/000A/001A
@@ -60,88 +163,22 @@ export class ProjectService {
   async generateReferenceNumber(rfccCode = 'AN') {
     this.logger.info({ rfccCode }, 'Generating reference number')
 
-    // List of valid RFCC codes from pafs_core (stored in PSO areas' sub_type field)
-    const RFCC_CODES = [
-      'AC',
-      'AE',
-      'AN',
-      'NO',
-      'NW',
-      'SN',
-      'SO',
-      'SW',
-      'TH',
-      'TR',
-      'TS',
-      'WX',
-      'YO'
-    ]
-
-    if (!RFCC_CODES.includes(rfccCode)) {
-      throw new Error(`Invalid RFCC code: ${rfccCode}`)
-    }
+    this.validateRfccCode(rfccCode)
 
     try {
       // Get or create the counter for this RFCC code with transaction for thread safety
-      const counter = await this.prisma.$transaction(async (tx) => {
-        let existingCounter = await tx.pafs_core_reference_counters.findUnique({
-          where: {
-            rfcc_code: rfccCode
-          }
-        })
+      const counter = await this.prisma.$transaction((tx) =>
+        this.incrementCounter(tx, rfccCode)
+      )
 
-        if (!existingCounter) {
-          // Create a new counter if it doesn't exist
-          existingCounter = await tx.pafs_core_reference_counters.create({
-            data: {
-              rfcc_code: rfccCode,
-              high_counter: 0,
-              low_counter: 1,
-              created_at: new Date(),
-              updated_at: new Date()
-            }
-          })
-        } else {
-          // Check if low_counter has reached 999
-          if (existingCounter.low_counter === 999) {
-            // Increment high_counter and reset low_counter to 1
-            existingCounter = await tx.pafs_core_reference_counters.update({
-              where: {
-                rfcc_code: rfccCode
-              },
-              data: {
-                high_counter: {
-                  increment: 1
-                },
-                low_counter: 1,
-                updated_at: new Date()
-              }
-            })
-          } else {
-            // Increment the low_counter
-            existingCounter = await tx.pafs_core_reference_counters.update({
-              where: {
-                rfcc_code: rfccCode
-              },
-              data: {
-                low_counter: {
-                  increment: 1
-                },
-                updated_at: new Date()
-              }
-            })
-          }
-        }
-
-        return existingCounter
-      })
-
-      // Format counters as 000A and 001A
-      const highPart = String(counter.high_counter).padStart(3, '0') + 'A'
-      const lowPart = String(counter.low_counter).padStart(3, '0') + 'A'
+      // Format counters as 000A/001A
+      const counterParts = this.formatCounterParts(
+        counter.high_counter,
+        counter.low_counter
+      )
 
       // Format: {RFCC_CODE}C501E/{high_counter:03d}A/{low_counter:03d}A
-      const referenceNumber = `${rfccCode}C501E/${highPart}/${lowPart}`
+      const referenceNumber = `${rfccCode}C501E/${counterParts}`
 
       this.logger.info(
         {
@@ -191,10 +228,10 @@ export class ProjectService {
           rma_name: proposalData.rmaName || null,
           project_type: proposalData.projectType,
           earliest_start_year: proposalData.projectStartFinancialYear
-            ? parseInt(proposalData.projectStartFinancialYear, 10)
+            ? Number.parseInt(proposalData.projectStartFinancialYear, 10)
             : null,
           project_end_financial_year: proposalData.projectEndFinancialYear
-            ? parseInt(proposalData.projectEndFinancialYear, 10)
+            ? Number.parseInt(proposalData.projectEndFinancialYear, 10)
             : null,
           project_intervention_types: proposalData.projectIntervesionTypes
             ? proposalData.projectIntervesionTypes.join(',')
