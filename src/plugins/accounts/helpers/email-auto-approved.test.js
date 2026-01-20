@@ -47,7 +47,9 @@ describe('extractDomain', () => {
   })
 
   it('should handle subdomain with multiple levels', () => {
-    expect(extractDomain('user@mail.corp.example.com')).toBe('mail.corp.example.com')
+    expect(extractDomain('user@mail.corp.example.com')).toBe(
+      'mail.corp.example.com'
+    )
   })
 
   it('should handle email with numbers and hyphens', () => {
@@ -95,7 +97,9 @@ describe('domainMatches', () => {
   })
 
   it('should handle domains with hyphens', () => {
-    expect(domainMatches('test-server.example-domain.com', 'example-domain.com')).toBe(true)
+    expect(
+      domainMatches('test-server.example-domain.com', 'example-domain.com')
+    ).toBe(true)
   })
 
   it('should not match similar domain names', () => {
@@ -120,17 +124,23 @@ describe('isApprovedDomain', () => {
 
   it('should return true if subdomain matches approved domain', () => {
     const approvedDomains = ['example.com']
-    expect(isApprovedDomain('user@mail.example.com', approvedDomains)).toBe(true)
+    expect(isApprovedDomain('user@mail.example.com', approvedDomains)).toBe(
+      true
+    )
   })
 
   it('should return true if multiple level subdomain matches', () => {
     const approvedDomains = ['example.com']
-    expect(isApprovedDomain('user@internal.mail.example.com', approvedDomains)).toBe(true)
+    expect(
+      isApprovedDomain('user@internal.mail.example.com', approvedDomains)
+    ).toBe(true)
   })
 
   it('should return false if domain is not in approved list', () => {
     const approvedDomains = ['example.com', 'test.com']
-    expect(isApprovedDomain('user@notapproved.com', approvedDomains)).toBe(false)
+    expect(isApprovedDomain('user@notapproved.com', approvedDomains)).toBe(
+      false
+    )
   })
 
   it('should return false for empty approved domains list', () => {
@@ -164,7 +174,9 @@ describe('isApprovedDomain', () => {
 
   it('should return true for multiple level subdomains', () => {
     const approvedDomains = ['example.com']
-    expect(isApprovedDomain('user@a.b.c.example.com', approvedDomains)).toBe(true)
+    expect(isApprovedDomain('user@a.b.c.example.com', approvedDomains)).toBe(
+      true
+    )
   })
 
   it('should not match partial domains', () => {
@@ -189,6 +201,8 @@ describe('isApprovedDomain', () => {
 
   it('should handle hyphens in approved domains', () => {
     const approvedDomains = ['example-domain.com']
-    expect(isApprovedDomain('user@sub.example-domain.com', approvedDomains)).toBe(true)
+    expect(
+      isApprovedDomain('user@sub.example-domain.com', approvedDomains)
+    ).toBe(true)
   })
 })
