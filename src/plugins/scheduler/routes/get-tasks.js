@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from '../../../common/constants'
+import { HTTP_STATUS } from '../../../common/constants/common.js'
 
 /**
  * Route handler for getting list of available scheduled tasks

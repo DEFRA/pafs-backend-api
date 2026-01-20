@@ -2,6 +2,28 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 import { handleError } from '../../../common/helpers/error-handler.js'
 import { ForbiddenError } from '../../../common/errors/index.js'
+import { AccountUpsertService } from '../services/account-upsert-service.js'
+import { AreaService } from '../../areas/services/area-service.js'
+import { getEmailService } from '../../../common/services/email/notify-service.js'
+
+/**
+ * Creates a service initializer for AccountUpsertService
+ * Initializes email and area services, then creates AccountUpsertService
+ *
+ * @param {Object} request - Hapi request object
+ * @returns {Object} Object with initialized accountUpsertService
+ */
+export function createAccountUpsertServiceInitializer(request) {
+  const emailService = getEmailService(request.server.logger)
+  const areaService = new AreaService(request.prisma, request.server.logger)
+  const accountUpsertService = new AccountUpsertService(
+    request.prisma,
+    request.server.logger,
+    emailService,
+    areaService
+  )
+  return { accountUpsertService }
+}
 
 /**
  * Creates a common admin authorization handler for account routes
