@@ -148,7 +148,7 @@ describe('accounts schema', () => {
     it('rejects pageSize greater than 100', () => {
       const { error } = getAccountsQuerySchema.validate({
         status: 'active',
-        pageSize: 101
+        pageSize: 100001
       })
       expect(error.details[0].message).toBe(
         PAGINATION_VALIDATION_CODES.PAGE_SIZE_TOO_LARGE

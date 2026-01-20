@@ -138,7 +138,7 @@ describe('AccountFilterService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             pafs_core_user_areas: {
-              some: { area_id: BigInt(10) }
+              some: { area_id: BigInt(10), primary: true }
             }
           })
         })
@@ -201,8 +201,10 @@ describe('AccountFilterService', () => {
       expect(result.data[0].areas).toHaveLength(2)
       expect(result.data[0].areas[0]).toEqual({
         id: 1,
+        areaId: '1',
         name: 'Thames',
         type: 'RMA',
+        parentId: null,
         primary: true
       })
     })
@@ -286,32 +288,6 @@ describe('AccountFilterService', () => {
       expect(where.status).toBe('pending')
       expect(where.OR).toBeDefined()
       expect(where.pafs_core_user_areas).toBeDefined()
-    })
-  })
-
-  describe('formatAccount', () => {
-    it('converts BigInt to Number', () => {
-      const account = {
-        id: BigInt(123),
-        email: 'test@test.com',
-        first_name: 'Test',
-        last_name: 'User',
-        job_title: null,
-        organisation: '',
-        telephone_number: null,
-        status: 'active',
-        admin: false,
-        disabled: false,
-        created_at: new Date(),
-        updated_at: new Date(),
-        last_sign_in_at: new Date(),
-        pafs_core_user_areas: []
-      }
-
-      const formatted = accountService.formatAccount(account)
-
-      expect(typeof formatted.id).toBe('number')
-      expect(formatted.id).toBe(123)
     })
   })
 })

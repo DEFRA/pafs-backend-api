@@ -154,7 +154,7 @@ describe('session helper', () => {
 
       const user = { last_sign_in_at: lastSignIn }
 
-      vi.advanceTimersByTime(91 * 24 * 60 * 60 * 1000)
+      vi.advanceTimersByTime(366 * 24 * 60 * 60 * 1000)
 
       expect(shouldDisableAccount(user)).toBe(true)
     })

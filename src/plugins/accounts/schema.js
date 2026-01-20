@@ -143,3 +143,10 @@ export const upsertAccountSchema = Joi.object({
   .messages({
     'object.base': VALIDATION_ERROR_CODES.VALIDATION_INVALID_OBJECT
   })
+
+/**
+ * Schema for validating account ID in URL params
+ */
+export const getAccountByIdSchema = Joi.object({
+  id: userIdSchema.required()
+})
