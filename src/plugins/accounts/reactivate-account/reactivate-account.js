@@ -1,10 +1,8 @@
 import { AccountService } from '../services/account-service.js'
 import { getEmailService } from '../../../common/services/email/notify-service.js'
 import { config } from '../../../config.js'
-import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
-import { handleError } from '../../../common/helpers/error-handler.js'
-import { ForbiddenError } from '../../../common/errors/index.js'
+import { createSimpleAdminHandler } from '../helpers/admin-route-handler.js'
 import { getAccountByIdSchema } from '../schema.js'
 
 const reactivateAccount = {
@@ -20,19 +18,8 @@ const reactivateAccount = {
       params: getAccountByIdSchema
     }
   },
-  handler: async (request, h) => {
-    try {
-      const userId = request.params.id
-      const authenticatedUser = request.auth.credentials
-
-      if (!authenticatedUser.isAdmin) {
-        throw new ForbiddenError(
-          'Admin authentication required to reactivate accounts',
-          ACCOUNT_ERROR_CODES.UNAUTHORIZED,
-          null
-        )
-      }
-
+  handler: createSimpleAdminHandler(
+    async (request, userId, authenticatedUser) => {
       const accountService = new AccountService(
         request.prisma,
         request.server.logger
@@ -70,17 +57,12 @@ const reactivateAccount = {
         )
       }
 
-      return h.response(result).code(HTTP_STATUS.OK)
-    } catch (error) {
-      return handleError(
-        error,
-        request,
-        h,
-        ACCOUNT_ERROR_CODES.UNAUTHORIZED,
-        'Failed to reactivate account'
-      )
-    }
-  }
+      return result
+    },
+    'Admin authentication required to reactivate accounts',
+    ACCOUNT_ERROR_CODES.UNAUTHORIZED,
+    'Failed to reactivate account'
+  )
 }
 
 export default reactivateAccount

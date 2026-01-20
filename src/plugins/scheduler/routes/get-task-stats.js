@@ -1,5 +1,6 @@
 import Joi from 'joi'
 import { SchedulerDbService } from '../services/scheduler-db-service.js'
+import { HTTP_STATUS } from '../../../common/constants/common.js'
 
 /**
  * Route handler for getting task execution statistics
@@ -36,7 +37,7 @@ export default {
             message: 'Admin authentication required to view task statistics'
           }
         })
-        .code(403)
+        .code(HTTP_STATUS.FORBIDDEN)
     }
 
     try {
@@ -58,7 +59,7 @@ export default {
             latestExecution: latestLog
           }
         })
-        .code(200)
+        .code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error(
         { error, userId: authenticatedUser.id, taskName },
@@ -73,7 +74,7 @@ export default {
             message: 'An error occurred while retrieving task statistics'
           }
         })
-        .code(500)
+        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
   }
 }

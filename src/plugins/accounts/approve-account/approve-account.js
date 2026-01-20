@@ -1,10 +1,8 @@
 import { AccountUpsertService } from '../services/account-upsert-service.js'
 import { AreaService } from '../../areas/services/area-service.js'
 import { getEmailService } from '../../../common/services/email/notify-service.js'
-import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
-import { handleError } from '../../../common/helpers/error-handler.js'
-import { ForbiddenError } from '../../../common/errors/index.js'
+import { createAdminHandler } from '../helpers/admin-route-handler.js'
 import { getAccountByIdSchema } from '../schema.js'
 
 const approveAccount = {
@@ -20,20 +18,8 @@ const approveAccount = {
       params: getAccountByIdSchema
     }
   },
-  handler: async (request, h) => {
-    try {
-      const userId = request.params.id
-      const authenticatedUser = request.auth.credentials
-
-      // Check if user is admin
-      if (!authenticatedUser.isAdmin) {
-        throw new ForbiddenError(
-          'Admin authentication required to approve accounts',
-          ACCOUNT_ERROR_CODES.UNAUTHORIZED,
-          null
-        )
-      }
-
+  handler: createAdminHandler(
+    (request) => {
       const emailService = getEmailService(request.server.logger)
       const areaService = new AreaService(request.prisma, request.server.logger)
       const accountUpsertService = new AccountUpsertService(
@@ -42,23 +28,18 @@ const approveAccount = {
         emailService,
         areaService
       )
-
-      const result = await accountUpsertService.approveAccount(
+      return { accountUpsertService }
+    },
+    async (userId, authenticatedUser, services) => {
+      return services.accountUpsertService.approveAccount(
         userId,
         authenticatedUser
       )
-
-      return h.response(result).code(HTTP_STATUS.OK)
-    } catch (error) {
-      return handleError(
-        error,
-        request,
-        h,
-        ACCOUNT_ERROR_CODES.APPROVAL_FAILED,
-        'Failed to approve account'
-      )
-    }
-  }
+    },
+    'Admin authentication required to approve accounts',
+    ACCOUNT_ERROR_CODES.APPROVAL_FAILED,
+    'Failed to approve account'
+  )
 }
 
 export default approveAccount

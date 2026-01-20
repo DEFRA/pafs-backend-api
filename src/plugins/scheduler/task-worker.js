@@ -1,16 +1,14 @@
 import { parentPort, workerData } from 'node:worker_threads'
 
 /**
- * Worker thread for executing scheduled tasks
- * This runs tasks in isolation from the main thread
+ * Execute task and send result back to main thread
+ * @param {object} data - Worker data containing taskName and options
+ * @param {object} port - Parent port for messaging
  */
-
-async function executeTask() {
+export const executeWorkerTask = (data, port) => {
   try {
-    const { taskName, options } = workerData
+    const { taskName, options } = data
 
-    // Note: In a real implementation, you would dynamically import the task handler
-    // For now, this is a placeholder that demonstrates the worker thread pattern
     // Worker threads are useful for CPU-intensive tasks that shouldn't block the main thread
 
     // Simulate task execution
@@ -22,13 +20,13 @@ async function executeTask() {
     }
 
     // Send success message back to main thread
-    parentPort.postMessage({
+    port.postMessage({
       type: 'success',
       result
     })
   } catch (error) {
     // Send error message back to main thread
-    parentPort.postMessage({
+    port.postMessage({
       type: 'error',
       error: error.message,
       stack: error.stack
@@ -36,5 +34,7 @@ async function executeTask() {
   }
 }
 
-// Execute the task
-executeTask()
+// Execute the task immediately when worker thread starts (if parentPort is available)
+if (parentPort) {
+  executeWorkerTask(workerData, parentPort)
+}

@@ -1,5 +1,6 @@
 import Joi from 'joi'
 import { SchedulerDbService } from '../services/scheduler-db-service.js'
+import { HTTP_STATUS } from '../../../common/constants/common.js'
 
 /**
  * Route handler for getting scheduler execution logs
@@ -21,7 +22,7 @@ export default {
         limit: Joi.number()
           .integer()
           .min(1)
-          .max(500)
+          .max(HTTP_STATUS.INTERNAL_SERVER_ERROR)
           .default(100)
           .description('Number of logs to return')
       })
@@ -46,7 +47,7 @@ export default {
             message: 'Admin authentication required to view scheduler logs'
           }
         })
-        .code(403)
+        .code(HTTP_STATUS.FORBIDDEN)
     }
 
     try {
@@ -76,7 +77,7 @@ export default {
             filters: { taskName, status, limit }
           }
         })
-        .code(200)
+        .code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error(
         { error, userId: authenticatedUser.id },
@@ -91,7 +92,7 @@ export default {
             message: 'An error occurred while retrieving scheduler logs'
           }
         })
-        .code(500)
+        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
   }
 }

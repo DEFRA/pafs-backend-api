@@ -1,3 +1,5 @@
+import { HTTP_STATUS } from '../../../common/constants'
+
 /**
  * Route handler for getting list of available scheduled tasks
  */
@@ -27,7 +29,7 @@ export default {
             message: 'Admin authentication required to view scheduled tasks'
           }
         })
-        .code(403)
+        .code(HTTP_STATUS.FORBIDDEN)
     }
 
     try {
@@ -46,7 +48,7 @@ export default {
             totalCount: tasks.length
           }
         })
-        .code(200)
+        .code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error(
         { error, userId: authenticatedUser.id },
@@ -61,7 +63,7 @@ export default {
             message: 'An error occurred while retrieving scheduled tasks'
           }
         })
-        .code(500)
+        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
   }
 }

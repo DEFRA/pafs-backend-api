@@ -2,8 +2,46 @@ import { readdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const fileName = fileURLToPath(import.meta.url)
+const dirName = dirname(fileName)
+
+/**
+ * Validate if task has all required fields
+ * @param {Object} task - Task object
+ * @returns {boolean} True if task is valid
+ * @private
+ */
+function isValidTask(task) {
+  return task?.name && task?.schedule && task?.handler
+}
+
+/**
+ * Load and process a single task file
+ * @param {string} file - File name
+ * @param {string} tasksDir - Tasks directory path
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<Object|null>} Task object or null if invalid
+ * @private
+ */
+async function loadTaskFile(file, tasksDir, logger) {
+  try {
+    const taskPath = join(tasksDir, file)
+    const taskUrl = pathToFileURL(taskPath).href
+    const taskModule = await import(taskUrl)
+    const task = taskModule.default
+
+    if (isValidTask(task)) {
+      logger?.debug({ taskName: task.name, file }, 'Loaded scheduled task')
+      return task
+    }
+
+    logger?.warn({ file }, 'Invalid task definition - missing required fields')
+    return null
+  } catch (error) {
+    logger?.error({ error, file }, 'Error loading task file')
+    return null
+  }
+}
 
 /**
  * Load all task definitions from the tasks directory
@@ -11,41 +49,20 @@ const __dirname = dirname(__filename)
  * @returns {Promise<Array>} Array of task configurations
  */
 export async function loadTasks(logger) {
-  const tasksDir = join(__dirname, '..', 'tasks')
-  const tasks = []
+  const tasksDir = join(dirName, '..', 'tasks')
 
   try {
     const files = await readdir(tasksDir)
+    const tasks = []
 
     for (const file of files) {
-      if (file.endsWith('.js') && !file.endsWith('.test.js')) {
-        try {
-          const taskPath = join(tasksDir, file)
-          const taskUrl = pathToFileURL(taskPath).href
-          const taskModule = await import(taskUrl)
-          const task = taskModule.default
+      if (!file.endsWith('.js') || file.endsWith('.test.js')) {
+        continue
+      }
 
-          if (task && task.name && task.schedule && task.handler) {
-            tasks.push(task)
-            if (logger) {
-              logger.debug(
-                { taskName: task.name, file },
-                'Loaded scheduled task'
-              )
-            }
-          } else {
-            if (logger) {
-              logger.warn(
-                { file },
-                'Invalid task definition - missing required fields'
-              )
-            }
-          }
-        } catch (error) {
-          if (logger) {
-            logger.error({ error, file }, 'Error loading task file')
-          }
-        }
+      const task = await loadTaskFile(file, tasksDir, logger)
+      if (task) {
+        tasks.push(task)
       }
     }
 

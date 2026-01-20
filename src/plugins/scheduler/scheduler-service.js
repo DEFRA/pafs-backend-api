@@ -11,8 +11,10 @@ import {
   TRIGGER_TYPE
 } from '../../common/constants/scheduler.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const fileName = fileURLToPath(import.meta.url)
+const dirName = dirname(fileName)
+
+const CLEANUP_INTERVAL_MINUTES = 5
 
 /**
  * Scheduler Service
@@ -129,6 +131,74 @@ export class SchedulerService {
   }
 
   /**
+   * Create initial task log entry
+   * @private
+   */
+  async createTaskLog(name, startedAt, triggerType, triggeredByUserId) {
+    return this.dbService.createLog({
+      taskName: name,
+      executedBy: this.instanceId,
+      status: SCHEDULER_STATUS.RUNNING,
+      startedAt,
+      triggerType,
+      triggeredByUserId
+    })
+  }
+
+  /**
+   * Execute the task based on its configuration
+   * @private
+   */
+  async executeTaskLogic(task, name) {
+    if (task.runInWorker) {
+      return this.executeInWorker(name, task)
+    }
+    return this.executeInMainThread(name, task)
+  }
+
+  /**
+   * Handle successful task completion
+   * @private
+   */
+  async handleTaskSuccess(name, logId, duration, result) {
+    const completedAt = new Date()
+    await this.lockService.updateLastRun(name)
+    await this.dbService.updateLog(logId, {
+      status: SCHEDULER_STATUS.SUCCESS,
+      completedAt,
+      durationMs: duration,
+      result
+    })
+    this.logger.info(
+      { taskName: name, durationMs: duration },
+      'Scheduled task completed successfully'
+    )
+    return { success: true, result, durationMs: duration }
+  }
+
+  /**
+   * Handle task execution error
+   * @private
+   */
+  async handleTaskError(name, logId, error, duration) {
+    const completedAt = new Date()
+    this.logger.error(
+      { error, taskName: name },
+      'Error executing scheduled task'
+    )
+    if (logId) {
+      await this.dbService.updateLog(logId, {
+        status: SCHEDULER_STATUS.FAILED,
+        completedAt,
+        durationMs: duration,
+        errorMessage: error.message,
+        errorStack: error.stack
+      })
+    }
+    return { success: false, error: error.message, durationMs: duration }
+  }
+
+  /**
    * Execute a task with distributed locking
    * @param {string} name - Task name
    * @param {Object} task - Task configuration
@@ -166,66 +236,25 @@ export class SchedulerService {
 
     try {
       // Create initial log entry
-      const log = await this.dbService.createLog({
-        taskName: name,
-        executedBy: this.instanceId,
-        status: SCHEDULER_STATUS.RUNNING,
+      const log = await this.createTaskLog(
+        name,
         startedAt,
         triggerType,
         triggeredByUserId
-      })
+      )
       logId = log.id
 
       this.logger.info({ taskName: name, logId }, 'Executing scheduled task')
 
-      let result
-      if (task.runInWorker) {
-        result = await this.executeInWorker(name, task)
-      } else {
-        result = await this.executeInMainThread(name, task)
-      }
-
-      // Update last run timestamp
-      await this.lockService.updateLastRun(name)
-
+      // Execute the task
+      const result = await this.executeTaskLogic(task, name)
       const duration = Date.now() - startTime
-      const completedAt = new Date()
 
-      // Update log with success
-      await this.dbService.updateLog(logId, {
-        status: SCHEDULER_STATUS.SUCCESS,
-        completedAt,
-        durationMs: duration,
-        result
-      })
-
-      this.logger.info(
-        { taskName: name, durationMs: duration },
-        'Scheduled task completed successfully'
-      )
-
-      return { success: true, result, durationMs: duration }
+      // Handle success
+      return await this.handleTaskSuccess(name, logId, duration, result)
     } catch (error) {
       const duration = Date.now() - startTime
-      const completedAt = new Date()
-
-      this.logger.error(
-        { error, taskName: name },
-        'Error executing scheduled task'
-      )
-
-      // Update log with failure
-      if (logId) {
-        await this.dbService.updateLog(logId, {
-          status: SCHEDULER_STATUS.FAILED,
-          completedAt,
-          durationMs: duration,
-          errorMessage: error.message,
-          errorStack: error.stack
-        })
-      }
-
-      return { success: false, error: error.message, durationMs: duration }
+      return await this.handleTaskError(name, logId, error, duration)
     } finally {
       // Always release the lock
       await this.lockService.releaseLock(name)
@@ -239,7 +268,7 @@ export class SchedulerService {
    */
   async executeInWorker(name, task) {
     return new Promise((resolve, reject) => {
-      const workerPath = join(__dirname, 'task-worker.js')
+      const workerPath = join(dirName, 'task-worker.js')
 
       const worker = new Worker(workerPath, {
         workerData: {
@@ -256,7 +285,8 @@ export class SchedulerService {
             'Worker task completed'
           )
           resolve(message.result)
-        } else if (message.type === 'error') {
+        }
+        if (message.type === 'error') {
           this.logger.error(
             { taskName: name, error: message.error },
             'Worker task failed'
@@ -316,7 +346,7 @@ export class SchedulerService {
       async () => {
         await this.lockService.cleanupExpiredLocks()
       },
-      5 * 60 * 1000
+      CLEANUP_INTERVAL_MINUTES * 60 * 1000
     )
 
     this.logger.info('Started scheduler lock cleanup interval')
@@ -382,11 +412,6 @@ export class SchedulerService {
       { taskName: name, triggeredByUserId },
       'Manually triggering task'
     )
-    return await this.executeTask(
-      name,
-      task,
-      TRIGGER_TYPE.MANUAL,
-      triggeredByUserId
-    )
+    return this.executeTask(name, task, TRIGGER_TYPE.MANUAL, triggeredByUserId)
   }
 }

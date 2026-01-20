@@ -16,7 +16,7 @@ export class AccountService {
    * Common select fields for account queries
    * @private
    */
-  static get ACCOUNT_SELECT_FIELDS() {
+  static get accountSelectFields() {
     return {
       id: true,
       email: true,
@@ -29,33 +29,13 @@ export class AccountService {
   }
 
   /**
-   * Helper: Convert to BigInt safely
-   * @param {number|string} value - Value to convert
-   * @returns {BigInt} BigInt value
-   * @private
-   */
-  _toBigInt(value) {
-    return BigInt(value)
-  }
-
-  /**
-   * Helper: Convert BigInt array
-   * @param {Array<number|string>} values - Values to convert
-   * @returns {Array<BigInt>} BigInt array
-   * @private
-   */
-  _toBigIntArray(values) {
-    return values.map((v) => this._toBigInt(v))
-  }
-
-  /**
    * Get single account by ID with full details
    * @param {number|string} id - Account ID
    * @returns {Promise<Object|null>} Account details or null if not found
    */
   async getAccountById(id) {
     const account = await this.prisma.pafs_core_users.findUnique({
-      where: { id: this._toBigInt(id) },
+      where: { id: BigInt(id) },
       select: ACCOUNT_DETAIL_SELECT_FIELDS
     })
 
@@ -84,7 +64,7 @@ export class AccountService {
       userId,
       ACCOUNT_ERROR_CODES.USER_NOT_FOUND
     )
-    const userIdBigInt = this._toBigInt(userId)
+    const userIdBigInt = BigInt(userId)
 
     const userName = `${user.first_name} ${user.last_name}`
     const wasActive = user.status !== ACCOUNT_STATUS.PENDING
@@ -133,7 +113,7 @@ export class AccountService {
    */
   async _findUserOrThrow(userId, errorCode = ACCOUNT_ERROR_CODES.NOT_FOUND) {
     const user = await this.prisma.pafs_core_users.findUnique({
-      where: { id: this._toBigInt(userId) }
+      where: { id: BigInt(userId) }
     })
 
     if (!user) {
@@ -180,7 +160,7 @@ export class AccountService {
           { last_sign_in_at: null, created_at: { lt: cutoffDate } }
         ]
       },
-      select: AccountService.ACCOUNT_SELECT_FIELDS
+      select: AccountService.accountSelectFields
     })
 
     return accounts.map(this._formatAccountData)
@@ -199,7 +179,7 @@ export class AccountService {
         disabled: true,
         updated_at: { lt: cutoffDate }
       },
-      select: AccountService.ACCOUNT_SELECT_FIELDS
+      select: AccountService.accountSelectFields
     })
 
     return accounts.map(this._formatAccountData)
@@ -218,7 +198,7 @@ export class AccountService {
 
     const result = await this.prisma.pafs_core_users.updateMany({
       where: {
-        id: { in: this._toBigIntArray(accountIds) }
+        id: { in: accountIds.map(BigInt) }
       },
       data: {
         disabled: true,
@@ -332,9 +312,9 @@ export class AccountService {
     )
 
     const user = await this.prisma.pafs_core_users.findUnique({
-      where: { id: this._toBigInt(userId) },
+      where: { id: BigInt(userId) },
       select: {
-        ...AccountService.ACCOUNT_SELECT_FIELDS,
+        ...AccountService.accountSelectFields,
         disabled: true,
         status: true
       }
@@ -355,7 +335,7 @@ export class AccountService {
     }
 
     await this.prisma.pafs_core_users.update({
-      where: { id: this._toBigInt(userId) },
+      where: { id: BigInt(userId) },
       data: {
         disabled: false,
         updated_at: new Date()

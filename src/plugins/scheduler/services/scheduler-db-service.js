@@ -367,7 +367,7 @@ export class SchedulerDbService {
         orderBy: { started_at: 'desc' }
       })
 
-      if (log && log.result) {
+      if (log?.result) {
         log.result = JSON.parse(log.result)
       }
 
