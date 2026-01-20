@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Create mock function at module level
 let mockDisableInactiveAccounts
+let mockEmailService
 
 vi.mock('../../accounts/services/account-service.js', () => {
   mockDisableInactiveAccounts = vi.fn()
@@ -11,6 +12,15 @@ vi.mock('../../accounts/services/account-service.js', () => {
         this.disableInactiveAccounts = mockDisableInactiveAccounts
       }
     }
+  }
+})
+
+vi.mock('../../../common/services/email/notify-service.js', () => {
+  mockEmailService = {
+    send: vi.fn()
+  }
+  return {
+    getEmailService: vi.fn(() => mockEmailService)
   }
 })
 
@@ -36,8 +46,6 @@ describe('disable-inactive-accounts task', () => {
   let mockContext
   let mockLogger
   let mockPrisma
-  let mockNotifyService
-  let mockServer
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -49,16 +57,11 @@ describe('disable-inactive-accounts task', () => {
 
     mockPrisma = {}
 
-    mockNotifyService = {
-      send: vi.fn().mockResolvedValue({
-        success: true,
-        notificationId: 'notification-123'
-      })
-    }
-
-    mockServer = {
-      notify: mockNotifyService
-    }
+    // Setup email service mock
+    mockEmailService.send = vi.fn().mockResolvedValue({
+      success: true,
+      notificationId: 'notification-123'
+    })
 
     // Set default mock return value
     mockDisableInactiveAccounts.mockResolvedValue({
@@ -83,8 +86,7 @@ describe('disable-inactive-accounts task', () => {
 
     mockContext = {
       logger: mockLogger,
-      prisma: mockPrisma,
-      server: mockServer
+      prisma: mockPrisma
     }
   })
 
@@ -113,13 +115,13 @@ describe('disable-inactive-accounts task', () => {
           { id: 2, email: 'user2@test.com' }
         ]
       })
-      expect(mockNotifyService.send).toHaveBeenCalledTimes(2)
+      expect(mockEmailService.send).toHaveBeenCalledTimes(2)
     })
 
     it('should send email with correct personalisation', async () => {
       await disableInactiveAccountsTask.handler(mockContext)
 
-      expect(mockNotifyService.send).toHaveBeenCalledWith(
+      expect(mockEmailService.send).toHaveBeenCalledWith(
         'test-template-id',
         'user1@test.com',
         {
@@ -146,7 +148,7 @@ describe('disable-inactive-accounts task', () => {
         inactivityDays: 365,
         accounts: []
       })
-      expect(mockNotifyService.send).not.toHaveBeenCalled()
+      expect(mockEmailService.send).not.toHaveBeenCalled()
     })
 
     it('should handle when feature is disabled', async () => {
@@ -182,7 +184,7 @@ describe('disable-inactive-accounts task', () => {
         return configMap[key]
       })
 
-      mockNotifyService.send
+      mockEmailService.send
         .mockResolvedValueOnce({
           success: true,
           notificationId: 'notification-123'
@@ -202,7 +204,7 @@ describe('disable-inactive-accounts task', () => {
       )
     })
 
-    it('should handle when notify service is not available', async () => {
+    it('should handle when email service returns null', async () => {
       // Reset config mock to default values
       const { config } = await import('../../../config.js')
       config.get.mockImplementation((key) => {
@@ -215,7 +217,10 @@ describe('disable-inactive-accounts task', () => {
         return configMap[key]
       })
 
-      mockContext.server.notify = null
+      // Mock getEmailService to return null
+      const { getEmailService } =
+        await import('../../../common/services/email/notify-service.js')
+      getEmailService.mockReturnValueOnce(null)
 
       const result = await disableInactiveAccountsTask.handler(mockContext)
 

@@ -327,7 +327,8 @@ export class SchedulerService {
         options: task.options
       }
 
-      await task.handler(context)
+      const result = await task.handler(context)
+      return result
     } catch (error) {
       this.logger.error(
         { error, taskName: name },

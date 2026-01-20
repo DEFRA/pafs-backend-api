@@ -1,4 +1,5 @@
 import { AccountService } from '../../accounts/services/account-service.js'
+import { getEmailService } from '../../../common/services/email/notify-service.js'
 import { config } from '../../../config.js'
 
 /**
@@ -59,8 +60,9 @@ export default {
   runInWorker: false,
 
   async handler(context) {
-    const { logger, prisma, server } = context
+    const { logger, prisma } = context
     const accountService = new AccountService(prisma, logger)
+    const emailService = getEmailService(logger)
 
     logger.info('Running disable-inactive-accounts task')
 
@@ -78,7 +80,7 @@ export default {
 
       await sendInactivityEmails(
         result.accounts,
-        server.notify,
+        emailService,
         logger,
         inactivityDays
       )
