@@ -75,7 +75,7 @@ describe('reactivate-account endpoint', () => {
     }
 
     mockConfig.get.mockImplementation((key) => {
-      if (key === 'govukNotify.templates.accountReactivated') {
+      if (key === 'notify.templateAccountReactivated') {
         return 'template-id-123'
       }
       if (key === 'frontendUrl') {

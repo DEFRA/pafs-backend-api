@@ -31,7 +31,7 @@ const reactivateAccount = {
       )
 
       const emailService = getEmailService(request.server.logger)
-      const templateId = config.get('govukNotify.templates.accountReactivated')
+      const templateId = config.get('notify.templateAccountReactivated')
 
       try {
         await emailService.send(
