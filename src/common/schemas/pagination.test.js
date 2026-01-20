@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { pageSchema, pageSizeSchema, paginationSchema } from './pagination.js'
 import { PAGINATION_VALIDATION_CODES } from '../constants/index.js'
+import { config } from '../../config.js'
 
 describe('pagination schemas', () => {
   describe('pageSchema', () => {
@@ -44,10 +45,10 @@ describe('pagination schemas', () => {
       expect(value).toBe(50)
     })
 
-    it('defaults to 20 when undefined', () => {
+    it('defaults to config default page size when undefined', () => {
       const schema = pageSizeSchema()
       const { value } = schema.validate(undefined)
-      expect(value).toBe(20)
+      expect(value).toBe(config.get('pagination.defaultPageSize'))
     })
 
     it('uses custom default', () => {
@@ -96,10 +97,13 @@ describe('pagination schemas', () => {
       expect(value).toEqual({ page: 3, pageSize: 25 })
     })
 
-    it('applies defaults', () => {
+    it('applies config defaults', () => {
       const schema = paginationSchema()
       const { value } = schema.validate({})
-      expect(value).toEqual({ page: 1, pageSize: 20 })
+      expect(value).toEqual({
+        page: 1,
+        pageSize: config.get('pagination.defaultPageSize')
+      })
     })
 
     it('uses custom options', () => {

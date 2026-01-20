@@ -9,9 +9,13 @@ import {
   ACCOUNT_RESPONSIBILITY,
   ACCOUNT_ERROR_CODES
 } from '../../../common/constants/accounts.js'
-import { BadRequestError } from '../../../common/errors/http-errors.js'
+import {
+  BadRequestError,
+  NotFoundError
+} from '../../../common/errors/http-errors.js'
 import { EmailValidationService } from '../../../common/services/email/email-validation-service.js'
 import { SIZE, STATIC_TEXT } from '../../../common/constants/common.js'
+import { isApprovedDomain } from '../helpers/email-auto-approved.js'
 
 export class AccountUpsertService {
   constructor(prisma, logger, emailService, areaService) {
@@ -84,6 +88,133 @@ export class AccountUpsertService {
       status: user.status,
       userId: Number(user.id)
     }
+  }
+
+  /**
+   * Approve a pending account and send invitation email
+   * @param {number} userId - User ID to approve
+   * @param {Object} authenticatedUser - Admin user performing the approval
+   * @returns {Promise<Object>} Approval result with message and userId
+   */
+  async approveAccount(userId, authenticatedUser) {
+    this.logger.info(
+      { userId, adminId: authenticatedUser.id },
+      'Approving account'
+    )
+
+    const user = await this._fetchAndValidateUser(userId)
+
+    if (user.status !== ACCOUNT_STATUS.PENDING) {
+      throw new BadRequestError(
+        `Account is not in pending status. Current status: ${user.status}`,
+        ACCOUNT_ERROR_CODES.INVALID_STATUS
+      )
+    }
+
+    const { updatedUser, invitationToken } =
+      await this._updateUserInvitationToken(userId, {
+        status: ACCOUNT_STATUS.APPROVED,
+        invited_by_type: ACCOUNT_INVITATION_BY.USER,
+        invited_by_id: authenticatedUser.userId
+      })
+
+    await this.sendInvitationEmail(updatedUser, invitationToken)
+    this._logInvitationSuccess(
+      updatedUser,
+      'Account approved and invitation sent'
+    )
+
+    return {
+      message: 'Account approved and invitation sent',
+      userId: Number(updatedUser.id),
+      userName: `${updatedUser.first_name} ${updatedUser.last_name}`
+    }
+  }
+
+  /**
+   * Resend invitation email to an approved account
+   * @param {number} userId - User ID to resend invitation to
+   * @returns {Promise<Object>} Result with message
+   */
+  async resendInvitation(userId) {
+    this.logger.info({ userId }, 'Resending invitation')
+
+    const user = await this._fetchAndValidateUser(userId)
+
+    if (user.status !== ACCOUNT_STATUS.APPROVED) {
+      throw new BadRequestError(
+        `Can only resend invitation to approved accounts. Current status: ${user.status}`,
+        ACCOUNT_ERROR_CODES.INVALID_STATUS
+      )
+    }
+
+    const { updatedUser, invitationToken } =
+      await this._updateUserInvitationToken(userId)
+
+    await this.sendInvitationEmail(updatedUser, invitationToken)
+    this._logInvitationSuccess(updatedUser, 'Invitation resent')
+
+    return {
+      message: 'Invitation email resent successfully',
+      userId: Number(updatedUser.id)
+    }
+  }
+
+  /**
+   * Fetch user and validate existence
+   * @param {number} userId - User ID to fetch
+   * @returns {Promise<Object>} User object
+   * @throws {NotFoundError} If user not found
+   * @private
+   */
+  async _fetchAndValidateUser(userId) {
+    const user = await this.prisma.pafs_core_users.findUnique({
+      where: { id: BigInt(userId) }
+    })
+
+    if (!user) {
+      throw new NotFoundError(
+        `User with ID ${userId} not found`,
+        ACCOUNT_ERROR_CODES.USER_NOT_FOUND
+      )
+    }
+
+    return user
+  }
+
+  /**
+   * Update user with new invitation token
+   * @param {number} userId - User ID to update
+   * @param {Object} additionalData - Additional data to include in update
+   * @returns {Promise<Object>} Updated user and invitation token
+   * @private
+   */
+  async _updateUserInvitationToken(userId, additionalData = {}) {
+    const { token: invitationToken, hashedToken } =
+      this.generateInvitationToken()
+
+    const updatedUser = await this.prisma.pafs_core_users.update({
+      where: { id: BigInt(userId) },
+      data: {
+        ...additionalData,
+        invitation_token: hashedToken,
+        invitation_created_at: new Date(),
+        invitation_sent_at: new Date(),
+        updated_at: new Date()
+      }
+    })
+
+    return { updatedUser, invitationToken }
+  }
+
+  /**
+   * Log invitation success
+   * @param {Object} user - User object
+   * @param {string} action - Action description
+   * @private
+   */
+  _logInvitationSuccess(user, action) {
+    this.logger.info({ userId: user.id, email: user.email }, action)
   }
 
   _determineUniqueWhere(data) {
@@ -215,28 +346,68 @@ export class AccountUpsertService {
       return
     }
 
-    // Use transaction to avoid constraint issues
+    const existingAreas = await this._fetchExistingUserAreas(userId)
+    const hasChanges = this._hasAreaChanges(existingAreas, areas)
+
+    if (!hasChanges) {
+      this.logger.debug({ userId }, 'No area changes detected, skipping update')
+      return
+    }
+
+    await this._replaceUserAreas(userId, areas)
+  }
+
+  async _fetchExistingUserAreas(userId) {
+    return this.prisma.pafs_core_user_areas.findMany({
+      where: { user_id: userId },
+      select: { area_id: true, primary: true }
+    })
+  }
+
+  _hasAreaChanges(existingAreas, newAreas) {
+    if (existingAreas.length !== newAreas.length) {
+      return true
+    }
+
+    const existingSet = this._createAreaSet(
+      existingAreas.map((a) => ({
+        areaId: Number(a.area_id),
+        primary: a.primary
+      }))
+    )
+    const newSet = this._createAreaSet(newAreas)
+
+    return existingSet !== newSet
+  }
+
+  _createAreaSet(areas) {
+    return areas
+      .map((a) => `${a.areaId}:${a.primary || false}`)
+      .sort()
+      .join('|')
+  }
+
+  async _replaceUserAreas(userId, areas) {
     await this.prisma.$transaction(async (tx) => {
-      // Delete existing areas
       await tx.pafs_core_user_areas.deleteMany({
         where: { user_id: userId }
       })
 
-      // Create new areas if provided
       if (areas.length > 0) {
-        const userAreas = areas.map((area) => ({
-          user_id: userId,
-          area_id: BigInt(area.areaId),
-          primary: area.primary || false,
-          created_at: new Date(),
-          updated_at: new Date()
-        }))
-
-        await tx.pafs_core_user_areas.createMany({
-          data: userAreas
-        })
+        const userAreas = this._prepareUserAreasData(userId, areas)
+        await tx.pafs_core_user_areas.createMany({ data: userAreas })
       }
     })
+  }
+
+  _prepareUserAreasData(userId, areas) {
+    return areas.map((area) => ({
+      user_id: userId,
+      area_id: BigInt(area.areaId),
+      primary: area.primary || false,
+      created_at: new Date(),
+      updated_at: new Date()
+    }))
   }
 
   determineInvitationDetails(email, authenticatedUser) {
@@ -258,8 +429,7 @@ export class AccountUpsertService {
 
   isEmailAutoApproved(email) {
     const autoApprovedDomains = this.getAutoApprovedDomains()
-    const emailDomain = email.split('@')[1]?.toLowerCase()
-    return autoApprovedDomains.includes(emailDomain)
+    return isApprovedDomain(email, autoApprovedDomains)
   }
 
   getAutoApprovedDomains() {
@@ -311,9 +481,7 @@ export class AccountUpsertService {
         : config.get('notify.templateAccountVerification')
 
     // Get responsibility label from constant
-    const responsibilityLabel = user.admin
-      ? 'Admin'
-      : ACCOUNT_RESPONSIBILITY[user.responsibility]
+    const responsibilityLabel = ACCOUNT_RESPONSIBILITY[user.responsibility]
 
     await this.emailService.send(
       templateId,

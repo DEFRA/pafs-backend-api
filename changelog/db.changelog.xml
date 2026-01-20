@@ -30,5 +30,8 @@
     <include file="changelog/4-009-create-asite-files-table.xml" />
     <include file="changelog/4-010-create-nfm-measures-table.xml" />
     <include file="changelog/4-011-create-nfm-land-use-changes-table.xml" />
+    <include file="changelog/5-001-create-scheduler-locks-table.xml" />
+    <include file="changelog/5-002-create-scheduler-logs-table.xml" />
+    <include file="changelog/5-003-add-is-legacy-to-core-projects-default-status-to-users.xml" />
 
 </databaseChangeLog>

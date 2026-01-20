@@ -203,7 +203,7 @@ const config = convict({
       inactivityDays: {
         doc: 'Days of inactivity before account is disabled',
         format: 'nat',
-        default: 90,
+        default: 365,
         env: 'AUTH_INACTIVITY_DAYS'
       }
     },
@@ -282,6 +282,18 @@ const config = convict({
       default: 'account-approved-template-id',
       env: 'NOTIFY_TEMPLATE_AUTO_APPROVED_TO_ADMIN'
     },
+    templateAccountInactivityDisabled: {
+      doc: 'GOV.UK Notify template ID for account disabled due to inactivity',
+      format: String,
+      default: 'account-inactivity-disabled-template-id',
+      env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_DISABLED'
+    },
+    templateAccountReactivated: {
+      doc: 'GOV.UK Notify template ID for account reactivation notification',
+      format: String,
+      default: 'account-reactivated-template-id',
+      env: 'NOTIFY_TEMPLATE_ACCOUNT_REACTIVATED'
+    },
     adminEmail: {
       doc: 'GOV.UK Notify admin email address',
       format: String,
@@ -320,7 +332,7 @@ const config = convict({
     maxPageSize: {
       doc: 'Maximum allowed records per page',
       format: 'nat',
-      default: 100,
+      default: 10000,
       env: 'PAGINATION_MAX_PAGE_SIZE'
     }
   },
@@ -348,6 +360,32 @@ const config = convict({
       format: Boolean,
       default: true,
       env: 'EMAIL_VALIDATION_CHECK_DUPLICATE'
+    }
+  },
+  scheduler: {
+    enabled: {
+      doc: 'Enable scheduled tasks',
+      format: Boolean,
+      default: !isTest,
+      env: 'SCHEDULER_ENABLED'
+    },
+    lockTimeout: {
+      doc: 'Distributed lock timeout in milliseconds',
+      format: 'nat',
+      default: 300000, // 5 minutes
+      env: 'SCHEDULER_LOCK_TIMEOUT'
+    },
+    lockRefreshInterval: {
+      doc: 'How often to refresh the lock in milliseconds',
+      format: 'nat',
+      default: 60000, // 1 minute
+      env: 'SCHEDULER_LOCK_REFRESH_INTERVAL'
+    },
+    timezone: {
+      doc: 'Timezone for scheduled tasks',
+      format: String,
+      default: 'Europe/London',
+      env: 'SCHEDULER_TIMEZONE'
     }
   }
 })

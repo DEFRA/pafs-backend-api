@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="5-001-create-scheduler-locks-table" author="migration-team">
+    <comment>Create scheduler_locks table for distributed task scheduling across multiple instances</comment>
+
+    <createTable tableName="scheduler_locks">
+      <!-- Task name serves as primary key -->
+      <column name="task_name" type="VARCHAR(255)">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <!-- Instance identifier that holds the lock -->
+      <column name="locked_by" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- When the lock was acquired -->
+      <column name="locked_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- When the lock expires (for automatic cleanup) -->
+      <column name="expires_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- Last successful execution timestamp (optional) -->
+      <column name="last_run_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="true"/>
+      </column>
+    </createTable>
+
+    <!-- Index for efficient cleanup of expired locks -->
+    <createIndex indexName="idx_scheduler_locks_expires_at" tableName="scheduler_locks">
+      <column name="expires_at"/>
+    </createIndex>
+
+    <rollback>
+      <dropTable tableName="scheduler_locks" cascadeConstraints="true"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
