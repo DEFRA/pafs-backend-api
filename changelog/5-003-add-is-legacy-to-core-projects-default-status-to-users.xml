@@ -3,11 +3,11 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-  <changeSet id="5-003-add-is-legacy-to-area-projects" author="migration-team">
-    <comment>Add is_legacy flag to pafs_core_area_projects table and set default value for status field in pafs_core_users</comment>
+  <changeSet id="5-003-add-is-legacy-to-core-projects" author="migration-team">
+    <comment>Add is_legacy flag to pafs_core_projects table and set default value for status field in pafs_core_users</comment>
 
     <!-- Add is_legacy field - BOOLEAN with default true -->
-    <addColumn tableName="pafs_core_area_projects">
+    <addColumn tableName="pafs_core_projects">
       <column name="is_legacy" type="BOOLEAN" defaultValueBoolean="true">
         <constraints nullable="false"/>
       </column>
@@ -22,7 +22,7 @@
     <addDefaultValue tableName="pafs_core_users" columnName="status" defaultValue="active"/>
 
     <rollback>
-      <dropColumn tableName="pafs_core_area_projects" columnName="is_legacy"/>
+      <dropColumn tableName="pafs_core_projects" columnName="is_legacy"/>
       <dropDefaultValue tableName="pafs_core_users" columnName="status"/>
     </rollback>
   </changeSet>
