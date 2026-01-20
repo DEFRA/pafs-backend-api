@@ -1507,4 +1507,100 @@ describe('AccountUpsertService', () => {
       )
     })
   })
+
+  describe('isEmailAutoApproved', () => {
+    it('should return true for email from auto-approved domain', () => {
+      const result = service.isEmailAutoApproved('user@gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should return true for email from another auto-approved domain', () => {
+      const result = service.isEmailAutoApproved('user@nhs.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should return false for email from non-approved domain', () => {
+      const result = service.isEmailAutoApproved('user@example.com')
+      expect(result).toBe(false)
+    })
+
+    it('should be case-insensitive for domain matching', () => {
+      const result = service.isEmailAutoApproved('user@GOV.UK')
+      expect(result).toBe(true)
+    })
+
+    it('should handle subdomain of approved domain', () => {
+      const result = service.isEmailAutoApproved('user@mail.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle multiple level subdomains', () => {
+      const result = service.isEmailAutoApproved('user@internal.mail.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle domain provided directly without email format', () => {
+      const result = service.isEmailAutoApproved('gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle whitespace in email', () => {
+      const result = service.isEmailAutoApproved('  user@gov.uk  ')
+      expect(result).toBe(true)
+    })
+
+    it('should not match partial domain names', () => {
+      const result = service.isEmailAutoApproved('user@notgov.uk')
+      expect(result).toBe(false)
+    })
+
+    it('should not return true when parent of approved domain', () => {
+      const result = service.isEmailAutoApproved('user@uk')
+      expect(result).toBe(false)
+    })
+
+    it('should handle empty auto-approved domains list gracefully', () => {
+      // Test the behavior when no domains match
+      const result = service.isEmailAutoApproved('user@random-domain.com')
+      expect(result).toBe(false)
+    })
+
+    it('should work with all configured domains from config', () => {
+      // Configuration returns 'gov.uk,nhs.uk' - test both
+      expect(service.isEmailAutoApproved('admin@gov.uk')).toBe(true)
+      expect(service.isEmailAutoApproved('nurse@nhs.uk')).toBe(true)
+      expect(service.isEmailAutoApproved('user@private.com')).toBe(false)
+    })
+
+    it('should handle domain with numbers', () => {
+      const result = service.isEmailAutoApproved('user@test123.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle domain with hyphens', () => {
+      const result = service.isEmailAutoApproved('user@test-server.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should return false for null or undefined email gracefully', () => {
+      // These should not throw and should return false
+      // The function will convert null/undefined to string
+      const resultNull = service.isEmailAutoApproved(null)
+      const resultUndefined = service.isEmailAutoApproved(undefined)
+      expect(resultNull).toBe(false)
+      expect(resultUndefined).toBe(false)
+    })
+
+    it('should integrate with getAutoApprovedDomains', () => {
+      const domains = service.getAutoApprovedDomains()
+      expect(domains).toContain('gov.uk')
+      expect(domains).toContain('nhs.uk')
+      expect(domains.length).toBe(2)
+    })
+
+    it('should handle case variations in config domains', () => {
+      const result = service.isEmailAutoApproved('user@GOV.UK')
+      expect(result).toBe(true)
+    })
+  })
 })

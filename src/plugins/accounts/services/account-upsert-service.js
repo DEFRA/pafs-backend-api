@@ -15,6 +15,7 @@ import {
 } from '../../../common/errors/http-errors.js'
 import { EmailValidationService } from '../../../common/services/email/email-validation-service.js'
 import { SIZE, STATIC_TEXT } from '../../../common/constants/common.js'
+import { isApprovedDomain } from '../helpers/email-auto-approved.js'
 
 export class AccountUpsertService {
   constructor(prisma, logger, emailService, areaService) {
@@ -428,8 +429,7 @@ export class AccountUpsertService {
 
   isEmailAutoApproved(email) {
     const autoApprovedDomains = this.getAutoApprovedDomains()
-    const emailDomain = email.split('@')[1]?.toLowerCase()
-    return autoApprovedDomains.includes(emailDomain)
+    return isApprovedDomain(email, autoApprovedDomains)
   }
 
   getAutoApprovedDomains() {
