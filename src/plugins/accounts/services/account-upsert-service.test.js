@@ -43,7 +43,8 @@ describe('AccountUpsertService', () => {
       },
       pafs_core_user_areas: {
         deleteMany: vi.fn(),
-        createMany: vi.fn()
+        createMany: vi.fn(),
+        findMany: vi.fn()
       },
       $transaction: vi.fn((callback) => callback(mockPrisma))
     }
@@ -51,7 +52,8 @@ describe('AccountUpsertService', () => {
     mockLogger = {
       info: vi.fn(),
       error: vi.fn(),
-      warn: vi.fn()
+      warn: vi.fn(),
+      debug: vi.fn()
     }
 
     mockEmailService = {
@@ -82,6 +84,9 @@ describe('AccountUpsertService', () => {
     service.emailValidationService = {
       validateEmail: vi.fn().mockResolvedValue({ isValid: true, errors: [] })
     }
+
+    // Default findMany to return empty array (no existing areas)
+    mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
 
     vi.clearAllMocks()
   })
@@ -186,7 +191,7 @@ describe('AccountUpsertService', () => {
         expect(result.userId).toBe(3)
       })
 
-      it('manages user areas correctly', async () => {
+      it('manages user areas correctly for new account', async () => {
         const accountData = {
           email: 'user@gov.uk',
           firstName: 'John',
@@ -208,6 +213,8 @@ describe('AccountUpsertService', () => {
           id: 1n,
           email: 'user@gov.uk'
         })
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
 
         await service.upsertAccount(accountData)
 
@@ -237,6 +244,58 @@ describe('AccountUpsertService', () => {
             ]
           }
         )
+      })
+
+      it('skips area management when areas is undefined', async () => {
+        const accountData = {
+          email: 'user@gov.uk',
+          firstName: 'John',
+          lastName: 'Doe',
+          admin: false
+          // areas is undefined
+        }
+
+        mockPrisma.pafs_core_users.upsert.mockResolvedValue({
+          id: 1n,
+          email: 'user@gov.uk'
+        })
+
+        await service.upsertAccount(accountData)
+
+        expect(mockPrisma.pafs_core_user_areas.findMany).not.toHaveBeenCalled()
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+      })
+
+      it('removes all areas when empty array is provided', async () => {
+        const accountData = {
+          id: 5,
+          email: 'user@gov.uk',
+          firstName: 'John',
+          lastName: 'Doe',
+          admin: false,
+          areas: []
+        }
+
+        mockPrisma.pafs_core_users.upsert.mockResolvedValue({
+          id: 5n,
+          email: 'user@gov.uk'
+        })
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+          { area_id: 1n, primary: true }
+        ])
+
+        await service.upsertAccount(accountData)
+
+        expect(mockPrisma.$transaction).toHaveBeenCalled()
+        expect(mockPrisma.pafs_core_user_areas.deleteMany).toHaveBeenCalledWith(
+          {
+            where: { user_id: 5n }
+          }
+        )
+        expect(
+          mockPrisma.pafs_core_user_areas.createMany
+        ).not.toHaveBeenCalled()
       })
     })
 
@@ -430,6 +489,337 @@ describe('AccountUpsertService', () => {
         const result = service.getAutoApprovedDomains()
 
         expect(result).toEqual(['gov.uk', 'nhs.uk'])
+      })
+
+      it('returns empty array when no domains configured', async () => {
+        const { config } = await import('../../../config.js')
+        config.get.mockReturnValueOnce(null)
+
+        const result = service.getAutoApprovedDomains()
+
+        expect(result).toEqual([])
+      })
+
+      it('handles empty string configuration', async () => {
+        const { config } = await import('../../../config.js')
+        config.get.mockReturnValueOnce('')
+
+        const result = service.getAutoApprovedDomains()
+
+        expect(result).toEqual([])
+      })
+
+      it('filters out empty domains after trim', async () => {
+        const { config } = await import('../../../config.js')
+        config.get.mockReturnValueOnce('gov.uk, , nhs.uk,  ')
+
+        const result = service.getAutoApprovedDomains()
+
+        expect(result).toEqual(['gov.uk', 'nhs.uk'])
+      })
+    })
+
+    describe('sendAdminNotification - edge cases', () => {
+      it('skips notification when admin email not configured', async () => {
+        const { config } = await import('../../../config.js')
+        const originalGet = config.get
+        config.get = vi.fn((key) => {
+          if (key === 'notify.adminEmail') return null
+          return originalGet(key)
+        })
+
+        const user = {
+          email: 'user@example.com',
+          first_name: 'John',
+          responsibility: 'EA',
+          status: ACCOUNT_STATUS.PENDING
+        }
+
+        await service.sendAdminNotification(user, [])
+
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Admin email not configured, skipping notification'
+        )
+        expect(mockEmailService.send).not.toHaveBeenCalled()
+
+        config.get = originalGet
+      })
+    })
+
+    describe('manageUserAreas - optimization tests', () => {
+      beforeEach(() => {
+        mockPrisma.pafs_core_user_areas.findMany = vi.fn()
+      })
+
+      it('skips update when areas are identical', async () => {
+        const userId = 5n
+        const areas = [
+          { areaId: 1, primary: true },
+          { areaId: 2, primary: false }
+        ]
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+          { area_id: 1n, primary: true },
+          { area_id: 2n, primary: false }
+        ])
+
+        await service.manageUserAreas(userId, areas)
+
+        expect(mockPrisma.pafs_core_user_areas.findMany).toHaveBeenCalledWith({
+          where: { user_id: userId },
+          select: { area_id: true, primary: true }
+        })
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+        expect(mockLogger.debug).toHaveBeenCalledWith(
+          { userId },
+          'No area changes detected, skipping update'
+        )
+      })
+
+      it('updates when area count changes', async () => {
+        const userId = 5n
+        const areas = [
+          { areaId: 1, primary: true },
+          { areaId: 2, primary: false },
+          { areaId: 3, primary: false }
+        ]
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+          { area_id: 1n, primary: true },
+          { area_id: 2n, primary: false }
+        ])
+
+        await service.manageUserAreas(userId, areas)
+
+        expect(mockPrisma.$transaction).toHaveBeenCalled()
+        expect(mockPrisma.pafs_core_user_areas.deleteMany).toHaveBeenCalled()
+        expect(mockPrisma.pafs_core_user_areas.createMany).toHaveBeenCalled()
+      })
+
+      it('updates when area IDs change', async () => {
+        const userId = 5n
+        const areas = [
+          { areaId: 3, primary: true },
+          { areaId: 4, primary: false }
+        ]
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+          { area_id: 1n, primary: true },
+          { area_id: 2n, primary: false }
+        ])
+
+        await service.manageUserAreas(userId, areas)
+
+        expect(mockPrisma.$transaction).toHaveBeenCalled()
+      })
+
+      it('updates when primary flag changes', async () => {
+        const userId = 5n
+        const areas = [
+          { areaId: 1, primary: false },
+          { areaId: 2, primary: true }
+        ]
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+          { area_id: 1n, primary: true },
+          { area_id: 2n, primary: false }
+        ])
+
+        await service.manageUserAreas(userId, areas)
+
+        expect(mockPrisma.$transaction).toHaveBeenCalled()
+      })
+
+      it('updates when removing all areas', async () => {
+        const userId = 5n
+        const areas = []
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+          { area_id: 1n, primary: true }
+        ])
+
+        await service.manageUserAreas(userId, areas)
+
+        expect(mockPrisma.$transaction).toHaveBeenCalled()
+        expect(mockPrisma.pafs_core_user_areas.deleteMany).toHaveBeenCalled()
+        expect(
+          mockPrisma.pafs_core_user_areas.createMany
+        ).not.toHaveBeenCalled()
+      })
+
+      it('updates when adding first areas', async () => {
+        const userId = 5n
+        const areas = [{ areaId: 1, primary: true }]
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
+
+        await service.manageUserAreas(userId, areas)
+
+        expect(mockPrisma.$transaction).toHaveBeenCalled()
+        expect(mockPrisma.pafs_core_user_areas.createMany).toHaveBeenCalled()
+      })
+
+      it('handles areas with missing primary flag', async () => {
+        const userId = 5n
+        const areas = [{ areaId: 1 }, { areaId: 2, primary: true }]
+
+        mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+          { area_id: 3n, primary: true }
+        ])
+
+        await service.manageUserAreas(userId, areas)
+
+        expect(mockPrisma.$transaction).toHaveBeenCalled()
+        expect(mockPrisma.pafs_core_user_areas.createMany).toHaveBeenCalledWith(
+          {
+            data: expect.arrayContaining([
+              expect.objectContaining({
+                area_id: 1n,
+                primary: false
+              }),
+              expect.objectContaining({
+                area_id: 2n,
+                primary: true
+              })
+            ])
+          }
+        )
+      })
+
+      it('skips when areas is undefined', async () => {
+        const userId = 5n
+
+        await service.manageUserAreas(userId, undefined)
+
+        expect(mockPrisma.pafs_core_user_areas.findMany).not.toHaveBeenCalled()
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('_hasAreaChanges', () => {
+      it('returns true when lengths differ', () => {
+        const existing = [{ area_id: 1n, primary: true }]
+        const newAreas = [
+          { areaId: 1, primary: true },
+          { areaId: 2, primary: false }
+        ]
+
+        const result = service._hasAreaChanges(existing, newAreas)
+
+        expect(result).toBe(true)
+      })
+
+      it('returns false when areas are identical', () => {
+        const existing = [
+          { area_id: 1n, primary: true },
+          { area_id: 2n, primary: false }
+        ]
+        const newAreas = [
+          { areaId: 1, primary: true },
+          { areaId: 2, primary: false }
+        ]
+
+        const result = service._hasAreaChanges(existing, newAreas)
+
+        expect(result).toBe(false)
+      })
+
+      it('returns false when areas are in different order but identical', () => {
+        const existing = [
+          { area_id: 2n, primary: false },
+          { area_id: 1n, primary: true }
+        ]
+        const newAreas = [
+          { areaId: 1, primary: true },
+          { areaId: 2, primary: false }
+        ]
+
+        const result = service._hasAreaChanges(existing, newAreas)
+
+        expect(result).toBe(false)
+      })
+
+      it('returns true when primary flags differ', () => {
+        const existing = [{ area_id: 1n, primary: true }]
+        const newAreas = [{ areaId: 1, primary: false }]
+
+        const result = service._hasAreaChanges(existing, newAreas)
+
+        expect(result).toBe(true)
+      })
+
+      it('returns false for empty arrays', () => {
+        const existing = []
+        const newAreas = []
+
+        const result = service._hasAreaChanges(existing, newAreas)
+
+        expect(result).toBe(false)
+      })
+    })
+
+    describe('_createAreaSet', () => {
+      it('creates sorted string representation', () => {
+        const areas = [
+          { areaId: 2, primary: false },
+          { areaId: 1, primary: true }
+        ]
+
+        const result = service._createAreaSet(areas)
+
+        expect(result).toBe('1:true|2:false')
+      })
+
+      it('handles missing primary flag as false', () => {
+        const areas = [{ areaId: 1 }]
+
+        const result = service._createAreaSet(areas)
+
+        expect(result).toBe('1:false')
+      })
+
+      it('returns empty string for empty array', () => {
+        const result = service._createAreaSet([])
+
+        expect(result).toBe('')
+      })
+    })
+
+    describe('_prepareUserAreasData', () => {
+      it('converts areas to database format', () => {
+        const userId = 5n
+        const areas = [
+          { areaId: 1, primary: true },
+          { areaId: 2, primary: false }
+        ]
+
+        const result = service._prepareUserAreasData(userId, areas)
+
+        expect(result).toEqual([
+          {
+            user_id: 5n,
+            area_id: 1n,
+            primary: true,
+            created_at: expect.any(Date),
+            updated_at: expect.any(Date)
+          },
+          {
+            user_id: 5n,
+            area_id: 2n,
+            primary: false,
+            created_at: expect.any(Date),
+            updated_at: expect.any(Date)
+          }
+        ])
+      })
+
+      it('handles missing primary flag', () => {
+        const userId = 5n
+        const areas = [{ areaId: 1 }]
+
+        const result = service._prepareUserAreasData(userId, areas)
+
+        expect(result[0].primary).toBe(false)
       })
     })
   })
@@ -817,6 +1207,34 @@ describe('AccountUpsertService', () => {
         '999'
       ])
     })
+
+    it('skips area type validation when responsibility has no mapping', async () => {
+      const accountData = {
+        email: 'user@gov.uk',
+        firstName: 'Test',
+        lastName: 'User',
+        responsibility: null, // No responsibility set
+        admin: false,
+        areas: [{ areaId: '1', primary: true }]
+      }
+
+      service.emailValidationService = {
+        validateEmail: vi.fn().mockResolvedValue({ isValid: true, errors: [] })
+      }
+
+      mockAreaService.getAreaDetailsByIds = vi
+        .fn()
+        .mockResolvedValue([{ id: 1, name: 'Any Area', areaType: 'Any Type' }])
+
+      mockPrisma.pafs_core_users.upsert.mockResolvedValue({
+        id: 1n,
+        email: accountData.email,
+        status: ACCOUNT_STATUS.APPROVED
+      })
+
+      // Should not throw even though area type doesn't match
+      await expect(service.upsertAccount(accountData)).resolves.toBeDefined()
+    })
   })
 
   describe('error handling', () => {
@@ -853,6 +1271,336 @@ describe('AccountUpsertService', () => {
           lastName: 'User'
         })
       ).rejects.toThrow('Email error')
+    })
+  })
+
+  describe('approveAccount', () => {
+    const mockPendingUser = {
+      id: 1n,
+      email: 'pending@example.com',
+      first_name: 'John',
+      last_name: 'Doe',
+      status: ACCOUNT_STATUS.PENDING
+    }
+
+    const mockApprovedUser = {
+      ...mockPendingUser,
+      status: ACCOUNT_STATUS.APPROVED,
+      invitation_token: 'hashed-mock-token-123',
+      invitation_created_at: new Date(),
+      invitation_sent_at: new Date(),
+      invited_by_type: ACCOUNT_INVITATION_BY.USER,
+      invited_by_id: 100
+    }
+
+    beforeEach(() => {
+      mockEmailService.send = vi.fn().mockResolvedValue()
+    })
+
+    it('approves pending account and sends invitation', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockPendingUser)
+      mockPrisma.pafs_core_users.update.mockResolvedValue(mockApprovedUser)
+
+      const result = await service.approveAccount(1, authenticatedAdmin)
+
+      expect(mockPrisma.pafs_core_users.findUnique).toHaveBeenCalledWith({
+        where: { id: 1n }
+      })
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1n },
+        data: expect.objectContaining({
+          status: ACCOUNT_STATUS.APPROVED,
+          invitation_token: 'hashed-mock-token-123',
+          invited_by_type: ACCOUNT_INVITATION_BY.USER,
+          invited_by_id: 100
+        })
+      })
+
+      expect(mockEmailService.send).toHaveBeenCalled()
+      expect(result).toEqual({
+        message: 'Account approved and invitation sent',
+        userId: 1,
+        userName: 'John Doe'
+      })
+    })
+
+    it('throws NotFoundError when user does not exist', async () => {
+      const { NotFoundError } =
+        await import('../../../common/errors/http-errors.js')
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
+
+      await expect(
+        service.approveAccount(999, authenticatedAdmin)
+      ).rejects.toThrow(NotFoundError)
+      await expect(
+        service.approveAccount(999, authenticatedAdmin)
+      ).rejects.toThrow('User with ID 999 not found')
+    })
+
+    it('throws BadRequestError when account is not pending', async () => {
+      const activeUser = { ...mockPendingUser, status: ACCOUNT_STATUS.ACTIVE }
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(activeUser)
+
+      await expect(
+        service.approveAccount(1, authenticatedAdmin)
+      ).rejects.toThrow(BadRequestError)
+      await expect(
+        service.approveAccount(1, authenticatedAdmin)
+      ).rejects.toThrow('Account is not in pending status')
+    })
+
+    it('logs approval activity', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockPendingUser)
+      mockPrisma.pafs_core_users.update.mockResolvedValue(mockApprovedUser)
+
+      await service.approveAccount(1, authenticatedAdmin)
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 1 }),
+        'Approving account'
+      )
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'pending@example.com' }),
+        'Account approved and invitation sent'
+      )
+    })
+  })
+
+  describe('resendInvitation', () => {
+    let mockApprovedUser
+    let mockUpdatedUser
+
+    beforeEach(() => {
+      mockApprovedUser = {
+        id: 1n,
+        email: 'approved@example.com',
+        first_name: 'Jane',
+        last_name: 'Smith',
+        status: ACCOUNT_STATUS.APPROVED
+      }
+
+      mockUpdatedUser = {
+        ...mockApprovedUser,
+        invitation_token: 'hashed-mock-token-123',
+        invitation_created_at: new Date(),
+        invitation_sent_at: new Date()
+      }
+
+      mockEmailService.send = vi.fn().mockResolvedValue()
+    })
+
+    it('resends invitation to approved account', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockApprovedUser)
+      mockPrisma.pafs_core_users.update.mockResolvedValue(mockUpdatedUser)
+
+      const result = await service.resendInvitation(1)
+
+      expect(mockPrisma.pafs_core_users.findUnique).toHaveBeenCalledWith({
+        where: { id: 1n }
+      })
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1n },
+        data: expect.objectContaining({
+          invitation_token: 'hashed-mock-token-123',
+          invitation_created_at: expect.any(Date),
+          invitation_sent_at: expect.any(Date),
+          updated_at: expect.any(Date)
+        })
+      })
+
+      expect(mockEmailService.send).toHaveBeenCalled()
+      expect(result).toEqual({
+        message: 'Invitation email resent successfully',
+        userId: 1
+      })
+    })
+
+    it('throws NotFoundError when user does not exist', async () => {
+      const { NotFoundError } =
+        await import('../../../common/errors/http-errors.js')
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
+
+      await expect(service.resendInvitation(999)).rejects.toThrow(NotFoundError)
+      await expect(service.resendInvitation(999)).rejects.toThrow(
+        'User with ID 999 not found'
+      )
+    })
+
+    it('throws BadRequestError when account is not approved', async () => {
+      const pendingUser = {
+        id: 1n,
+        email: 'pending@example.com',
+        first_name: 'John',
+        last_name: 'Doe',
+        status: ACCOUNT_STATUS.PENDING
+      }
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(pendingUser)
+
+      await expect(service.resendInvitation(1)).rejects.toThrow(
+        'Can only resend invitation to approved accounts'
+      )
+    })
+
+    it('throws BadRequestError when account is already active', async () => {
+      const activeUser = {
+        id: 1n,
+        email: 'active@example.com',
+        first_name: 'Active',
+        last_name: 'User',
+        status: ACCOUNT_STATUS.ACTIVE
+      }
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(activeUser)
+
+      await expect(service.resendInvitation(1)).rejects.toThrow(
+        'Can only resend invitation to approved accounts'
+      )
+    })
+
+    it('generates new invitation token', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockApprovedUser)
+      mockPrisma.pafs_core_users.update.mockResolvedValue(mockUpdatedUser)
+
+      await service.resendInvitation(1)
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            invitation_token: 'hashed-mock-token-123'
+          })
+        })
+      )
+    })
+
+    it('sends invitation email with new token', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockApprovedUser)
+      mockPrisma.pafs_core_users.update.mockResolvedValue(mockUpdatedUser)
+
+      await service.resendInvitation(1)
+
+      expect(mockEmailService.send).toHaveBeenCalledWith(
+        'template-id',
+        'approved@example.com',
+        expect.objectContaining({
+          user_name: 'Jane',
+          email_address: 'approved@example.com',
+          set_password_link: expect.stringContaining('mock-token-123')
+        }),
+        'account-invitation'
+      )
+    })
+
+    it('logs resend activity', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockApprovedUser)
+      mockPrisma.pafs_core_users.update.mockResolvedValue(mockUpdatedUser)
+
+      await service.resendInvitation(1)
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 1 }),
+        'Resending invitation'
+      )
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'approved@example.com' }),
+        'Invitation resent'
+      )
+    })
+  })
+
+  describe('isEmailAutoApproved', () => {
+    it('should return true for email from auto-approved domain', () => {
+      const result = service.isEmailAutoApproved('user@gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should return true for email from another auto-approved domain', () => {
+      const result = service.isEmailAutoApproved('user@nhs.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should return false for email from non-approved domain', () => {
+      const result = service.isEmailAutoApproved('user@example.com')
+      expect(result).toBe(false)
+    })
+
+    it('should be case-insensitive for domain matching', () => {
+      const result = service.isEmailAutoApproved('user@GOV.UK')
+      expect(result).toBe(true)
+    })
+
+    it('should handle subdomain of approved domain', () => {
+      const result = service.isEmailAutoApproved('user@mail.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle multiple level subdomains', () => {
+      const result = service.isEmailAutoApproved('user@internal.mail.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle domain provided directly without email format', () => {
+      const result = service.isEmailAutoApproved('gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle whitespace in email', () => {
+      const result = service.isEmailAutoApproved('  user@gov.uk  ')
+      expect(result).toBe(true)
+    })
+
+    it('should not match partial domain names', () => {
+      const result = service.isEmailAutoApproved('user@notgov.uk')
+      expect(result).toBe(false)
+    })
+
+    it('should not return true when parent of approved domain', () => {
+      const result = service.isEmailAutoApproved('user@uk')
+      expect(result).toBe(false)
+    })
+
+    it('should handle empty auto-approved domains list gracefully', () => {
+      // Test the behavior when no domains match
+      const result = service.isEmailAutoApproved('user@random-domain.com')
+      expect(result).toBe(false)
+    })
+
+    it('should work with all configured domains from config', () => {
+      // Configuration returns 'gov.uk,nhs.uk' - test both
+      expect(service.isEmailAutoApproved('admin@gov.uk')).toBe(true)
+      expect(service.isEmailAutoApproved('nurse@nhs.uk')).toBe(true)
+      expect(service.isEmailAutoApproved('user@private.com')).toBe(false)
+    })
+
+    it('should handle domain with numbers', () => {
+      const result = service.isEmailAutoApproved('user@test123.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should handle domain with hyphens', () => {
+      const result = service.isEmailAutoApproved('user@test-server.gov.uk')
+      expect(result).toBe(true)
+    })
+
+    it('should return false for null or undefined email gracefully', () => {
+      // These should not throw and should return false
+      // The function will convert null/undefined to string
+      const resultNull = service.isEmailAutoApproved(null)
+      const resultUndefined = service.isEmailAutoApproved(undefined)
+      expect(resultNull).toBe(false)
+      expect(resultUndefined).toBe(false)
+    })
+
+    it('should integrate with getAutoApprovedDomains', () => {
+      const domains = service.getAutoApprovedDomains()
+      expect(domains).toContain('gov.uk')
+      expect(domains).toContain('nhs.uk')
+      expect(domains.length).toBe(2)
+    })
+
+    it('should handle case variations in config domains', () => {
+      const result = service.isEmailAutoApproved('user@GOV.UK')
+      expect(result).toBe(true)
     })
   })
 })

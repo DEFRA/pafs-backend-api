@@ -3,6 +3,10 @@ import {
   normalizePaginationParams
 } from '../../../common/helpers/pagination.js'
 import { ACCOUNT_STATUS } from '../../../common/constants/index.js'
+import {
+  ACCOUNT_SELECT_FIELDS,
+  formatAccount
+} from '../helpers/account-formatter.js'
 
 export class AccountFilterService {
   constructor(prisma, logger) {
@@ -27,34 +31,8 @@ export class AccountFilterService {
     const [accounts, total] = await Promise.all([
       this.prisma.pafs_core_users.findMany({
         where,
-        select: {
-          id: true,
-          email: true,
-          first_name: true,
-          last_name: true,
-          job_title: true,
-          organisation: true,
-          telephone_number: true,
-          status: true,
-          admin: true,
-          disabled: true,
-          created_at: true,
-          updated_at: true,
-          last_sign_in_at: true,
-          pafs_core_user_areas: {
-            select: {
-              primary: true,
-              pafs_core_areas: {
-                select: {
-                  id: true,
-                  name: true,
-                  area_type: true
-                }
-              }
-            }
-          }
-        },
-        orderBy: [{ created_at: 'desc' }, { updated_at: 'desc' }],
+        select: ACCOUNT_SELECT_FIELDS,
+        orderBy: { updated_at: 'desc' },
         skip: pagination.skip,
         take: pagination.take
       }),
@@ -62,7 +40,7 @@ export class AccountFilterService {
     ])
 
     const formattedAccounts = accounts.map((account) =>
-      this.formatAccount(account)
+      formatAccount(account, { includeInvitationFields: true })
     )
 
     this.logger.info(
@@ -108,40 +86,12 @@ export class AccountFilterService {
     if (areaId) {
       where.pafs_core_user_areas = {
         some: {
-          area_id: BigInt(areaId)
+          area_id: BigInt(areaId),
+          primary: true
         }
       }
     }
 
     return where
-  }
-
-  /**
-   * Format account for API response
-   */
-  formatAccount(account) {
-    const areas = account.pafs_core_user_areas.map((ua) => ({
-      id: Number(ua.pafs_core_areas.id),
-      name: ua.pafs_core_areas.name,
-      type: ua.pafs_core_areas.area_type,
-      primary: ua.primary
-    }))
-
-    return {
-      id: Number(account.id),
-      email: account.email,
-      firstName: account.first_name,
-      lastName: account.last_name,
-      jobTitle: account.job_title,
-      organisation: account.organisation,
-      telephoneNumber: account.telephone_number,
-      status: account.status,
-      admin: account.admin,
-      disabled: account.disabled,
-      areas,
-      createdAt: account.created_at,
-      updatedAt: account.updated_at,
-      lastSignIn: account.last_sign_in_at
-    }
   }
 }

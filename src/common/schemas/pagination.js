@@ -1,5 +1,6 @@
 import Joi from 'joi'
 import { PAGINATION_VALIDATION_CODES } from '../constants/index.js'
+import { config } from '../../config.js'
 
 /**
  * Page number schema
@@ -10,10 +11,13 @@ export const pageSchema = Joi.number().integer().min(1).default(1).messages({
 
 /**
  * Page size schema with configurable max
- * @param {number} maxSize - Maximum allowed page size
- * @param {number} defaultSize - Default page size
+ * @param {number} maxSize - Maximum allowed page size (defaults to config value)
+ * @param {number} defaultSize - Default page size (defaults to config value)
  */
-export function pageSizeSchema(maxSize = 100, defaultSize = 20) {
+export function pageSizeSchema(
+  maxSize = config.get('pagination.maxPageSize'),
+  defaultSize = config.get('pagination.defaultPageSize')
+) {
   return Joi.number()
     .integer()
     .min(1)
@@ -28,11 +32,14 @@ export function pageSizeSchema(maxSize = 100, defaultSize = 20) {
 /**
  * Combined pagination schema
  * @param {Object} options - Pagination options
- * @param {number} options.maxPageSize - Maximum page size
- * @param {number} options.defaultPageSize - Default page size
+ * @param {number} options.maxPageSize - Maximum page size (defaults to config value)
+ * @param {number} options.defaultPageSize - Default page size (defaults to config value)
  */
 export function paginationSchema(options = {}) {
-  const { maxPageSize = 100, defaultPageSize = 20 } = options
+  const {
+    maxPageSize = config.get('pagination.maxPageSize'),
+    defaultPageSize = config.get('pagination.defaultPageSize')
+  } = options
 
   return Joi.object({
     page: pageSchema,

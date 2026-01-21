@@ -17,6 +17,8 @@ import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
 import jwtAuthPlugin from './plugins/jwt/jwt-auth.js'
+import schedulerPlugin from './plugins/scheduler/index.js'
+import { loadTasks } from './plugins/scheduler/helpers/task-loader.js'
 
 async function createServer() {
   setupProxy()
@@ -56,6 +58,7 @@ async function createServer() {
   // postgres       - sets up PostgreSQL connection pool and attaches to `server` and `request` objects
   // prisma         - Prisma ORM integration for type-safe database access
   // jwtAuthPlugin  - JWT authentication strategy
+  // schedulerPlugin - distributed task scheduler with PostgreSQL locking
   // router         - routes used in the app
   await server.register([
     requestLogger,
@@ -91,6 +94,13 @@ async function createServer() {
     emailValidationPlugin,
     projectsPlugin
   ])
+
+  // Register scheduler after other plugins so logger is available
+  const tasks = await loadTasks(server.logger)
+  await server.register({
+    plugin: schedulerPlugin,
+    options: { tasks }
+  })
 
   return server
 }
