@@ -348,8 +348,8 @@ describe('ProjectService', () => {
     const mockProposalData = {
       name: 'Test Project',
       projectType: 'DEF',
-      projectIntervesionTypes: ['TYPE_1'],
-      mainIntervensionType: 'MAIN',
+      projectInterventionTypes: ['TYPE_1'],
+      mainInterventionType: 'MAIN',
       projectStartFinancialYear: '2024',
       projectEndFinancialYear: '2028',
       rmaName: 'Test RMA'

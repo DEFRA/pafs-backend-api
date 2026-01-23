@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import createProjectProposal from './create-project-proposal.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { createProjectProposalSchema } from '../../../common/schemas/project-proposal-schema.js'
 
 describe('createProjectProposal', () => {
   let mockRequest
@@ -18,7 +19,8 @@ describe('createProjectProposal', () => {
 
     mockPrisma = {
       pafs_core_projects: {
-        create: vi.fn()
+        create: vi.fn(),
+        findFirst: vi.fn()
       },
       pafs_core_states: {
         create: vi.fn()
@@ -35,8 +37,8 @@ describe('createProjectProposal', () => {
         name: 'Test Project',
         projectType: 'DEF',
         rfccCode: 'AN',
-        projectIntervesionTypes: ['INTERVENTION_TYPE_1'],
-        mainIntervensionType: 'MAIN_TYPE',
+        projectInterventionTypes: ['INTERVENTION_TYPE_1'],
+        mainInterventionType: 'MAIN_TYPE',
         projectStartFinancialYear: '2024',
         projectEndFinancialYear: '2028',
         rmaName: 'Test RMA'
@@ -101,6 +103,7 @@ describe('createProjectProposal', () => {
         created_at: new Date('2024-01-01')
       }
 
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -145,6 +148,7 @@ describe('createProjectProposal', () => {
         created_at: new Date('2024-01-02')
       }
 
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue({
         rfcc_code: 'ANC501E',
         high_counter: 0,
@@ -192,6 +196,7 @@ describe('createProjectProposal', () => {
         created_at: new Date('2024-01-01')
       }
 
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -219,9 +224,7 @@ describe('createProjectProposal', () => {
 
     test('Should handle database errors gracefully', async () => {
       const dbError = new Error('Database connection failed')
-      mockPrisma.pafs_core_reference_counters.findUnique.mockRejectedValue(
-        dbError
-      )
+      mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
 
       const result = await createProjectProposal.options.handler(
         mockRequest,
@@ -249,6 +252,7 @@ describe('createProjectProposal', () => {
         created_at: new Date('2024-01-01')
       }
 
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -282,6 +286,7 @@ describe('createProjectProposal', () => {
         created_at: new Date('2024-01-01')
       }
 
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -299,8 +304,8 @@ describe('createProjectProposal', () => {
         name: 'Complex Project',
         projectType: 'REF',
         rfccCode: 'AN',
-        projectIntervesionTypes: ['TYPE_1', 'TYPE_2', 'TYPE_3'],
-        mainIntervensionType: 'TYPE_1',
+        projectInterventionTypes: ['TYPE_1', 'TYPE_2', 'TYPE_3'],
+        mainInterventionType: 'TYPE_1',
         projectStartFinancialYear: '2025',
         projectEndFinancialYear: '2030',
         rmaName: 'Test RMA'
@@ -325,6 +330,7 @@ describe('createProjectProposal', () => {
         created_at: new Date('2024-01-01')
       }
 
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -346,6 +352,53 @@ describe('createProjectProposal', () => {
         { projectName: 'Logged Project', userId: 123, rfccCode: 'AN' },
         'Creating project proposal'
       )
+    })
+
+    test('Should reject intervention fields when projectType is not DEF/REP/REF', () => {
+      const payload = {
+        name: 'Non Qualifying Type',
+        projectType: 'HCR',
+        rfccCode: 'AN',
+        projectInterventionTypes: ['nfm'],
+        mainInterventionType: 'nfm',
+        projectStartFinancialYear: '2026',
+        projectEndFinancialYear: '2029',
+        rmaName: '260'
+      }
+
+      const result = createProjectProposalSchema.validate(payload, {
+        abortEarly: false
+      })
+
+      expect(result.error).toBeDefined()
+      const messages = result.error.details.map((d) => d.message)
+      expect(messages).toContain(
+        'Intervention types are not allowed for this project type'
+      )
+      expect(messages).toContain(
+        'Main intervention type is not allowed for this project type'
+      )
+    })
+
+    test('Should return conflict error when project name already exists', async () => {
+      // Mock findFirst to return an existing project
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: BigInt(999),
+        name: 'Test Project'
+      })
+
+      const result = await createProjectProposal.options.handler(
+        mockRequest,
+        mockH
+      )
+
+      expect(result.statusCode).toBe(HTTP_STATUS.CONFLICT)
+      expect(result.data).toEqual({
+        statusCode: HTTP_STATUS.CONFLICT,
+        error: 'A project with this name already exists'
+      })
+      // Ensure no project was created
+      expect(mockPrisma.pafs_core_projects.create).not.toHaveBeenCalled()
     })
   })
 })

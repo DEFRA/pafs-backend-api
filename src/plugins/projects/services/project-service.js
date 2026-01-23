@@ -233,10 +233,10 @@ export class ProjectService {
           project_end_financial_year: proposalData.projectEndFinancialYear
             ? Number.parseInt(proposalData.projectEndFinancialYear, 10)
             : null,
-          project_intervention_types: proposalData.projectIntervesionTypes
-            ? proposalData.projectIntervesionTypes.join(',')
+          project_intervention_types: proposalData.projectInterventionTypes
+            ? proposalData.projectInterventionTypes.join(',')
             : '',
-          main_intervention_type: proposalData.mainIntervensionType || null,
+          main_intervention_type: proposalData.mainInterventionType || null,
           created_at: new Date(),
           updated_at: new Date()
         }

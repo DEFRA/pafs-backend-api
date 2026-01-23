@@ -25,11 +25,6 @@ export const createProjectProposalSchema = Joi.object({
       'any.only': 'Project type must be DEF, REP, REF, HCR, STR, STU or ELO',
       'any.required': 'Project type is required'
     }),
-  // RFCC code determined from area hierarchy:
-  // Level 1: EA (Environment Agency) - Top level
-  // Level 2: PSO (parent_id → EA) - Has RFCC code in sub_type
-  // Level 3: RMA (parent_id → PSO) - Inherits RFCC from parent PSO's sub_type
-  // Frontend extracts RFCC code from selected area and sends it here
   rfccCode: Joi.string()
     .valid(
       'AC',
@@ -50,13 +45,38 @@ export const createProjectProposalSchema = Joi.object({
     .messages({
       'any.only': 'Invalid RFCC code'
     }),
-  // RMA area name (extracted from selected area on frontend)
   rmaName: Joi.string().trim().required().allow(null, ''),
-  projectIntervesionTypes: Joi.array()
-    .items(Joi.string())
-    .default([])
-    .optional(),
-  mainIntervensionType: Joi.string().allow(null).optional(),
+  projectInterventionTypes: Joi.when('projectType', {
+    is: Joi.alternatives().try('DEF', 'REP', 'REF'),
+    then: Joi.array()
+      .items(Joi.string().valid('nfm', 'pfr', 'sds', 'other'))
+      .min(1)
+      .required()
+      .messages({
+        'array.min': 'At least one intervention type is required',
+        'any.required': 'Intervention types are required for this project type'
+      }),
+    otherwise: Joi.any().forbidden().messages({
+      'any.unknown': 'Intervention types are not allowed for this project type'
+    })
+  }),
+  mainInterventionType: Joi.string()
+    .valid('nfm', 'pfr', 'sds', 'other')
+    .allow(null)
+    .when('projectType', {
+      is: Joi.alternatives().try('DEF', 'REP', 'REF'),
+      then: Joi.string()
+        .valid('nfm', 'pfr', 'sds', 'other')
+        .required()
+        .messages({
+          'any.required':
+            'Main intervention type is required for this project type'
+        }),
+      otherwise: Joi.any().forbidden().messages({
+        'any.unknown':
+          'Main intervention type is not allowed for this project type'
+      })
+    }),
   projectStartFinancialYear: Joi.string()
     .pattern(/^\d{4}$/)
     .required()

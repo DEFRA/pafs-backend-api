@@ -21,8 +21,8 @@ const createProjectProposal = {
         name,
         projectType,
         rfccCode,
-        projectIntervesionTypes,
-        mainIntervensionType,
+        projectInterventionTypes,
+        mainInterventionType,
         projectStartFinancialYear,
         projectEndFinancialYear,
         rmaName
@@ -34,14 +34,25 @@ const createProjectProposal = {
           request.server.logger
         )
 
+        // Check if project name already exists
+        const nameCheck = await projectService.checkDuplicateProjectName(name)
+        if (nameCheck.exists) {
+          return h
+            .response({
+              statusCode: HTTP_STATUS.CONFLICT,
+              error: 'A project with this name already exists'
+            })
+            .code(HTTP_STATUS.CONFLICT)
+        }
+
         // Get user ID from JWT token
         const userId = request.auth.credentials.id
 
         const proposalData = {
           name,
           projectType,
-          projectIntervesionTypes,
-          mainIntervensionType,
+          projectInterventionTypes,
+          mainInterventionType,
           projectStartFinancialYear,
           projectEndFinancialYear,
           rmaName
