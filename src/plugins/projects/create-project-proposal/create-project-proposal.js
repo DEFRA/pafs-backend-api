@@ -50,9 +50,8 @@ const createProjectProposal = {
         }
 
         // Get RFCC code from area identifier (rmaName is actually area code/identifier)
-        const rfccCode = await areaService.getRfccCodeFromAreaIdentifier(
-          rmaName
-        )
+        const rfccCode =
+          await areaService.getRfccCodeFromAreaIdentifier(rmaName)
         if (!rfccCode) {
           return h
             .response({

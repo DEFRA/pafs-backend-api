@@ -110,10 +110,7 @@ export class AreaService {
     })
 
     if (!area) {
-      this.logger.warn(
-        { areaIdentifier },
-        'Area not found for identifier'
-      )
+      this.logger.warn({ areaIdentifier }, 'Area not found for identifier')
       return null
     }
 
@@ -136,8 +133,7 @@ export class AreaService {
 
       if (
         parentArea &&
-        (parentArea.area_type === 'PSO Area' ||
-          parentArea.area_type === 'PSO')
+        (parentArea.area_type === 'PSO Area' || parentArea.area_type === 'PSO')
       ) {
         return parentArea.sub_type || null
       }
