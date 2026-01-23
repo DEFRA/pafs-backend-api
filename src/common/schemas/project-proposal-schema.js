@@ -25,26 +25,6 @@ export const createProjectProposalSchema = Joi.object({
       'any.only': 'Project type must be DEF, REP, REF, HCR, STR, STU or ELO',
       'any.required': 'Project type is required'
     }),
-  rfccCode: Joi.string()
-    .valid(
-      'AC',
-      'AE',
-      'AN',
-      'NO',
-      'NW',
-      'SN',
-      'SO',
-      'SW',
-      'TH',
-      'TR',
-      'TS',
-      'WX',
-      'YO'
-    )
-    .default('AN')
-    .messages({
-      'any.only': 'Invalid RFCC code'
-    }),
   rmaName: Joi.string().trim().required().allow(null, ''),
   projectInterventionTypes: Joi.when('projectType', {
     is: Joi.alternatives().try('DEF', 'REP', 'REF'),

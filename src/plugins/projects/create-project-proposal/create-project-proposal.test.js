@@ -9,6 +9,22 @@ describe('createProjectProposal', () => {
   let mockPrisma
   let mockLogger
 
+  // Helper function to mock RFCC code lookup
+  const mockRfccLookup = (rfccCode = 'AN') => {
+    mockPrisma.pafs_core_areas.findFirst
+      .mockResolvedValueOnce({
+        id: BigInt(1),
+        identifier: '1',
+        area_type: 'RMA',
+        sub_type: null,
+        parent_id: BigInt(2)
+      })
+      .mockResolvedValueOnce({
+        area_type: 'PSO Area',
+        sub_type: rfccCode
+      })
+  }
+
   beforeEach(() => {
     mockLogger = {
       info: vi.fn(),
@@ -29,6 +45,9 @@ describe('createProjectProposal', () => {
         findUnique: vi.fn(),
         create: vi.fn(),
         update: vi.fn()
+      },
+      pafs_core_areas: {
+        findFirst: vi.fn()
       }
     }
 
@@ -36,12 +55,11 @@ describe('createProjectProposal', () => {
       payload: {
         name: 'Test Project',
         projectType: 'DEF',
-        rfccCode: 'AN',
         projectInterventionTypes: ['INTERVENTION_TYPE_1'],
         mainInterventionType: 'MAIN_TYPE',
         projectStartFinancialYear: '2024',
         projectEndFinancialYear: '2028',
-        rmaName: 'Test RMA'
+        rmaName: '1'
       },
       prisma: {
         ...mockPrisma,
@@ -104,6 +122,7 @@ describe('createProjectProposal', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
+      mockRfccLookup('AN') // Mock RFCC lookup
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -149,6 +168,7 @@ describe('createProjectProposal', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
+      mockRfccLookup('AN') // Mock RFCC lookup
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue({
         rfcc_code: 'ANC501E',
         high_counter: 0,
@@ -197,6 +217,7 @@ describe('createProjectProposal', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
+      mockRfccLookup('AN') // Mock RFCC lookup
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -253,6 +274,7 @@ describe('createProjectProposal', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
+      mockRfccLookup('AN') // Mock RFCC lookup
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -287,6 +309,7 @@ describe('createProjectProposal', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
+      mockRfccLookup('AN') // Mock RFCC lookup
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -303,12 +326,11 @@ describe('createProjectProposal', () => {
       mockRequest.payload = {
         name: 'Complex Project',
         projectType: 'REF',
-        rfccCode: 'AN',
         projectInterventionTypes: ['TYPE_1', 'TYPE_2', 'TYPE_3'],
         mainInterventionType: 'TYPE_1',
         projectStartFinancialYear: '2025',
         projectEndFinancialYear: '2030',
-        rmaName: 'Test RMA'
+        rmaName: '1'
       }
 
       const result = await createProjectProposal.options.handler(
@@ -331,6 +353,7 @@ describe('createProjectProposal', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
+      mockRfccLookup('AN') // Mock RFCC lookup
       mockPrisma.pafs_core_reference_counters.findUnique.mockResolvedValue(null)
       mockPrisma.pafs_core_reference_counters.create.mockResolvedValue({
         rfcc_code: 'ANC501E',
@@ -358,7 +381,6 @@ describe('createProjectProposal', () => {
       const payload = {
         name: 'Non Qualifying Type',
         projectType: 'HCR',
-        rfccCode: 'AN',
         projectInterventionTypes: ['nfm'],
         mainInterventionType: 'nfm',
         projectStartFinancialYear: '2026',
@@ -396,6 +418,24 @@ describe('createProjectProposal', () => {
       expect(result.data).toEqual({
         statusCode: HTTP_STATUS.CONFLICT,
         error: 'A project with this name already exists'
+      })
+      // Ensure no project was created
+      expect(mockPrisma.pafs_core_projects.create).not.toHaveBeenCalled()
+    })
+
+    test('Should return 400 when RFCC code cannot be determined from area', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null) // No duplicate
+      mockPrisma.pafs_core_areas.findFirst.mockResolvedValue(null) // Area not found
+
+      const result = await createProjectProposal.options.handler(
+        mockRequest,
+        mockH
+      )
+
+      expect(result.statusCode).toBe(HTTP_STATUS.BAD_REQUEST)
+      expect(result.data).toEqual({
+        statusCode: HTTP_STATUS.BAD_REQUEST,
+        error: 'Could not determine RFCC code from area'
       })
       // Ensure no project was created
       expect(mockPrisma.pafs_core_projects.create).not.toHaveBeenCalled()

@@ -1,4 +1,5 @@
 import { ProjectService } from '../services/project-service.js'
+import { AreaService } from '../../areas/services/area-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { createProjectProposalSchema } from '../../../common/schemas/project-proposal-schema.js'
@@ -20,7 +21,6 @@ const createProjectProposal = {
       const {
         name,
         projectType,
-        rfccCode,
         projectInterventionTypes,
         mainInterventionType,
         projectStartFinancialYear,
@@ -30,6 +30,10 @@ const createProjectProposal = {
 
       try {
         const projectService = new ProjectService(
+          request.prisma,
+          request.server.logger
+        )
+        const areaService = new AreaService(
           request.prisma,
           request.server.logger
         )
@@ -43,6 +47,19 @@ const createProjectProposal = {
               error: 'A project with this name already exists'
             })
             .code(HTTP_STATUS.CONFLICT)
+        }
+
+        // Get RFCC code from area identifier (rmaName is actually area code/identifier)
+        const rfccCode = await areaService.getRfccCodeFromAreaIdentifier(
+          rmaName
+        )
+        if (!rfccCode) {
+          return h
+            .response({
+              statusCode: HTTP_STATUS.BAD_REQUEST,
+              error: 'Could not determine RFCC code from area'
+            })
+            .code(HTTP_STATUS.BAD_REQUEST)
         }
 
         // Get user ID from JWT token
