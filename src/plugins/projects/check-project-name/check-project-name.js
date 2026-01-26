@@ -1,7 +1,8 @@
 import { ProjectService } from '../services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
-import { projectNameSchema } from '../../../common/schemas/project-proposal-schema.js'
+import { validateProjectName } from '../schema.js'
+import { PROPOSAL_ERROR_MESSAGES } from '../../../common/constants/project.js'
 
 const checkProjectName = {
   method: 'POST',
@@ -12,11 +13,11 @@ const checkProjectName = {
     notes: 'Checks if a project name already exists in the database',
     tags: ['api', 'projects'],
     validate: {
-      payload: projectNameSchema,
+      payload: validateProjectName,
       failAction: validationFailAction
     },
     handler: async (request, h) => {
-      const { name } = request.payload
+      const payload = request.payload
 
       try {
         const projectService = new ProjectService(
@@ -24,23 +25,31 @@ const checkProjectName = {
           request.server.logger
         )
 
-        const result = await projectService.checkDuplicateProjectName(name)
+        const result = await projectService.checkDuplicateProjectName(payload)
+
+        if (!result.isValid) {
+          return h
+            .response({ validationErrors: result.errors })
+            .code(HTTP_STATUS.BAD_REQUEST)
+        }
 
         return h
           .response({
-            exists: result.exists
+            name: payload.name,
+            valid: true
           })
           .code(HTTP_STATUS.OK)
       } catch (error) {
-        request.server.logger.error(
-          { error: error.message, name },
-          'Error checking project name existence'
-        )
-
+        request.server.logger.error({ error }, 'Name validation failed')
         return h
           .response({
-            statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-            error: 'An error occurred while checking the project name'
+            errors: [
+              {
+                errorCode: PROPOSAL_ERROR_MESSAGES.NAME_VALIDATION_ERROR,
+                message: 'An error occurred while validating the name',
+                field: null
+              }
+            ]
           })
           .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
       }

@@ -11,6 +11,10 @@ import {
   shouldDisableAccount,
   isLastAttempt
 } from '../helpers/session.js'
+import {
+  fetchUserAreas,
+  getAreaTypeFlags
+} from '../../areas/helpers/user-areas.js'
 import { config } from '../../../config.js'
 import {
   AUTH_ERROR_CODES,
@@ -139,31 +143,17 @@ export class AuthService {
     await this.invalidateOtherSessions(user.id)
 
     const sessionId = generateSessionId()
-    const accessToken = generateAccessToken(user, sessionId)
+
+    // Fetch user areas with types using shared utility
+    const areas = await fetchUserAreas(this.prisma, user.id)
+    const areaFlags = getAreaTypeFlags(areas)
+
+    const accessToken = generateAccessToken(user, sessionId, areas)
     const refreshToken = generateRefreshToken(user, sessionId)
 
     await this.updateSuccessfulLogin(user.id, sessionId, ipAddress)
 
     this.logger.info({ userId: user.id }, 'User logged in successfully')
-
-    const userAreas = await this.prisma.pafs_core_user_areas.findMany({
-      where: { user_id: user.id },
-      select: {
-        primary: true,
-        pafs_core_areas: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    })
-
-    const areas = (userAreas || []).map((ua) => ({
-      areaId: Number(ua.pafs_core_areas.id),
-      primary: Boolean(ua.primary),
-      name: ua.pafs_core_areas.name
-    }))
 
     return {
       success: true,
@@ -173,7 +163,8 @@ export class AuthService {
         firstName: user.first_name,
         lastName: user.last_name,
         admin: user.admin,
-        areas
+        areas,
+        ...areaFlags
       },
       accessToken,
       refreshToken,

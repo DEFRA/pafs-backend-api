@@ -1,22 +1,12 @@
-// Constants for reference counter logic
-const LOW_COUNTER_MAX = 999
-const COUNTER_PAD_LENGTH = 3
+import { PASSWORD, SIZE } from '../../../common/constants/common.js'
+import {
+  PROJECT_STATUS,
+  PROPOSAL_VALIDATION_MESSAGES
+} from '../../../common/constants/project.js'
+import { ProjectMapper } from '../helpers/project-mapper.js'
+
 const COUNTER_SUFFIX = 'A'
-const RFCC_CODES = [
-  'AC',
-  'AE',
-  'AN',
-  'NO',
-  'NW',
-  'SN',
-  'SO',
-  'SW',
-  'TH',
-  'TR',
-  'TS',
-  'WX',
-  'YO'
-]
+const REFERENCE_NUMBER_TEMPLATE = 'C501E'
 
 export class ProjectService {
   constructor(prisma, logger) {
@@ -29,97 +19,88 @@ export class ProjectService {
    * @param {string} name - Project name to check
    * @returns {Promise<{exists: boolean}>}
    */
-  async checkDuplicateProjectName(name) {
-    this.logger.info({ projectName: name }, 'Checking if project name exists')
+  async checkDuplicateProjectName(payload) {
+    this.logger.info(
+      { projectName: payload.name },
+      'Checking if project name exists'
+    )
+
+    const where = {
+      name: {
+        equals: payload.name,
+        mode: 'insensitive' // Case-insensitive comparison
+      }
+    }
+
+    if (payload.referenceNumber) {
+      where.reference_number = { not: payload.referenceNumber }
+    }
 
     try {
-      const project = await this.prisma.pafs_core_projects.findFirst({
-        where: {
-          name: {
-            equals: name,
-            mode: 'insensitive' // Case-insensitive comparison
-          }
-        },
+      const existingProject = await this.prisma.pafs_core_projects.findFirst({
+        where,
         select: {
           id: true
         }
       })
 
-      const exists = project !== null
+      if (existingProject) {
+        this.logger.warn(
+          { projectName: payload.name },
+          'Duplicate project name found'
+        )
+        return {
+          isValid: false,
+          errors: {
+            errorCode: PROPOSAL_VALIDATION_MESSAGES.NAME_DUPLICATE,
+            message: 'A project with this name already exists'
+          }
+        }
+      }
 
-      this.logger.info(
-        { projectName: name, exists },
-        'Project name existence check completed'
-      )
-
-      return { exists }
+      return { isValid: true }
     } catch (error) {
       this.logger.error(
-        { error: error.message, projectName: name },
-        'Error checking project name existence'
+        { projectName: payload.name, error: error.message },
+        'Error checking duplicate project name'
       )
-
-      throw error
+      // On error, fail closed (reject the project name)
+      return {
+        isValid: false,
+        errors: {
+          errorCode: PROPOSAL_VALIDATION_MESSAGES.NAME_DUPLICATE,
+          message: 'Unable to verify project name uniqueness'
+        }
+      }
     }
   }
 
   /**
-   * Validate RFCC code
-   * @param {string} rfccCode - RFCC code to validate
-   * @throws {Error} If RFCC code is invalid
-   */
-  validateRfccCode(rfccCode) {
-    if (!RFCC_CODES.includes(rfccCode)) {
-      throw new Error(`Invalid RFCC code: ${rfccCode}`)
-    }
-  }
-
-  /**
-   * Increment counter for RFCC code
-   * @param {Object} tx - Prisma transaction
+   * Increment counter for RFCC code using Prisma upsert
+   * Uses upsert with atomic increment operations in a transaction
    * @param {string} rfccCode - RFCC code
    * @returns {Promise<Object>} Updated counter
+   * @private
    */
-  async incrementCounter(tx, rfccCode) {
-    let existingCounter = await tx.pafs_core_reference_counters.findUnique({
-      where: {
-        rfcc_code: rfccCode
-      }
-    })
+  async _incrementCounter(rfccCode) {
+    return await this.prisma.$transaction(async (tx) => {
+      // Fetch current counter to check for rollover
+      const current = await tx.pafs_core_reference_counters.findUnique({
+        where: { rfcc_code: rfccCode },
+        select: { low_counter: true, high_counter: true }
+      })
 
-    if (existingCounter) {
-      if (existingCounter.low_counter === LOW_COUNTER_MAX) {
-        // Increment high_counter and reset low_counter to 1
-        existingCounter = await tx.pafs_core_reference_counters.update({
-          where: {
-            rfcc_code: rfccCode
-          },
-          data: {
-            high_counter: {
-              increment: 1
-            },
-            low_counter: 1,
-            updated_at: new Date()
-          }
-        })
-      } else {
-        // Increment only low_counter
-        existingCounter = await tx.pafs_core_reference_counters.update({
-          where: {
-            rfcc_code: rfccCode
-          },
-          data: {
-            low_counter: {
-              increment: 1
-            },
-            updated_at: new Date()
-          }
-        })
-      }
-    } else {
-      // Create a new counter if it doesn't exist
-      existingCounter = await tx.pafs_core_reference_counters.create({
-        data: {
+      const shouldRollover = current && current.low_counter >= SIZE.LENGTH_999
+
+      // Upsert with appropriate increment logic
+      return await tx.pafs_core_reference_counters.upsert({
+        where: { rfcc_code: rfccCode },
+        update: {
+          high_counter: shouldRollover ? { increment: 1 } : undefined,
+          low_counter: shouldRollover ? 1 : { increment: 1 },
+          updated_at: new Date()
+        },
+        create: {
           rfcc_code: rfccCode,
           high_counter: 0,
           low_counter: 1,
@@ -127,9 +108,7 @@ export class ProjectService {
           updated_at: new Date()
         }
       })
-    }
-
-    return existingCounter
+    })
   }
 
   /**
@@ -137,12 +116,13 @@ export class ProjectService {
    * @param {number} highCounter - High counter value
    * @param {number} lowCounter - Low counter value
    * @returns {string} Formatted reference number suffix
+   * @private
    */
-  formatCounterParts(highCounter, lowCounter) {
+  _formatCounterParts(highCounter, lowCounter) {
     const highPart =
-      String(highCounter).padStart(COUNTER_PAD_LENGTH, '0') + COUNTER_SUFFIX
+      String(highCounter).padStart(SIZE.LENGTH_3, '0') + COUNTER_SUFFIX
     const lowPart =
-      String(lowCounter).padStart(COUNTER_PAD_LENGTH, '0') + COUNTER_SUFFIX
+      String(lowCounter).padStart(SIZE.LENGTH_3, '0') + COUNTER_SUFFIX
     return `${highPart}/${lowPart}`
   }
 
@@ -150,7 +130,6 @@ export class ProjectService {
    * Generate a unique reference number for a project
    * Format: {RFCC_CODE}C501E/{high_counter:03d}A/{low_counter:03d}A
    * e.g., ANC501E/000A/001A, AEC501E/000A/001A
-   * Matches the logic from pafs_core Ruby implementation
    *
    * RFCC Code Source:
    * - RFCC codes come from the area hierarchy stored in pafs_core_areas table
@@ -158,27 +137,21 @@ export class ProjectService {
    * - Frontend extracts RFCC code from selected area and passes it to this service
    *
    * @param {string} rfccCode - RFCC code extracted from area hierarchy (e.g., 'AN', 'AE')
-   * @returns {Promise<string>}
+   * @returns {Promise<string>} Generated reference number
    */
   async generateReferenceNumber(rfccCode = 'AN') {
     this.logger.info({ rfccCode }, 'Generating reference number')
 
-    this.validateRfccCode(rfccCode)
-
     try {
-      // Get or create the counter for this RFCC code with transaction for thread safety
-      const counter = await this.prisma.$transaction((tx) =>
-        this.incrementCounter(tx, rfccCode)
-      )
+      // Increment counter atomically with transaction
+      const counter = await this._incrementCounter(rfccCode)
 
-      // Format counters as 000A/001A
-      const counterParts = this.formatCounterParts(
+      // Format: {RFCC_CODE}C501E/{high_counter:03d}A/{low_counter:03d}A
+      const counterParts = this._formatCounterParts(
         counter.high_counter,
         counter.low_counter
       )
-
-      // Format: {RFCC_CODE}C501E/{high_counter:03d}A/{low_counter:03d}A
-      const referenceNumber = `${rfccCode}C501E/${counterParts}`
+      const referenceNumber = `${rfccCode}${REFERENCE_NUMBER_TEMPLATE}/${counterParts}`
 
       this.logger.info(
         {
@@ -196,84 +169,109 @@ export class ProjectService {
         { error: error.message, rfccCode },
         'Error generating reference number'
       )
+      throw error
+    }
+  }
+
+  async upsertProject(proposalPayload, userId, rfccCode = 'AN') {
+    try {
+      const dbData = ProjectMapper.toDatabase(proposalPayload)
+      dbData.updated_at = new Date()
+      dbData.updated_by_id = userId
+      dbData.updated_by_type = PASSWORD.ARCHIVABLE_TYPE.USER
+      const isCreateOperation = !proposalPayload.referenceNumber
+
+      // Generate reference number for creation if not provided
+      let referenceNumber = proposalPayload.referenceNumber
+      if (!referenceNumber && rfccCode) {
+        referenceNumber = await this.generateReferenceNumber(rfccCode)
+      }
+
+      // Generate slug from reference number (replace / with -)
+      const slug = referenceNumber
+        ? referenceNumber.toLowerCase().replace(/\//g, '-')
+        : ''
+
+      const result = await this.prisma.pafs_core_projects.upsert({
+        where: { reference_number: referenceNumber || 'NOT_EXISTS' },
+        update: dbData,
+        create: {
+          ...dbData,
+          reference_number: referenceNumber,
+          slug,
+          version: 0,
+          is_legacy: false,
+          creator_id: userId,
+          created_at: new Date()
+        }
+      })
+
+      if (isCreateOperation) {
+        this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
+        this.upsertProjectArea(result.id, proposalPayload.rmaId)
+      }
+
+      return result
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, proposalPayload },
+        'Error upserting project proposal'
+      )
 
       throw error
     }
   }
 
-  /**
-   * Create a new project proposal
-   * @param {Object} proposalData - Project proposal data
-   * @param {number} userId - User ID creating the project
-   * @param {string} rfccCode - RFCC code for reference number generation (optional, defaults to 'AN')
-   * @returns {Promise<Object>}
-   */
-  async createProjectProposal(proposalData, userId, rfccCode = 'AN') {
-    this.logger.info(
-      { projectName: proposalData.name, userId, rfccCode },
-      'Creating project proposal'
-    )
-
+  async upsertProjectState(projectId, newState) {
     try {
-      // Generate reference number with the specified RFCC code
-      const referenceNumber = await this.generateReferenceNumber(rfccCode)
-
-      // Create the project (map camelCase to snake_case for database)
-      const project = await this.prisma.pafs_core_projects.create({
-        data: {
-          reference_number: referenceNumber,
-          version: 0,
-          slug: referenceNumber.toLowerCase(),
-          name: proposalData.name,
-          rma_name: proposalData.rmaName || null,
-          project_type: proposalData.projectType,
-          earliest_start_year: proposalData.projectStartFinancialYear
-            ? Number.parseInt(proposalData.projectStartFinancialYear, 10)
-            : null,
-          project_end_financial_year: proposalData.projectEndFinancialYear
-            ? Number.parseInt(proposalData.projectEndFinancialYear, 10)
-            : null,
-          project_intervention_types: proposalData.projectInterventionTypes
-            ? proposalData.projectInterventionTypes.join(',')
-            : '',
-          main_intervention_type: proposalData.mainInterventionType || null,
-          created_at: new Date(),
-          updated_at: new Date()
-        }
-      })
-      // Create initial state
-      await this.prisma.pafs_core_states.create({
-        data: {
-          project_id: Number(project.id),
-          state: 'draft',
-          created_at: new Date(),
-          updated_at: new Date()
-        }
-      })
-
-      this.logger.info(
-        { projectId: project.id, referenceNumber },
-        'Project proposal created successfully'
-      )
-
-      return {
-        id: project.id.toString(),
-        reference_number: project.reference_number,
-        name: project.name,
-        project_type: project.project_type,
-        earliest_start_year: project.earliest_start_year,
-        project_end_financial_year: project.project_end_financial_year,
-        project_intervention_types: project.project_intervention_types,
-        main_intervention_type: project.main_intervention_type,
-        version: project.version,
-        created_at: project.created_at
+      const commonFields = {
+        state: newState,
+        updated_at: new Date()
       }
+      const stateRecord = await this.prisma.pafs_core_states.upsert({
+        where: { project_id: Number(projectId) },
+        update: commonFields,
+        create: {
+          project_id: Number(projectId),
+          ...commonFields,
+          created_at: new Date()
+        }
+      })
+      return stateRecord
     } catch (error) {
       this.logger.error(
-        { error: error.message, projectName: proposalData.name },
-        'Error creating project proposal'
+        { error: error.message, projectId, newState },
+        'Error upserting project state'
       )
+      throw error
+    }
+  }
 
+  async upsertProjectArea(projectId, areaId) {
+    try {
+      const commonFields = {
+        area_id: Number(areaId),
+        updated_at: new Date()
+      }
+      const areaRecord = await this.prisma.pafs_core_project_areas.upsert({
+        where: { project_id: Number(projectId) },
+        update: {
+          ...commonFields,
+          owner: false
+        },
+        create: {
+          project_id: Number(projectId),
+          created_at: new Date(),
+          owner: true,
+          ...commonFields
+        }
+      })
+      return areaRecord
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, projectId, areaId },
+        'Error upserting project area'
+      )
       throw error
     }
   }

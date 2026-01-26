@@ -86,14 +86,30 @@ export const DURATION = {
  * SIZE Constants
  */
 export const SIZE = {
+  LENGTH_1: 1,
   LENGTH_3: 3,
+  LENGTH_4: 4,
   LENGTH_8: 8,
   LENGTH_32: 32,
   LENGTH_128: 128,
   LENGTH_254: 254,
-  LENGTH_255: 255
+  LENGTH_255: 255,
+  LENGTH_999: 999,
+  LENGTH_2000: 2000,
+  LENGTH_2100: 2100
 }
 
 export const STATIC_TEXT = {
   not_specified: 'Not specified'
+}
+
+export const PATTERN = {
+  NAME_WITH_ALPHANUMERIC_UNDERSCORE_DASH: /^[a-zA-Z0-9_-]+$/,
+  PROJECT_REFERENCE_NUMBER: /^[A-Z]{2}C501E\/\d{3}A\/\d{3}A$/
+}
+
+export const AREA_TYPE_MAP = {
+  EA: 'EA Area',
+  PSO: 'PSO Area',
+  RMA: 'RMA'
 }

@@ -130,6 +130,9 @@ describe('jwt-auth plugin', () => {
         prisma: {
           pafs_core_users: {
             findUnique: vi.fn()
+          },
+          pafs_core_user_areas: {
+            findMany: vi.fn().mockResolvedValue([])
           }
         },
         server: {
@@ -531,7 +534,12 @@ describe('jwt-auth plugin', () => {
           firstName: 'Test',
           lastName: 'User',
           isAdmin: true,
-          sessionId: 'session-123'
+          sessionId: 'session-123',
+          areas: [],
+          primaryAreaType: null,
+          isRma: false,
+          isPso: false,
+          isEa: false
         })
       })
 
@@ -554,6 +562,11 @@ describe('jwt-auth plugin', () => {
 
         expect(result.isValid).toBe(true)
         expect(result.credentials.isAdmin).toBe(false)
+        expect(result.credentials).toHaveProperty('areas')
+        expect(result.credentials).toHaveProperty('primaryAreaType')
+        expect(result.credentials).toHaveProperty('isRma')
+        expect(result.credentials).toHaveProperty('isPso')
+        expect(result.credentials).toHaveProperty('isEa')
       })
 
       it('transforms database field names to camelCase', async () => {
@@ -576,6 +589,11 @@ describe('jwt-auth plugin', () => {
         expect(result.credentials).toHaveProperty('firstName', 'John')
         expect(result.credentials).toHaveProperty('lastName', 'Doe')
         expect(result.credentials).toHaveProperty('isAdmin', false)
+        expect(result.credentials).toHaveProperty('areas')
+        expect(result.credentials).toHaveProperty('primaryAreaType')
+        expect(result.credentials).toHaveProperty('isRma')
+        expect(result.credentials).toHaveProperty('isPso')
+        expect(result.credentials).toHaveProperty('isEa')
         expect(result.credentials).not.toHaveProperty('first_name')
         expect(result.credentials).not.toHaveProperty('last_name')
         expect(result.credentials).not.toHaveProperty('admin')
@@ -599,6 +617,7 @@ describe('jwt-auth plugin', () => {
         )
 
         expect(result.credentials.sessionId).toBe('session-xyz')
+        expect(result.credentials).toHaveProperty('areas')
       })
 
       it('does not log any warnings for successful validation', async () => {
@@ -724,6 +743,7 @@ describe('jwt-auth plugin', () => {
 
         expect(result.isValid).toBe(true)
         expect(result.credentials.userId).toBe(largeId)
+        expect(result.credentials).toHaveProperty('areas')
       })
 
       it('handles long sessionId strings', async () => {
@@ -746,6 +766,7 @@ describe('jwt-auth plugin', () => {
 
         expect(result.isValid).toBe(true)
         expect(result.credentials.sessionId).toBe(longSessionId)
+        expect(result.credentials).toHaveProperty('areas')
       })
 
       it('handles special characters in email', async () => {
@@ -769,6 +790,7 @@ describe('jwt-auth plugin', () => {
         expect(result.credentials.email).toBe(
           'test+tag@sub-domain.example.co.uk'
         )
+        expect(result.credentials).toHaveProperty('areas')
       })
 
       it('handles unicode characters in names', async () => {
@@ -791,6 +813,7 @@ describe('jwt-auth plugin', () => {
         expect(result.isValid).toBe(true)
         expect(result.credentials.firstName).toBe('François')
         expect(result.credentials.lastName).toBe("O'Brien-Smith")
+        expect(result.credentials).toHaveProperty('areas')
       })
     })
   })

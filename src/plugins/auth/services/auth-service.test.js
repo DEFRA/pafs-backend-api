@@ -282,7 +282,11 @@ describe('AuthService', () => {
         firstName: 'Test',
         lastName: 'User',
         admin: false,
-        areas: []
+        areas: [],
+        primaryAreaType: null,
+        isRma: false,
+        isPso: false,
+        isEa: false
       })
       expect(result.accessToken).toBe('access-token')
       expect(result.refreshToken).toBe('refresh-token')
@@ -305,8 +309,14 @@ describe('AuthService', () => {
 
       // Return two user area records with nested area details
       mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { primary: true, pafs_core_areas: { id: 10, name: 'Area A' } },
-        { primary: false, pafs_core_areas: { id: 20, name: 'Area B' } }
+        {
+          primary: true,
+          pafs_core_areas: { id: 10, name: 'Area A', area_type: 'RMA' }
+        },
+        {
+          primary: false,
+          pafs_core_areas: { id: 20, name: 'Area B', area_type: 'PSO' }
+        }
       ])
 
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
@@ -325,9 +335,13 @@ describe('AuthService', () => {
         lastName: 'User',
         admin: true,
         areas: [
-          { areaId: 10, primary: true, name: 'Area A' },
-          { areaId: 20, primary: false, name: 'Area B' }
-        ]
+          { areaId: 10, primary: true, name: 'Area A', areaType: 'RMA' },
+          { areaId: 20, primary: false, name: 'Area B', areaType: 'PSO' }
+        ],
+        primaryAreaType: 'RMA',
+        isRma: true,
+        isPso: false,
+        isEa: false
       })
     })
 
