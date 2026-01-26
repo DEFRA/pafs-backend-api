@@ -115,7 +115,7 @@ const upsertProject = {
         }
 
         // Get RFCC code from PSO parent
-        if (!areaWithParents.PSO || !areaWithParents.PSO.sub_type) {
+        if (!areaWithParents?.PSO?.sub_type) {
           request.server.logger.warn(
             { areaId, userId },
             'Could not determine RFCC code. RMA must have a PSO parent with RFCC code.'

@@ -1,4 +1,4 @@
-import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
+import { AREA_TYPE_MAP, SIZE } from '../../../common/constants/common.js'
 
 export class AreaService {
   // Common field selections for area queries
@@ -119,13 +119,7 @@ export class AreaService {
       where: {
         id: areaIdentifier
       },
-      select: {
-        id: true,
-        identifier: true,
-        area_type: true,
-        sub_type: true,
-        parent_id: true
-      }
+      select: AreaService.AREA_FIELDS
     })
 
     if (!area) {
@@ -238,7 +232,7 @@ export class AreaService {
 
     // Fetch up to 3 levels (should cover RMA -> PSO -> EA hierarchy)
     // This prevents infinite loops and is more than sufficient for the area hierarchy
-    for (let i = 0; i < 3 && currentParentId; i++) {
+    for (let i = 0; i < SIZE.LENGTH_3 && currentParentId; i++) {
       const parent = await this.prisma.pafs_core_areas.findUnique({
         where: { id: BigInt(currentParentId) },
         select: AreaService.AREA_FIELDS
