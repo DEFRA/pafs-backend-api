@@ -62,6 +62,148 @@ async function sendWarningEmails(
   return { sent, failed }
 }
 
+/**
+ * Check if account disabling feature is enabled
+ * @param {Object} logger - Logger instance
+ * @returns {Object|null} Returns null if enabled, or result object if disabled
+ */
+function checkFeatureEnabled(logger) {
+  const isEnabled = config.get('auth.accountDisabling.enabled')
+
+  if (!isEnabled) {
+    logger.info('Account disabling is disabled in configuration')
+    return {
+      success: true,
+      warningCount: 0,
+      disabledCount: 0,
+      message: 'Feature disabled'
+    }
+  }
+
+  return null
+}
+
+/**
+ * Process warning emails for accounts approaching inactivity threshold
+ * @param {Object} accountService - Account service instance
+ * @param {Object} emailService - Email service instance
+ * @param {Object} logger - Logger instance
+ * @param {number} warningDays - Days before sending warning
+ * @param {number} inactivityDays - Total inactivity days threshold
+ * @returns {Promise<Object>} Warning processing results
+ */
+async function processWarningEmails(
+  accountService,
+  emailService,
+  logger,
+  warningDays,
+  inactivityDays
+) {
+  const accountsNeedingWarning =
+    await accountService.findAccountsNeedingWarning(warningDays, inactivityDays)
+
+  if (accountsNeedingWarning.length === 0) {
+    return {
+      accounts: [],
+      emailStats: { sent: 0, failed: 0 }
+    }
+  }
+
+  const daysRemaining = inactivityDays - warningDays
+  const emailStats = await sendWarningEmails(
+    accountsNeedingWarning,
+    emailService,
+    logger,
+    daysRemaining
+  )
+
+  // Mark accounts as having received warning (only for successfully sent emails)
+  if (emailStats.sent > 0) {
+    const successfulAccountIds = accountsNeedingWarning
+      .slice(0, emailStats.sent)
+      .map((acc) => acc.id)
+    await accountService.markWarningEmailsSent(successfulAccountIds)
+  }
+
+  logger.info(
+    {
+      warningCount: accountsNeedingWarning.length,
+      emailsSent: emailStats.sent,
+      emailsFailed: emailStats.failed,
+      warningDays
+    },
+    'Inactivity warning emails processed'
+  )
+
+  return {
+    accounts: accountsNeedingWarning,
+    emailStats
+  }
+}
+
+/**
+ * Disable accounts that exceed inactivity threshold
+ * @param {Object} accountService - Account service instance
+ * @param {Object} logger - Logger instance
+ * @param {number} inactivityDays - Total inactivity days threshold
+ * @returns {Promise<Object>} Disable results
+ */
+async function disableInactiveAccountsStep(
+  accountService,
+  logger,
+  inactivityDays
+) {
+  const disableResult =
+    await accountService.disableInactiveAccounts(inactivityDays)
+
+  if (disableResult.disabledCount > 0) {
+    logger.info(
+      {
+        disabledCount: disableResult.disabledCount,
+        inactivityDays
+      },
+      'Inactive accounts disabled successfully'
+    )
+  }
+
+  return disableResult
+}
+
+/**
+ * Format task execution results
+ * @param {Object} warningResult - Warning email processing results
+ * @param {Object} disableResult - Account disabling results
+ * @param {number} warningDays - Days before sending warning
+ * @param {number} inactivityDays - Total inactivity days threshold
+ * @returns {Object} Formatted results
+ */
+function formatTaskResults(
+  warningResult,
+  disableResult,
+  warningDays,
+  inactivityDays
+) {
+  return {
+    success: true,
+    warningCount: warningResult.accounts.length,
+    warningEmailsSent: warningResult.emailStats.sent,
+    warningEmailsFailed: warningResult.emailStats.failed,
+    disabledCount: disableResult.disabledCount,
+    warningDays,
+    inactivityDays,
+    accounts: {
+      warned: warningResult.accounts.map((acc) => ({
+        id: acc.id,
+        email: acc.email
+      })),
+      disabled: disableResult.accounts.map((acc) => ({
+        id: acc.id,
+        email: acc.email
+      }))
+    }
+  }
+}
+
 export default {
   name: 'disable-inactive-accounts',
   schedule: '0 2 * * *', // Run daily at 2:00 AM
@@ -75,92 +217,39 @@ export default {
     logger.info('Running account inactivity management task')
 
     try {
-      const isEnabled = config.get('auth.accountDisabling.enabled')
-
-      if (!isEnabled) {
-        logger.info('Account disabling is disabled in configuration')
-        return {
-          success: true,
-          warningCount: 0,
-          disabledCount: 0,
-          message: 'Feature disabled'
-        }
+      // Check if feature is enabled
+      const featureCheck = checkFeatureEnabled(logger)
+      if (featureCheck) {
+        return featureCheck
       }
 
       const warningDays = config.get(
         'auth.accountDisabling.inactivityWarningDays'
       )
       const inactivityDays = config.get('auth.accountDisabling.inactivityDays')
-      const daysRemaining = inactivityDays - warningDays
 
-      // Step 1: Send warning emails to accounts at 335 days of inactivity
-      const accountsNeedingWarning =
-        await accountService.findAccountsNeedingWarning(
-          warningDays,
-          inactivityDays
-        )
-
-      let warningEmailStats = { sent: 0, failed: 0 }
-      if (accountsNeedingWarning.length > 0) {
-        warningEmailStats = await sendWarningEmails(
-          accountsNeedingWarning,
-          emailService,
-          logger,
-          daysRemaining
-        )
-
-        // Mark accounts as having received warning (only for successfully sent emails)
-        if (warningEmailStats.sent > 0) {
-          const successfulAccountIds = accountsNeedingWarning
-            .slice(0, warningEmailStats.sent)
-            .map((acc) => acc.id)
-          await accountService.markWarningEmailsSent(successfulAccountIds)
-        }
-
-        logger.info(
-          {
-            warningCount: accountsNeedingWarning.length,
-            emailsSent: warningEmailStats.sent,
-            emailsFailed: warningEmailStats.failed,
-            warningDays
-          },
-          'Inactivity warning emails sent'
-        )
-      }
-
-      // Step 2: Disable accounts that have been inactive for 365 days (no email sent)
-      const disableResult =
-        await accountService.disableInactiveAccounts(inactivityDays)
-
-      if (disableResult.disabledCount > 0) {
-        logger.info(
-          {
-            disabledCount: disableResult.disabledCount,
-            inactivityDays
-          },
-          'Inactive accounts disabled successfully'
-        )
-      }
-
-      return {
-        success: true,
-        warningCount: accountsNeedingWarning.length,
-        warningEmailsSent: warningEmailStats.sent,
-        warningEmailsFailed: warningEmailStats.failed,
-        disabledCount: disableResult.disabledCount,
+      // Step 1: Send warning emails
+      const warningResult = await processWarningEmails(
+        accountService,
+        emailService,
+        logger,
         warningDays,
-        inactivityDays,
-        accounts: {
-          warned: accountsNeedingWarning.map((acc) => ({
-            id: acc.id,
-            email: acc.email
-          })),
-          disabled: disableResult.accounts.map((acc) => ({
-            id: acc.id,
-            email: acc.email
-          }))
-        }
-      }
+        inactivityDays
+      )
+
+      // Step 2: Disable accounts exceeding threshold
+      const disableResult = await disableInactiveAccountsStep(
+        accountService,
+        logger,
+        inactivityDays
+      )
+
+      return formatTaskResults(
+        warningResult,
+        disableResult,
+        warningDays,
+        inactivityDays
+      )
     } catch (error) {
       logger.error({ error }, 'Failed to process account inactivity')
       throw error

@@ -13,13 +13,19 @@ import {
   parentIdSchema,
   subTypeSchema
 } from '../../common/schemas/area.js'
+import { SIZE } from '../../common/constants/common.js'
 
 /**
  * Query schema for listing areas with filters
  */
 export const getAreasListQuerySchema = Joi.object({
   search: searchSchema,
-  type: Joi.string().trim().max(50).allow('').optional().label('Area Type'),
+  type: Joi.string()
+    .trim()
+    .max(SIZE.LENGTH_50)
+    .allow('')
+    .optional()
+    .label('Area Type'),
   page: pageSchema,
   pageSize: pageSizeSchema()
 })

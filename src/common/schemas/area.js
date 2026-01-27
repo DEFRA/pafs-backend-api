@@ -1,6 +1,6 @@
 import Joi from 'joi'
 import { AREA_VALIDATION_CODES } from '../constants/area.js'
-import { AREA_TYPE_MAP } from '../constants/common.js'
+import { AREA_TYPE_MAP, SIZE } from '../constants/common.js'
 
 export const areaIdSchema = Joi.string().required().label('Area ID').messages({
   'any.required': AREA_VALIDATION_CODES.ID_REQUIRED,
@@ -21,7 +21,7 @@ export const areaTypeSchema = Joi.string()
 export const areaNameSchema = Joi.string()
   .trim()
   .min(1)
-  .max(255)
+  .max(SIZE.LENGTH_255)
   .required()
   .label('Name')
   .messages({
@@ -33,7 +33,7 @@ export const areaNameSchema = Joi.string()
 
 export const identifierSchema = Joi.string()
   .trim()
-  .max(100)
+  .max(SIZE.LENGTH_100)
   .when('areaType', {
     is: Joi.string().valid(AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.RMA),
     then: Joi.required(),
@@ -63,7 +63,7 @@ export const parentIdSchema = Joi.string()
 
 export const subTypeSchema = Joi.string()
   .trim()
-  .max(50)
+  .max(SIZE.LENGTH_50)
   .when('areaType', {
     is: AREA_TYPE_MAP.PSO,
     then: Joi.required(),

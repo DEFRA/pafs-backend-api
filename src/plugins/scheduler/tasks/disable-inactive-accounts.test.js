@@ -324,7 +324,7 @@ describe('disable-inactive-accounts task', () => {
           emailsFailed: 0,
           warningDays: 335
         },
-        'Inactivity warning emails sent'
+        'Inactivity warning emails processed'
       )
     })
 

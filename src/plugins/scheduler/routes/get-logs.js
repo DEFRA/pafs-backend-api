@@ -31,7 +31,9 @@ export default {
   },
   handler: async (request, h) => {
     const adminCheck = requireAdmin(request, h)
-    if (adminCheck) return adminCheck
+    if (adminCheck) {
+      return adminCheck
+    }
 
     const authenticatedUser = request.auth.credentials
     const { logger, prisma } = request.server

@@ -63,15 +63,21 @@ export class AuthService {
 
   async performSecurityChecks(user) {
     const disabledCheck = this._checkAccountDisabled(user)
-    if (disabledCheck) return disabledCheck
+    if (disabledCheck) {
+      return disabledCheck
+    }
 
     await this._handleLockoutReset(user)
 
     const lockedCheck = this._checkAccountLocked(user)
-    if (lockedCheck) return lockedCheck
+    if (lockedCheck) {
+      return lockedCheck
+    }
 
     const inactivityCheck = await this._checkAccountInactivity(user)
-    if (inactivityCheck) return inactivityCheck
+    if (inactivityCheck) {
+      return inactivityCheck
+    }
 
     return { passed: true }
   }
@@ -83,7 +89,9 @@ export class AuthService {
    * @private
    */
   _checkAccountDisabled(user) {
-    if (!user.disabled) return null
+    if (!user.disabled) {
+      return null
+    }
 
     this.logger.info({ userId: user.id }, 'Login attempt for disabled account')
     return {
@@ -116,7 +124,9 @@ export class AuthService {
    * @private
    */
   _checkAccountLocked(user) {
-    if (!isAccountLocked(user)) return null
+    if (!isAccountLocked(user)) {
+      return null
+    }
 
     this.logger.info({ userId: user.id }, 'Login attempt for locked account')
     return {
@@ -136,7 +146,9 @@ export class AuthService {
    * @private
    */
   async _checkAccountInactivity(user) {
-    if (!shouldDisableAccount(user)) return null
+    if (!shouldDisableAccount(user)) {
+      return null
+    }
 
     await this.disableAccount(user.id)
     this.logger.info({ userId: user.id }, 'Account disabled due to inactivity')

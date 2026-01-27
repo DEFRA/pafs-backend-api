@@ -476,7 +476,7 @@ export class AreaService {
         }
       })
 
-      if (parentArea && parentArea.area_type === AREA_TYPE_MAP.PSO) {
+      if (parentArea?.area_type === AREA_TYPE_MAP.PSO) {
         return parentArea.sub_type || null
       }
     }

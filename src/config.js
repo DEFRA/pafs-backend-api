@@ -294,12 +294,6 @@ const config = convict({
       default: 'account-inactivity-warning-template-id',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_WARNING'
     },
-    templateAccountInactivityDisabled: {
-      doc: 'GOV.UK Notify template ID for account disabled due to inactivity',
-      format: String,
-      default: 'account-inactivity-disabled-template-id',
-      env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_DISABLED'
-    },
     templateAccountReactivated: {
       doc: 'GOV.UK Notify template ID for account reactivation notification',
       format: String,

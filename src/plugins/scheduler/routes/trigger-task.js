@@ -113,7 +113,9 @@ export default {
   },
   handler: async (request, h) => {
     const adminCheck = requireAdmin(request, h)
-    if (adminCheck) return adminCheck
+    if (adminCheck) {
+      return adminCheck
+    }
 
     const { taskName } = request.payload
     const authenticatedUser = request.auth.credentials
