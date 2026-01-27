@@ -83,7 +83,7 @@ export class ProjectService {
    * @private
    */
   async _incrementCounter(rfccCode) {
-    return await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       // Fetch current counter to check for rollover
       const current = await tx.pafs_core_reference_counters.findUnique({
         where: { rfcc_code: rfccCode },
@@ -93,7 +93,7 @@ export class ProjectService {
       const shouldRollover = current && current.low_counter >= SIZE.LENGTH_999
 
       // Upsert with appropriate increment logic
-      return await tx.pafs_core_reference_counters.upsert({
+      return tx.pafs_core_reference_counters.upsert({
         where: { rfcc_code: rfccCode },
         update: {
           high_counter: shouldRollover ? { increment: 1 } : undefined,
@@ -189,7 +189,7 @@ export class ProjectService {
 
       // Generate slug from reference number (replace / with -)
       const slug = referenceNumber
-        ? referenceNumber.toLowerCase().replace(/\//g, '-')
+        ? referenceNumber.toLowerCase().replaceAll('/', '-')
         : ''
 
       const result = await this.prisma.pafs_core_projects.upsert({

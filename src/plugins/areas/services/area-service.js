@@ -244,7 +244,7 @@ export class AreaService {
    */
   async _performAreaUpsert(areaId, data) {
     if (areaId) {
-      return await this.prisma.pafs_core_areas.upsert({
+      return this.prisma.pafs_core_areas.upsert({
         where: { id: BigInt(areaId) },
         update: data,
         create: {
@@ -255,13 +255,83 @@ export class AreaService {
       })
     }
 
-    return await this.prisma.pafs_core_areas.create({
+    return this.prisma.pafs_core_areas.create({
       data: {
         ...data,
         created_at: new Date()
       },
       select: AreaService.AREA_FIELDS_WITH_TIMESTAMPS
     })
+  }
+
+  /**
+   * Validate PSO Area parent reference (must be EA Area)
+   * @param {string} parentId - Parent area ID
+   * @throws {Error} If parent is not EA Area
+   * @private
+   */
+  async _validatePsoParent(parentId) {
+    const parent = await this._findAreaByIdWithConditions(
+      parentId,
+      {},
+      { id: true, area_type: true }
+    )
+
+    if (!parent) {
+      throw new Error(`Parent area with ID ${parentId} not found for PSO Area`)
+    }
+
+    if (parent.area_type !== AREA_TYPE_MAP.EA) {
+      throw new Error(
+        `Parent area must be of type 'EA Area' for PSO Area, but found '${parent.area_type}'`
+      )
+    }
+  }
+
+  /**
+   * Validate RMA parent reference (must be PSO Area)
+   * @param {string} parentId - Parent area ID
+   * @throws {Error} If parent is not PSO Area
+   * @private
+   */
+  async _validateRmaParent(parentId) {
+    const parent = await this._findAreaByIdWithConditions(
+      parentId,
+      {},
+      { id: true, area_type: true }
+    )
+
+    if (!parent) {
+      throw new Error(`Parent area with ID ${parentId} not found for RMA`)
+    }
+
+    if (parent.area_type !== AREA_TYPE_MAP.PSO) {
+      throw new Error(
+        `Parent area must be of type 'PSO Area' for RMA, but found '${parent.area_type}'`
+      )
+    }
+  }
+
+  /**
+   * Validate RMA Authority Code exists
+   * @param {string} subType - Authority Code
+   * @throws {Error} If Authority Code doesn't exist
+   * @private
+   */
+  async _validateRmaAuthorityCode(subType) {
+    const authority = await this.prisma.pafs_core_areas.findFirst({
+      where: {
+        area_type: AREA_TYPE_MAP.AUTHORITY,
+        identifier: subType
+      },
+      select: { id: true, identifier: true }
+    })
+
+    if (!authority) {
+      throw new Error(
+        `Authority with code '${subType}' not found. Please ensure the Authority exists before creating RMA.`
+      )
+    }
   }
 
   /**
@@ -279,59 +349,17 @@ export class AreaService {
 
     // PSO Area: validate parent is EA Area
     if (areaType === AREA_TYPE_MAP.PSO && parentId) {
-      const parent = await this._findAreaByIdWithConditions(
-        parentId,
-        {},
-        { id: true, area_type: true }
-      )
-
-      if (!parent) {
-        throw new Error(
-          `Parent area with ID ${parentId} not found for PSO Area`
-        )
-      }
-
-      if (parent.area_type !== AREA_TYPE_MAP.EA) {
-        throw new Error(
-          `Parent area must be of type 'EA Area' for PSO Area, but found '${parent.area_type}'`
-        )
-      }
+      await this._validatePsoParent(parentId)
     }
 
     // RMA: validate parent is PSO Area
     if (areaType === AREA_TYPE_MAP.RMA && parentId) {
-      const parent = await this._findAreaByIdWithConditions(
-        parentId,
-        {},
-        { id: true, area_type: true }
-      )
-
-      if (!parent) {
-        throw new Error(`Parent area with ID ${parentId} not found for RMA`)
-      }
-
-      if (parent.area_type !== AREA_TYPE_MAP.PSO) {
-        throw new Error(
-          `Parent area must be of type 'PSO Area' for RMA, but found '${parent.area_type}'`
-        )
-      }
+      await this._validateRmaParent(parentId)
     }
 
     // RMA: validate Authority Code exists
     if (areaType === AREA_TYPE_MAP.RMA && subType) {
-      const authority = await this.prisma.pafs_core_areas.findFirst({
-        where: {
-          area_type: AREA_TYPE_MAP.AUTHORITY,
-          identifier: subType
-        },
-        select: { id: true, identifier: true }
-      })
-
-      if (!authority) {
-        throw new Error(
-          `Authority with code '${subType}' not found. Please ensure the Authority exists before creating RMA.`
-        )
-      }
+      await this._validateRmaAuthorityCode(subType)
     }
   }
 
@@ -349,7 +377,7 @@ export class AreaService {
       ...additionalWhere
     }
 
-    return await this.prisma.pafs_core_areas.findFirst({
+    return this.prisma.pafs_core_areas.findFirst({
       where,
       select: select || AreaService.AREA_FIELDS
     })
@@ -372,7 +400,7 @@ export class AreaService {
     }
 
     // Add search filter
-    if (search && search.trim()) {
+    if (search?.trim()) {
       where.name = {
         contains: search.trim(),
         mode: AreaService.MODE
@@ -380,7 +408,7 @@ export class AreaService {
     }
 
     // Add type filter (in addition to EA exclusion)
-    if (type && type.trim()) {
+    if (type?.trim()) {
       where.AND = [
         {
           area_type: {
@@ -566,7 +594,7 @@ export class AreaService {
    * @returns {Object} Serialized area object
    * @private
    */
-  _serializeArea(area, includeTimestamps = false) {
+  _serializeArea(area, _includeTimestamps = false) {
     const serialized = {
       id: area.id.toString(),
       name: area.name,
