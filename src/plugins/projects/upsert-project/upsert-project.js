@@ -175,7 +175,9 @@ const upsertProject = {
           request,
           h
         )
-        if (createPermResponse) return createPermResponse
+        if (createPermResponse) {
+          return createPermResponse
+        }
 
         // Validate duplicate name
         const duplicateNameResponse = await validateDuplicateProjectName(
@@ -185,7 +187,9 @@ const upsertProject = {
           request,
           h
         )
-        if (duplicateNameResponse) return duplicateNameResponse
+        if (duplicateNameResponse) {
+          return duplicateNameResponse
+        }
 
         // Validate area and get RFCC code
         const areaValidation = await validateAreaAndGetRfcc(
@@ -194,7 +198,9 @@ const upsertProject = {
           request,
           h
         )
-        if (!areaValidation.ok) return areaValidation.response
+        if (!areaValidation.ok) {
+          return areaValidation.response
+        }
 
         const project = await projectService.upsertProject(
           proposalPayload,
