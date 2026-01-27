@@ -4,13 +4,8 @@ import listAreasByListRoute from './list-areas-by-list.js'
 describe('list-areas-by-list route', () => {
   let mockRequest
   let mockH
-  let mockAreaService
 
   beforeEach(() => {
-    mockAreaService = {
-      getAreasList: vi.fn()
-    }
-
     mockRequest = {
       query: {},
       prisma: {},
