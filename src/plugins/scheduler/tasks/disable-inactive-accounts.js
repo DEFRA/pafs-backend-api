@@ -40,7 +40,8 @@ async function sendWarningEmails(
           first_name: account.firstName,
           last_name: account.lastName,
           admin_email: adminEmail,
-          days_remaining: daysRemaining
+          days_remaining: daysRemaining,
+          frontendUrl: config.get('frontendUrl')
         },
         `account-inactivity-warning-${account.id}`
       )

@@ -65,7 +65,8 @@ describe('disable-inactive-accounts task', () => {
         'auth.accountDisabling.enabled': true,
         'notify.templateAccountInactivityWarning': 'warning-template-id',
         'notify.templateAccountInactivityDisabled': 'disabled-template-id',
-        'notify.adminEmail': 'admin@test.gov.uk'
+        'notify.adminEmail': 'admin@test.gov.uk',
+        frontendUrl: 'frontendUrl'
       }
       return config[key]
     })
@@ -151,7 +152,8 @@ describe('disable-inactive-accounts task', () => {
           first_name: 'John',
           last_name: 'Doe',
           admin_email: 'admin@test.gov.uk',
-          days_remaining: 30
+          days_remaining: 30,
+          frontendUrl: 'frontendUrl'
         },
         'account-inactivity-warning-1'
       )
