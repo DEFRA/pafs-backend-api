@@ -109,6 +109,8 @@ export const PATTERN = {
 }
 
 export const AREA_TYPE_MAP = {
+  COUNTRY: 'Country',
+  AUTHORITY: 'Authority',
   EA: 'EA Area',
   PSO: 'PSO Area',
   RMA: 'RMA'

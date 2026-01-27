@@ -33,47 +33,21 @@ export class AccountUpsertService {
   async upsertAccount(data, context = {}) {
     const { authenticatedUser } = context
 
+    await this._validateAccountData(data)
     const dbData = this.convertToDbFields(data)
-
-    // Validate email before proceeding
-    await this.validateEmail(data.email, data.id)
-
-    // Validate area responsibility types match user responsibility
-    if (!data.admin && data.areas && data.areas.length > 0) {
-      await this.validateAreaResponsibilityTypes(
-        data.areas,
-        data.responsibility
-      )
-    }
-
-    // Determine unique identifier
     const uniqueWhere = this._determineUniqueWhere(data)
-
-    // Prepare invitation details & tokens
     const { invitationDetails, invitationToken, hashedToken } =
       this._prepareInvitationData(data.email, authenticatedUser)
 
-    // Prepare fields and upsert user record
-    const commonFields = this._prepareCommonFields(dbData)
-    const createOnlyFields = this._prepareCreateFields(
-      commonFields,
+    const user = await this._performUpsert(
+      dbData,
+      uniqueWhere,
       invitationDetails,
       hashedToken
     )
 
-    const user = await this._upsertUser(
-      uniqueWhere,
-      commonFields,
-      createOnlyFields
-    )
-
-    // Determine if this was a new account (no id provided)
     const isNewAccount = !data.id
-
-    // Manage user areas (always run)
     await this.manageUserAreas(user.id, data.areas)
-
-    // Post-upsert notifications and logging
     await this._handlePostUpsert(user, {
       isNewAccount,
       authenticatedUser,
@@ -82,6 +56,53 @@ export class AccountUpsertService {
       areas: data.areas || []
     })
 
+    return this._buildUpsertResponse(user, isNewAccount)
+  }
+
+  /**
+   * Validate account data before upsert
+   * @param {Object} data - Account data to validate
+   * @private
+   */
+  async _validateAccountData(data) {
+    await this.validateEmail(data.email, data.id)
+
+    if (!data.admin && data.areas && data.areas.length > 0) {
+      await this.validateAreaResponsibilityTypes(
+        data.areas,
+        data.responsibility
+      )
+    }
+  }
+
+  /**
+   * Perform the actual upsert operation
+   * @param {Object} dbData - Database fields
+   * @param {Object} uniqueWhere - Unique identifier
+   * @param {Object} invitationDetails - Invitation details
+   * @param {string} hashedToken - Hashed invitation token
+   * @returns {Promise<Object>} Upserted user
+   * @private
+   */
+  async _performUpsert(dbData, uniqueWhere, invitationDetails, hashedToken) {
+    const commonFields = this._prepareCommonFields(dbData)
+    const createOnlyFields = this._prepareCreateFields(
+      commonFields,
+      invitationDetails,
+      hashedToken
+    )
+
+    return this._upsertUser(uniqueWhere, commonFields, createOnlyFields)
+  }
+
+  /**
+   * Build upsert response object
+   * @param {Object} user - User object
+   * @param {boolean} isNewAccount - Whether this is a new account
+   * @returns {Object} Response object
+   * @private
+   */
+  _buildUpsertResponse(user, isNewAccount) {
     return {
       message: `Account ${isNewAccount ? 'created' : 'updated'} successfully`,
       email: user.email,
@@ -98,7 +119,7 @@ export class AccountUpsertService {
    */
   async approveAccount(userId, authenticatedUser) {
     this.logger.info(
-      { userId, adminId: authenticatedUser.id },
+      { userId, adminId: authenticatedUser.userId },
       'Approving account'
     )
 

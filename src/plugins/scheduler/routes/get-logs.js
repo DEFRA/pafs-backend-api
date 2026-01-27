@@ -1,6 +1,7 @@
 import Joi from 'joi'
 import { SchedulerDbService } from '../services/scheduler-db-service.js'
 import { HTTP_STATUS } from '../../../common/constants/common.js'
+import { requireAdmin } from '../helpers/admin-check.js'
 
 /**
  * Route handler for getting scheduler execution logs
@@ -29,26 +30,12 @@ export default {
     }
   },
   handler: async (request, h) => {
+    const adminCheck = requireAdmin(request, h)
+    if (adminCheck) return adminCheck
+
     const authenticatedUser = request.auth.credentials
     const { logger, prisma } = request.server
     const { taskName, status, limit } = request.query
-
-    // Check if user is admin
-    if (!authenticatedUser.isAdmin) {
-      logger.warn(
-        { userId: authenticatedUser.id },
-        'Non-admin user attempted to view scheduler logs'
-      )
-      return h
-        .response({
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Admin authentication required to view scheduler logs'
-          }
-        })
-        .code(HTTP_STATUS.FORBIDDEN)
-    }
 
     try {
       const dbService = new SchedulerDbService(prisma, logger)
@@ -61,7 +48,7 @@ export default {
 
       logger.info(
         {
-          userId: authenticatedUser.id,
+          userId: authenticatedUser.userId,
           logCount: logs.length,
           filters: { taskName, status }
         },
@@ -80,7 +67,7 @@ export default {
         .code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error(
-        { error, userId: authenticatedUser.id },
+        { error, userId: authenticatedUser.userId },
         'Error retrieving scheduler logs'
       )
 

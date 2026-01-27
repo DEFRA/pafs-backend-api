@@ -62,56 +62,92 @@ export class AuthService {
   }
 
   async performSecurityChecks(user) {
-    if (user.disabled) {
-      this.logger.info(
-        { userId: user.id },
-        'Login attempt for disabled account'
-      )
-      return {
-        passed: false,
-        error: {
-          success: false,
-          errorCode: AUTH_ERROR_CODES.ACCOUNT_DISABLED,
-          supportCode: AUTH_ERROR_CODES.ACCOUNT_SUPPORT
-        }
+    const disabledCheck = this._checkAccountDisabled(user)
+    if (disabledCheck) return disabledCheck
+
+    await this._handleLockoutReset(user)
+
+    const lockedCheck = this._checkAccountLocked(user)
+    if (lockedCheck) return lockedCheck
+
+    const inactivityCheck = await this._checkAccountInactivity(user)
+    if (inactivityCheck) return inactivityCheck
+
+    return { passed: true }
+  }
+
+  /**
+   * Check if account is disabled
+   * @param {Object} user - User object
+   * @returns {Object|null} Error object or null
+   * @private
+   */
+  _checkAccountDisabled(user) {
+    if (!user.disabled) return null
+
+    this.logger.info({ userId: user.id }, 'Login attempt for disabled account')
+    return {
+      passed: false,
+      error: {
+        success: false,
+        errorCode: AUTH_ERROR_CODES.ACCOUNT_DISABLED,
+        supportCode: AUTH_ERROR_CODES.ACCOUNT_SUPPORT
       }
     }
+  }
 
+  /**
+   * Handle lockout reset if applicable
+   * @param {Object} user - User object
+   * @private
+   */
+  async _handleLockoutReset(user) {
     if (shouldResetLockout(user)) {
       await this.resetLockout(user.id)
       user.failed_attempts = 0
       user.locked_at = null
     }
+  }
 
-    if (isAccountLocked(user)) {
-      this.logger.info({ userId: user.id }, 'Login attempt for locked account')
-      return {
-        passed: false,
-        error: {
-          success: false,
-          errorCode: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
-          supportCode: AUTH_ERROR_CODES.ACCOUNT_SUPPORT_UNLOCK
-        }
+  /**
+   * Check if account is locked
+   * @param {Object} user - User object
+   * @returns {Object|null} Error object or null
+   * @private
+   */
+  _checkAccountLocked(user) {
+    if (!isAccountLocked(user)) return null
+
+    this.logger.info({ userId: user.id }, 'Login attempt for locked account')
+    return {
+      passed: false,
+      error: {
+        success: false,
+        errorCode: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
+        supportCode: AUTH_ERROR_CODES.ACCOUNT_SUPPORT_UNLOCK
       }
     }
+  }
 
-    if (shouldDisableAccount(user)) {
-      await this.disableAccount(user.id)
-      this.logger.info(
-        { userId: user.id },
-        'Account disabled due to inactivity'
-      )
-      return {
-        passed: false,
-        error: {
-          success: false,
-          errorCode: AUTH_ERROR_CODES.ACCOUNT_DISABLED,
-          supportCode: AUTH_ERROR_CODES.ACCOUNT_SUPPORT
-        }
+  /**
+   * Check if account should be disabled due to inactivity
+   * @param {Object} user - User object
+   * @returns {Promise<Object|null>} Error object or null
+   * @private
+   */
+  async _checkAccountInactivity(user) {
+    if (!shouldDisableAccount(user)) return null
+
+    await this.disableAccount(user.id)
+    this.logger.info({ userId: user.id }, 'Account disabled due to inactivity')
+    return {
+      passed: false,
+      error: {
+        success: false,
+        errorCode: AUTH_ERROR_CODES.ACCOUNT_DISABLED,
+        supportCode: AUTH_ERROR_CODES.ACCOUNT_SUPPORT
       }
     }
-
-    return { passed: true }
   }
 
   async handleInvalidPassword(user, ipAddress) {
@@ -232,17 +268,16 @@ export class AuthService {
 
   async updateSuccessfulLogin(userId, sessionId, ipAddress) {
     const now = new Date()
+    const { signInAt, signInIp } = await this.getCurrentSignInData(userId)
 
     await this.prisma.pafs_core_users.update({
       where: { id: userId },
       data: {
         sign_in_count: { increment: 1 },
         current_sign_in_at: now,
-        last_sign_in_at: {
-          set: await this.getCurrentSignInAt(userId)
-        },
+        last_sign_in_at: { set: signInAt },
         current_sign_in_ip: ipAddress,
-        last_sign_in_ip: await this.getCurrentSignInIp(userId),
+        last_sign_in_ip: signInIp,
         failed_attempts: 0,
         locked_at: null,
         unique_session_id: sessionId,
@@ -251,20 +286,24 @@ export class AuthService {
     })
   }
 
-  async getCurrentSignInAt(userId) {
+  /**
+   * Get current sign-in data in a single query
+   * @param {BigInt} userId - User ID
+   * @returns {Promise<Object>} Object with signInAt and signInIp
+   * @private
+   */
+  async getCurrentSignInData(userId) {
     const user = await this.prisma.pafs_core_users.findUnique({
       where: { id: userId },
-      select: { current_sign_in_at: true }
+      select: {
+        current_sign_in_at: true,
+        current_sign_in_ip: true
+      }
     })
-    return user?.current_sign_in_at
-  }
-
-  async getCurrentSignInIp(userId) {
-    const user = await this.prisma.pafs_core_users.findUnique({
-      where: { id: userId },
-      select: { current_sign_in_ip: true }
-    })
-    return user?.current_sign_in_ip
+    return {
+      signInAt: user?.current_sign_in_at,
+      signInIp: user?.current_sign_in_ip
+    }
   }
 
   async logout(userId, sessionId) {

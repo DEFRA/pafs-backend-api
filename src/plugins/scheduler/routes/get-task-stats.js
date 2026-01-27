@@ -1,6 +1,7 @@
 import Joi from 'joi'
 import { SchedulerDbService } from '../services/scheduler-db-service.js'
 import { HTTP_STATUS } from '../../../common/constants/common.js'
+import { requireAdmin } from '../helpers/admin-check.js'
 
 /**
  * Route handler for getting task execution statistics
@@ -19,26 +20,12 @@ export default {
     }
   },
   handler: async (request, h) => {
+    const adminCheck = requireAdmin(request, h)
+    if (adminCheck) return adminCheck
+
     const authenticatedUser = request.auth.credentials
     const { logger, prisma } = request.server
     const { taskName } = request.params
-
-    // Check if user is admin
-    if (!authenticatedUser.isAdmin) {
-      logger.warn(
-        { userId: authenticatedUser.id, taskName },
-        'Non-admin user attempted to view task statistics'
-      )
-      return h
-        .response({
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Admin authentication required to view task statistics'
-          }
-        })
-        .code(HTTP_STATUS.FORBIDDEN)
-    }
 
     try {
       const dbService = new SchedulerDbService(prisma, logger)
@@ -47,7 +34,7 @@ export default {
       const latestLog = await dbService.getLatestLog(taskName)
 
       logger.info(
-        { userId: authenticatedUser.id, taskName },
+        { userId: authenticatedUser.userId, taskName },
         'Admin user retrieved task statistics'
       )
 
@@ -62,7 +49,7 @@ export default {
         .code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error(
-        { error, userId: authenticatedUser.id, taskName },
+        { error, userId: authenticatedUser.userId, taskName },
         'Error retrieving task statistics'
       )
 

@@ -54,7 +54,7 @@ export class ProjectMapper {
       return value.join(',')
     }
     if (field === 'financialStartYear' || field === 'financialEndYear') {
-      return Number.parseInt(value)
+      return parseInt(value)
     }
     return value
   }

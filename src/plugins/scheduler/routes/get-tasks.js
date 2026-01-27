@@ -1,4 +1,5 @@
 import { HTTP_STATUS } from '../../../common/constants/common.js'
+import { requireAdmin } from '../helpers/admin-check.js'
 
 /**
  * Route handler for getting list of available scheduled tasks
@@ -12,31 +13,17 @@ export default {
     tags: ['api', 'scheduler']
   },
   handler: async (request, h) => {
+    const adminCheck = requireAdmin(request, h)
+    if (adminCheck) return adminCheck
+
     const authenticatedUser = request.auth.credentials
     const { logger, scheduler } = request.server
-
-    // Check if user is admin
-    if (!authenticatedUser.isAdmin) {
-      logger.warn(
-        { userId: authenticatedUser.id },
-        'Non-admin user attempted to view scheduled tasks'
-      )
-      return h
-        .response({
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Admin authentication required to view scheduled tasks'
-          }
-        })
-        .code(HTTP_STATUS.FORBIDDEN)
-    }
 
     try {
       const tasks = scheduler.getTasksStatus()
 
       logger.info(
-        { userId: authenticatedUser.id, taskCount: tasks.length },
+        { userId: authenticatedUser.userId, taskCount: tasks.length },
         'Admin user retrieved scheduled tasks list'
       )
 
@@ -51,7 +38,7 @@ export default {
         .code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error(
-        { error, userId: authenticatedUser.id },
+        { error, userId: authenticatedUser.userId },
         'Error retrieving scheduled tasks'
       )
 
