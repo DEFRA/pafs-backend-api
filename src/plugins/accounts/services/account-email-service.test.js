@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AccountEmailService } from './account-email-service.js'
-import {
-  ACCOUNT_STATUS,
-  ACCOUNT_RESPONSIBILITY
-} from '../../../common/constants/accounts.js'
+import { ACCOUNT_STATUS } from '../../../common/constants/accounts.js'
 import { STATIC_TEXT } from '../../../common/constants/common.js'
 
 vi.mock('../../../config.js', () => ({
@@ -476,11 +473,6 @@ describe('AccountEmailService', () => {
 
     it('handles all responsibility types correctly', async () => {
       const responsibilities = ['EA', 'PSO', 'RMA']
-      const expectedLabels = [
-        'Environment Agency',
-        'Public Sector Organisation',
-        'Risk Management Authority'
-      ]
 
       for (let i = 0; i < responsibilities.length; i++) {
         vi.clearAllMocks()
