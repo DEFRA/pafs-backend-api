@@ -17,10 +17,15 @@ describe('ProjectService', () => {
     mockPrisma = {
       pafs_core_projects: {
         findFirst: vi.fn(),
-        create: vi.fn()
+        create: vi.fn(),
+        upsert: vi.fn()
       },
       pafs_core_states: {
-        create: vi.fn()
+        create: vi.fn(),
+        upsert: vi.fn()
+      },
+      pafs_core_area_projects: {
+        upsert: vi.fn()
       },
       pafs_core_reference_counters: {
         findUnique: vi.fn(),
@@ -377,7 +382,7 @@ describe('ProjectService', () => {
       mockPrisma.pafs_core_states = {
         upsert: vi.fn()
       }
-      mockPrisma.pafs_core_project_areas = {
+      mockPrisma.pafs_core_area_projects = {
         upsert: vi.fn()
       }
     })
@@ -385,7 +390,7 @@ describe('ProjectService', () => {
     test('Should create new project without reference number', async () => {
       const proposalPayload = {
         name: 'Test Project',
-        rmaId: 1n
+        rmaId: '1'
       }
       const userId = 123n
       const rfccCode = 'AN'
@@ -409,6 +414,16 @@ describe('ProjectService', () => {
         reference_number: 'ANC501E/000A/001A'
       })
 
+      mockPrisma.pafs_core_states.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n
+      })
+
+      mockPrisma.pafs_core_area_projects.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n
+      })
+
       const result = await service.upsertProject(
         proposalPayload,
         userId,
@@ -426,7 +441,7 @@ describe('ProjectService', () => {
       const proposalPayload = {
         referenceNumber: 'ANC501E/000A/001A',
         name: 'Updated Project',
-        rmaId: 1n
+        rmaId: '1'
       }
       const userId = 123n
       const rfccCode = 'AN'
@@ -434,6 +449,16 @@ describe('ProjectService', () => {
       mockPrisma.pafs_core_projects.upsert.mockResolvedValue({
         id: 1n,
         reference_number: 'ANC501E/000A/001A'
+      })
+
+      mockPrisma.pafs_core_states.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n
+      })
+
+      mockPrisma.pafs_core_area_projects.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n
       })
 
       const result = await service.upsertProject(
@@ -448,7 +473,12 @@ describe('ProjectService', () => {
       })
       expect(mockPrisma.pafs_core_projects.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { reference_number: 'ANC501E/000A/001A' }
+          where: {
+            reference_number_version: {
+              reference_number: 'ANC501E/000A/001A',
+              version: 0
+            }
+          }
         })
       )
     })
@@ -549,7 +579,7 @@ describe('ProjectService', () => {
 
   describe('upsertProjectArea', () => {
     beforeEach(() => {
-      mockPrisma.pafs_core_project_areas = {
+      mockPrisma.pafs_core_area_projects = {
         upsert: vi.fn()
       }
     })
@@ -558,7 +588,7 @@ describe('ProjectService', () => {
       const projectId = 1n
       const areaId = 2n
 
-      mockPrisma.pafs_core_project_areas.upsert.mockResolvedValue({
+      mockPrisma.pafs_core_area_projects.upsert.mockResolvedValue({
         project_id: 1,
         area_id: 2,
         owner: true
@@ -571,7 +601,7 @@ describe('ProjectService', () => {
         area_id: 2,
         owner: true
       })
-      expect(mockPrisma.pafs_core_project_areas.upsert).toHaveBeenCalledWith(
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { project_id: 1 },
           create: expect.objectContaining({
@@ -592,7 +622,7 @@ describe('ProjectService', () => {
       const areaId = 2n
       const dbError = new Error('Area update failed')
 
-      mockPrisma.pafs_core_project_areas.upsert.mockRejectedValue(dbError)
+      mockPrisma.pafs_core_area_projects.upsert.mockRejectedValue(dbError)
 
       await expect(
         service.upsertProjectArea(projectId, areaId)

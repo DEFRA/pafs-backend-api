@@ -64,7 +64,7 @@ model pafs_core_area_downloads {
 model pafs_core_area_projects {
   id         BigInt   @id @default(autoincrement())
   area_id    Int
-  project_id Int
+  project_id Int      @unique(map: "unique_pafs_core_area_projects_project_id")
   owner      Boolean? @default(false)
   created_at DateTime @db.Timestamp(6)
   updated_at DateTime @db.Timestamp(6)
@@ -306,6 +306,7 @@ model pafs_core_projects {
   updated_by_id                                               BigInt?
   created_at                                                  DateTime                         @db.Timestamp(6)
   updated_at                                                  DateTime                         @db.Timestamp(6)
+  is_legacy                                                   Boolean                          @default(true)
   pafs_core_nfm_land_use_changes                              pafs_core_nfm_land_use_changes[]
   pafs_core_nfm_measures                                      pafs_core_nfm_measures[]
 
@@ -326,7 +327,7 @@ model pafs_core_reference_counters {
 
 model pafs_core_states {
   id         BigInt    @id @default(autoincrement())
-  project_id Int?
+  project_id Int?      @unique(map: "unique_pafs_core_states_project_id")
   state      String    @default("draft") @db.VarChar(255)
   created_at DateTime? @db.Timestamp(6)
   updated_at DateTime? @db.Timestamp(6)

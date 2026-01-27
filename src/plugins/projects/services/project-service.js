@@ -177,7 +177,7 @@ export class ProjectService {
     try {
       const dbData = ProjectMapper.toDatabase(proposalPayload)
       dbData.updated_at = new Date()
-      dbData.updated_by_id = userId
+      dbData.updated_by_id = BigInt(userId)
       dbData.updated_by_type = PASSWORD.ARCHIVABLE_TYPE.USER
       const isCreateOperation = !proposalPayload.referenceNumber
 
@@ -189,11 +189,16 @@ export class ProjectService {
 
       // Generate slug from reference number (replace / with -)
       const slug = referenceNumber
-        ? referenceNumber.toLowerCase().replaceAll(/\//g, '-')
+        ? referenceNumber.toLowerCase().replaceAll('/', '-')
         : ''
 
       const result = await this.prisma.pafs_core_projects.upsert({
-        where: { reference_number: referenceNumber || 'NOT_EXISTS' },
+        where: {
+          reference_number_version: {
+            reference_number: referenceNumber,
+            version: 0
+          }
+        },
         update: dbData,
         create: {
           ...dbData,
@@ -207,8 +212,8 @@ export class ProjectService {
       })
 
       if (isCreateOperation) {
-        this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
-        this.upsertProjectArea(result.id, proposalPayload.rmaId)
+        await this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
+        await this.upsertProjectArea(result.id, proposalPayload.rmaId)
       }
 
       return result
@@ -253,7 +258,7 @@ export class ProjectService {
         area_id: Number(areaId),
         updated_at: new Date()
       }
-      const areaRecord = await this.prisma.pafs_core_project_areas.upsert({
+      const areaRecord = await this.prisma.pafs_core_area_projects.upsert({
         where: { project_id: Number(projectId) },
         update: {
           ...commonFields,

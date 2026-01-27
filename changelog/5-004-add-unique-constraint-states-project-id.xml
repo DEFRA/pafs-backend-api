@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="5-004-add-unique-constraint-states-project-id" author="migration-team">
+    <comment>Add unique constraint on project_id in pafs_core_states table to ensure one state per project</comment>
+
+    <addUniqueConstraint 
+      tableName="pafs_core_states" 
+      columnNames="project_id" 
+      constraintName="unique_pafs_core_states_project_id"/>
+
+    <rollback>
+      <dropUniqueConstraint 
+        tableName="pafs_core_states" 
+        constraintName="unique_pafs_core_states_project_id"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

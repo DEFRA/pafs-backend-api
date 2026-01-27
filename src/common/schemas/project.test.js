@@ -79,14 +79,17 @@ describe('project schemas', () => {
 
   describe('projectRmaIdSchema', () => {
     it('should accept valid positive integer', () => {
-      const { error } = projectRmaIdSchema.validate(1)
+      const { error } = projectRmaIdSchema.validate('1')
       expect(error).toBeUndefined()
     })
 
     it('should reject invalid values', () => {
-      expect(projectRmaIdSchema.validate(-1).error).toBeDefined()
-      expect(projectRmaIdSchema.validate(0).error).toBeDefined()
+      expect(projectRmaIdSchema.validate('abc').error).toBeDefined()
+      expect(projectRmaIdSchema.validate('12abc').error).toBeDefined()
+      expect(projectRmaIdSchema.validate('').error).toBeDefined()
+      expect(projectRmaIdSchema.validate(123).error).toBeDefined()
       expect(projectRmaIdSchema.validate(undefined).error).toBeDefined()
+      expect(projectRmaIdSchema.validate(null).error).toBeDefined()
     })
   })
 

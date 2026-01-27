@@ -65,14 +65,14 @@ export const projectNameSchema = Joi.string()
 /**
  * Project RMA ID schema - for updates
  */
-export const projectRmaIdSchema = Joi.number()
-  .integer()
-  .positive()
+export const projectRmaIdSchema = Joi.string()
+  .trim()
+  .pattern(/^\d+$/)
   .label('Project RMA ID')
   .required()
   .messages({
-    'number.base': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
-    'number.positive': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
+    'string.empty': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_REQUIRED,
+    'string.pattern.base': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
     'any.required': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_REQUIRED
   })
 

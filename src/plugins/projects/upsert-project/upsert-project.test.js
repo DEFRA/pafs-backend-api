@@ -54,7 +54,9 @@ describe('upsertProject handler', () => {
       'checkDuplicateProjectName'
     ).mockResolvedValue({ isValid: true })
     vi.spyOn(ProjectService.prototype, 'upsertProject').mockResolvedValue({
-      id: 1n
+      id: 1n,
+      reference_number: 'ANC501E/000A/001A',
+      name: 'Test Project'
     })
     vi.spyOn(
       ProjectService.prototype,
@@ -124,7 +126,12 @@ describe('upsertProject handler', () => {
 
       await upsertProject.options.handler(mockRequest, mockH)
 
-      expect(mockH.response).toHaveBeenCalledWith({ success: true })
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CREATED)
     })
 
@@ -136,7 +143,12 @@ describe('upsertProject handler', () => {
 
       await upsertProject.options.handler(mockRequest, mockH)
 
-      expect(mockH.response).toHaveBeenCalledWith({ success: true })
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
       expect(mockLogger.warn).not.toHaveBeenCalled()
     })
@@ -184,7 +196,12 @@ describe('upsertProject handler', () => {
       expect(
         ProjectService.prototype.checkDuplicateProjectName
       ).toHaveBeenCalled()
-      expect(mockH.response).toHaveBeenCalledWith({ success: true })
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CREATED)
     })
   })
@@ -309,7 +326,12 @@ describe('upsertProject handler', () => {
 
       await upsertProject.options.handler(mockRequest, mockH)
 
-      expect(mockH.response).toHaveBeenCalledWith({ success: true })
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CREATED)
     })
   })

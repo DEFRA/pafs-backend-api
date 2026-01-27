@@ -118,7 +118,7 @@ describe('project-level', () => {
 
       const validData = {
         name: 'Test_Project',
-        rmaId: 1,
+        rmaId: '1',
         projectType: 'DEF',
         projectInterventionTypes: ['NFM'],
         mainInterventionType: 'NFM',

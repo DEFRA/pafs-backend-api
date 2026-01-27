@@ -128,26 +128,18 @@ export class AreaService {
     }
 
     // If PSO area, return sub_type directly (contains RFCC code)
-    if (area.area_type === 'PSO Area' || area.area_type === 'PSO') {
+    if (this.#isPsoArea(area.area_type)) {
       return area.sub_type || null
     }
 
-    // If RMA area, find parent PSO and return its sub_type
-    if (area.area_type === 'RMA' && area.parent_id) {
+    // If RMA area with parent, find parent PSO and return its sub_type
+    if (this.#isAreaType(area.area_type, AREA_TYPE_MAP.RMA) && area.parent_id) {
       const parentArea = await this.prisma.pafs_core_areas.findFirst({
-        where: {
-          id: area.parent_id
-        },
-        select: {
-          area_type: true,
-          sub_type: true
-        }
+        where: { id: area.parent_id },
+        select: { area_type: true, sub_type: true }
       })
 
-      if (
-        parentArea &&
-        (parentArea.area_type === 'PSO Area' || parentArea.area_type === 'PSO')
-      ) {
+      if (parentArea && this.#isPsoArea(parentArea.area_type)) {
         return parentArea.sub_type || null
       }
     }
@@ -285,5 +277,16 @@ export class AreaService {
    */
   #isAreaType(areaType, expectedType) {
     return areaType?.toUpperCase() === expectedType?.toUpperCase()
+  }
+
+  /**
+   * Check if area type represents PSO, including legacy label 'PSO Area'
+   * @param {string} areaType
+   * @returns {boolean}
+   * @private
+   */
+  #isPsoArea(areaType) {
+    const normalized = areaType?.toUpperCase()
+    return normalized === 'PSO' || normalized === AREA_TYPE_MAP.PSO?.toUpperCase()
   }
 }
