@@ -287,6 +287,8 @@ export class AreaService {
    */
   #isPsoArea(areaType) {
     const normalized = areaType?.toUpperCase()
-    return normalized === 'PSO' || normalized === AREA_TYPE_MAP.PSO?.toUpperCase()
+    return (
+      normalized === 'PSO' || normalized === AREA_TYPE_MAP.PSO?.toUpperCase()
+    )
   }
 }

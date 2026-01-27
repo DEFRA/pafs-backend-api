@@ -30,7 +30,13 @@ async function validateCreatePermissions(isCreate, isRma, request, h) {
 }
 
 // Helper: check for duplicate project name
-async function validateDuplicateProjectName(projectService, name, referenceNumber, request, h) {
+async function validateDuplicateProjectName(
+  projectService,
+  name,
+  referenceNumber,
+  request,
+  h
+) {
   const nameCheck = await projectService.checkDuplicateProjectName({
     name,
     referenceNumber
