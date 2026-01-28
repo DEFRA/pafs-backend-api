@@ -1,6 +1,10 @@
 import hapiAuthJwt2 from 'hapi-auth-jwt2'
 import { AUTH_ERROR_CODES } from '../../common/constants/auth.js'
 import { HTTP_STATUS } from '../../common/constants/common.js'
+import {
+  fetchUserAreas,
+  getAreaTypeFlags
+} from '../areas/helpers/user-areas.js'
 
 async function fetchUser(request, userId) {
   return request.prisma.pafs_core_users.findUnique({
@@ -72,14 +76,18 @@ function checkUserStatus(user, decoded, request) {
   return null
 }
 
-function buildCredentials(user, decoded) {
+function buildCredentials(user, decoded, areas) {
+  const areaFlags = getAreaTypeFlags(areas)
+
   return {
     userId: Number(user.id),
     email: user.email,
     firstName: user.first_name,
     lastName: user.last_name,
     isAdmin: user.admin,
-    sessionId: decoded.sessionId
+    sessionId: decoded.sessionId,
+    areas,
+    ...areaFlags
   }
 }
 
@@ -102,9 +110,12 @@ async function validate(decoded, request) {
       return statusErr
     }
 
+    // Fetch user areas with types using shared utility
+    const areas = await fetchUserAreas(request.prisma, decoded.userId)
+
     return {
       isValid: true,
-      credentials: buildCredentials(user, decoded)
+      credentials: buildCredentials(user, decoded, areas)
     }
   } catch (error) {
     request.server.logger.error({ err: error }, 'Error validating JWT token')

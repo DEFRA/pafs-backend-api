@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import checkProjectName from './check-project-name.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { ProjectService } from '../services/project-service.js'
 
 describe('checkProjectName', () => {
   let mockRequest
@@ -9,6 +10,8 @@ describe('checkProjectName', () => {
   let mockLogger
 
   beforeEach(() => {
+    vi.clearAllMocks()
+
     mockLogger = {
       info: vi.fn(),
       error: vi.fn(),
@@ -71,9 +74,12 @@ describe('checkProjectName', () => {
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
-      expect(result.data).toEqual({ exists: false })
+      expect(result.data).toEqual({ name: 'Test_Project', valid: true })
       expect(result.statusCode).toBe(HTTP_STATUS.OK)
-      expect(mockH.response).toHaveBeenCalledWith({ exists: false })
+      expect(mockH.response).toHaveBeenCalledWith({
+        name: 'Test_Project',
+        valid: true
+      })
     })
 
     test('Should return exists: true when project name exists', async () => {
@@ -81,9 +87,13 @@ describe('checkProjectName', () => {
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
-      expect(result.data).toEqual({ exists: true })
-      expect(result.statusCode).toBe(HTTP_STATUS.OK)
-      expect(mockH.response).toHaveBeenCalledWith({ exists: true })
+      expect(result.data).toEqual({
+        validationErrors: {
+          errorCode: 'PROJECT_NAME_DUPLICATE',
+          message: 'A project with this name already exists'
+        }
+      })
+      expect(result.statusCode).toBe(HTTP_STATUS.BAD_REQUEST)
     })
 
     test('Should handle database errors gracefully', async () => {
@@ -92,14 +102,43 @@ describe('checkProjectName', () => {
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
-      expect(result.statusCode).toBe(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      // Service catches DB errors and returns isValid: false with error message
+      expect(result.statusCode).toBe(HTTP_STATUS.BAD_REQUEST)
       expect(result.data).toEqual({
-        statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-        error: 'An error occurred while checking the project name'
+        validationErrors: {
+          errorCode: 'PROJECT_NAME_DUPLICATE',
+          message: 'Unable to verify project name uniqueness'
+        }
       })
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { error: dbError.message, name: 'Test_Project' },
-        'Error checking project name existence'
+        { projectName: 'Test_Project', error: dbError.message },
+        'Error checking duplicate project name'
+      )
+    })
+
+    test('Should handle unexpected service errors with INTERNAL_SERVER_ERROR', async () => {
+      // Mock checkDuplicateProjectName to throw an unexpected error
+      const serviceError = new Error('Unexpected database error')
+      vi.spyOn(
+        ProjectService.prototype,
+        'checkDuplicateProjectName'
+      ).mockRejectedValueOnce(serviceError)
+
+      const result = await checkProjectName.options.handler(mockRequest, mockH)
+
+      expect(result.statusCode).toBe(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      expect(result.data).toEqual({
+        errors: [
+          {
+            errorCode: 'PROJECT_NAME_VALIDATION_ERROR',
+            message: 'An error occurred while validating the name',
+            field: null
+          }
+        ]
+      })
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.any(Error) }),
+        'Name validation failed'
       )
     })
 
@@ -127,7 +166,12 @@ describe('checkProjectName', () => {
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
-      expect(result.data).toEqual({ exists: true })
+      expect(result.data).toEqual({
+        validationErrors: {
+          errorCode: 'PROJECT_NAME_DUPLICATE',
+          message: 'A project with this name already exists'
+        }
+      })
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -149,10 +193,6 @@ describe('checkProjectName', () => {
         { projectName: 'Test_Project' },
         'Checking if project name exists'
       )
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        { projectName: 'Test_Project', exists: false },
-        'Project name existence check completed'
-      )
     })
 
     test('Should handle project names with hyphens and underscores', async () => {
@@ -161,7 +201,7 @@ describe('checkProjectName', () => {
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
-      expect(result.data).toEqual({ exists: false })
+      expect(result.data).toEqual({ name: 'Test-Project_123', valid: true })
       expect(result.statusCode).toBe(HTTP_STATUS.OK)
     })
 
