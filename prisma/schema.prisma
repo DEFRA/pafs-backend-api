@@ -383,6 +383,7 @@ model pafs_core_users {
   status                     String                 @default("active") @db.VarChar(255)
   inactivity_warning_sent_at DateTime?              @db.Timestamp(6)
   pafs_core_user_areas       pafs_core_user_areas[]
+  file_uploads               file_uploads[]
 
   @@index([disabled], map: "index_pafs_core_users_on_disabled")
   @@index([invitations_count], map: "index_pafs_core_users_on_invitations_count")
@@ -419,4 +420,38 @@ model scheduler_logs {
   @@index([status], map: "idx_scheduler_logs_status")
   @@index([task_name], map: "idx_scheduler_logs_task_name")
   @@index([task_name, status], map: "idx_scheduler_logs_task_status")
+}
+
+model file_uploads {
+  id                       BigInt                @id @default(autoincrement())
+  upload_id                String                @unique @db.VarChar(255)
+  file_id                  String?               @db.VarChar(255)
+  filename                 String?               @db.VarChar(500)
+  original_filename        String?               @db.VarChar(500)
+  content_type             String?               @db.VarChar(255)
+  detected_content_type    String?               @db.VarChar(255)
+  content_length           BigInt?
+  checksum_sha256          String?               @db.VarChar(255)
+  upload_status            String                @db.VarChar(50)
+  file_status              String?               @db.VarChar(50)
+  rejection_reason         String?
+  number_of_rejected_files Int                   @default(0)
+  s3_bucket                String?               @db.VarChar(255)
+  s3_key                   String?               @db.VarChar(1000)
+  entity_type              String?               @db.VarChar(100)
+  entity_id                BigInt?
+  reference                String?               @db.VarChar(255)
+  uploaded_by_user_id      BigInt?
+  metadata                 Json?
+  created_at               DateTime              @default(now()) @db.Timestamp(6)
+  updated_at               DateTime              @default(now()) @db.Timestamp(6)
+  completed_at             DateTime?             @db.Timestamp(6)
+  pafs_core_users          pafs_core_users?      @relation(fields: [uploaded_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_file_uploads_user")
+
+  @@index([upload_id], map: "idx_file_uploads_upload_id")
+  @@index([entity_type, entity_id], map: "idx_file_uploads_entity")
+  @@index([reference], map: "idx_file_uploads_reference")
+  @@index([uploaded_by_user_id], map: "idx_file_uploads_user")
+  @@index([upload_status], map: "idx_file_uploads_status")
+  @@index([created_at], map: "idx_file_uploads_created_at")
 }

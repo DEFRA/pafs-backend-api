@@ -9,6 +9,7 @@ import areasPlugin from './plugins/areas/index.js'
 import accountsPlugin from './plugins/accounts/index.js'
 import emailValidationPlugin from './plugins/email-validation/index.js'
 import projectsPlugin from './plugins/projects/index.js'
+import fileUploadPlugin from './plugins/file-upload/index.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { postgres } from './plugins/database/postgres.js'
 import { prisma } from './plugins/database/prisma.js'
@@ -92,7 +93,8 @@ async function createServer() {
     areasPlugin,
     accountsPlugin,
     emailValidationPlugin,
-    projectsPlugin
+    projectsPlugin,
+    fileUploadPlugin
   ])
 
   // Register scheduler after other plugins so logger is available

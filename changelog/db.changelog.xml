@@ -34,5 +34,6 @@
     <include file="changelog/5-002-create-scheduler-logs-table.xml" />
     <include file="changelog/5-003-add-is-legacy-to-core-projects-default-status-to-users.xml" />
     <include file="changelog/6-001-add-inactivity-warning-sent-at-column.xml" />
+    <include file="changelog/7-001-create-file-uploads-table.xml" />
 
 </databaseChangeLog>
