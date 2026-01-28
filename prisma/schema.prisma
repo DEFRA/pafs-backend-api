@@ -385,9 +385,9 @@ model pafs_core_users {
   pafs_core_user_areas       pafs_core_user_areas[]
 
   @@index([disabled], map: "index_pafs_core_users_on_disabled")
+  @@index([inactivity_warning_sent_at], map: "index_pafs_core_users_on_inactivity_warning_sent_at")
   @@index([invitations_count], map: "index_pafs_core_users_on_invitations_count")
   @@index([invited_by_id], map: "index_pafs_core_users_on_invited_by_id")
-  @@index([inactivity_warning_sent_at], map: "index_pafs_core_users_on_inactivity_warning_sent_at")
 }
 
 model scheduler_locks {
