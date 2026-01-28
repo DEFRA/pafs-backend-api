@@ -111,9 +111,11 @@ describe('upsertProject handler', () => {
 
       expect(mockH.response).toHaveBeenCalledWith({
         statusCode: HTTP_STATUS.FORBIDDEN,
-        error: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-        message:
-          'Only RMA users can create new projects. Your primary area type is: PSO Area'
+        errors: {
+          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+          message:
+            'Only RMA users can create new projects. Your primary area type is: PSO Area'
+        }
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
       expect(mockLogger.warn).toHaveBeenCalled()

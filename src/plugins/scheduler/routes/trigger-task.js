@@ -4,31 +4,7 @@ import {
   TRIGGER_TYPE
 } from '../../../common/constants/scheduler.js'
 import { HTTP_STATUS } from '../../../common/constants/common.js'
-
-/**
- * Check if user is admin and handle authorization
- * @private
- */
-function checkAdminAuthorization(authenticatedUser, logger, taskName) {
-  if (authenticatedUser.isAdmin) {
-    return null
-  }
-
-  logger.warn(
-    { userId: authenticatedUser.id, taskName },
-    'Non-admin user attempted to trigger scheduled task'
-  )
-  return {
-    statusCode: HTTP_STATUS.FORBIDDEN,
-    response: {
-      success: false,
-      error: {
-        code: SCHEDULER_ERROR_CODES.UNAUTHORIZED,
-        message: 'Admin authentication required to trigger scheduled tasks'
-      }
-    }
-  }
-}
+import { requireAdmin } from '../helpers/admin-check.js'
 
 /**
  * Check if task exists in scheduler
@@ -92,7 +68,7 @@ function buildSuccessResponse(taskName, result, authenticatedUser) {
     success: true,
     data: {
       taskName,
-      triggeredBy: authenticatedUser.id,
+      triggeredBy: authenticatedUser.userId,
       triggerType: TRIGGER_TYPE.API,
       durationMs: result.durationMs,
       result: result.result
@@ -136,22 +112,17 @@ export default {
     }
   },
   handler: async (request, h) => {
+    const adminCheck = requireAdmin(request, h)
+    if (adminCheck) {
+      return adminCheck
+    }
+
     const { taskName } = request.payload
     const authenticatedUser = request.auth.credentials
     const { logger, scheduler } = request.server
 
-    // Check authorization
-    const authError = checkAdminAuthorization(
-      authenticatedUser,
-      logger,
-      taskName
-    )
-    if (authError) {
-      return h.response(authError.response).code(authError.statusCode)
-    }
-
     logger.info(
-      { userId: authenticatedUser.id, taskName },
+      { userId: authenticatedUser.userId, taskName },
       'Admin user triggering scheduled task'
     )
 
@@ -163,7 +134,10 @@ export default {
       }
 
       // Trigger the task
-      const result = await scheduler.triggerTask(taskName, authenticatedUser.id)
+      const result = await scheduler.triggerTask(
+        taskName,
+        authenticatedUser.userId
+      )
 
       // Handle result
       const resultError = handleTaskResult(taskName, result, logger)
@@ -180,7 +154,7 @@ export default {
       return h.response(successResponse).code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error(
-        { error, taskName, userId: authenticatedUser.id },
+        { error, taskName, userId: authenticatedUser.userId },
         'Error triggering scheduled task'
       )
 

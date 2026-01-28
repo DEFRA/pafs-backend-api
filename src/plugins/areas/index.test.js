@@ -6,26 +6,47 @@ const areasPlugin = module.default
 
 describe('areas plugin', () => {
   describe('plugin registration', () => {
-    test('Should register areas route', async () => {
+    test('Should register areas routes', async () => {
       const server = Hapi.server()
 
-      // Mock logger
+      // Mock logger and auth strategy
       server.decorate('server', 'logger', { info: vi.fn() })
+      server.auth.scheme('jwt', () => ({ authenticate: vi.fn() }))
+      server.auth.strategy('jwt', 'jwt')
 
       await server.register(areasPlugin)
 
       const routes = server.table()
 
-      const areasRoute = routes.find((r) => r.path === '/api/v1/areas-by-type')
+      const areasByTypeRoute = routes.find(
+        (r) => r.path === '/api/v1/areas-by-type'
+      )
+      const areasByListRoute = routes.find(
+        (r) => r.path === '/api/v1/areas-by-list'
+      )
+      const areaByIdRoute = routes.find(
+        (r) => r.path === '/api/v1/area-by-id/{id}'
+      )
+      const areasUpsertRoute = routes.find(
+        (r) => r.path === '/api/v1/areas/upsert'
+      )
 
-      expect(areasRoute).toBeDefined()
-      expect(areasRoute.method).toBe('get')
+      expect(areasByTypeRoute).toBeDefined()
+      expect(areasByTypeRoute.method).toBe('get')
+      expect(areasByListRoute).toBeDefined()
+      expect(areasByListRoute.method).toBe('get')
+      expect(areaByIdRoute).toBeDefined()
+      expect(areaByIdRoute.method).toBe('get')
+      expect(areasUpsertRoute).toBeDefined()
+      expect(areasUpsertRoute.method).toBe('post')
     })
 
     test('Should log plugin registration', async () => {
       const server = Hapi.server()
       const mockLogger = { info: vi.fn() }
       server.decorate('server', 'logger', mockLogger)
+      server.auth.scheme('jwt', () => ({ authenticate: vi.fn() }))
+      server.auth.strategy('jwt', 'jwt')
 
       await server.register(areasPlugin)
 
@@ -40,18 +61,20 @@ describe('areas plugin', () => {
       expect(areasPlugin.version).toBe('1.0.0')
     })
 
-    test('Should register exactly one route', async () => {
+    test('Should register three routes', async () => {
       const server = Hapi.server()
       server.decorate('server', 'logger', { info: vi.fn() })
+      server.auth.scheme('jwt', () => ({ authenticate: vi.fn() }))
+      server.auth.strategy('jwt', 'jwt')
 
       await server.register(areasPlugin)
 
       const routes = server.table()
-      const pluginRoutes = routes.filter(
-        (r) => r.path === '/api/v1/areas-by-type'
+      const pluginRoutes = routes.filter((r) =>
+        r.path.startsWith('/api/v1/areas')
       )
 
-      expect(pluginRoutes).toHaveLength(1)
+      expect(pluginRoutes).toHaveLength(3)
     })
   })
 })

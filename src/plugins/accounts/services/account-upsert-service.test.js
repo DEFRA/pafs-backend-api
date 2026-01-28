@@ -386,40 +386,24 @@ describe('AccountUpsertService', () => {
       })
     })
 
+    // determineInvitationDetails tests moved to account-invitation-service.test.js
     describe('determineInvitationDetails', () => {
-      it('auto-approves gov.uk domain', () => {
-        const result = service.determineInvitationDetails('user@gov.uk', null)
-
-        expect(result.status).toBe(ACCOUNT_STATUS.APPROVED)
-        expect(result.invitedByType).toBe(ACCOUNT_INVITATION_BY.SYSTEM)
-      })
-
-      it('sets pending for non-approved domain', () => {
-        const result = service.determineInvitationDetails(
-          'user@example.com',
+      it('uses invitationService to determine invitation details', () => {
+        const result = service.invitationService.determineInvitationDetails(
+          'user@gov.uk',
           null
         )
 
-        expect(result.status).toBe(ACCOUNT_STATUS.PENDING)
-        expect(result.invitedByType).toBe(ACCOUNT_INVITATION_BY.SYSTEM)
-        expect(result.invitedById).toBe(null)
-      })
-
-      it('approves when admin creates account', () => {
-        const result = service.determineInvitationDetails(
-          'user@example.com',
-          authenticatedAdmin
-        )
-
         expect(result.status).toBe(ACCOUNT_STATUS.APPROVED)
-        expect(result.invitedByType).toBe(ACCOUNT_INVITATION_BY.USER)
-        expect(result.invitedById).toBe(100)
+        expect(result.invitedByType).toBe(ACCOUNT_INVITATION_BY.SYSTEM)
       })
     })
 
+    // sendAdminNotification tests moved to account-email-service.test.js
     describe('sendAdminNotification', () => {
-      it('sends notification with area names', async () => {
+      it('uses emailService to send admin notifications', async () => {
         const user = {
+          id: BigInt(1),
           email: 'user@example.com',
           first_name: 'John',
           last_name: 'Doe',
@@ -435,114 +419,31 @@ describe('AccountUpsertService', () => {
           { areaId: '2', primary: false }
         ]
 
-        // Mock the getAreaDetailsByIds call specifically for this test
         mockAreaService.getAreaDetailsByIds = vi.fn().mockResolvedValue([
           { id: '1', name: 'Thames', areaType: 'EA Area' },
           { id: '2', name: 'Anglian', areaType: 'EA Area' }
         ])
 
-        await service.sendAdminNotification(user, areas)
+        await service.emailService.sendAdminNotification(user, areas)
 
-        expect(mockAreaService.getAreaDetailsByIds).toHaveBeenCalledWith([
-          '1',
-          '2'
-        ])
-        expect(mockEmailService.send).toHaveBeenCalledWith(
-          'admin-template-id',
-          'admin@example.com',
-          expect.objectContaining({
-            email_address: 'user@example.com',
-            main_area: 'Thames',
-            optional_areas: 'Anglian',
-            responsibility_area: 'Environment Agency – Area Programme Team'
-          }),
-          'admin-notification'
-        )
-      })
-
-      it('handles empty areas', async () => {
-        const user = {
-          email: 'user@example.com',
-          first_name: 'John',
-          responsibility: 'RMA',
-          status: ACCOUNT_STATUS.APPROVED
-        }
-
-        await service.sendAdminNotification(user, [])
-
-        expect(mockAreaService.getAreaDetailsByIds).not.toHaveBeenCalled()
-        expect(mockEmailService.send).toHaveBeenCalledWith(
-          'admin-template-id',
-          'admin@example.com',
-          expect.objectContaining({
-            main_area: 'Not specified',
-            optional_areas: 'None',
-            responsibility_area: 'Risk Management Authority (RMA)'
-          }),
-          'admin-notification'
-        )
+        expect(mockEmailService.send).toHaveBeenCalled()
       })
     })
 
+    // getAutoApprovedDomains tests moved to account-invitation-service.test.js
     describe('getAutoApprovedDomains', () => {
-      it('parses comma-separated domains', () => {
-        const result = service.getAutoApprovedDomains()
-
-        expect(result).toEqual(['gov.uk', 'nhs.uk'])
-      })
-
-      it('returns empty array when no domains configured', async () => {
-        const { config } = await import('../../../config.js')
-        config.get.mockReturnValueOnce(null)
-
-        const result = service.getAutoApprovedDomains()
-
-        expect(result).toEqual([])
-      })
-
-      it('handles empty string configuration', async () => {
-        const { config } = await import('../../../config.js')
-        config.get.mockReturnValueOnce('')
-
-        const result = service.getAutoApprovedDomains()
-
-        expect(result).toEqual([])
-      })
-
-      it('filters out empty domains after trim', async () => {
-        const { config } = await import('../../../config.js')
-        config.get.mockReturnValueOnce('gov.uk, , nhs.uk,  ')
-
-        const result = service.getAutoApprovedDomains()
+      it('uses invitationService to get auto-approved domains', () => {
+        const result = service.invitationService._getAutoApprovedDomains()
 
         expect(result).toEqual(['gov.uk', 'nhs.uk'])
       })
     })
 
+    // sendAdminNotification edge case tests moved to account-email-service.test.js
     describe('sendAdminNotification - edge cases', () => {
-      it('skips notification when admin email not configured', async () => {
-        const { config } = await import('../../../config.js')
-        const originalGet = config.get
-        config.get = vi.fn((key) => {
-          if (key === 'notify.adminEmail') return null
-          return originalGet(key)
-        })
-
-        const user = {
-          email: 'user@example.com',
-          first_name: 'John',
-          responsibility: 'EA',
-          status: ACCOUNT_STATUS.PENDING
-        }
-
-        await service.sendAdminNotification(user, [])
-
-        expect(mockLogger.warn).toHaveBeenCalledWith(
-          'Admin email not configured, skipping notification'
-        )
-        expect(mockEmailService.send).not.toHaveBeenCalled()
-
-        config.get = originalGet
+      it('emailService handles admin email configuration', async () => {
+        // This test is covered in account-email-service.test.js
+        expect(service.emailService).toBeDefined()
       })
     })
 
@@ -1508,99 +1409,18 @@ describe('AccountUpsertService', () => {
     })
   })
 
+  // isEmailAutoApproved tests moved to account-invitation-service.test.js
   describe('isEmailAutoApproved', () => {
-    it('should return true for email from auto-approved domain', () => {
-      const result = service.isEmailAutoApproved('user@gov.uk')
+    it('uses invitationService to check auto-approved emails', () => {
+      const result =
+        service.invitationService._isEmailAutoApproved('user@gov.uk')
       expect(result).toBe(true)
     })
 
-    it('should return true for email from another auto-approved domain', () => {
-      const result = service.isEmailAutoApproved('user@nhs.uk')
-      expect(result).toBe(true)
-    })
-
-    it('should return false for email from non-approved domain', () => {
-      const result = service.isEmailAutoApproved('user@example.com')
+    it('returns false for non-approved domain', () => {
+      const result =
+        service.invitationService._isEmailAutoApproved('user@example.com')
       expect(result).toBe(false)
-    })
-
-    it('should be case-insensitive for domain matching', () => {
-      const result = service.isEmailAutoApproved('user@GOV.UK')
-      expect(result).toBe(true)
-    })
-
-    it('should handle subdomain of approved domain', () => {
-      const result = service.isEmailAutoApproved('user@mail.gov.uk')
-      expect(result).toBe(true)
-    })
-
-    it('should handle multiple level subdomains', () => {
-      const result = service.isEmailAutoApproved('user@internal.mail.gov.uk')
-      expect(result).toBe(true)
-    })
-
-    it('should handle domain provided directly without email format', () => {
-      const result = service.isEmailAutoApproved('gov.uk')
-      expect(result).toBe(true)
-    })
-
-    it('should handle whitespace in email', () => {
-      const result = service.isEmailAutoApproved('  user@gov.uk  ')
-      expect(result).toBe(true)
-    })
-
-    it('should not match partial domain names', () => {
-      const result = service.isEmailAutoApproved('user@notgov.uk')
-      expect(result).toBe(false)
-    })
-
-    it('should not return true when parent of approved domain', () => {
-      const result = service.isEmailAutoApproved('user@uk')
-      expect(result).toBe(false)
-    })
-
-    it('should handle empty auto-approved domains list gracefully', () => {
-      // Test the behavior when no domains match
-      const result = service.isEmailAutoApproved('user@random-domain.com')
-      expect(result).toBe(false)
-    })
-
-    it('should work with all configured domains from config', () => {
-      // Configuration returns 'gov.uk,nhs.uk' - test both
-      expect(service.isEmailAutoApproved('admin@gov.uk')).toBe(true)
-      expect(service.isEmailAutoApproved('nurse@nhs.uk')).toBe(true)
-      expect(service.isEmailAutoApproved('user@private.com')).toBe(false)
-    })
-
-    it('should handle domain with numbers', () => {
-      const result = service.isEmailAutoApproved('user@test123.gov.uk')
-      expect(result).toBe(true)
-    })
-
-    it('should handle domain with hyphens', () => {
-      const result = service.isEmailAutoApproved('user@test-server.gov.uk')
-      expect(result).toBe(true)
-    })
-
-    it('should return false for null or undefined email gracefully', () => {
-      // These should not throw and should return false
-      // The function will convert null/undefined to string
-      const resultNull = service.isEmailAutoApproved(null)
-      const resultUndefined = service.isEmailAutoApproved(undefined)
-      expect(resultNull).toBe(false)
-      expect(resultUndefined).toBe(false)
-    })
-
-    it('should integrate with getAutoApprovedDomains', () => {
-      const domains = service.getAutoApprovedDomains()
-      expect(domains).toContain('gov.uk')
-      expect(domains).toContain('nhs.uk')
-      expect(domains.length).toBe(2)
-    })
-
-    it('should handle case variations in config domains', () => {
-      const result = service.isEmailAutoApproved('user@GOV.UK')
-      expect(result).toBe(true)
     })
   })
 })

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="6-001-add-inactivity-warning-sent-at" author="migration-team">
+    <comment>Add inactivity_warning_sent_at field to pafs_core_users table to track when inactivity warning email was sent</comment>
+
+    <!-- Add inactivity_warning_sent_at field - NULLABLE timestamp -->
+    <addColumn tableName="pafs_core_users">
+      <column name="inactivity_warning_sent_at" type="TIMESTAMP">
+        <constraints nullable="true"/>
+      </column>
+    </addColumn>
+
+    <!-- Add index for efficient querying of accounts needing warning -->
+    <createIndex indexName="index_pafs_core_users_on_inactivity_warning_sent_at" tableName="pafs_core_users">
+      <column name="inactivity_warning_sent_at"/>
+    </createIndex>
+
+    <rollback>
+      <dropIndex indexName="index_pafs_core_users_on_inactivity_warning_sent_at" tableName="pafs_core_users"/>
+      <dropColumn tableName="pafs_core_users" columnName="inactivity_warning_sent_at"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

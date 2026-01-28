@@ -35,5 +35,6 @@
     <include file="changelog/5-003-add-is-legacy-to-core-projects-default-status-to-users.xml" />
     <include file="changelog/5-004-add-unique-constraint-states-project-id.xml" />
     <include file="changelog/5-005-add-unique-constraint-area-projects-project-id.xml" />
+    <include file="changelog/6-001-add-inactivity-warning-sent-at-column.xml" />
 
 </databaseChangeLog>

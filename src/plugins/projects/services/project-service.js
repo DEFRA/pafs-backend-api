@@ -196,7 +196,7 @@ export class ProjectService {
         where: {
           reference_number_version: {
             reference_number: referenceNumber,
-            version: 0
+            version: 1
           }
         },
         update: dbData,
@@ -204,7 +204,7 @@ export class ProjectService {
           ...dbData,
           reference_number: referenceNumber,
           slug,
-          version: 0,
+          version: 1,
           is_legacy: false,
           creator_id: userId,
           created_at: new Date()
