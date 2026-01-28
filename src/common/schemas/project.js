@@ -65,14 +65,14 @@ export const projectNameSchema = Joi.string()
 /**
  * Project RMA ID schema - for updates
  */
-export const projectRmaIdSchema = Joi.number()
-  .integer()
-  .positive()
+export const projectRmaIdSchema = Joi.string()
+  .trim()
+  .pattern(/^\d+$/)
   .label('Project RMA ID')
   .required()
   .messages({
-    'number.base': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
-    'number.positive': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
+    'string.empty': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_REQUIRED,
+    'string.pattern.base': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
     'any.required': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_REQUIRED
   })
 
@@ -123,6 +123,7 @@ const getValidInterventionTypes = (projectType) => {
 /**
  * Project intervention type schema - for updates
  * Required only when projectType is DEF, REP, or REF
+ * Forbidden for other project types
  * Multiple selection checkbox - array of strings
  * Valid options:
  * - DEF or REP: NFM, PFR, SUDS, OTHER
@@ -162,7 +163,10 @@ export const projectInterventionTypeSchema = Joi.array()
           'any.only':
             PROPOSAL_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_INVALID
         }),
-      otherwise: Joi.array().optional()
+      otherwise: Joi.forbidden().messages({
+        'any.unknown':
+          'Project Intervention Types should not be provided for this project type'
+      })
     })
   })
   .label('Project Intervention Type')
@@ -193,25 +197,37 @@ const validateMainInterventionType = (value, helpers) => {
 
 /**
  * Project main intervention type schema - for updates
- * Required when projectInterventionType is provided
+ * Required when projectType is DEF, REP, or REF AND projectInterventionType is provided
+ * Forbidden for other project types
  * Must be one of the values selected in projectInterventionType
  */
 export const projectMainInterventionTypeSchema = Joi.string()
   .trim()
-  .when('projectInterventionType', {
-    is: Joi.array().min(SIZE.LENGTH_1),
-    then: Joi.string()
-      .required()
-      .custom(validateMainInterventionType)
-      .messages({
-        'string.empty':
-          PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
-        'any.required':
-          PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
-        'any.only':
-          PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_INVALID
-      }),
-    otherwise: Joi.string().optional()
+  .when('projectType', {
+    is: Joi.string().valid(
+      PROJECT_TYPES.DEF,
+      PROJECT_TYPES.REP,
+      PROJECT_TYPES.REF
+    ),
+    then: Joi.when('projectInterventionType', {
+      is: Joi.array().min(SIZE.LENGTH_1),
+      then: Joi.string()
+        .required()
+        .custom(validateMainInterventionType)
+        .messages({
+          'string.empty':
+            PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
+          'any.required':
+            PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
+          'any.only':
+            PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_INVALID
+        }),
+      otherwise: Joi.string().optional()
+    }),
+    otherwise: Joi.forbidden().messages({
+      'any.unknown':
+        'Main Intervention Type should not be provided for this project type'
+    })
   })
   .label('Project Main Intervention Type')
 
