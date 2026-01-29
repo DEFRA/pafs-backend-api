@@ -21,20 +21,15 @@ export class CdpUploaderService {
       .get('cdpUploader.allowedMimeTypes')
       .split(',')
     this.timeout = config.get('cdpUploader.timeout')
-    this.useLocalstack = config.get('cdpUploader.useLocalstack')
-    this.s3Endpoint = config.get('cdpUploader.s3Endpoint')
     this.awsRegion = config.get('awsRegion')
 
     if (this.enabled) {
-      const mode = this.useLocalstack ? 'localstack' : 'CDP Uploader'
       this.logger.info(
         {
-          mode,
           baseUrl: this.baseUrl,
-          s3Bucket: this.s3Bucket,
-          s3Endpoint: this.s3Endpoint
+          s3Bucket: this.s3Bucket
         },
-        `CDP Uploader service initialized (${mode} mode)`
+        'CDP Uploader service initialized'
       )
     } else {
       this.logger.warn('CDP Uploader disabled')
@@ -55,11 +50,6 @@ export class CdpUploaderService {
     if (!this.enabled) {
       this.logger.warn('CDP Uploader disabled - returning mock response')
       return this.getMockInitiateResponse(metadata)
-    }
-
-    // In localstack mode, we bypass CDP Uploader and return direct S3 upload URL
-    if (this.useLocalstack) {
-      return this.initiateLocalstackUpload({ redirect, metadata })
     }
 
     const payload = {
@@ -121,39 +111,6 @@ export class CdpUploaderService {
         'Failed to initiate upload'
       )
       throw error
-    }
-  }
-
-  /**
-   * Initiate upload for localstack mode (bypasses CDP Uploader)
-   * @private
-   */
-  initiateLocalstackUpload({ _redirect, metadata }) {
-    const uploadId = this.generateUploadId()
-
-    // In localstack mode, return mock ready status (no virus scanning)
-    if (this.useLocalstack) {
-      this.logger.debug(
-        { uploadId },
-        'Localstack mode - returning ready status'
-      )
-      return this.getMockStatusResponse(uploadId)
-    }
-
-    this.logger.info(
-      {
-        uploadId,
-        mode: 'localstack'
-      },
-      'Localstack upload session initiated'
-    )
-
-    return {
-      uploadId,
-      uploadUrl: `/upload-and-scan/${uploadId}`,
-      statusUrl: `${this.baseUrl}/status/${uploadId}`,
-      metadata: metadata || {},
-      localstack: true
     }
   }
 
@@ -233,9 +190,7 @@ export class CdpUploaderService {
       enabled: this.enabled,
       baseUrl: this.baseUrl,
       s3Bucket: this.s3Bucket,
-      s3Path: this.s3Path,
-      mode: this.useLocalstack ? 'localstack' : 'cdp-uploader',
-      s3Endpoint: this.s3Endpoint
+      s3Path: this.s3Path
     }
   }
 

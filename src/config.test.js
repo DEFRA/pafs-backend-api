@@ -413,20 +413,6 @@ describe('config', () => {
       expect(extensions).toContain('.pdf')
       expect(extensions).toContain('.docx')
     })
-
-    test('Should use localstack in non-production', async () => {
-      const { config } = await import('./config.js')
-      const useLocalstack = config.get('cdpUploader.useLocalstack')
-      const s3Endpoint = config.get('cdpUploader.s3Endpoint')
-
-      // Should have localstack configuration
-      expect(typeof useLocalstack).toBe('boolean')
-
-      // If localstack is enabled, should have endpoint
-      if (useLocalstack) {
-        expect(s3Endpoint).toBeTruthy()
-      }
-    })
   })
 
   describe('pagination configuration', () => {

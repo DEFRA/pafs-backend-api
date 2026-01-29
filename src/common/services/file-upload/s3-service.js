@@ -9,14 +9,13 @@ import { config } from '../../../config.js'
 export class S3Service {
   constructor(logger) {
     this.logger = logger
-    this.region = config.get('cdpUploader.s3Region')
+    this.region = config.get('awsRegion')
     this.endpoint = config.get('cdpUploader.s3Endpoint')
-    this.useLocalstack = config.get('cdpUploader.useLocalstack')
 
     // Configure S3 client
     const clientConfig = {
       region: this.region,
-      forcePathStyle: this.useLocalstack // Required for localstack
+      forcePathStyle: !!this.endpoint // Required for localstack
     }
 
     if (this.endpoint) {
@@ -28,8 +27,7 @@ export class S3Service {
     this.logger.info(
       {
         region: this.region,
-        endpoint: this.endpoint,
-        mode: this.useLocalstack ? 'localstack' : 'aws'
+        endpoint: this.endpoint || 'AWS default'
       },
       'S3 Service initialized'
     )

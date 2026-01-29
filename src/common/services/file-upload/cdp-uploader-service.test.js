@@ -38,9 +38,7 @@ describe('CdpUploaderService', () => {
       'cdpUploader.maxFileSize': 20000000,
       'cdpUploader.allowedMimeTypes': 'application/pdf,image/jpeg,image/png',
       'cdpUploader.timeout': 30000,
-      'cdpUploader.useLocalstack': false,
-      'cdpUploader.s3Endpoint': null,
-      awsRegion: 'eu-west-2'
+      'awsRegion': 'eu-west-2'
     }
     configModule.config.get = vi.fn((key) => mockConfig[key])
 
@@ -65,11 +63,10 @@ describe('CdpUploaderService', () => {
       expect(service.s3Path).toBe('uploads/')
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.objectContaining({
-          mode: 'CDP Uploader',
           baseUrl: 'https://cdp-uploader.test.cdp-int.defra.cloud',
           s3Bucket: 'test-bucket'
         }),
-        'CDP Uploader service initialized (CDP Uploader mode)'
+        'CDP Uploader service initialized'
       )
     })
 
@@ -191,25 +188,6 @@ describe('CdpUploaderService', () => {
       )
     })
 
-    test('should use localstack mode when configured', async () => {
-      mockConfig['cdpUploader.useLocalstack'] = true
-
-      const service = new CdpUploaderService(mockLogger)
-      const result = await service.initiate({
-        redirect: '/success',
-        callback: 'https://api.test.com/callback',
-        metadata: { test: 'data' }
-      })
-
-      // In localstack mode, it returns a mock status response
-      expect(result).toHaveProperty('uploadStatus')
-      expect(result.uploadStatus).toBe('ready')
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        expect.objectContaining({ uploadId: expect.any(String) }),
-        'Localstack mode - returning ready status'
-      )
-    })
-
     test('should not include s3Path when not configured', async () => {
       mockConfig['cdpUploader.s3Path'] = null
 
@@ -284,26 +262,6 @@ describe('CdpUploaderService', () => {
       const body = JSON.parse(callArgs.body)
 
       expect(body.metadata).toEqual({})
-    })
-
-    test('should handle initiateLocalstackUpload fallback path', async () => {
-      // This tests the fallback path in initiateLocalstackUpload when useLocalstack is false
-      mockConfig['cdpUploader.useLocalstack'] = false
-      const service = new CdpUploaderService(mockLogger)
-
-      // Call the method directly
-      const result = service.initiateLocalstackUpload({
-        _redirect: '/test',
-        metadata: { test: 'data' }
-      })
-
-      expect(result).toHaveProperty('uploadId')
-      expect(result).toHaveProperty('uploadUrl')
-      expect(result).toHaveProperty('localstack', true)
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({ mode: 'localstack' }),
-        'Localstack upload session initiated'
-      )
     })
   })
 
@@ -440,21 +398,8 @@ describe('CdpUploaderService', () => {
         enabled: true,
         baseUrl: 'https://cdp-uploader.test.cdp-int.defra.cloud',
         s3Bucket: 'test-bucket',
-        s3Path: 'uploads/',
-        mode: 'cdp-uploader',
-        s3Endpoint: null
+        s3Path: 'uploads/'
       })
-    })
-
-    test('should return localstack mode when configured', () => {
-      mockConfig['cdpUploader.useLocalstack'] = true
-      mockConfig['cdpUploader.s3Endpoint'] = 'http://localhost:4566'
-
-      const service = new CdpUploaderService(mockLogger)
-      const status = service.getServiceStatus()
-
-      expect(status.mode).toBe('localstack')
-      expect(status.s3Endpoint).toBe('http://localhost:4566')
     })
   })
 

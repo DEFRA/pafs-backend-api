@@ -402,11 +402,11 @@ const config = convict({
       env: 'CDP_UPLOADER_ENABLED'
     },
     baseUrl: {
-      doc: 'CDP Uploader base URL (set to localstack URL for local development)',
+      doc: 'CDP Uploader base URL (http://localhost:7337 for local development)',
       format: 'url',
       default: isProduction
         ? 'https://cdp-uploader.prod.cdp-int.defra.cloud'
-        : 'http://localhost:4566',
+        : 'http://localhost:7337',
       env: 'CDP_UPLOADER_BASE_URL'
     },
     s3Bucket: {
@@ -422,7 +422,7 @@ const config = convict({
       env: 'CDP_UPLOADER_S3_PATH'
     },
     s3Endpoint: {
-      doc: 'S3 endpoint URL for localstack (only used in local dev)',
+      doc: 'S3 endpoint URL for AWS SDK (http://localhost:4566 for localstack)',
       format: String,
       nullable: true,
       default: isProduction ? null : 'http://localhost:4566',
@@ -452,12 +452,6 @@ const config = convict({
       format: 'nat',
       default: 30000,
       env: 'CDP_UPLOADER_TIMEOUT'
-    },
-    useLocalstack: {
-      doc: 'Use localstack for local S3 operations (auto-detected based on environment)',
-      format: Boolean,
-      default: !isProduction,
-      env: 'CDP_UPLOADER_USE_LOCALSTACK'
     }
   }
 })

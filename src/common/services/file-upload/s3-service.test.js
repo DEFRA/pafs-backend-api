@@ -41,7 +41,7 @@ describe('S3Service', () => {
     // Reset config mock to default values
     vi.mocked(config.get).mockImplementation((key) => {
       const configValues = {
-        'cdpUploader.s3Region': 'eu-west-2',
+        'awsRegion': 'eu-west-2',
         'cdpUploader.s3Endpoint': 'http://localhost:4566',
         'cdpUploader.useLocalstack': true
       }
