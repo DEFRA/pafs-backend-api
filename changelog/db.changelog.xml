@@ -33,5 +33,7 @@
     <include file="changelog/5-001-create-scheduler-locks-table.xml" />
     <include file="changelog/5-002-create-scheduler-logs-table.xml" />
     <include file="changelog/5-003-add-is-legacy-to-core-projects-default-status-to-users.xml" />
+    <include file="changelog/5-004-add-unique-constraint-states-project-id.xml" />
+    <include file="changelog/5-005-add-unique-constraint-area-projects-project-id.xml" />
 
 </databaseChangeLog>
