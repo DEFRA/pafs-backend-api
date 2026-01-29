@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import { UPLOAD_STATUS } from '../../../common/constants/index.js'
 
 const mockCdpUploaderService = {
   getUploadStatus: vi.fn()

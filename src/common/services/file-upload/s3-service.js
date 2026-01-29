@@ -1,4 +1,8 @@
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import {
+  S3Client,
+  GetObjectCommand,
+  DeleteObjectCommand
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { config } from '../../../config.js'
 
@@ -27,7 +31,7 @@ export class S3Service {
     this.logger.info(
       {
         region: this.region,
-        endpoint: this.endpoint || 'AWS default'
+        endpoint: this.endpoint
       },
       'S3 Service initialized'
     )
@@ -74,6 +78,36 @@ export class S3Service {
   }
 
   /**
+   * Delete an object from S3
+   *
+   * @param {string} bucket - S3 bucket name
+   * @param {string} key - S3 object key
+   * @returns {Promise<void>}
+   */
+  async deleteObject(bucket, key) {
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key
+      })
+
+      await this.s3Client.send(command)
+
+      this.logger.info({ bucket, key }, 'Successfully deleted S3 object')
+    } catch (error) {
+      this.logger.error(
+        {
+          err: error,
+          bucket,
+          key
+        },
+        'Failed to delete S3 object'
+      )
+      throw error
+    }
+  }
+
+  /**
    * Get service configuration
    *
    * @returns {Object} Configuration details
@@ -81,8 +115,7 @@ export class S3Service {
   getServiceStatus() {
     return {
       region: this.region,
-      endpoint: this.endpoint,
-      mode: this.useLocalstack ? 'localstack' : 'aws'
+      endpoint: this.endpoint
     }
   }
 }

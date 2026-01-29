@@ -1,10 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import callback from './callback.js'
-import {
-  UPLOAD_STATUS,
-  CALLBACK_ERROR_MESSAGES,
-  DEFAULT_REJECTION_REASON
-} from '../../../common/constants/index.js'
 
 describe('callback', () => {
   let mockRequest

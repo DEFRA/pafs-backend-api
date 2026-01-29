@@ -5,9 +5,14 @@ vi.mock('@aws-sdk/client-s3', () => {
   return {
     S3Client: vi.fn(function (config) {
       this.config = config
+      this.send = vi.fn()
       return this
     }),
     GetObjectCommand: vi.fn(function (params) {
+      this.input = params
+      return this
+    }),
+    DeleteObjectCommand: vi.fn(function (params) {
       this.input = params
       return this
     })
@@ -41,9 +46,8 @@ describe('S3Service', () => {
     // Reset config mock to default values
     vi.mocked(config.get).mockImplementation((key) => {
       const configValues = {
-        'awsRegion': 'eu-west-2',
-        'cdpUploader.s3Endpoint': 'http://localhost:4566',
-        'cdpUploader.useLocalstack': true
+        awsRegion: 'eu-west-2',
+        'cdpUploader.s3Endpoint': 'http://localhost:4566'
       }
       return configValues[key]
     })
@@ -62,14 +66,12 @@ describe('S3Service', () => {
 
       expect(service.region).toBe('eu-west-2')
       expect(service.endpoint).toBe('http://localhost:4566')
-      expect(service.useLocalstack).toBe(true)
       expect(service.s3Client).toBeDefined()
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         {
           region: 'eu-west-2',
-          endpoint: 'http://localhost:4566',
-          mode: 'localstack'
+          endpoint: 'http://localhost:4566'
         },
         'S3 Service initialized'
       )
@@ -78,9 +80,8 @@ describe('S3Service', () => {
     it('should initialize with AWS configuration when not using localstack', () => {
       vi.mocked(config.get).mockImplementation((key) => {
         const configValues = {
-          'cdpUploader.s3Region': 'eu-west-1',
-          'cdpUploader.s3Endpoint': undefined,
-          'cdpUploader.useLocalstack': false
+          awsRegion: 'eu-west-1',
+          'cdpUploader.s3Endpoint': undefined
         }
         return configValues[key]
       })
@@ -89,13 +90,11 @@ describe('S3Service', () => {
 
       expect(service.region).toBe('eu-west-1')
       expect(service.endpoint).toBeUndefined()
-      expect(service.useLocalstack).toBe(false)
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         {
           region: 'eu-west-1',
-          endpoint: undefined,
-          mode: 'aws'
+          endpoint: undefined
         },
         'S3 Service initialized'
       )
@@ -227,17 +226,15 @@ describe('S3Service', () => {
 
       expect(status).toEqual({
         region: 'eu-west-2',
-        endpoint: 'http://localhost:4566',
-        mode: 'localstack'
+        endpoint: 'http://localhost:4566'
       })
     })
 
     it('should return service configuration for AWS', () => {
       vi.mocked(config.get).mockImplementation((key) => {
         const configValues = {
-          'cdpUploader.s3Region': 'us-east-1',
-          'cdpUploader.s3Endpoint': undefined,
-          'cdpUploader.useLocalstack': false
+          awsRegion: 'us-east-1',
+          'cdpUploader.s3Endpoint': undefined
         }
         return configValues[key]
       })
@@ -247,8 +244,7 @@ describe('S3Service', () => {
 
       expect(status).toEqual({
         region: 'us-east-1',
-        endpoint: undefined,
-        mode: 'aws'
+        endpoint: undefined
       })
     })
   })
@@ -281,6 +277,132 @@ describe('S3Service', () => {
       const instance2 = getS3Service(logger2)
       expect(instance2.logger).toBe(logger2)
       expect(instance1).not.toBe(instance2)
+    })
+  })
+
+  describe('deleteObject', () => {
+    it('should successfully delete an object from S3', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'test-folder/test-file.pdf'
+
+      // Mock successful deletion
+      service.s3Client.send.mockResolvedValue({})
+
+      await service.deleteObject(bucket, key)
+
+      // Verify DeleteObjectCommand was called with correct params
+      const { DeleteObjectCommand } = await import('@aws-sdk/client-s3')
+      expect(DeleteObjectCommand).toHaveBeenCalledWith({
+        Bucket: bucket,
+        Key: key
+      })
+
+      // Verify S3 client send was called
+      expect(service.s3Client.send).toHaveBeenCalledTimes(1)
+
+      // Verify success logging
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { bucket, key },
+        'Successfully deleted S3 object'
+      )
+    })
+
+    it('should handle S3 deletion errors', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'test-folder/test-file.pdf'
+      const error = new Error('S3 access denied')
+
+      // Mock S3 error
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(service.deleteObject(bucket, key)).rejects.toThrow(
+        'S3 access denied'
+      )
+
+      // Verify error logging
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        {
+          err: error,
+          bucket,
+          key
+        },
+        'Failed to delete S3 object'
+      )
+    })
+
+    it('should handle missing bucket error', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'non-existent-bucket'
+      const key = 'test-file.pdf'
+      const error = new Error('The specified bucket does not exist')
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(service.deleteObject(bucket, key)).rejects.toThrow(
+        'The specified bucket does not exist'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
+
+    it('should handle network errors during deletion', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'test-file.pdf'
+      const error = new Error('Network timeout')
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(service.deleteObject(bucket, key)).rejects.toThrow(
+        'Network timeout'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: error,
+          bucket,
+          key
+        }),
+        'Failed to delete S3 object'
+      )
+    })
+
+    it('should delete object with special characters in key', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'folder/file with spaces & special!@#.pdf'
+
+      service.s3Client.send.mockResolvedValue({})
+
+      await service.deleteObject(bucket, key)
+
+      const { DeleteObjectCommand } = await import('@aws-sdk/client-s3')
+      expect(DeleteObjectCommand).toHaveBeenCalledWith({
+        Bucket: bucket,
+        Key: key
+      })
+
+      expect(mockLogger.info).toHaveBeenCalled()
+    })
+
+    it('should delete object from nested path', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'uploads/2024/01/15/user-123/document.pdf'
+
+      service.s3Client.send.mockResolvedValue({})
+
+      await service.deleteObject(bucket, key)
+
+      const { DeleteObjectCommand } = await import('@aws-sdk/client-s3')
+      expect(DeleteObjectCommand).toHaveBeenCalledWith({
+        Bucket: bucket,
+        Key: key
+      })
+
+      expect(service.s3Client.send).toHaveBeenCalledTimes(1)
     })
   })
 })

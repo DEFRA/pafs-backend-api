@@ -38,7 +38,7 @@ describe('CdpUploaderService', () => {
       'cdpUploader.maxFileSize': 20000000,
       'cdpUploader.allowedMimeTypes': 'application/pdf,image/jpeg,image/png',
       'cdpUploader.timeout': 30000,
-      'awsRegion': 'eu-west-2'
+      awsRegion: 'eu-west-2'
     }
     configModule.config.get = vi.fn((key) => mockConfig[key])
 
