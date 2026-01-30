@@ -634,4 +634,65 @@ describe('ProjectService', () => {
       )
     })
   })
+
+  describe('getProjectOverviewByReferenceNumber', () => {
+    test('Should return empty array if reference number is not provided', async () => {
+      const result = await service.getProjectOverviewByReferenceNumber('')
+      expect(result).toEqual([])
+    })
+
+    test('Should return formatted project data when project exists', async () => {
+      const referenceNumber = 'RM/2023/001'
+      const mockProject = {
+        reference_number: 'RM/2023/001',
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1,Type 2',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+
+      const result =
+        await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { referenceNumber },
+        'Fetching project details by reference number'
+      )
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          reference_number: referenceNumber
+        },
+        select: {
+          reference_number: true,
+          name: true,
+          rma_name: true,
+          project_type: true,
+          project_intervention_types: true,
+          main_intervention_type: true,
+          earliest_start_year: true,
+          project_end_financial_year: true,
+          updated_at: true
+        }
+      })
+
+      expect(result).toEqual({
+        referenceNumber: 'RM/2023/001',
+        projectName: 'Test Project',
+        rmaArea: 'Test Area',
+        projectType: 'Type A',
+        interventionTypes: ['Type 1', 'Type 2'],
+        mainInterventionType: 'Type 1',
+        startYear: 2023,
+        endYear: 2025,
+        lastUpdated: mockProject.updated_at
+      })
+    })
+  })
 })
