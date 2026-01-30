@@ -195,6 +195,83 @@ describe('ProjectService', () => {
 
       expect(result).toEqual({ isValid: true })
     })
+
+    test('Should exclude current project when referenceNumber is provided', async () => {
+      const payload = {
+        name: 'Test_Project',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await service.checkDuplicateProjectName(payload)
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          name: {
+            equals: payload.name,
+            mode: 'insensitive'
+          },
+          reference_number: { not: payload.referenceNumber }
+        },
+        select: {
+          id: true
+        }
+      })
+    })
+
+    test('Should not exclude any project when referenceNumber is not provided', async () => {
+      const payload = { name: 'Test_Project' }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await service.checkDuplicateProjectName(payload)
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          name: {
+            equals: payload.name,
+            mode: 'insensitive'
+          }
+        },
+        select: {
+          id: true
+        }
+      })
+    })
+
+    test('Should find duplicate when different project has same name', async () => {
+      const payload = {
+        name: 'Duplicate_Project',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 2 // Different project ID
+      })
+
+      const result = await service.checkDuplicateProjectName(payload)
+
+      expect(result).toEqual({
+        isValid: false,
+        errors: {
+          errorCode: 'PROJECT_NAME_DUPLICATE',
+          message: 'A project with this name already exists'
+        }
+      })
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          name: {
+            equals: payload.name,
+            mode: 'insensitive'
+          },
+          reference_number: { not: payload.referenceNumber }
+        },
+        select: {
+          id: true
+        }
+      })
+    })
   })
 
   describe('generateReferenceNumber', () => {
@@ -632,6 +709,453 @@ describe('ProjectService', () => {
         expect.objectContaining({ error: dbError.message, projectId, areaId }),
         'Error upserting project area'
       )
+    })
+  })
+
+  describe('getProjectOverviewByReferenceNumber', () => {
+    test('Should return empty array if reference number is not provided', async () => {
+      const result = await service.getProjectOverviewByReferenceNumber('')
+      expect(result).toEqual([])
+    })
+
+    test('Should return empty array if reference number is null', async () => {
+      const result = await service.getProjectOverviewByReferenceNumber(null)
+      expect(result).toEqual([])
+    })
+
+    test('Should return empty array if reference number is undefined', async () => {
+      const result =
+        await service.getProjectOverviewByReferenceNumber(undefined)
+      expect(result).toEqual([])
+    })
+
+    test('Should return formatted project data when project exists', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1,Type 2',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+
+      const result =
+        await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { referenceNumber },
+        'Fetching project details by reference number'
+      )
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          reference_number: referenceNumber
+        },
+        select: {
+          reference_number: true,
+          name: true,
+          rma_name: true,
+          project_type: true,
+          project_intervention_types: true,
+          main_intervention_type: true,
+          earliest_start_year: true,
+          project_end_financial_year: true,
+          updated_at: true
+        }
+      })
+
+      expect(result).toEqual({
+        referenceNumber: 'ANC501E/000A/001A',
+        projectName: 'Test Project',
+        rmaArea: 'Test Area',
+        projectType: 'Type A',
+        interventionTypes: ['Type 1', 'Type 2'],
+        mainInterventionType: 'Type 1',
+        startYear: 2023,
+        endYear: 2025,
+        lastUpdated: mockProject.updated_at
+      })
+    })
+
+    test('Should return null when project does not exist', async () => {
+      const referenceNumber = 'ANC501E/000A/999A'
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      const result =
+        await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(result).toBeNull()
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { referenceNumber },
+        'Fetching project details by reference number'
+      )
+    })
+
+    test('Should handle null project_intervention_types', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: null,
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+
+      const result =
+        await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(result).toEqual({
+        referenceNumber: 'ANC501E/000A/001A',
+        projectName: 'Test Project',
+        rmaArea: 'Test Area',
+        projectType: 'Type A',
+        interventionTypes: [],
+        mainInterventionType: 'Type 1',
+        startYear: 2023,
+        endYear: 2025,
+        lastUpdated: mockProject.updated_at
+      })
+    })
+
+    test('Should handle empty string project_intervention_types', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: '',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+
+      const result =
+        await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(result.interventionTypes).toEqual([])
+    })
+
+    test('Should handle single intervention type', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+
+      const result =
+        await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(result.interventionTypes).toEqual(['Type 1'])
+    })
+
+    test('Should convert year strings to numbers correctly', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2026',
+        project_end_financial_year: '2030',
+        updated_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+
+      const result =
+        await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(result.startYear).toBe(2026)
+      expect(result.endYear).toBe(2030)
+      expect(typeof result.startYear).toBe('number')
+      expect(typeof result.endYear).toBe('number')
+    })
+
+    test('Should throw error and log when database query fails', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const dbError = new Error('Database connection error')
+
+      mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
+
+      await expect(
+        service.getProjectOverviewByReferenceNumber(referenceNumber)
+      ).rejects.toThrow('Database connection error')
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { error: dbError.message, referenceNumber },
+        'Error fetching project details by reference number'
+      )
+    })
+
+    test('Should use correct where clause with reference number', async () => {
+      const referenceNumber = 'AEC501E/005A/123A'
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await service.getProjectOverviewByReferenceNumber(referenceNumber)
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            reference_number: referenceNumber
+          }
+        })
+      )
+    })
+  })
+
+  describe('_mappedProposalDetailsData', () => {
+    test('Should map all fields correctly with complete data', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: 'Type 1,Type 2,Type 3',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2025',
+        project_end_financial_year: '2028',
+        updated_at: new Date('2026-01-15T10:30:00Z')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result).toEqual({
+        referenceNumber: 'ANC501E/000A/001A',
+        projectName: 'Test Project',
+        rmaArea: 'Test RMA Area',
+        projectType: 'ENV',
+        interventionTypes: ['Type 1', 'Type 2', 'Type 3'],
+        mainInterventionType: 'Type 1',
+        startYear: 2025,
+        endYear: 2028,
+        lastUpdated: proposalData.updated_at
+      })
+    })
+
+    test('Should return empty array for null project_intervention_types', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: null,
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2025',
+        project_end_financial_year: '2028',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.interventionTypes).toEqual([])
+    })
+
+    test('Should return empty array for undefined project_intervention_types', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: undefined,
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2025',
+        project_end_financial_year: '2028',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.interventionTypes).toEqual([])
+    })
+
+    test('Should return empty array for empty string project_intervention_types', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: '',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2025',
+        project_end_financial_year: '2028',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.interventionTypes).toEqual([])
+    })
+
+    test('Should handle single intervention type correctly', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2025',
+        project_end_financial_year: '2028',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.interventionTypes).toEqual(['Type 1'])
+    })
+
+    test('Should split multiple intervention types by comma', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: 'Type A,Type B,Type C,Type D',
+        main_intervention_type: 'Type A',
+        earliest_start_year: '2025',
+        project_end_financial_year: '2028',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.interventionTypes).toEqual([
+        'Type A',
+        'Type B',
+        'Type C',
+        'Type D'
+      ])
+      expect(result.interventionTypes).toHaveLength(4)
+    })
+
+    test('Should convert year strings to numbers', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2026',
+        project_end_financial_year: '2030',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.startYear).toBe(2026)
+      expect(result.endYear).toBe(2030)
+      expect(typeof result.startYear).toBe('number')
+      expect(typeof result.endYear).toBe('number')
+    })
+
+    test('Should preserve date object for lastUpdated', () => {
+      const updatedDate = new Date('2026-01-30T15:45:00Z')
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2026',
+        project_end_financial_year: '2030',
+        updated_at: updatedDate
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.lastUpdated).toBe(updatedDate)
+      expect(result.lastUpdated).toBeInstanceOf(Date)
+    })
+
+    test('Should handle intervention types with spaces', () => {
+      const proposalData = {
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Test Project',
+        rma_name: 'Test RMA Area',
+        project_type: 'ENV',
+        project_intervention_types:
+          'Flood Defense,River Restoration,Coastal Protection',
+        main_intervention_type: 'Flood Defense',
+        earliest_start_year: '2026',
+        project_end_financial_year: '2030',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      expect(result.interventionTypes).toEqual([
+        'Flood Defense',
+        'River Restoration',
+        'Coastal Protection'
+      ])
+    })
+
+    test('Should map all database field names to camelCase correctly', () => {
+      const proposalData = {
+        reference_number: 'REF123',
+        name: 'Project Name',
+        rma_name: 'RMA Name',
+        project_type: 'Project Type',
+        project_intervention_types: 'Type1',
+        main_intervention_type: 'Main Type',
+        earliest_start_year: '2025',
+        project_end_financial_year: '2027',
+        updated_at: new Date('2026-01-15')
+      }
+
+      const result = service._mappedProposalDetailsData(proposalData)
+
+      // Verify all keys are in camelCase
+      expect(result).toHaveProperty('referenceNumber')
+      expect(result).toHaveProperty('projectName')
+      expect(result).toHaveProperty('rmaArea')
+      expect(result).toHaveProperty('projectType')
+      expect(result).toHaveProperty('interventionTypes')
+      expect(result).toHaveProperty('mainInterventionType')
+      expect(result).toHaveProperty('startYear')
+      expect(result).toHaveProperty('endYear')
+      expect(result).toHaveProperty('lastUpdated')
+
+      // Verify no snake_case keys exist
+      expect(result).not.toHaveProperty('reference_number')
+      expect(result).not.toHaveProperty('rma_name')
+      expect(result).not.toHaveProperty('project_type')
+      expect(result).not.toHaveProperty('project_intervention_types')
+      expect(result).not.toHaveProperty('main_intervention_type')
+      expect(result).not.toHaveProperty('earliest_start_year')
+      expect(result).not.toHaveProperty('project_end_financial_year')
+      expect(result).not.toHaveProperty('updated_at')
     })
   })
 })
