@@ -13,7 +13,10 @@ const getProjectOverview = {
   },
   handler: async (request, h) => {
     try {
-      const referenceNumber = request.params.referenceNumber.replace(/-/g, '/')
+      const referenceNumber = request.params.referenceNumber.replaceAll(
+        '-',
+        '/'
+      )
       const projectService = new ProjectService(
         request.prisma,
         request.server.logger
