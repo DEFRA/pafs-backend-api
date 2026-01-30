@@ -264,8 +264,10 @@ describe('AuthService', () => {
           admin: false,
           status: 'active'
         })
-        .mockResolvedValueOnce({ current_sign_in_at: null })
-        .mockResolvedValueOnce({ current_sign_in_ip: null })
+        .mockResolvedValueOnce({
+          current_sign_in_at: null,
+          current_sign_in_ip: null
+        })
 
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
 
@@ -304,8 +306,10 @@ describe('AuthService', () => {
           admin: true,
           status: 'active'
         })
-        .mockResolvedValueOnce({ current_sign_in_at: null })
-        .mockResolvedValueOnce({ current_sign_in_ip: null })
+        .mockResolvedValueOnce({
+          current_sign_in_at: null,
+          current_sign_in_ip: null
+        })
 
       // Return two user area records with nested area details
       mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
@@ -567,52 +571,52 @@ describe('AuthService', () => {
     })
   })
 
-  describe('getCurrentSignInAt', () => {
-    it('returns current sign in timestamp', async () => {
-      const timestamp = new Date()
+  describe('getCurrentSignInData', () => {
+    it('returns current sign in data with both timestamp and IP', async () => {
+      const timestamp = new Date('2024-01-15T10:00:00Z')
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
-        current_sign_in_at: timestamp
-      })
-
-      const result = await authService.getCurrentSignInAt(1)
-
-      expect(result).toBe(timestamp)
-      expect(mockPrisma.pafs_core_users.findUnique).toHaveBeenCalledWith({
-        where: { id: 1 },
-        select: { current_sign_in_at: true }
-      })
-    })
-
-    it('returns undefined for non-existent user', async () => {
-      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
-
-      const result = await authService.getCurrentSignInAt(999)
-
-      expect(result).toBeUndefined()
-    })
-  })
-
-  describe('getCurrentSignInIp', () => {
-    it('returns current sign in IP', async () => {
-      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        current_sign_in_at: timestamp,
         current_sign_in_ip: '192.168.1.1'
       })
 
-      const result = await authService.getCurrentSignInIp(1)
+      const result = await authService.getCurrentSignInData(1)
 
-      expect(result).toBe('192.168.1.1')
+      expect(result).toEqual({
+        signInAt: timestamp,
+        signInIp: '192.168.1.1'
+      })
       expect(mockPrisma.pafs_core_users.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
-        select: { current_sign_in_ip: true }
+        select: {
+          current_sign_in_at: true,
+          current_sign_in_ip: true
+        }
       })
     })
 
-    it('returns undefined for non-existent user', async () => {
+    it('returns undefined values for non-existent user', async () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
 
-      const result = await authService.getCurrentSignInIp(999)
+      const result = await authService.getCurrentSignInData(999)
 
-      expect(result).toBeUndefined()
+      expect(result).toEqual({
+        signInAt: undefined,
+        signInIp: undefined
+      })
+    })
+
+    it('handles null values in database', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        current_sign_in_at: null,
+        current_sign_in_ip: null
+      })
+
+      const result = await authService.getCurrentSignInData(1)
+
+      expect(result).toEqual({
+        signInAt: null,
+        signInIp: null
+      })
     })
   })
 })

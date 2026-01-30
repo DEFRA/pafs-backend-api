@@ -200,11 +200,17 @@ const config = convict({
         default: true,
         env: 'AUTH_ACCOUNT_DISABLING_ENABLED'
       },
+      inactivityWarningDays: {
+        doc: 'Days of inactivity before sending warning email (335 days)',
+        format: 'nat',
+        default: 335,
+        env: 'AUTH_ACCOUNT_DISABLING_WARNING_DAYS'
+      },
       inactivityDays: {
-        doc: 'Days of inactivity before account is disabled',
+        doc: 'Days of inactivity before account is disabled (365 days = 335 + 30)',
         format: 'nat',
         default: 365,
-        env: 'AUTH_INACTIVITY_DAYS'
+        env: 'AUTH_ACCOUNT_DISABLING_INACTIVITY_DAYS'
       }
     },
     passwordReset: {
@@ -282,11 +288,11 @@ const config = convict({
       default: 'account-approved-template-id',
       env: 'NOTIFY_TEMPLATE_AUTO_APPROVED_TO_ADMIN'
     },
-    templateAccountInactivityDisabled: {
-      doc: 'GOV.UK Notify template ID for account disabled due to inactivity',
+    templateAccountInactivityWarning: {
+      doc: 'GOV.UK Notify template ID for account inactivity warning (335 days)',
       format: String,
-      default: 'account-inactivity-disabled-template-id',
-      env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_DISABLED'
+      default: 'account-inactivity-warning-template-id',
+      env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_WARNING'
     },
     templateAccountReactivated: {
       doc: 'GOV.UK Notify template ID for account reactivation notification',

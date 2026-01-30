@@ -30,7 +30,7 @@ describe('trigger-task route', () => {
       },
       auth: {
         credentials: {
-          id: 123,
+          userId: 123,
           isAdmin: true,
           token: 'test-token'
         }
@@ -43,7 +43,8 @@ describe('trigger-task route', () => {
 
     mockH = {
       response: vi.fn().mockReturnThis(),
-      code: vi.fn().mockReturnThis()
+      code: vi.fn().mockReturnThis(),
+      takeover: vi.fn().mockReturnThis()
     }
   })
 
@@ -87,17 +88,18 @@ describe('trigger-task route', () => {
       await triggerTaskRoute.handler(mockRequest, mockH)
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: 123, taskName: 'test-task' }),
-        'Non-admin user attempted to trigger scheduled task'
+        { userId: 123 },
+        'Non-admin user attempted to access admin-only endpoint'
       )
       expect(mockH.response).toHaveBeenCalledWith({
         success: false,
         error: {
-          code: SCHEDULER_ERROR_CODES.UNAUTHORIZED,
-          message: 'Admin authentication required to trigger scheduled tasks'
+          code: 'UNAUTHORIZED',
+          message: 'Admin authentication required'
         }
       })
       expect(mockH.code).toHaveBeenCalledWith(403)
+      expect(mockH.takeover).toHaveBeenCalled()
     })
   })
 

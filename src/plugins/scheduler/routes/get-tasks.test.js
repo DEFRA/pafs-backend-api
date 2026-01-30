@@ -22,7 +22,7 @@ describe('get-tasks route', () => {
     mockRequest = {
       auth: {
         credentials: {
-          id: 123,
+          userId: 123,
           isAdmin: true
         }
       },
@@ -34,7 +34,8 @@ describe('get-tasks route', () => {
 
     mockH = {
       response: vi.fn().mockReturnThis(),
-      code: vi.fn().mockReturnThis()
+      code: vi.fn().mockReturnThis(),
+      takeover: vi.fn().mockReturnThis()
     }
   })
 
@@ -77,16 +78,17 @@ describe('get-tasks route', () => {
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         { userId: 123 },
-        'Non-admin user attempted to view scheduled tasks'
+        'Non-admin user attempted to access admin-only endpoint'
       )
       expect(mockH.response).toHaveBeenCalledWith({
         success: false,
         error: {
           code: 'UNAUTHORIZED',
-          message: 'Admin authentication required to view scheduled tasks'
+          message: 'Admin authentication required'
         }
       })
       expect(mockH.code).toHaveBeenCalledWith(403)
+      expect(mockH.takeover).toHaveBeenCalled()
     })
   })
 

@@ -25,7 +25,7 @@ describe('get-task-stats route', () => {
       },
       auth: {
         credentials: {
-          id: 123,
+          userId: 123,
           isAdmin: true
         }
       },
@@ -37,7 +37,8 @@ describe('get-task-stats route', () => {
 
     mockH = {
       response: vi.fn().mockReturnThis(),
-      code: vi.fn().mockReturnThis()
+      code: vi.fn().mockReturnThis(),
+      takeover: vi.fn().mockReturnThis()
     }
   })
 
@@ -59,17 +60,18 @@ describe('get-task-stats route', () => {
       await getTaskStatsRoute.handler(mockRequest, mockH)
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        { userId: 123, taskName: 'test-task' },
-        'Non-admin user attempted to view task statistics'
+        { userId: 123 },
+        'Non-admin user attempted to access admin-only endpoint'
       )
       expect(mockH.response).toHaveBeenCalledWith({
         success: false,
         error: {
           code: 'UNAUTHORIZED',
-          message: 'Admin authentication required to view task statistics'
+          message: 'Admin authentication required'
         }
       })
       expect(mockH.code).toHaveBeenCalledWith(403)
+      expect(mockH.takeover).toHaveBeenCalled()
     })
 
     it('should allow admin users and return statistics successfully', async () => {

@@ -476,7 +476,7 @@ describe('ProjectService', () => {
           where: {
             reference_number_version: {
               reference_number: 'ANC501E/000A/001A',
-              version: 0
+              version: 1
             }
           }
         })

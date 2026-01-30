@@ -343,7 +343,7 @@ describe('AccountService', () => {
     }
 
     const mockAuthenticatedUser = {
-      id: 100,
+      userId: 100,
       email: 'admin@example.com',
       isAdmin: true
     }
@@ -524,7 +524,7 @@ describe('AccountService', () => {
 
     it('logs admin ID performing deletion', async () => {
       const customAdmin = {
-        id: 200,
+        userId: 200,
         email: 'superadmin@example.com',
         isAdmin: true
       }
@@ -775,200 +775,146 @@ describe('AccountService', () => {
     })
   })
 
-  describe('findDisabledAccounts', () => {
-    it('should find disabled accounts older than specified days', async () => {
-      const oldDate = new Date('2023-01-01')
-      vi.setSystemTime(new Date('2024-01-15'))
+  describe('findAccountsNeedingWarning', () => {
+    it('should find accounts inactive for warning period but not yet at disable threshold', async () => {
+      const warningDays = 335
+      const disableDays = 365
+      const now = new Date()
+      const warningCutoff = new Date(
+        now.getTime() - warningDays * 24 * 60 * 60 * 1000
+      )
 
-      mockPrisma.pafs_core_users.findMany.mockResolvedValue([
+      const accountsNeedingWarning = [
         {
           id: BigInt(1),
-          email: 'disabled1@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          last_sign_in_at: new Date('2022-12-01'),
+          email: 'warning1@test.com',
+          first_name: 'Warning',
+          last_name: 'User1',
+          last_sign_in_at: new Date(warningCutoff.getTime() - 1000),
           created_at: new Date('2022-01-01'),
-          updated_at: oldDate
-        }
-      ])
-
-      const result = await accountService.findDisabledAccounts(30)
-
-      expect(result).toHaveLength(1)
-      expect(result[0]).toEqual({
-        id: 1,
-        email: 'disabled1@test.com',
-        firstName: 'John',
-        lastName: 'Doe',
-        lastLoginAt: new Date('2022-12-01'),
-        createdAt: new Date('2022-01-01'),
-        updatedAt: oldDate
-      })
-      expect(mockPrisma.pafs_core_users.findMany).toHaveBeenCalledWith({
-        where: {
-          disabled: true,
-          updated_at: { lt: expect.any(Date) }
+          updated_at: new Date('2024-01-01')
         },
-        select: {
-          id: true,
-          email: true,
-          first_name: true,
-          last_name: true,
-          last_sign_in_at: true,
-          created_at: true,
-          updated_at: true
+        {
+          id: BigInt(2),
+          email: 'warning2@test.com',
+          first_name: 'Warning',
+          last_name: 'User2',
+          last_sign_in_at: null,
+          created_at: new Date(warningCutoff.getTime() - 1000),
+          updated_at: new Date('2024-01-01')
         }
-      })
+      ]
+
+      mockPrisma.pafs_core_users.findMany.mockResolvedValue(
+        accountsNeedingWarning
+      )
+
+      const result = await accountService.findAccountsNeedingWarning(
+        warningDays,
+        disableDays
+      )
+
+      expect(result).toHaveLength(2)
+      expect(result[0].email).toBe('warning1@test.com')
+      expect(result[1].email).toBe('warning2@test.com')
+      expect(mockPrisma.pafs_core_users.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: { in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED] },
+            disabled: false,
+            inactivity_warning_sent_at: null
+          })
+        })
+      )
     })
 
-    it('should return empty array when no disabled accounts found', async () => {
+    it('should return empty array when no accounts need warning', async () => {
       mockPrisma.pafs_core_users.findMany.mockResolvedValue([])
 
-      const result = await accountService.findDisabledAccounts(30)
+      const result = await accountService.findAccountsNeedingWarning(335, 365)
 
       expect(result).toEqual([])
     })
 
-    it('should handle database errors', async () => {
-      const error = new Error('Database error')
-      mockPrisma.pafs_core_users.findMany.mockRejectedValue(error)
+    it('should exclude accounts that already received warning', async () => {
+      mockPrisma.pafs_core_users.findMany.mockResolvedValue([])
 
-      await expect(accountService.findDisabledAccounts(30)).rejects.toThrow(
-        'Database error'
+      await accountService.findAccountsNeedingWarning(335, 365)
+
+      expect(mockPrisma.pafs_core_users.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            inactivity_warning_sent_at: null
+          })
+        })
+      )
+    })
+
+    it('should only find accounts with ACTIVE or APPROVED status', async () => {
+      mockPrisma.pafs_core_users.findMany.mockResolvedValue([])
+
+      await accountService.findAccountsNeedingWarning(335, 365)
+
+      expect(mockPrisma.pafs_core_users.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: { in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED] },
+            disabled: false
+          })
+        })
       )
     })
   })
 
-  describe('deleteDisabledAccounts', () => {
-    const adminUser = { id: 1, isAdmin: true }
+  describe('markWarningEmailsSent', () => {
+    it('should mark accounts as having received warning email', async () => {
+      const accountIds = [1, 2, 3]
+      mockPrisma.pafs_core_users.updateMany.mockResolvedValue({ count: 3 })
 
-    beforeEach(() => {
-      mockPrisma.pafs_core_users.findMany = vi.fn()
-      mockPrisma.pafs_core_users.findUnique = vi.fn()
-      mockPrisma.pafs_core_users.delete = vi.fn()
-      mockPrisma.pafs_core_user_areas = { deleteMany: vi.fn() }
-      mockPrisma.$transaction = vi.fn((callback) => callback(mockPrisma))
-    })
+      const result = await accountService.markWarningEmailsSent(accountIds)
 
-    it('should delete disabled accounts older than specified days', async () => {
-      const oldDate = new Date('2023-01-01')
-      vi.setSystemTime(new Date('2024-01-15'))
-
-      mockPrisma.pafs_core_users.findMany.mockResolvedValue([
-        {
-          id: BigInt(1),
-          email: 'disabled1@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          last_sign_in_at: new Date('2022-12-01'),
-          created_at: new Date('2022-01-01'),
-          updated_at: oldDate
+      expect(result).toBe(3)
+      expect(mockPrisma.pafs_core_users.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: [BigInt(1), BigInt(2), BigInt(3)] }
         },
-        {
-          id: BigInt(2),
-          email: 'disabled2@test.com',
-          first_name: 'Jane',
-          last_name: 'Smith',
-          last_login_at: new Date('2022-11-01'),
-          created_at: new Date('2022-01-01'),
-          updated_at: oldDate
+        data: {
+          inactivity_warning_sent_at: expect.any(Date),
+          updated_at: expect.any(Date)
         }
-      ])
-
-      mockPrisma.pafs_core_users.findUnique
-        .mockResolvedValueOnce({
-          id: BigInt(1),
-          email: 'disabled1@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          status: ACCOUNT_STATUS.DISABLED
-        })
-        .mockResolvedValueOnce({
-          id: BigInt(2),
-          email: 'disabled2@test.com',
-          first_name: 'Jane',
-          last_name: 'Smith',
-          status: ACCOUNT_STATUS.DISABLED
-        })
-
-      const result = await accountService.deleteDisabledAccounts(30, adminUser)
-
-      expect(result.deletedCount).toBe(2)
-      expect(result.accounts).toHaveLength(2)
-      expect(result.accounts[0].email).toBe('disabled1@test.com')
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        { daysDisabled: 30, adminId: 1 },
-        'Checking for disabled accounts to delete'
-      )
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        { deletedCount: 2, totalFound: 2 },
-        'Disabled accounts deleted successfully'
-      )
-    })
-
-    it('should return zero count when no disabled accounts found', async () => {
-      mockPrisma.pafs_core_users.findMany.mockResolvedValue([])
-
-      const result = await accountService.deleteDisabledAccounts(30, adminUser)
-
-      expect(result).toEqual({
-        deletedCount: 0,
-        accounts: []
       })
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'No disabled accounts found to delete'
+    })
+
+    it('should return 0 when no account IDs provided', async () => {
+      const result = await accountService.markWarningEmailsSent([])
+
+      expect(result).toBe(0)
+      expect(mockPrisma.pafs_core_users.updateMany).not.toHaveBeenCalled()
+    })
+
+    it('should handle single account ID', async () => {
+      mockPrisma.pafs_core_users.updateMany.mockResolvedValue({ count: 1 })
+
+      const result = await accountService.markWarningEmailsSent([5])
+
+      expect(result).toBe(1)
+      expect(mockPrisma.pafs_core_users.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: { in: [BigInt(5)] }
+          }
+        })
       )
     })
 
-    it('should continue if one account deletion fails', async () => {
-      const oldDate = new Date('2023-01-01')
-      vi.setSystemTime(new Date('2024-01-15'))
+    it('should set both inactivity_warning_sent_at and updated_at', async () => {
+      mockPrisma.pafs_core_users.updateMany.mockResolvedValue({ count: 1 })
 
-      mockPrisma.pafs_core_users.findMany.mockResolvedValue([
-        {
-          id: BigInt(1),
-          email: 'disabled1@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          last_sign_in_at: new Date('2022-12-01'),
-          created_at: new Date('2022-01-01'),
-          updated_at: oldDate
-        },
-        {
-          id: BigInt(2),
-          email: 'disabled2@test.com',
-          first_name: 'Jane',
-          last_name: 'Smith',
-          last_login_at: new Date('2022-11-01'),
-          created_at: new Date('2022-01-01'),
-          updated_at: oldDate
-        }
-      ])
+      await accountService.markWarningEmailsSent([1])
 
-      mockPrisma.pafs_core_users.findUnique
-        .mockResolvedValueOnce({
-          id: BigInt(1),
-          email: 'disabled1@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          status: ACCOUNT_STATUS.DISABLED
-        })
-        .mockResolvedValueOnce(null)
-
-      const result = await accountService.deleteDisabledAccounts(30, adminUser)
-
-      expect(result.deletedCount).toBe(1)
-      expect(result.accounts).toHaveLength(1)
-      expect(mockLogger.error).toHaveBeenCalled()
-    })
-
-    it('should handle database errors', async () => {
-      const error = new Error('Database connection failed')
-      mockPrisma.pafs_core_users.findMany.mockRejectedValue(error)
-
-      await expect(
-        accountService.deleteDisabledAccounts(30, adminUser)
-      ).rejects.toThrow('Database connection failed')
+      const updateCall = mockPrisma.pafs_core_users.updateMany.mock.calls[0][0]
+      expect(updateCall.data.inactivity_warning_sent_at).toBeInstanceOf(Date)
+      expect(updateCall.data.updated_at).toBeInstanceOf(Date)
     })
   })
 
@@ -1076,7 +1022,7 @@ describe('AccountService', () => {
   })
 
   describe('reactivateAccount', () => {
-    const adminUser = { id: 1, isAdmin: true }
+    const adminUser = { userId: 1, isAdmin: true }
 
     beforeEach(() => {
       mockPrisma.pafs_core_users.findUnique = vi.fn()
@@ -1231,7 +1177,7 @@ describe('AccountService', () => {
     })
 
     it('should log admin ID performing reactivation', async () => {
-      const customAdmin = { id: 999, isAdmin: true }
+      const customAdmin = { userId: 999, isAdmin: true }
       const disabledUser = {
         id: BigInt(1),
         email: 'user@example.com',

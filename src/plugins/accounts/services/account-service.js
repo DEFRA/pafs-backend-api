@@ -56,7 +56,7 @@ export class AccountService {
    */
   async deleteAccount(userId, authenticatedUser) {
     this.logger.info(
-      { userId, adminId: authenticatedUser.id },
+      { userId, adminId: authenticatedUser.userId },
       'Deleting account'
     )
 
@@ -167,25 +167,6 @@ export class AccountService {
   }
 
   /**
-   * Find disabled accounts older than X days
-   * @param {number} daysDisabled - Number of days account has been disabled
-   * @returns {Promise<Array>} Array of disabled accounts
-   */
-  async findDisabledAccounts(daysDisabled) {
-    const cutoffDate = this._calculateCutoffDate(daysDisabled)
-
-    const accounts = await this.prisma.pafs_core_users.findMany({
-      where: {
-        disabled: true,
-        updated_at: { lt: cutoffDate }
-      },
-      select: AccountService.accountSelectFields
-    })
-
-    return accounts.map(this._formatAccountData)
-  }
-
-  /**
    * Bulk disable accounts
    * @param {Array<number>} accountIds - Array of account IDs
    * @returns {Promise<number>} Number of accounts disabled
@@ -245,58 +226,66 @@ export class AccountService {
   }
 
   /**
-   * Delete multiple accounts that have been disabled for specified days
-   * @param {number} daysDisabled - Number of days accounts have been disabled
-   * @param {Object} authenticatedUser - Admin user performing the deletion
-   * @returns {Promise<Object>} Result with deleted account count and details
+   * Find accounts that need inactivity warning email
+   * Finds accounts inactive for warningDays or more but less than disableDays that haven't received warning yet
+   * @param {number} warningDays - Number of days of inactivity before warning (335)
+   * @param {number} disableDays - Number of days of inactivity before disabling (365)
+   * @returns {Promise<Array>} Array of accounts needing warning
    */
-  async deleteDisabledAccounts(daysDisabled, authenticatedUser) {
-    this.logger.info(
-      { daysDisabled, adminId: authenticatedUser.id },
-      'Checking for disabled accounts to delete'
-    )
+  async findAccountsNeedingWarning(warningDays, disableDays) {
+    const warningCutoffDate = this._calculateCutoffDate(warningDays)
+    const disableCutoffDate = this._calculateCutoffDate(disableDays)
 
-    const disabledAccounts = await this.findDisabledAccounts(daysDisabled)
-
-    if (disabledAccounts.length === 0) {
-      this.logger.info('No disabled accounts found to delete')
-      return {
-        deletedCount: 0,
-        accounts: []
-      }
-    }
-
-    const deletedAccounts = []
-
-    for (const account of disabledAccounts) {
-      try {
-        await this.deleteAccount(account.id, authenticatedUser)
-        deletedAccounts.push(account)
-
-        this.logger.info(
-          { accountId: account.id, email: account.email },
-          'Disabled account permanently deleted'
-        )
-      } catch (deleteError) {
-        this.logger.error(
-          { error: deleteError, accountId: account.id, email: account.email },
-          'Failed to delete disabled account'
-        )
-      }
-    }
-
-    this.logger.info(
-      {
-        deletedCount: deletedAccounts.length,
-        totalFound: disabledAccounts.length
+    const accounts = await this.prisma.pafs_core_users.findMany({
+      where: {
+        status: { in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED] },
+        disabled: false,
+        inactivity_warning_sent_at: null, // Haven't sent warning yet
+        OR: [
+          {
+            // Accounts with last login between warningDays and disableDays ago
+            last_sign_in_at: {
+              lt: warningCutoffDate,
+              gte: disableCutoffDate // Not yet at disable threshold
+            }
+          },
+          {
+            // Accounts never logged in, created between warningDays and disableDays ago
+            last_sign_in_at: null,
+            created_at: {
+              lt: warningCutoffDate,
+              gte: disableCutoffDate
+            }
+          }
+        ]
       },
-      'Disabled accounts deleted successfully'
-    )
+      select: AccountService.accountSelectFields
+    })
 
-    return {
-      deletedCount: deletedAccounts.length,
-      accounts: deletedAccounts
+    return accounts.map(this._formatAccountData)
+  }
+
+  /**
+   * Mark accounts as having received inactivity warning
+   * @param {Array<number>} accountIds - Array of account IDs
+   * @returns {Promise<number>} Number of accounts updated
+   */
+  async markWarningEmailsSent(accountIds) {
+    if (accountIds.length === 0) {
+      return 0
     }
+
+    const result = await this.prisma.pafs_core_users.updateMany({
+      where: {
+        id: { in: accountIds.map(BigInt) }
+      },
+      data: {
+        inactivity_warning_sent_at: new Date(),
+        updated_at: new Date()
+      }
+    })
+
+    return result.count
   }
 
   /**
@@ -307,7 +296,7 @@ export class AccountService {
    */
   async reactivateAccount(userId, authenticatedUser) {
     this.logger.info(
-      { userId, adminId: authenticatedUser.id },
+      { userId, adminId: authenticatedUser.userId },
       'Reactivating disabled account'
     )
 
@@ -343,7 +332,7 @@ export class AccountService {
     })
 
     this.logger.info(
-      { userId, email: user.email, adminId: authenticatedUser.id },
+      { userId, email: user.email, adminId: authenticatedUser.userId },
       'Account reactivated successfully'
     )
 
