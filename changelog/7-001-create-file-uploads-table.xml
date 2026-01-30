@@ -74,7 +74,7 @@
 
       <!-- User tracking -->
       <column name="uploaded_by_user_id" type="BIGINT">
-        <constraints nullable="true" foreignKeyName="fk_file_uploads_user" references="users(id)" deleteCascade="false"/>
+        <constraints nullable="true" foreignKeyName="fk_file_uploads_user" references="pafs_core_users(id)" deleteCascade="false"/>
       </column>
 
       <!-- Custom metadata (JSON) -->
@@ -119,18 +119,5 @@
     <createIndex indexName="idx_file_uploads_created_at" tableName="file_uploads">
       <column name="created_at"/>
     </createIndex>
-
-    <!-- Add comments for documentation -->
-    <sql>
-            COMMENT ON TABLE file_uploads IS 'Stores file upload metadata and status from CDP Uploader service';
-            COMMENT ON COLUMN file_uploads.upload_id IS 'Unique upload identifier from CDP Uploader';
-            COMMENT ON COLUMN file_uploads.file_id IS 'Unique file identifier from CDP Uploader';
-            COMMENT ON COLUMN file_uploads.upload_status IS 'Overall upload status: pending, ready, failed';
-            COMMENT ON COLUMN file_uploads.file_status IS 'Individual file status: pending, complete, rejected';
-            COMMENT ON COLUMN file_uploads.entity_type IS 'Type of entity this file is associated with (e.g., proposal, user)';
-            COMMENT ON COLUMN file_uploads.entity_id IS 'ID of the entity this file is associated with';
-            COMMENT ON COLUMN file_uploads.reference IS 'Business reference for the upload';
-            COMMENT ON COLUMN file_uploads.metadata IS 'Additional custom metadata in JSON format';
-    </sql>
   </changeSet>
 </databaseChangeLog>

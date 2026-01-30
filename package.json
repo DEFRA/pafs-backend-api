@@ -31,10 +31,10 @@
   "author": "Defra DDTS",
   "license": "OGL-UK-3.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "3.975.0",
-    "@aws-sdk/credential-providers": "3.975.0",
-    "@aws-sdk/rds-signer": "3.975.0",
-    "@aws-sdk/s3-request-presigner": "3.975.0",
+    "@aws-sdk/client-s3": "3.978.0",
+    "@aws-sdk/credential-providers": "3.978.0",
+    "@aws-sdk/rds-signer": "3.978.0",
+    "@aws-sdk/s3-request-presigner": "3.978.0",
     "@defra/cdp-auditing": "0.6.0",
     "@defra/hapi-secure-context": "0.4.0",
     "@defra/hapi-tracing": "1.30.0",
@@ -63,12 +63,12 @@
     "pino": "10.3.0",
     "pino-pretty": "13.1.3",
     "prisma": "7.3.0",
-    "undici": "7.19.1"
+    "undici": "7.19.2"
   },
   "devDependencies": {
     "@babel/core": "7.28.6",
     "@babel/preset-env": "7.28.6",
-    "@vitest/coverage-v8": "4.0.17",
+    "@vitest/coverage-v8": "4.0.18",
     "autoprefixer": "10.4.23",
     "cross-env": "10.1.0",
     "eslint": "9.39.2",
@@ -76,8 +76,8 @@
     "neostandard": "0.12.2",
     "nodemon": "3.1.11",
     "npm-run-all": "4.1.5",
-    "prettier": "3.8.0",
-    "vitest": "4.0.17",
+    "prettier": "3.8.1",
+    "vitest": "4.0.18",
     "vitest-fetch-mock": "0.4.5"
   },
   "overrides": {
