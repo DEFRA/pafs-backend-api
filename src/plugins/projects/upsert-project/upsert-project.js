@@ -191,9 +191,16 @@ const performValidations = async (
 /**
  * Creates the success response
  */
-const createSuccessResponse = (h, isCreate) => {
+const createSuccessResponse = (h, project, isCreate) => {
   return h
-    .response({ success: true })
+    .response({
+      success: true,
+      data: {
+        id: String(project.id),
+        referenceNumber: project.reference_number,
+        name: project.name
+      }
+    })
     .code(isCreate ? HTTP_STATUS.CREATED : HTTP_STATUS.OK)
 }
 
@@ -242,9 +249,13 @@ const upsertProject = {
         const userId = request.auth.credentials.userId
         const isCreate = !referenceNumber
 
-        await projectService.upsertProject(proposalPayload, userId, rfccCode)
+        const project = await projectService.upsertProject(
+          proposalPayload,
+          userId,
+          rfccCode
+        )
 
-        return createSuccessResponse(h, isCreate)
+        return createSuccessResponse(h, project, isCreate)
       } catch (error) {
         request.server.logger.error(
           { error: error.message, stack: error.stack, name },

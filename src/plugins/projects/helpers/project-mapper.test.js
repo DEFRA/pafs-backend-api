@@ -7,14 +7,14 @@ describe('ProjectMapper', () => {
       const apiData = {
         name: 'Test Project',
         projectType: 'Type A',
-        rmaId: 123
+        rmaId: '123'
       }
 
       const result = ProjectMapper.toDatabase(apiData)
 
       expect(result).toHaveProperty('name', 'Test Project')
       expect(result).toHaveProperty('project_type', 'Type A')
-      expect(result).toHaveProperty('rma_name', 123)
+      expect(result).toHaveProperty('rma_name', '123')
     })
 
     it('should skip undefined values', () => {
@@ -93,7 +93,7 @@ describe('ProjectMapper', () => {
     it('should handle complete project data', () => {
       const apiData = {
         name: 'Complete Project',
-        rmaId: 5,
+        rmaId: '5',
         projectType: 'DEF',
         projectInterventionTypes: ['NFM', 'SUDS'],
         mainInterventionType: 'NFM',
@@ -105,7 +105,7 @@ describe('ProjectMapper', () => {
 
       expect(result).toEqual({
         name: 'Complete Project',
-        rma_name: 5,
+        rma_name: '5',
         project_type: 'DEF',
         project_intervention_types: 'NFM,SUDS',
         main_intervention_type: 'NFM',
@@ -120,14 +120,14 @@ describe('ProjectMapper', () => {
       const dbData = {
         name: 'Test Project',
         project_type: 'Type A',
-        rma_name: 123
+        rma_name: '123'
       }
 
       const result = ProjectMapper.toApi(dbData)
 
       expect(result).toHaveProperty('name', 'Test Project')
       expect(result).toHaveProperty('projectType', 'Type A')
-      expect(result).toHaveProperty('rmaId', 123)
+      expect(result).toHaveProperty('rmaId', '123')
     })
 
     it('should transform projectInterventionTypes string to array', () => {
@@ -168,7 +168,7 @@ describe('ProjectMapper', () => {
     it('should handle complete project data', () => {
       const dbData = {
         name: 'Complete Project',
-        rma_name: 5,
+        rma_name: '5',
         project_type: 'DEF',
         project_intervention_types: 'NFM,SUDS',
         main_intervention_type: 'NFM',
@@ -180,7 +180,7 @@ describe('ProjectMapper', () => {
 
       expect(result).toEqual({
         name: 'Complete Project',
-        rmaId: 5,
+        rmaId: '5',
         projectType: 'DEF',
         projectInterventionTypes: ['NFM', 'SUDS'],
         mainInterventionType: 'NFM',
@@ -227,7 +227,7 @@ describe('ProjectMapper', () => {
 
     it('should pass through other values unchanged', () => {
       expect(ProjectMapper.transformValue('name', 'Test')).toBe('Test')
-      expect(ProjectMapper.transformValue('rmaId', 123)).toBe(123)
+      expect(ProjectMapper.transformValue('rmaId', '123')).toBe('123')
       expect(ProjectMapper.transformValue('projectType', 'DEF')).toBe('DEF')
     })
   })
@@ -253,7 +253,7 @@ describe('ProjectMapper', () => {
 
     it('should pass through other values unchanged', () => {
       expect(ProjectMapper.reverseTransformValue('name', 'Test')).toBe('Test')
-      expect(ProjectMapper.reverseTransformValue('rmaId', 123)).toBe(123)
+      expect(ProjectMapper.reverseTransformValue('rmaId', '123')).toBe('123')
       expect(
         ProjectMapper.reverseTransformValue('financialStartYear', 2024)
       ).toBe(2024)
@@ -264,7 +264,7 @@ describe('ProjectMapper', () => {
     it('should maintain data integrity through database and back to API', () => {
       const originalApi = {
         name: 'Test Project',
-        rmaId: 5,
+        rmaId: '5',
         projectType: 'DEF',
         projectInterventionTypes: ['NFM', 'SUDS'],
         mainInterventionType: 'NFM',
