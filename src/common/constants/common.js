@@ -91,6 +91,8 @@ export const SIZE = {
   LENGTH_4: 4,
   LENGTH_8: 8,
   LENGTH_32: 32,
+  LENGTH_50: 50,
+  LENGTH_100: 100,
   LENGTH_128: 128,
   LENGTH_254: 254,
   LENGTH_255: 255,
@@ -109,6 +111,8 @@ export const PATTERN = {
 }
 
 export const AREA_TYPE_MAP = {
+  COUNTRY: 'Country',
+  AUTHORITY: 'Authority',
   EA: 'EA Area',
   PSO: 'PSO Area',
   RMA: 'RMA'

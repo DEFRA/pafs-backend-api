@@ -23,7 +23,7 @@ describe('get-logs route', () => {
       query: {},
       auth: {
         credentials: {
-          id: 123,
+          userId: 123,
           isAdmin: true
         }
       },
@@ -35,7 +35,8 @@ describe('get-logs route', () => {
 
     mockH = {
       response: vi.fn().mockReturnThis(),
-      code: vi.fn().mockReturnThis()
+      code: vi.fn().mockReturnThis(),
+      takeover: vi.fn().mockReturnThis()
     }
   })
 
@@ -56,16 +57,17 @@ describe('get-logs route', () => {
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         { userId: 123 },
-        'Non-admin user attempted to view scheduler logs'
+        'Non-admin user attempted to access admin-only endpoint'
       )
       expect(mockH.response).toHaveBeenCalledWith({
         success: false,
         error: {
           code: 'UNAUTHORIZED',
-          message: 'Admin authentication required to view scheduler logs'
+          message: 'Admin authentication required'
         }
       })
       expect(mockH.code).toHaveBeenCalledWith(403)
+      expect(mockH.takeover).toHaveBeenCalled()
     })
 
     it('should allow admin users and return logs successfully', async () => {
