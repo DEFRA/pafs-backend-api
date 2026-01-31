@@ -63,12 +63,15 @@ describe('project schemas', () => {
       expect(
         projectNameSchema.validate('Project-Name-2024').error
       ).toBeUndefined()
+      expect(
+        projectNameSchema.validate('Project-Name 2024').error
+      ).toBeUndefined()
     })
 
     it('should reject invalid names', () => {
       expect(projectNameSchema.validate('').error).toBeDefined()
       expect(projectNameSchema.validate('Project@Name!').error).toBeDefined()
-      expect(projectNameSchema.validate('Project Name').error).toBeDefined()
+      expect(projectNameSchema.validate('Project±Name').error).toBeDefined()
     })
 
     it('should trim whitespace', () => {

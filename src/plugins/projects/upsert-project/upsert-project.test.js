@@ -62,6 +62,14 @@ describe('upsertProject handler', () => {
       ProjectService.prototype,
       'generateReferenceNumber'
     ).mockResolvedValue('ANC501E/000A/001A')
+    vi.spyOn(
+      ProjectService.prototype,
+      'getProjectByReferenceNumber'
+    ).mockResolvedValue({
+      referenceNumber: 'REF123',
+      name: 'Existing Project',
+      areaId: 1
+    })
     vi.spyOn(AreaService.prototype, 'getAreaByIdWithParents').mockResolvedValue(
       {
         id: '1',
@@ -79,14 +87,16 @@ describe('upsertProject handler', () => {
         payload: {
           referenceNumber: undefined,
           name: 'Test Project',
-          rmaId: 1n
+          rmaName: 1n
         }
       },
       auth: {
         credentials: {
           userId: 123n,
           isRma: true,
-          primaryAreaType: 'RMA'
+          isAdmin: false,
+          primaryAreaType: 'RMA',
+          areas: [{ areaId: '1', primary: true }]
         }
       },
       prisma: mockPrisma,
@@ -106,6 +116,7 @@ describe('upsertProject handler', () => {
     it('should reject non-RMA users creating new projects', async () => {
       mockRequest.auth.credentials.isRma = false
       mockRequest.auth.credentials.primaryAreaType = 'PSO Area'
+      mockRequest.auth.credentials.areas = [{ areaId: '1', primary: true }]
 
       await upsertProject.options.handler(mockRequest, mockH)
 
@@ -113,8 +124,7 @@ describe('upsertProject handler', () => {
         statusCode: HTTP_STATUS.FORBIDDEN,
         errors: {
           errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message:
-            'Only RMA users can create new projects. Your primary area type is: PSO Area'
+          message: 'Only RMA users can create projects'
         }
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
@@ -140,6 +150,7 @@ describe('upsertProject handler', () => {
     it('should allow non-RMA users to update existing projects', async () => {
       mockRequest.payload.payload.referenceNumber = 'REF123'
       mockRequest.auth.credentials.isRma = false
+      mockRequest.auth.credentials.isAdmin = true // Admin can update any project
 
       // Mocks are already set up in beforeEach
 
@@ -408,6 +419,222 @@ describe('upsertProject handler', () => {
 
       expect(mockLogger.error).toHaveBeenCalled()
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    })
+  })
+
+  describe('Update-specific scenarios', () => {
+    beforeEach(() => {
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.auth.credentials.isAdmin = false
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+    })
+
+    it('should skip name validation when name is not provided in update', async () => {
+      mockRequest.payload.payload.name = undefined
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+      expect(
+        ProjectService.prototype.checkDuplicateProjectName
+      ).not.toHaveBeenCalled()
+    })
+
+    it('should validate name when name is provided in update', async () => {
+      mockRequest.payload.payload.name = 'Updated Project Name'
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(
+        ProjectService.prototype.checkDuplicateProjectName
+      ).toHaveBeenCalledWith({
+        name: 'Updated Project Name',
+        referenceNumber: 'REF123'
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('should skip area type/RFCC validation when area is not changing in update', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        rmaId: 1n, // Same as payload.rmaName
+        areaId: 1n
+      })
+      mockRequest.payload.payload.rmaName = 1n
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+      // Area service is called once for permission check, not for area type validation
+      expect(
+        AreaService.prototype.getAreaByIdWithParents
+      ).toHaveBeenCalledTimes(1)
+    })
+
+    it('should validate area when area is changing in update', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        rmaId: 2n // Different from payload.rmaName
+      })
+      mockRequest.payload.payload.rmaName = 1n
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(AreaService.prototype.getAreaByIdWithParents).toHaveBeenCalledWith(
+        1n
+      )
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('should skip area type/RFCC validation when areaId is not in update payload', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        rmaId: 2n,
+        areaId: 2n
+      })
+      mockRequest.payload.payload.rmaName = undefined
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+      // Area service is called once for permission check using existing project's areaId
+      expect(AreaService.prototype.getAreaByIdWithParents).toHaveBeenCalledWith(
+        2n
+      )
+    })
+  })
+
+  describe('Permission validation edge cases', () => {
+    beforeEach(() => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+    })
+
+    it('should reject update when project does not exist', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce(null)
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        errors: {
+          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+          message: 'Project with the specified reference number does not exist'
+        }
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { userId: 123n, referenceNumber: 'REF123' },
+        'Attempted to update non-existent project'
+      )
+    })
+
+    it('should allow update when user has PSO parent access', async () => {
+      mockRequest.auth.credentials.isRma = false
+      mockRequest.auth.credentials.isAdmin = false
+      mockRequest.auth.credentials.areas = [{ areaId: '2', primary: true }] // PSO parent area
+
+      vi.spyOn(
+        AreaService.prototype,
+        'getAreaByIdWithParents'
+      ).mockResolvedValueOnce({
+        id: '1',
+        area_type: AREA_TYPE_MAP.RMA,
+        PSO: {
+          id: '2', // User has access to this PSO parent
+          sub_type: 'RFCC123'
+        }
+      })
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          id: expect.any(String)
+        })
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('should reject update when user has no area access', async () => {
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.auth.credentials.isAdmin = false
+      mockRequest.auth.credentials.areas = [{ areaId: '999', primary: true }] // Different area
+
+      vi.spyOn(
+        AreaService.prototype,
+        'getAreaByIdWithParents'
+      ).mockResolvedValueOnce({
+        id: '1',
+        area_type: AREA_TYPE_MAP.RMA,
+        PSO: {
+          id: '2',
+          sub_type: 'RFCC123'
+        }
+      })
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        errors: {
+          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+          message: expect.stringContaining('You do not have permission')
+        }
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
+    })
+
+    it('should reject create when user has no access to specified area', async () => {
+      mockRequest.payload.payload.referenceNumber = undefined
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.auth.credentials.isAdmin = false
+      mockRequest.auth.credentials.areas = [{ areaId: '999', primary: true }] // Different area
+      mockRequest.payload.payload.rmaName = 1n
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        errors: {
+          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+          message: 'You do not have access to the specified area'
+        }
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
     })
   })
 

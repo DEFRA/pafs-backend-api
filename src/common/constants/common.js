@@ -58,6 +58,8 @@ export const SESSION = {
 export const PASSWORD = {
   BCRYPT_ROUNDS: 12,
   BCRYPT_PREFIX: '$2',
+  // Valid bcrypt prefixes: $2, $2a (original), $2b (OpenBSD/Ruby on Rails), $2x, $2y
+  BCRYPT_VALID_PREFIXES: /^\$2[abxy]?\$/,
   ARCHIVABLE_TYPE: {
     USER: 'User'
   }
@@ -106,7 +108,7 @@ export const STATIC_TEXT = {
 }
 
 export const PATTERN = {
-  NAME_WITH_ALPHANUMERIC_UNDERSCORE_DASH: /^[a-zA-Z0-9_-]+$/,
+  NAME_WITH_ALPHANUMERIC_UNDERSCORE_DASH: /^[a-zA-Z0-9_ -]+$/,
   PROJECT_REFERENCE_NUMBER: /^[A-Z]{2}C501E\/\d{3}A\/\d{3}A$/
 }
 

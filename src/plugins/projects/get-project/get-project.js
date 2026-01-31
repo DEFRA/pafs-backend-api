@@ -1,9 +1,9 @@
 import { ProjectService } from '../services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 
-const getProjectOverview = {
+const getProject = {
   method: 'GET',
-  path: '/api/v1/project-proposal/proposal-overview/{referenceNumber}',
+  path: '/api/v1/project/{referenceNumber}',
   options: {
     auth: 'jwt',
     description: 'Get project overview by reference number',
@@ -22,9 +22,7 @@ const getProjectOverview = {
         request.server.logger
       )
       const result =
-        await projectService.getProjectOverviewByReferenceNumber(
-          referenceNumber
-        )
+        await projectService.getProjectByReferenceNumber(referenceNumber)
 
       return h.response(result).code(HTTP_STATUS.OK)
     } catch (error) {
@@ -41,4 +39,4 @@ const getProjectOverview = {
   }
 }
 
-export default getProjectOverview
+export default getProject

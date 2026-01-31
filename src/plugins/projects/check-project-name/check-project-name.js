@@ -6,7 +6,7 @@ import { PROPOSAL_ERROR_MESSAGES } from '../../../common/constants/project.js'
 
 const checkProjectName = {
   method: 'POST',
-  path: '/api/v1/project-proposal/check-name',
+  path: '/api/v1/project/check-name',
   options: {
     auth: 'jwt',
     description: 'Check if project name exists',

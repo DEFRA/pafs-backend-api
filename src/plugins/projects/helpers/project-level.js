@@ -20,7 +20,7 @@ export const VALIDATION_LEVELS = {
     name: 'INITIAL_SAVE',
     fields: {
       name: projectNameSchema,
-      rmaId: projectRmaIdSchema,
+      rmaName: projectRmaIdSchema,
       projectType: projectTypeSchema,
       projectInterventionTypes: projectInterventionTypeSchema,
       mainInterventionType: projectMainInterventionTypeSchema,
@@ -34,6 +34,14 @@ export const VALIDATION_LEVELS = {
     fields: {
       referenceNumber,
       name: projectNameSchema
+    }
+  },
+
+  PROJECT_AREA: {
+    name: 'PROJECT_AREA',
+    fields: {
+      referenceNumber,
+      rmaName: projectRmaIdSchema
     }
   },
 

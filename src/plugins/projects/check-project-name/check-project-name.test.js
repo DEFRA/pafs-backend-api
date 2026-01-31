@@ -47,7 +47,7 @@ describe('checkProjectName', () => {
     })
 
     test('Should have correct path', () => {
-      expect(checkProjectName.path).toBe('/api/v1/project-proposal/check-name')
+      expect(checkProjectName.path).toBe('/api/v1/project/check-name')
     })
 
     test('Should require JWT authentication', () => {

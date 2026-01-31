@@ -37,5 +37,4 @@
     <include file="changelog/5-005-add-unique-constraint-area-projects-project-id.xml" />
     <include file="changelog/6-001-add-inactivity-warning-sent-at-column.xml" />
     <include file="changelog/7-001-create-file-uploads-table.xml" />
-
 </databaseChangeLog>

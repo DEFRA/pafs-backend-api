@@ -5,38 +5,115 @@ import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { PROPOSAL_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
 import { upsertProjectSchema } from '../schema.js'
+import {
+  canCreateProject,
+  canUpdateProject
+} from '../helpers/project-permissions.js'
 
 /**
- * Validates RMA user permissions for creating new projects
+ * Validates project existence for update operations
+ * Returns existing project if found, error response if not
  */
-const validateRmaPermission = (
-  isCreate,
-  isRma,
+const validateProjectExists = async (
+  projectService,
+  referenceNumber,
   userId,
-  credentials,
   logger,
   h
 ) => {
-  if (isCreate && !isRma) {
+  const existingProject =
+    await projectService.getProjectByReferenceNumber(referenceNumber)
+
+  if (!existingProject) {
+    logger.warn(
+      { userId, referenceNumber },
+      'Attempted to update non-existent project'
+    )
+    return {
+      error: h
+        .response({
+          statusCode: HTTP_STATUS.NOT_FOUND,
+          errors: {
+            errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+            message:
+              'Project with the specified reference number does not exist'
+          }
+        })
+        .code(HTTP_STATUS.NOT_FOUND)
+    }
+  }
+
+  return { project: existingProject }
+}
+
+/**
+ * Validates user permissions for create operations
+ */
+const validateCreatePermissions = (credentials, areaId, logger, h) => {
+  const userId = credentials.userId
+  const createCheck = canCreateProject(credentials, areaId)
+
+  if (!createCheck.allowed) {
     logger.warn(
       {
         userId,
+        areaId,
         primaryAreaType: credentials.primaryAreaType
       },
-      'Non-RMA user attempted to create a new project proposal'
+      'User does not have permission to create project'
     )
     return h
       .response({
         statusCode: HTTP_STATUS.FORBIDDEN,
         errors: {
           errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message:
-            'Only RMA users can create new projects. Your primary area type is: ' +
-            credentials.primaryAreaType
+          message: createCheck.reason
         }
       })
       .code(HTTP_STATUS.FORBIDDEN)
   }
+
+  return null
+}
+
+/**
+ * Validates user permissions for update operations
+ */
+const validateUpdatePermissions = async (
+  credentials,
+  existingProject,
+  areaId,
+  areaService,
+  logger,
+  h
+) => {
+  const userId = credentials.userId
+  const projectAreaId = areaId || existingProject.areaId
+  const projectAreaDetails =
+    await areaService.getAreaByIdWithParents(projectAreaId)
+
+  const updateCheck = canUpdateProject(credentials, projectAreaDetails)
+
+  if (!updateCheck.allowed) {
+    logger.warn(
+      {
+        userId,
+        referenceNumber: existingProject.referenceNumber,
+        projectAreaId
+      },
+      'User does not have permission to update project'
+    )
+    return h
+      .response({
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        errors: {
+          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+          message: updateCheck.reason
+        }
+      })
+      .code(HTTP_STATUS.FORBIDDEN)
+  }
+
   return null
 }
 
@@ -130,6 +207,77 @@ const validateRfccCode = (areaWithParents, areaId, userId, logger, h) => {
 }
 
 /**
+ * Fetches and validates area (RMA type check)
+ * Returns area data if valid, error response if invalid
+ */
+const fetchAndValidateArea = async (areaService, areaId, userId, logger, h) => {
+  const areaWithParents = await areaService.getAreaByIdWithParents(areaId)
+  const areaError = validateArea(areaWithParents, areaId, userId, logger, h)
+
+  if (areaError) {
+    return { error: areaError }
+  }
+
+  return { areaWithParents }
+}
+
+/**
+ * Validates area and RFCC for create operations
+ */
+const validateCreateSpecificFields = async (
+  areaService,
+  areaId,
+  userId,
+  logger,
+  h
+) => {
+  const { areaWithParents, error } = await fetchAndValidateArea(
+    areaService,
+    areaId,
+    userId,
+    logger,
+    h
+  )
+  if (error) {
+    return { error }
+  }
+
+  // Validate RFCC code
+  const rfccError = validateRfccCode(areaWithParents, areaId, userId, logger, h)
+  if (rfccError) {
+    return { error: rfccError }
+  }
+
+  return { rfccCode: areaWithParents.PSO.sub_type }
+}
+
+/**
+ * Validates area for update operations when area is changing
+ */
+const validateUpdateAreaChange = async (
+  areaService,
+  areaId,
+  existingProject,
+  userId,
+  logger,
+  h
+) => {
+  const needsValidation = areaId && existingProject?.rmaId !== areaId
+  if (!needsValidation) {
+    return null
+  }
+
+  const { error } = await fetchAndValidateArea(
+    areaService,
+    areaId,
+    userId,
+    logger,
+    h
+  )
+  return error
+}
+
+/**
  * Orchestrates all validation checks for the project upsert
  */
 const performValidations = async (
@@ -140,52 +288,74 @@ const performValidations = async (
   logger,
   h
 ) => {
-  const { referenceNumber, name, rmaId: areaId } = proposalPayload
+  const { referenceNumber, name, rmaName: areaId } = proposalPayload
   const isCreate = !referenceNumber
   const userId = credentials.userId
-  const { isRma } = credentials
 
-  // Validate RMA permission for new projects
-  const permissionError = validateRmaPermission(
-    isCreate,
-    isRma,
-    userId,
-    credentials,
-    logger,
-    h
-  )
+  // For updates, check if project exists first
+  let existingProject = null
+  if (!isCreate) {
+    const projectCheck = await validateProjectExists(
+      projectService,
+      referenceNumber,
+      userId,
+      logger,
+      h
+    )
+    if (projectCheck.error) {
+      return projectCheck
+    }
+    existingProject = projectCheck.project
+  }
+
+  // Validate permissions
+  const permissionError = isCreate
+    ? validateCreatePermissions(credentials, areaId, logger, h)
+    : await validateUpdatePermissions(
+        credentials,
+        existingProject,
+        areaId,
+        areaService,
+        logger,
+        h
+      )
   if (permissionError) {
     return { error: permissionError }
   }
 
-  // Validate project name uniqueness
-  const nameError = await validateProjectName(
-    projectService,
-    name,
-    referenceNumber,
+  // Validate project name uniqueness (always for create, only when name present for update)
+  if (isCreate || name) {
+    const nameError = await validateProjectName(
+      projectService,
+      name,
+      referenceNumber,
+      userId,
+      logger,
+      h
+    )
+    if (nameError) {
+      return { error: nameError }
+    }
+  }
+
+  if (isCreate) {
+    return validateCreateSpecificFields(areaService, areaId, userId, logger, h)
+  }
+
+  // For updates, only validate area if it's changing
+  const areaError = await validateUpdateAreaChange(
+    areaService,
+    areaId,
+    existingProject,
     userId,
     logger,
     h
   )
-  if (nameError) {
-    return { error: nameError }
-  }
-
-  // Fetch and validate area
-  const areaWithParents = await areaService.getAreaByIdWithParents(areaId)
-  const areaError = validateArea(areaWithParents, areaId, userId, logger, h)
   if (areaError) {
     return { error: areaError }
   }
 
-  // Validate RFCC code
-  const rfccError = validateRfccCode(areaWithParents, areaId, userId, logger, h)
-  if (rfccError) {
-    return { error: rfccError }
-  }
-
-  const rfccCode = areaWithParents.PSO.sub_type
-  return { rfccCode }
+  return { rfccCode: null }
 }
 
 /**
@@ -211,7 +381,9 @@ const upsertProject = {
     auth: 'jwt',
     description: 'Create or update a project',
     notes:
-      'Creates a new project proposal or updates an existing one. For new projects, only RMA users can create.',
+      'Creates a new project proposal or updates an existing one. ' +
+      'Create: Only RMA users with access to the specified area can create projects. ' +
+      'Update: Admin users, RMA users with access to the project area, or users with access to the parent PSO area can update projects.',
     tags: ['api', 'projects'],
     validate: {
       payload: upsertProjectSchema,

@@ -7,7 +7,7 @@ describe('ProjectMapper', () => {
       const apiData = {
         name: 'Test Project',
         projectType: 'Type A',
-        rmaId: '123'
+        rmaName: '123'
       }
 
       const result = ProjectMapper.toDatabase(apiData)
@@ -21,7 +21,7 @@ describe('ProjectMapper', () => {
       const apiData = {
         name: 'Test Project',
         projectType: undefined,
-        rmaId: 123
+        rmaName: 123
       }
 
       const result = ProjectMapper.toDatabase(apiData)
@@ -35,7 +35,7 @@ describe('ProjectMapper', () => {
       const apiData = {
         name: 'Test Project',
         unmappedField: 'value',
-        rmaId: 123
+        rmaName: 123
       }
 
       const result = ProjectMapper.toDatabase(apiData)
@@ -93,7 +93,7 @@ describe('ProjectMapper', () => {
     it('should handle complete project data', () => {
       const apiData = {
         name: 'Complete Project',
-        rmaId: '5',
+        rmaName: '5',
         projectType: 'DEF',
         projectInterventionTypes: ['NFM', 'SUDS'],
         mainInterventionType: 'NFM',
@@ -127,7 +127,7 @@ describe('ProjectMapper', () => {
 
       expect(result).toHaveProperty('name', 'Test Project')
       expect(result).toHaveProperty('projectType', 'Type A')
-      expect(result).toHaveProperty('rmaId', '123')
+      expect(result).toHaveProperty('rmaName', '123')
     })
 
     it('should transform projectInterventionTypes string to array', () => {
@@ -180,7 +180,7 @@ describe('ProjectMapper', () => {
 
       expect(result).toEqual({
         name: 'Complete Project',
-        rmaId: '5',
+        rmaName: '5',
         projectType: 'DEF',
         projectInterventionTypes: ['NFM', 'SUDS'],
         mainInterventionType: 'NFM',
@@ -200,7 +200,89 @@ describe('ProjectMapper', () => {
 
       expect(result).toHaveProperty('name')
       expect(result).not.toHaveProperty('unmapped_db_field')
-      expect(result).toHaveProperty('rmaId')
+      expect(result).toHaveProperty('rmaName')
+    })
+
+    it('should map select-only fields from database', () => {
+      const dbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        updated_at: '2024-01-15T10:30:00Z'
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty('referenceNumber', 'REF123')
+      expect(result).toHaveProperty('name', 'Test Project')
+      expect(result).toHaveProperty('updatedAt', '2024-01-15T10:30:00Z')
+    })
+
+    it('should map joined fields from pafs_core_states', () => {
+      const dbData = {
+        name: 'Test Project',
+        pafs_core_states: {
+          state: 'draft'
+        }
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty('name', 'Test Project')
+      expect(result).toHaveProperty('projectState', 'draft')
+    })
+
+    it('should map joined fields from pafs_core_area_projects', () => {
+      const dbData = {
+        name: 'Test Project',
+        pafs_core_area_projects: {
+          area_id: 42,
+          owner: true
+        }
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty('name', 'Test Project')
+      expect(result).toHaveProperty('areaId', 42)
+      expect(result).toHaveProperty('isOwner', true)
+    })
+
+    it('should map complete data with all joined fields', () => {
+      const dbData = {
+        reference_number: 'REF123',
+        name: 'Complete Project',
+        rma_name: '5',
+        project_type: 'DEF',
+        project_intervention_types: 'NFM,SUDS',
+        main_intervention_type: 'NFM',
+        earliest_start_year: 2024,
+        project_end_financial_year: 2026,
+        updated_at: '2024-01-15T10:30:00Z',
+        pafs_core_states: {
+          state: 'submitted'
+        },
+        pafs_core_area_projects: {
+          area_id: 10,
+          owner: false
+        }
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toEqual({
+        referenceNumber: 'REF123',
+        name: 'Complete Project',
+        rmaName: '5',
+        projectType: 'DEF',
+        projectInterventionTypes: ['NFM', 'SUDS'],
+        mainInterventionType: 'NFM',
+        financialStartYear: 2024,
+        financialEndYear: 2026,
+        updatedAt: '2024-01-15T10:30:00Z',
+        projectState: 'submitted',
+        areaId: 10,
+        isOwner: false
+      })
     })
   })
 
@@ -227,7 +309,7 @@ describe('ProjectMapper', () => {
 
     it('should pass through other values unchanged', () => {
       expect(ProjectMapper.transformValue('name', 'Test')).toBe('Test')
-      expect(ProjectMapper.transformValue('rmaId', '123')).toBe('123')
+      expect(ProjectMapper.transformValue('rmaName', '123')).toBe('123')
       expect(ProjectMapper.transformValue('projectType', 'DEF')).toBe('DEF')
     })
   })
@@ -251,9 +333,54 @@ describe('ProjectMapper', () => {
       expect(result).toEqual([])
     })
 
+    it('should return empty array for null projectInterventionTypes', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'projectInterventionTypes',
+        null
+      )
+      expect(Array.isArray(result)).toBe(true)
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array for undefined projectInterventionTypes', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'projectInterventionTypes',
+        undefined
+      )
+      expect(Array.isArray(result)).toBe(true)
+      expect(result).toEqual([])
+    })
+
+    it('should convert string years to numbers for financialStartYear', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'financialStartYear',
+        '2024'
+      )
+      expect(result).toBe(2024)
+      expect(typeof result).toBe('number')
+    })
+
+    it('should convert string years to numbers for financialEndYear', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'financialEndYear',
+        '2025'
+      )
+      expect(result).toBe(2025)
+      expect(typeof result).toBe('number')
+    })
+
+    it('should preserve numeric years for financialStartYear', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'financialStartYear',
+        2024
+      )
+      expect(result).toBe(2024)
+      expect(typeof result).toBe('number')
+    })
+
     it('should pass through other values unchanged', () => {
       expect(ProjectMapper.reverseTransformValue('name', 'Test')).toBe('Test')
-      expect(ProjectMapper.reverseTransformValue('rmaId', '123')).toBe('123')
+      expect(ProjectMapper.reverseTransformValue('rmaName', '123')).toBe('123')
       expect(
         ProjectMapper.reverseTransformValue('financialStartYear', 2024)
       ).toBe(2024)
@@ -264,7 +391,7 @@ describe('ProjectMapper', () => {
     it('should maintain data integrity through database and back to API', () => {
       const originalApi = {
         name: 'Test Project',
-        rmaId: '5',
+        rmaName: '5',
         projectType: 'DEF',
         projectInterventionTypes: ['NFM', 'SUDS'],
         mainInterventionType: 'NFM',
@@ -276,6 +403,142 @@ describe('ProjectMapper', () => {
       const resultApi = ProjectMapper.toApi(dbData)
 
       expect(resultApi).toEqual(originalApi)
+    })
+  })
+
+  describe('toApi with nested Prisma data', () => {
+    it('should flatten and map nested pafs_core_states data', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        rma_name: '5',
+        pafs_core_states: {
+          state: 'draft'
+        }
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toEqual({
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        rmaName: '5',
+        projectState: 'draft'
+      })
+    })
+
+    it('should flatten and map nested pafs_core_area_projects object', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        pafs_core_area_projects: {
+          area_id: 42,
+          owner: true
+        }
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toEqual({
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 42,
+        isOwner: true
+      })
+    })
+
+    it('should flatten and map nested pafs_core_area_projects array', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        pafs_core_area_projects: [
+          {
+            area_id: 42,
+            owner: true
+          },
+          {
+            area_id: 43,
+            owner: false
+          }
+        ]
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      // Should use first element
+      expect(result).toEqual({
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 42,
+        isOwner: true
+      })
+    })
+
+    it('should handle empty pafs_core_area_projects array', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        pafs_core_area_projects: []
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toEqual({
+        referenceNumber: 'REF123',
+        name: 'Test Project'
+      })
+    })
+
+    it('should handle all nested data together', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Complete Project',
+        rma_name: '5',
+        project_type: 'DEF',
+        project_intervention_types: 'NFM,SUDS',
+        main_intervention_type: 'NFM',
+        earliest_start_year: 2024,
+        project_end_financial_year: 2026,
+        updated_at: '2024-01-15T10:30:00Z',
+        pafs_core_states: {
+          state: 'submitted'
+        },
+        pafs_core_area_projects: {
+          area_id: 10,
+          owner: false
+        }
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toEqual({
+        referenceNumber: 'REF123',
+        name: 'Complete Project',
+        rmaName: '5',
+        projectType: 'DEF',
+        projectInterventionTypes: ['NFM', 'SUDS'],
+        mainInterventionType: 'NFM',
+        financialStartYear: 2024,
+        financialEndYear: 2026,
+        updatedAt: '2024-01-15T10:30:00Z',
+        projectState: 'submitted',
+        areaId: 10,
+        isOwner: false
+      })
+    })
+
+    it('should handle missing nested data gracefully', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project'
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toEqual({
+        referenceNumber: 'REF123',
+        name: 'Test Project'
+      })
     })
   })
 })

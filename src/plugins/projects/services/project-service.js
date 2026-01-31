@@ -4,6 +4,10 @@ import {
   PROPOSAL_VALIDATION_MESSAGES
 } from '../../../common/constants/project.js'
 import { ProjectMapper } from '../helpers/project-mapper.js'
+import {
+  getProjectSelectFields,
+  getJoinedTableConfig
+} from '../helpers/project-config.js'
 
 const COUNTER_SUFFIX = 'A'
 const REFERENCE_NUMBER_TEMPLATE = 'C501E'
@@ -188,9 +192,7 @@ export class ProjectService {
       }
 
       // Generate slug from reference number (replace / with -)
-      const slug = referenceNumber
-        ? referenceNumber.toLowerCase().replaceAll('/', '-')
-        : ''
+      const slug = referenceNumber ? referenceNumber.replaceAll('/', '-') : ''
 
       const result = await this.prisma.pafs_core_projects.upsert({
         where: {
@@ -213,7 +215,7 @@ export class ProjectService {
 
       if (isCreateOperation) {
         await this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
-        await this.upsertProjectArea(result.id, proposalPayload.rmaId)
+        await this.upsertProjectArea(result.id, proposalPayload.rmaName)
       }
 
       return result
@@ -229,8 +231,9 @@ export class ProjectService {
 
   /**
    * Get Project Overview data using reference number
+   * Fetches project with joined tables and returns mapped API format
    */
-  async getProjectOverviewByReferenceNumber(referenceNumber) {
+  async getProjectByReferenceNumber(referenceNumber) {
     if (!referenceNumber || referenceNumber.length === 0) {
       return []
     }
@@ -241,50 +244,43 @@ export class ProjectService {
         'Fetching project details by reference number'
       )
 
-      const projectProposal = await this.prisma.pafs_core_projects.findFirst({
+      const project = await this.prisma.pafs_core_projects.findFirst({
         where: {
           reference_number: referenceNumber
         },
         select: {
-          reference_number: true,
-          name: true,
-          rma_name: true,
-          project_type: true,
-          project_intervention_types: true,
-          main_intervention_type: true,
-          earliest_start_year: true,
-          project_end_financial_year: true,
-          updated_at: true
+          id: true, // Need id for manual joins
+          ...getProjectSelectFields()
         }
       })
 
-      if (!projectProposal) {
+      if (!project) {
         return null
       }
 
-      return this._mappedProposalDetailsData(projectProposal)
+      // Manually fetch joined table data
+      const joinedTables = getJoinedTableConfig()
+      for (const [tableKey, config] of Object.entries(joinedTables)) {
+        const joinData = await this.prisma[config.tableName].findFirst({
+          where: {
+            [config.joinField]: Number(project.id)
+          },
+          select: Object.fromEntries(
+            Object.values(config.fields).map((field) => [field, true])
+          )
+        })
+        if (joinData) {
+          project[tableKey] = joinData
+        }
+      }
+
+      return ProjectMapper.toApi(project)
     } catch (error) {
       this.logger.error(
         { error: error.message, referenceNumber },
         'Error fetching project details by reference number'
       )
       throw error
-    }
-  }
-
-  _mappedProposalDetailsData(proposalData) {
-    return {
-      referenceNumber: proposalData.reference_number,
-      projectName: proposalData.name,
-      rmaArea: proposalData.rma_name,
-      projectType: proposalData.project_type,
-      interventionTypes: proposalData.project_intervention_types
-        ? proposalData.project_intervention_types.split(',')
-        : [],
-      mainInterventionType: proposalData.main_intervention_type,
-      startYear: Number(proposalData.earliest_start_year),
-      endYear: Number(proposalData.project_end_financial_year),
-      lastUpdated: proposalData.updated_at
     }
   }
 
