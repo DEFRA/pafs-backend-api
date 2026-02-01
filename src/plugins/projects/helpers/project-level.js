@@ -6,7 +6,7 @@ import {
   projectMainInterventionTypeSchema,
   projectNameSchema,
   projectReferenceNumberSchema,
-  projectRmaIdSchema,
+  projectAreaIdSchema,
   projectTypeSchema
 } from '../../../common/schemas/project.js'
 import { PROPOSAL_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
@@ -20,7 +20,7 @@ export const VALIDATION_LEVELS = {
     name: 'INITIAL_SAVE',
     fields: {
       name: projectNameSchema,
-      rmaName: projectRmaIdSchema,
+      areaId: projectAreaIdSchema,
       projectType: projectTypeSchema,
       projectInterventionTypes: projectInterventionTypeSchema,
       mainInterventionType: projectMainInterventionTypeSchema,
@@ -41,7 +41,7 @@ export const VALIDATION_LEVELS = {
     name: 'PROJECT_AREA',
     fields: {
       referenceNumber,
-      rmaName: projectRmaIdSchema
+      areaId: projectAreaIdSchema
     }
   },
 

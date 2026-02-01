@@ -223,6 +223,7 @@ const fetchAndValidateArea = async (areaService, areaId, userId, logger, h) => {
 
 /**
  * Validates area and RFCC for create operations
+ * Returns area data to avoid redundant fetches
  */
 const validateCreateSpecificFields = async (
   areaService,
@@ -248,37 +249,73 @@ const validateCreateSpecificFields = async (
     return { error: rfccError }
   }
 
-  return { rfccCode: areaWithParents.PSO.sub_type }
+  return {
+    rfccCode: areaWithParents.PSO.sub_type,
+    areaData: areaWithParents
+  }
 }
 
 /**
  * Validates area for update operations when area is changing
+ * Only admin users can change the area of an existing project
+ * Returns area data to avoid redundant fetches
  */
 const validateUpdateAreaChange = async (
   areaService,
   areaId,
   existingProject,
+  credentials,
   userId,
   logger,
   h
 ) => {
-  const needsValidation = areaId && existingProject?.rmaId !== areaId
+  const needsValidation = areaId && existingProject?.areaId !== areaId
   if (!needsValidation) {
-    return null
+    return { areaData: null }
   }
 
-  const { error } = await fetchAndValidateArea(
+  // Check if user is admin (only admins can change area)
+  if (!credentials.isAdmin) {
+    logger.warn(
+      {
+        userId,
+        referenceNumber: existingProject.referenceNumber,
+        currentAreaId: existingProject.areaId,
+        newAreaId: areaId
+      },
+      'Non-admin user attempted to change project area'
+    )
+    return {
+      error: h
+        .response({
+          statusCode: HTTP_STATUS.FORBIDDEN,
+          errors: {
+            errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+            message: 'Only admin users can change the area of a project'
+          }
+        })
+        .code(HTTP_STATUS.FORBIDDEN)
+    }
+  }
+
+  const { areaWithParents, error } = await fetchAndValidateArea(
     areaService,
     areaId,
     userId,
     logger,
     h
   )
-  return error
+
+  if (error) {
+    return { error }
+  }
+
+  return { areaData: areaWithParents }
 }
 
 /**
  * Orchestrates all validation checks for the project upsert
+ * Returns validation results including area data to avoid redundant fetches
  */
 const performValidations = async (
   projectService,
@@ -288,7 +325,7 @@ const performValidations = async (
   logger,
   h
 ) => {
-  const { referenceNumber, name, rmaName: areaId } = proposalPayload
+  const { referenceNumber, name, areaId } = proposalPayload
   const isCreate = !referenceNumber
   const userId = credentials.userId
 
@@ -343,19 +380,20 @@ const performValidations = async (
   }
 
   // For updates, only validate area if it's changing
-  const areaError = await validateUpdateAreaChange(
+  const areaResult = await validateUpdateAreaChange(
     areaService,
     areaId,
     existingProject,
+    credentials,
     userId,
     logger,
     h
   )
-  if (areaError) {
-    return { error: areaError }
+  if (areaResult.error) {
+    return { error: areaResult.error }
   }
 
-  return { rfccCode: null }
+  return { rfccCode: null, areaData: areaResult.areaData }
 }
 
 /**
@@ -392,7 +430,7 @@ const upsertProject = {
     handler: async (request, h) => {
       const apiPayload = request.payload
       const proposalPayload = apiPayload.payload
-      const { referenceNumber, name } = proposalPayload
+      const { referenceNumber, name, areaId } = proposalPayload
 
       try {
         const projectService = new ProjectService(
@@ -421,8 +459,15 @@ const upsertProject = {
         const userId = request.auth.credentials.userId
         const isCreate = !referenceNumber
 
+        // Fetch area name if areaId is provided and add to payload
+        const enrichedPayload = { ...proposalPayload }
+        if (areaId) {
+          const area = await areaService.getAreaByIdWithParents(areaId)
+          enrichedPayload.rmaName = area.name // Add area name for database storage
+        }
+
         const project = await projectService.upsertProject(
-          proposalPayload,
+          enrichedPayload,
           userId,
           rfccCode
         )

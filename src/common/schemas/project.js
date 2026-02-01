@@ -63,16 +63,17 @@ export const projectNameSchema = Joi.string()
   })
 
 /**
- * Project RMA ID schema - for updates
+ * Project Area ID schema - integer area ID from frontend
  */
-export const projectRmaIdSchema = Joi.string()
-  .trim()
-  .pattern(/^\d+$/)
-  .label('Project RMA ID')
+export const projectAreaIdSchema = Joi.number()
+  .integer()
+  .positive()
+  .label('Project Area ID')
   .required()
   .messages({
-    'string.empty': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_REQUIRED,
-    'string.pattern.base': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
+    'number.base': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
+    'number.positive': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
+    'number.integer': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
     'any.required': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_REQUIRED
   })
 

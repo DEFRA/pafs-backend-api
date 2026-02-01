@@ -30,10 +30,11 @@ export const PROJECT_JOIN_TABLES = {
 /**
  * Common fields used for both create/update and read operations
  * Maps API field names to database column names in pafs_core_projects table
+ * Note: rmaName is the area name string stored in DB, areaId comes from joined table
  */
 export const PROJECT_FIELDS_MAP = {
   name: 'name',
-  rmaName: 'rma_name',
+  rmaName: 'rma_name', // This stores the area NAME (string), not ID
   projectType: 'project_type',
   projectInterventionTypes: 'project_intervention_types',
   mainInterventionType: 'main_intervention_type',

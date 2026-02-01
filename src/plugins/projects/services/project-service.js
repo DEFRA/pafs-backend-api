@@ -215,7 +215,7 @@ export class ProjectService {
 
       if (isCreateOperation) {
         await this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
-        await this.upsertProjectArea(result.id, proposalPayload.rmaName)
+        await this.upsertProjectArea(result.id, proposalPayload.areaId)
       }
 
       return result

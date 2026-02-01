@@ -4,7 +4,7 @@ import {
   projectIdSchema,
   projectReferenceNumberSchema,
   projectNameSchema,
-  projectRmaIdSchema,
+  projectAreaIdSchema,
   projectTypeSchema,
   projectInterventionTypeSchema,
   projectMainInterventionTypeSchema,
@@ -80,19 +80,19 @@ describe('project schemas', () => {
     })
   })
 
-  describe('projectRmaIdSchema', () => {
+  describe('projectAreaIdSchema', () => {
     it('should accept valid positive integer', () => {
-      const { error } = projectRmaIdSchema.validate('1')
+      const { error } = projectAreaIdSchema.validate(1)
       expect(error).toBeUndefined()
     })
 
     it('should reject invalid values', () => {
-      expect(projectRmaIdSchema.validate('abc').error).toBeDefined()
-      expect(projectRmaIdSchema.validate('12abc').error).toBeDefined()
-      expect(projectRmaIdSchema.validate('').error).toBeDefined()
-      expect(projectRmaIdSchema.validate(123).error).toBeDefined()
-      expect(projectRmaIdSchema.validate(undefined).error).toBeDefined()
-      expect(projectRmaIdSchema.validate(null).error).toBeDefined()
+      expect(projectAreaIdSchema.validate('abc').error).toBeDefined()
+      expect(projectAreaIdSchema.validate('12abc').error).toBeDefined()
+      expect(projectAreaIdSchema.validate('').error).toBeDefined()
+      expect(projectAreaIdSchema.validate(123).error).toBeUndefined()
+      expect(projectAreaIdSchema.validate(undefined).error).toBeDefined()
+      expect(projectAreaIdSchema.validate(null).error).toBeDefined()
     })
   })
 

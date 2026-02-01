@@ -73,6 +73,7 @@ describe('upsertProject handler', () => {
     vi.spyOn(AreaService.prototype, 'getAreaByIdWithParents').mockResolvedValue(
       {
         id: '1',
+        name: 'Test RMA Area',
         area_type: AREA_TYPE_MAP.RMA,
         PSO: {
           id: '2',
@@ -87,7 +88,7 @@ describe('upsertProject handler', () => {
         payload: {
           referenceNumber: undefined,
           name: 'Test Project',
-          rmaName: 1n
+          areaId: 1n
         }
       },
       auth: {
@@ -364,6 +365,14 @@ describe('upsertProject handler', () => {
 
     it('should return 200 OK for project updates', async () => {
       mockRequest.payload.payload.referenceNumber = 'REF456'
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF456',
+        name: 'Existing Project',
+        areaId: 1n
+      })
 
       await upsertProject.options.handler(mockRequest, mockH)
 
@@ -427,6 +436,15 @@ describe('upsertProject handler', () => {
       mockRequest.auth.credentials.isRma = true
       mockRequest.auth.credentials.isAdmin = false
       mockRequest.payload.payload.referenceNumber = 'REF123'
+      // Mock existing project with same areaId to avoid admin check
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValue({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n // Same as mockRequest payload
+      })
     })
 
     it('should skip name validation when name is not provided in update', async () => {
@@ -467,10 +485,10 @@ describe('upsertProject handler', () => {
       ).mockResolvedValueOnce({
         referenceNumber: 'REF123',
         name: 'Existing Project',
-        rmaId: 1n, // Same as payload.rmaName
-        areaId: 1n
+        rmaId: 1n,
+        areaId: 1n // Same as payload.areaId
       })
-      mockRequest.payload.payload.rmaName = 1n
+      mockRequest.payload.payload.areaId = 1n
 
       await upsertProject.options.handler(mockRequest, mockH)
 
@@ -481,10 +499,10 @@ describe('upsertProject handler', () => {
         })
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
-      // Area service is called once for permission check, not for area type validation
+      // Area service is called twice: once for permission check, once to fetch area name
       expect(
         AreaService.prototype.getAreaByIdWithParents
-      ).toHaveBeenCalledTimes(1)
+      ).toHaveBeenCalledTimes(2)
     })
 
     it('should validate area when area is changing in update', async () => {
@@ -494,9 +512,11 @@ describe('upsertProject handler', () => {
       ).mockResolvedValueOnce({
         referenceNumber: 'REF123',
         name: 'Existing Project',
-        rmaId: 2n // Different from payload.rmaName
+        rmaId: 2n,
+        areaId: 2n // Different from payload.areaId
       })
-      mockRequest.payload.payload.rmaName = 1n
+      mockRequest.payload.payload.areaId = 1n
+      mockRequest.auth.credentials.isAdmin = true // Allow area change
 
       await upsertProject.options.handler(mockRequest, mockH)
 
@@ -504,6 +524,32 @@ describe('upsertProject handler', () => {
         1n
       )
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('should reject area change when user is not admin', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        rmaId: 2n,
+        areaId: 2n // Different from payload.areaId
+      })
+      mockRequest.payload.payload.areaId = 1n
+      mockRequest.auth.credentials.isAdmin = false // Not admin
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        errors: {
+          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+          message: 'Only admin users can change the area of a project'
+        }
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
+      expect(mockLogger.warn).toHaveBeenCalled()
     })
 
     it('should skip area type/RFCC validation when areaId is not in update payload', async () => {
@@ -516,7 +562,7 @@ describe('upsertProject handler', () => {
         rmaId: 2n,
         areaId: 2n
       })
-      mockRequest.payload.payload.rmaName = undefined
+      mockRequest.payload.payload.areaId = undefined
 
       await upsertProject.options.handler(mockRequest, mockH)
 
@@ -567,10 +613,20 @@ describe('upsertProject handler', () => {
       mockRequest.auth.credentials.areas = [{ areaId: '2', primary: true }] // PSO parent area
 
       vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n // Same as payload - no area change
+      })
+
+      vi.spyOn(
         AreaService.prototype,
         'getAreaByIdWithParents'
       ).mockResolvedValueOnce({
         id: '1',
+        name: 'Test RMA Area',
         area_type: AREA_TYPE_MAP.RMA,
         PSO: {
           id: '2', // User has access to this PSO parent
@@ -623,7 +679,7 @@ describe('upsertProject handler', () => {
       mockRequest.auth.credentials.isRma = true
       mockRequest.auth.credentials.isAdmin = false
       mockRequest.auth.credentials.areas = [{ areaId: '999', primary: true }] // Different area
-      mockRequest.payload.payload.rmaName = 1n
+      mockRequest.payload.payload.areaId = 1n
 
       await upsertProject.options.handler(mockRequest, mockH)
 
