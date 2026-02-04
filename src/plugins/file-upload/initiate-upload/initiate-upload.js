@@ -1,9 +1,6 @@
 import Joi from 'joi'
 import { getCdpUploaderService } from '../../../common/services/file-upload/cdp-uploader-service.js'
-import { config } from '../../../config.js'
 import { HTTP_STATUS, UPLOAD_STATUS } from '../../../common/constants/index.js'
-
-const frontendUrl = config.get('frontendUrl')
 
 const initiateUploadSchema = {
   payload: Joi.object({
@@ -21,6 +18,91 @@ const initiateUploadSchema = {
   })
 }
 
+/**
+ * Build upload metadata object
+ * @private
+ */
+function buildUploadMetadata(payload, userId) {
+  const { reference, entityType, entityId, metadata = {} } = payload
+  return {
+    reference,
+    entityType,
+    entityId,
+    userId,
+    ...metadata
+  }
+}
+
+/**
+ * Determine upload status based on whether downloadUrls are provided
+ * @private
+ */
+function getInitialUploadStatus(downloadUrls) {
+  return downloadUrls ? UPLOAD_STATUS.PROCESSING : UPLOAD_STATUS.PENDING
+}
+
+/**
+ * Create upload record in database
+ * @private
+ */
+async function createUploadRecord(
+  prisma,
+  uploadSession,
+  payload,
+  uploadMetadata,
+  userId
+) {
+  const { entityType, entityId, reference, downloadUrls } = payload
+
+  return prisma.file_uploads.create({
+    data: {
+      upload_id: uploadSession.uploadId,
+      upload_status: getInitialUploadStatus(downloadUrls),
+      entity_type: entityType,
+      entity_id: entityId,
+      reference,
+      metadata: uploadMetadata,
+      uploaded_by_user_id: userId
+    }
+  })
+}
+
+/**
+ * Build success response
+ * @private
+ */
+function buildSuccessResponse(
+  h,
+  uploadSession,
+  cdpUploader,
+  serverUri,
+  reference
+) {
+  return h
+    .response({
+      success: true,
+      data: {
+        ...uploadSession,
+        reference
+      }
+    })
+    .code(HTTP_STATUS.CREATED)
+}
+
+/**
+ * Build error response
+ * @private
+ */
+function buildErrorResponse(h) {
+  return h
+    .response({
+      success: false,
+      message: 'Failed to initiate file upload',
+      error: 'Upload initiation failed'
+    })
+    .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+}
+
 const initiateUpload = {
   method: 'POST',
   path: '/api/v1/file-uploads/initiate',
@@ -36,76 +118,50 @@ const initiateUpload = {
   },
   handler: async (request, h) => {
     const { logger } = request.server
+    const { payload, prisma, server } = request
+    const userId = request.auth?.credentials?.user?.id
     const cdpUploader = getCdpUploaderService(logger)
 
-    const {
-      redirect,
-      entityType,
-      entityId,
-      reference,
-      metadata = {},
-      downloadUrls
-    } = request.payload
-
     try {
-      // Build callback URL for CDP Uploader to notify us when upload is complete
-      const callbackUrl = `${request.server.info.uri}/api/v1/file-uploads/callback`
+      // Build callback URL for CDP Uploader
+      const callbackUrl = `${server.info.uri}/api/v1/file-uploads/callback`
 
       // Prepare metadata to send to CDP Uploader
-      const uploadMetadata = {
-        reference,
-        entityType,
-        entityId,
-        userId: request.auth?.credentials?.user?.id,
-        ...metadata
-      }
+      const uploadMetadata = buildUploadMetadata(payload, userId)
 
       // Initiate upload with CDP Uploader
       const uploadSession = await cdpUploader.initiate({
-        redirect: redirect || '/upload-complete',
+        redirect: payload.redirect || '/upload-complete',
         callback: callbackUrl,
         metadata: uploadMetadata,
-        downloadUrls
+        downloadUrls: payload.downloadUrls
       })
 
       // Store upload record in database
-      await request.prisma.file_uploads.create({
-        data: {
-          uploadId: uploadSession.uploadId,
-          uploadStatus: downloadUrls
-            ? UPLOAD_STATUS.PROCESSING
-            : UPLOAD_STATUS.PENDING,
-          entityType,
-          entityId,
-          reference,
-          metadata: uploadMetadata,
-          uploadedByUserId: request.auth?.credentials?.user?.id
-        }
-      })
+      await createUploadRecord(
+        prisma,
+        uploadSession,
+        payload,
+        uploadMetadata,
+        userId
+      )
 
       logger.info(
         {
           uploadId: uploadSession.uploadId,
-          reference
+          reference: payload.reference
         },
         'File upload initiated'
       )
 
       // Return upload URL and status URL to client
-      return h
-        .response({
-          success: true,
-          data: {
-            uploadId: uploadSession.uploadId,
-            uploadUrl: cdpUploader.buildUploadUrl(
-              uploadSession.uploadUrl,
-              frontendUrl
-            ),
-            statusUrl: `${request.server.info.uri}/api/v1/file-uploads/${uploadSession.uploadId}/status`,
-            reference
-          }
-        })
-        .code(HTTP_STATUS.CREATED)
+      return buildSuccessResponse(
+        h,
+        uploadSession,
+        cdpUploader,
+        server.info.uri,
+        payload.reference
+      )
     } catch (error) {
       logger.error(
         {
@@ -114,13 +170,7 @@ const initiateUpload = {
         'Failed to initiate upload'
       )
 
-      return h
-        .response({
-          success: false,
-          message: 'Failed to initiate file upload',
-          error: error.message
-        })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      return buildErrorResponse(h)
     }
   }
 }

@@ -213,6 +213,41 @@ describe('File Validation Service', () => {
       const result = validateZipContents(['my.document.pdf', 'data.backup.csv'])
       expect(result.isValid).toBe(true)
     })
+
+    it('should return invalid for undefined filename', () => {
+      const result = validateZipContents([undefined, 'document.pdf'])
+      expect(result.isValid).toBe(false)
+      expect(result.errorCode).toBe(
+        FILE_UPLOAD_VALIDATION_CODES.ZIP_CONTENT_INVALID
+      )
+    })
+
+    it('should return invalid for null filename', () => {
+      const result = validateZipContents([null, 'document.pdf'])
+      expect(result.isValid).toBe(false)
+      expect(result.errorCode).toBe(
+        FILE_UPLOAD_VALIDATION_CODES.ZIP_CONTENT_INVALID
+      )
+    })
+
+    it('should validate multiple invalid files', () => {
+      const result = validateZipContents([
+        'malware.exe',
+        'script.sh',
+        'document.pdf'
+      ])
+      expect(result.isValid).toBe(false)
+      expect(result.message).toContain('malware.exe')
+      expect(result.message).toContain('script.sh')
+    })
+
+    it('should handle empty string filename', () => {
+      const result = validateZipContents(['', 'document.pdf'])
+      expect(result.isValid).toBe(false)
+      expect(result.errorCode).toBe(
+        FILE_UPLOAD_VALIDATION_CODES.ZIP_CONTENT_INVALID
+      )
+    })
   })
 
   describe('validateFile', () => {

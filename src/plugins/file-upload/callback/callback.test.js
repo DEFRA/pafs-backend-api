@@ -78,23 +78,23 @@ describe('callback', () => {
     await callback.handler(mockRequest, mockH)
 
     expect(mockPrisma.file_uploads.findUnique).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' }
+      where: { upload_id: 'test-upload-123' }
     })
 
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        uploadStatus: 'ready',
-        fileId: 'file-456',
+        upload_status: 'ready',
+        file_id: 'file-456',
         filename: 'document.pdf',
-        contentType: 'application/pdf',
-        detectedContentType: 'application/pdf',
-        contentLength: 102400,
-        checksumSha256: 'abc123',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-upload-123/file-456',
-        fileStatus: 'complete',
-        numberOfRejectedFiles: 0
+        content_type: 'application/pdf',
+        detected_content_type: 'application/pdf',
+        content_length: 102400,
+        checksum_sha256: 'abc123',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-upload-123/file-456',
+        file_status: 'complete',
+        number_of_rejected_files: 0
       })
     })
 
@@ -152,11 +152,11 @@ describe('callback', () => {
     await callback.handler(mockRequest, mockH)
 
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        uploadStatus: 'failed',
-        numberOfRejectedFiles: 1,
-        rejectionReason: 'Virus detected'
+        upload_status: 'failed',
+        number_of_rejected_files: 1,
+        rejection_reason: 'Virus detected'
       })
     })
   })
@@ -173,10 +173,10 @@ describe('callback', () => {
     await callback.handler(mockRequest, mockH)
 
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        uploadStatus: 'ready',
-        numberOfRejectedFiles: 0
+        upload_status: 'ready',
+        number_of_rejected_files: 0
       })
     })
     expect(mockH.code).toHaveBeenCalledWith(200)
@@ -195,10 +195,10 @@ describe('callback', () => {
     await callback.handler(mockRequest, mockH)
 
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        numberOfRejectedFiles: 2,
-        rejectionReason: 'Upload failed or files rejected'
+        number_of_rejected_files: 2,
+        rejection_reason: 'Upload failed or files rejected'
       })
     })
   })
@@ -243,11 +243,11 @@ describe('callback', () => {
 
     // Should mark as failed due to validation
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        uploadStatus: 'failed',
-        rejectionReason: expect.stringContaining('exceeds maximum'),
-        numberOfRejectedFiles: 1
+        upload_status: 'failed',
+        rejection_reason: expect.stringContaining('exceeds maximum'),
+        number_of_rejected_files: 1
       })
     })
 
@@ -286,11 +286,11 @@ describe('callback', () => {
 
     // Should mark as failed due to invalid MIME type
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        uploadStatus: 'failed',
-        rejectionReason: expect.stringContaining('not allowed'),
-        numberOfRejectedFiles: 1
+        upload_status: 'failed',
+        rejection_reason: expect.stringContaining('not allowed'),
+        number_of_rejected_files: 1
       })
     })
 
@@ -329,11 +329,11 @@ describe('callback', () => {
 
     // Should mark as failed due to empty file
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        uploadStatus: 'failed',
-        rejectionReason: expect.stringContaining('empty'),
-        numberOfRejectedFiles: 1
+        upload_status: 'failed',
+        rejection_reason: expect.stringContaining('empty'),
+        number_of_rejected_files: 1
       })
     })
 

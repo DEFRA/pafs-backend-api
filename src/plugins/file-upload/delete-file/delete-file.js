@@ -18,7 +18,7 @@ function buildDeleteResponse(uploadRecord, h) {
       success: true,
       message: 'File deleted successfully',
       data: {
-        uploadId: uploadRecord.uploadId,
+        uploadId: uploadRecord.upload_id,
         filename: uploadRecord.filename
       }
     })
@@ -54,7 +54,7 @@ export default {
     try {
       // Find the upload record
       const uploadRecord = await request.prisma.file_uploads.findUnique({
-        where: { uploadId }
+        where: { upload_id: uploadId }
       })
 
       // Validate upload exists
@@ -76,14 +76,14 @@ export default {
 
       // Delete from S3
       const s3Service = getS3Service(logger)
-      await s3Service.deleteObject(uploadRecord.s3Bucket, uploadRecord.s3Key)
+      await s3Service.deleteObject(uploadRecord.s3_bucket, uploadRecord.s3_key)
 
       // Update database record - mark as deleted
       await request.prisma.file_uploads.update({
-        where: { uploadId },
+        where: { upload_id: uploadId },
         data: {
-          uploadStatus: 'deleted',
-          updatedAt: new Date()
+          upload_status: 'deleted',
+          updated_at: new Date()
         }
       })
 

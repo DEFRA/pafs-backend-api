@@ -28,7 +28,7 @@ export const convertArray = (value, direction) => {
  * Converts number to string or string to number
  * Bidirectional conversion for numeric fields
  *
- * @param {number|string|null|undefined} value - Value to convert
+ * @param {number|string|bigint|null|undefined} value - Value to convert
  * @param {string} direction - 'toDatabase' or 'toApi'
  * @returns {number|string|null|undefined} - Converted value
  */
@@ -44,6 +44,10 @@ export const convertNumber = (value, direction) => {
   // Number to string or keep as number (toApi)
   if (value === null || value === undefined) {
     return value
+  }
+  // Convert BigInt to Number for API responses
+  if (typeof value === 'bigint') {
+    return Number(value)
   }
   return typeof value === 'string' ? Number.parseInt(value, 10) : value
 }

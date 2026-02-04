@@ -800,6 +800,7 @@ describe('ProjectService', () => {
       expect(result).toEqual({
         referenceNumber: 'ANC501E/000A/001A',
         name: 'Test Project',
+        id: 1,
         rmaName: 'Test Area',
         projectType: 'Type A',
         projectInterventionTypes: ['Type 1', 'Type 2'],
@@ -859,6 +860,7 @@ describe('ProjectService', () => {
       expect(result).toEqual({
         referenceNumber: 'ANC501E/000A/001A',
         name: 'Test Project',
+        id: 1,
         rmaName: 'Test Area',
         projectType: 'Type A',
         projectInterventionTypes: [],

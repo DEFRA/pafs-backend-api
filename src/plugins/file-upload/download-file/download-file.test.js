@@ -79,14 +79,14 @@ describe('download-file endpoint', () => {
   describe('successful download URL generation', () => {
     it('should generate download URL for ready file', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
-        s3Bucket: 'test-bucket',
-        s3Key: 'test-key',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
+        s3_bucket: 'test-bucket',
+        s3_key: 'test-key',
         filename: 'test.pdf',
-        contentType: 'application/pdf',
-        contentLength: 12345
+        content_type: 'application/pdf',
+        content_length: 12345
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
@@ -97,7 +97,7 @@ describe('download-file endpoint', () => {
       await downloadFile.handler(mockRequest, mockH)
 
       expect(mockRequest.prisma.file_uploads.findUnique).toHaveBeenCalledWith({
-        where: { uploadId: 'test-upload-123' }
+        where: { upload_id: 'test-upload-123' }
       })
 
       expect(mockS3Service.getPresignedDownloadUrl).toHaveBeenCalledWith(
@@ -133,14 +133,14 @@ describe('download-file endpoint', () => {
       mockRequest.auth = undefined
 
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
-        s3Bucket: 'test-bucket',
-        s3Key: 'test-key',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
+        s3_bucket: 'test-bucket',
+        s3_key: 'test-key',
         filename: 'test.pdf',
-        contentType: 'application/pdf',
-        contentLength: 12345
+        content_type: 'application/pdf',
+        content_length: 12345
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
@@ -162,14 +162,14 @@ describe('download-file endpoint', () => {
 
     it('should return correct expiration timestamp', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
-        s3Bucket: 'test-bucket',
-        s3Key: 'test-key',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
+        s3_bucket: 'test-bucket',
+        s3_key: 'test-key',
         filename: 'test.pdf',
-        contentType: 'application/pdf',
-        contentLength: 12345
+        content_type: 'application/pdf',
+        content_length: 12345
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
@@ -211,8 +211,8 @@ describe('download-file endpoint', () => {
   describe('error handling - file not ready', () => {
     it('should return 400 when file is still pending', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'pending',
+        upload_id: 'test-upload-123',
+        upload_status: 'pending',
         fileStatus: null
       }
 
@@ -233,8 +233,8 @@ describe('download-file endpoint', () => {
 
     it('should return 400 when file is initiated', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'initiated',
+        upload_id: 'test-upload-123',
+        upload_status: 'initiated',
         fileStatus: null
       }
 
@@ -257,9 +257,9 @@ describe('download-file endpoint', () => {
   describe('error handling - quarantined file', () => {
     it('should return 403 when file is quarantined', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'quarantined'
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'quarantined'
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
@@ -281,11 +281,11 @@ describe('download-file endpoint', () => {
   describe('error handling - missing S3 information', () => {
     it('should return 500 when s3Bucket is missing', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
         s3Bucket: null,
-        s3Key: 'test-key'
+        s3_key: 'test-key'
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
@@ -313,10 +313,10 @@ describe('download-file endpoint', () => {
 
     it('should return 500 when s3Key is missing', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
-        s3Bucket: 'test-bucket',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
+        s3_bucket: 'test-bucket',
         s3Key: null
       }
 
@@ -337,9 +337,9 @@ describe('download-file endpoint', () => {
 
     it('should return 500 when both s3Bucket and s3Key are missing', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
         s3Bucket: null,
         s3Key: null
       }
@@ -363,11 +363,11 @@ describe('download-file endpoint', () => {
   describe('error handling - S3 service errors', () => {
     it('should handle S3 service errors', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
-        s3Bucket: 'test-bucket',
-        s3Key: 'test-key',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
+        s3_bucket: 'test-bucket',
+        s3_key: 'test-key',
         filename: 'test.pdf'
       }
 
@@ -399,11 +399,11 @@ describe('download-file endpoint', () => {
 
     it('should handle S3 access denied errors', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
-        s3Bucket: 'test-bucket',
-        s3Key: 'test-key',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
+        s3_bucket: 'test-bucket',
+        s3_key: 'test-key',
         filename: 'test.pdf'
       }
 
@@ -428,11 +428,11 @@ describe('download-file endpoint', () => {
 
     it('should handle network timeout errors', async () => {
       const mockUpload = {
-        uploadId: 'test-upload-123',
-        uploadStatus: 'ready',
-        fileStatus: 'scanned',
-        s3Bucket: 'test-bucket',
-        s3Key: 'test-key',
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        file_status: 'scanned',
+        s3_bucket: 'test-bucket',
+        s3_key: 'test-key',
         filename: 'test.pdf'
       }
 

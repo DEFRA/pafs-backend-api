@@ -57,12 +57,12 @@ const handleFileValidation = async (fileData, uploadId, logger, prisma, h) => {
     )
 
     await prisma.file_uploads.update({
-      where: { uploadId },
+      where: { upload_id: uploadId },
       data: {
-        uploadStatus: UPLOAD_STATUS.FAILED,
-        rejectionReason: validation.errors.map((e) => e.message).join('; '),
-        numberOfRejectedFiles: 1,
-        updatedAt: new Date()
+        upload_status: UPLOAD_STATUS.FAILED,
+        rejection_reason: validation.errors.map((e) => e.message).join('; '),
+        number_of_rejected_files: 1,
+        updated_at: new Date()
       }
     })
 
@@ -86,26 +86,26 @@ const buildUpdateData = (
   isReady
 ) => {
   const updateData = {
-    uploadStatus,
-    numberOfRejectedFiles: numberOfRejectedFiles || 0,
-    updatedAt: new Date()
+    upload_status: uploadStatus,
+    number_of_rejected_files: numberOfRejectedFiles || 0,
+    updated_at: new Date()
   }
 
   if (isReady && fileData.fileId) {
-    updateData.fileId = fileData.fileId
+    updateData.file_id = fileData.fileId
     updateData.filename = fileData.filename
-    updateData.contentType = fileData.contentType
-    updateData.detectedContentType = fileData.detectedContentType
-    updateData.contentLength = fileData.contentLength
-    updateData.checksumSha256 = fileData.checksumSha256
-    updateData.s3Bucket = fileData.s3Bucket
-    updateData.s3Key = fileData.s3Key
-    updateData.fileStatus = fileData.fileStatus
-    updateData.completedAt = new Date()
+    updateData.content_type = fileData.contentType
+    updateData.detected_content_type = fileData.detectedContentType
+    updateData.content_length = fileData.contentLength
+    updateData.checksum_sha256 = fileData.checksumSha256
+    updateData.s3_bucket = fileData.s3Bucket
+    updateData.s3_key = fileData.s3Key
+    updateData.file_status = fileData.fileStatus
+    updateData.completed_at = new Date()
   }
 
   if (numberOfRejectedFiles > 0 || uploadStatus === UPLOAD_STATUS.FAILED) {
-    updateData.rejectionReason =
+    updateData.rejection_reason =
       fileData.rejectionReason || DEFAULT_REJECTION_REASON
   }
 
@@ -117,7 +117,7 @@ const buildUpdateData = (
  */
 const findUploadRecord = async (uploadId, prisma, h, logger) => {
   const existingUpload = await prisma.file_uploads.findUnique({
-    where: { uploadId }
+    where: { upload_id: uploadId }
   })
 
   if (!existingUpload) {
@@ -205,7 +205,7 @@ const callback = {
       )
 
       await request.prisma.file_uploads.update({
-        where: { uploadId },
+        where: { upload_id: uploadId },
         data: updateData
       })
 

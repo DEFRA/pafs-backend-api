@@ -263,6 +263,48 @@ describe('CdpUploaderService', () => {
 
       expect(body.metadata).toEqual({})
     })
+
+    test('should clear timeout on successful response', async () => {
+      const service = new CdpUploaderService(mockLogger)
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout')
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ uploadId: 'test-id' })
+      })
+
+      await service.initiate({
+        redirect: '/success',
+        callback: 'https://api.test.com/callback',
+        metadata: {}
+      })
+
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      clearTimeoutSpy.mockRestore()
+    })
+
+    test('should handle non-ok response with error text', async () => {
+      const service = new CdpUploaderService(mockLogger)
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => 'Bad Request - Invalid payload'
+      })
+
+      await expect(
+        service.initiate({
+          redirect: '/success',
+          callback: 'https://api.test.com/callback'
+        })
+      ).rejects.toThrow('CDP Uploader initiate failed: 400 - Bad Request')
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: expect.any(Error)
+        }),
+        'Failed to initiate upload'
+      )
+    })
   })
 
   describe('getUploadStatus', () => {
@@ -354,6 +396,43 @@ describe('CdpUploaderService', () => {
       await expect(service.getUploadStatus('test-id')).rejects.toThrow()
 
       expect(mockLogger.error).toHaveBeenCalled()
+    })
+
+    test('should clear timeout on successful status check', async () => {
+      const service = new CdpUploaderService(mockLogger)
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout')
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          uploadStatus: 'ready',
+          form: { file: { fileId: 'test' } }
+        })
+      })
+
+      await service.getUploadStatus('test-id')
+
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      clearTimeoutSpy.mockRestore()
+    })
+
+    test('should handle network errors in status check', async () => {
+      const service = new CdpUploaderService(mockLogger)
+      const networkError = new Error('Network connection failed')
+
+      mockFetch.mockRejectedValue(networkError)
+
+      await expect(service.getUploadStatus('test-id')).rejects.toThrow(
+        'Network connection failed'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: networkError,
+          uploadId: 'test-id'
+        }),
+        'Failed to get upload status'
+      )
     })
   })
 

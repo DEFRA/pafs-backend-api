@@ -70,9 +70,9 @@ describe('validation-helpers', () => {
   describe('validateS3Information', () => {
     test('should return null when S3 bucket and key exist', () => {
       const uploadRecord = {
-        uploadId: 'test-123',
-        s3Bucket: 'test-bucket',
-        s3Key: 'test-key'
+        upload_id: 'test-123',
+        s3_bucket: 'test-bucket',
+        s3_key: 'test-key'
       }
 
       const result = validateS3Information(

@@ -36,7 +36,7 @@ export function validateUploadExists(uploadRecord, h) {
  * @returns {Object|null} Error response or null if valid
  */
 export function validateS3Information(uploadRecord, h, logger, uploadId) {
-  if (!uploadRecord.s3Bucket || !uploadRecord.s3Key) {
+  if (!uploadRecord.s3_bucket || !uploadRecord.s3_key) {
     logger.error(
       { uploadId, uploadRecord },
       'Upload record missing S3 information'

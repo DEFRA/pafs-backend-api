@@ -85,18 +85,18 @@ describe('deleteFile', () => {
   describe('successful deletion', () => {
     test('should delete file when user owns it', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-file.pdf',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: BigInt(123),
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
       mockRequest.prisma.file_uploads.update.mockResolvedValue({
         ...uploadRecord,
-        uploadStatus: 'deleted'
+        upload_status: 'deleted'
       })
       mockDeleteObject.mockResolvedValue()
 
@@ -110,10 +110,10 @@ describe('deleteFile', () => {
 
       // Verify database update
       expect(mockRequest.prisma.file_uploads.update).toHaveBeenCalledWith({
-        where: { uploadId: 'test-upload-id' },
+        where: { upload_id: 'test-upload-id' },
         data: {
-          uploadStatus: 'deleted',
-          updatedAt: expect.any(Date)
+          upload_status: 'deleted',
+          updated_at: expect.any(Date)
         }
       })
 
@@ -141,19 +141,19 @@ describe('deleteFile', () => {
 
     test('should delete file when user is admin', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-file.pdf',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: BigInt(456), // Different user
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.auth.credentials.isAdmin = true
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
       mockRequest.prisma.file_uploads.update.mockResolvedValue({
         ...uploadRecord,
-        uploadStatus: 'deleted'
+        upload_status: 'deleted'
       })
       mockDeleteObject.mockResolvedValue()
 
@@ -166,19 +166,19 @@ describe('deleteFile', () => {
 
     test('should handle file with null uploadedByUserId when user is admin', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-file.pdf',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: null,
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.auth.credentials.isAdmin = true
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
       mockRequest.prisma.file_uploads.update.mockResolvedValue({
         ...uploadRecord,
-        uploadStatus: 'deleted'
+        upload_status: 'deleted'
       })
       mockDeleteObject.mockResolvedValue()
 
@@ -209,12 +209,12 @@ describe('deleteFile', () => {
 
     test('should return 500 when S3 bucket is missing', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
         s3Bucket: null,
-        s3Key: 'uploads/test-file.pdf',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: BigInt(123),
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
@@ -242,12 +242,12 @@ describe('deleteFile', () => {
 
     test('should return 500 when S3 key is missing', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
+        s3_bucket: 'test-bucket',
         s3Key: null,
         uploadedByUserId: BigInt(123),
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
@@ -270,12 +270,12 @@ describe('deleteFile', () => {
   describe('error handling', () => {
     test('should handle S3 deletion errors', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-file.pdf',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: BigInt(123),
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
@@ -307,12 +307,12 @@ describe('deleteFile', () => {
 
     test('should handle database update errors', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-file.pdf',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: BigInt(123),
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
@@ -364,19 +364,19 @@ describe('deleteFile', () => {
   describe('edge cases', () => {
     test('should handle BigInt conversion for user IDs', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-file.pdf',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: BigInt(123),
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.auth.credentials.user.id = 123 // Regular number
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
       mockRequest.prisma.file_uploads.update.mockResolvedValue({
         ...uploadRecord,
-        uploadStatus: 'deleted'
+        upload_status: 'deleted'
       })
       mockDeleteObject.mockResolvedValue()
 
@@ -387,12 +387,12 @@ describe('deleteFile', () => {
 
     test('should handle missing user credentials gracefully for admin', async () => {
       const uploadRecord = {
-        uploadId: 'test-upload-id',
+        upload_id: 'test-upload-id',
         filename: 'test-file.pdf',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/test-file.pdf',
+        s3_bucket: 'test-bucket',
+        s3_key: 'uploads/test-file.pdf',
         uploadedByUserId: BigInt(456),
-        uploadStatus: 'ready'
+        upload_status: 'ready'
       }
 
       mockRequest.auth.credentials = {
@@ -403,7 +403,7 @@ describe('deleteFile', () => {
       mockRequest.prisma.file_uploads.findUnique.mockResolvedValue(uploadRecord)
       mockRequest.prisma.file_uploads.update.mockResolvedValue({
         ...uploadRecord,
-        uploadStatus: 'deleted'
+        upload_status: 'deleted'
       })
       mockDeleteObject.mockResolvedValue()
 

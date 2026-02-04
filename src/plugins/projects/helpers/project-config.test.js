@@ -96,8 +96,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 25 total fields (20 common + 5 read-only)', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(25)
+    it('should have 26 total fields (20 common + 6 read-only)', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(26)
     })
   })
 
@@ -135,6 +135,7 @@ describe('project-config', () => {
       const result = getProjectSelectFields()
 
       expect(result.name).toBe(true)
+      expect(result.id).toBe(true)
       expect(result.rma_name).toBe(true)
       expect(result.project_type).toBe(true)
       expect(result.project_intervention_types).toBe(true)
@@ -148,9 +149,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 25 fields', () => {
+    it('should return an object with 26 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(25)
+      expect(Object.keys(result)).toHaveLength(26)
     })
 
     it('should return a new object each time', () => {

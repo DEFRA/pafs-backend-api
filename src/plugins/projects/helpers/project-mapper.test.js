@@ -205,6 +205,7 @@ describe('ProjectMapper', () => {
 
     it('should map select-only fields from database', () => {
       const dbData = {
+        id: BigInt(12345),
         reference_number: 'REF123',
         name: 'Test Project',
         updated_at: '2024-01-15T10:30:00Z'
@@ -212,6 +213,8 @@ describe('ProjectMapper', () => {
 
       const result = ProjectMapper.toApi(dbData)
 
+      expect(result).toHaveProperty('id', 12345)
+      expect(typeof result.id).toBe('number')
       expect(result).toHaveProperty('referenceNumber', 'REF123')
       expect(result).toHaveProperty('name', 'Test Project')
       expect(result).toHaveProperty('updatedAt', '2024-01-15T10:30:00Z')
@@ -375,6 +378,24 @@ describe('ProjectMapper', () => {
         2024
       )
       expect(result).toBe(2024)
+      expect(typeof result).toBe('number')
+    })
+
+    it('should convert bigint id to integer for API', () => {
+      const result = ProjectMapper.reverseTransformValue('id', BigInt(123))
+      expect(result).toBe(123)
+      expect(typeof result).toBe('number')
+    })
+
+    it('should preserve numeric id values', () => {
+      const result = ProjectMapper.reverseTransformValue('id', 456)
+      expect(result).toBe(456)
+      expect(typeof result).toBe('number')
+    })
+
+    it('should convert string id to integer', () => {
+      const result = ProjectMapper.reverseTransformValue('id', '789')
+      expect(result).toBe(789)
       expect(typeof result).toBe('number')
     })
 

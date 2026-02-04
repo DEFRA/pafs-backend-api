@@ -108,7 +108,11 @@ export class ProjectMapper {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_API)
     }
 
-    if (field === 'financialStartYear' || field === 'financialEndYear') {
+    if (
+      field === 'financialStartYear' ||
+      field === 'financialEndYear' ||
+      field === 'id'
+    ) {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_API)
     }
 

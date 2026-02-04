@@ -61,19 +61,19 @@ describe('getUploadStatus', () => {
 
   test('should return upload status successfully', async () => {
     const mockUpload = {
-      uploadId: 'test-upload-123',
-      uploadStatus: 'ready',
-      fileStatus: 'complete',
+      upload_id: 'test-upload-123',
+      upload_status: 'ready',
+      file_status: 'complete',
       filename: 'document.pdf',
-      contentType: 'application/pdf',
-      contentLength: 102400,
-      s3Bucket: 'test-bucket',
-      s3Key: 'uploads/test-upload-123/file',
+      content_type: 'application/pdf',
+      content_length: 102400,
+      s3_bucket: 'test-bucket',
+      s3_key: 'uploads/test-upload-123/file',
       reference: 'TEST-REF',
-      entityType: 'proposal',
-      entityId: 123,
-      createdAt: new Date('2026-01-27'),
-      completedAt: new Date('2026-01-27')
+      entity_type: 'proposal',
+      entity_id: 123,
+      created_at: new Date('2026-01-27'),
+      completed_at: new Date('2026-01-27')
     }
 
     mockPrisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
@@ -81,12 +81,26 @@ describe('getUploadStatus', () => {
     await getUploadStatus.handler(mockRequest, mockH)
 
     expect(mockPrisma.file_uploads.findUnique).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' }
+      where: { upload_id: 'test-upload-123' }
     })
 
     expect(mockH.response).toHaveBeenCalledWith({
       success: true,
-      data: mockUpload
+      data: {
+        uploadId: 'test-upload-123',
+        uploadStatus: 'ready',
+        fileStatus: 'complete',
+        filename: 'document.pdf',
+        contentType: 'application/pdf',
+        contentLength: 102400,
+        s3Bucket: 'test-bucket',
+        s3Key: 'uploads/test-upload-123/file',
+        reference: 'TEST-REF',
+        entityType: 'proposal',
+        entityId: 123,
+        createdAt: new Date('2026-01-27'),
+        completedAt: new Date('2026-01-27')
+      }
     })
   })
 
@@ -104,8 +118,8 @@ describe('getUploadStatus', () => {
 
   test('should check CDP status for pending uploads', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
-      uploadId: 'test-upload-123',
-      uploadStatus: 'pending'
+      upload_id: 'test-upload-123',
+      upload_status: 'pending'
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -121,8 +135,8 @@ describe('getUploadStatus', () => {
     })
 
     mockPrisma.file_uploads.update.mockResolvedValue({
-      uploadId: 'test-upload-123',
-      uploadStatus: 'ready'
+      upload_id: 'test-upload-123',
+      upload_status: 'ready'
     })
 
     await getUploadStatus.handler(mockRequest, mockH)
@@ -131,18 +145,18 @@ describe('getUploadStatus', () => {
       'test-upload-123'
     )
     expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
-      where: { uploadId: 'test-upload-123' },
+      where: { upload_id: 'test-upload-123' },
       data: expect.objectContaining({
-        uploadStatus: 'ready',
-        fileId: 'file-456'
+        upload_status: 'ready',
+        file_id: 'file-456'
       })
     })
   })
 
   test('should not update database if CDP status unchanged', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
-      uploadId: 'test-upload-123',
-      uploadStatus: 'pending'
+      upload_id: 'test-upload-123',
+      upload_status: 'pending'
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -160,8 +174,8 @@ describe('getUploadStatus', () => {
 
   test('should not check CDP status for completed uploads', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
-      uploadId: 'test-upload-123',
-      uploadStatus: 'ready'
+      upload_id: 'test-upload-123',
+      upload_status: 'ready'
     })
 
     await getUploadStatus.handler(mockRequest, mockH)

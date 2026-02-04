@@ -16,13 +16,13 @@ import {
  * Validate upload is ready for download
  */
 function validateUploadReady(uploadRecord, h) {
-  if (uploadRecord.uploadStatus !== UPLOAD_STATUS.READY) {
+  if (uploadRecord.upload_status !== UPLOAD_STATUS.READY) {
     return h
       .response({
         validationErrors: [
           {
             errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_READY,
-            message: `File not ready for download. Current status: ${uploadRecord.uploadStatus}`
+            message: `File not ready for download. Current status: ${uploadRecord.upload_status}`
           }
         ]
       })
@@ -35,7 +35,7 @@ function validateUploadReady(uploadRecord, h) {
  * Validate file is not quarantined
  */
 function validateFileNotQuarantined(uploadRecord, h) {
-  if (uploadRecord.fileStatus === FILE_STATUS.QUARANTINED) {
+  if (uploadRecord.file_status === FILE_STATUS.QUARANTINED) {
     return h
       .response({
         validationErrors: [
@@ -57,10 +57,10 @@ function buildDownloadResponse(uploadRecord, downloadUrl, expiresIn, h) {
   return h.response({
     success: true,
     data: {
-      uploadId: uploadRecord.uploadId,
+      uploadId: uploadRecord.upload_id,
       filename: uploadRecord.filename,
-      contentType: uploadRecord.contentType,
-      contentLength: uploadRecord.contentLength,
+      contentType: uploadRecord.content_type,
+      contentLength: uploadRecord.content_length,
       downloadUrl,
       expiresIn,
       expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString()
@@ -96,7 +96,7 @@ export default {
     try {
       // Find the upload record
       const uploadRecord = await request.prisma.file_uploads.findUnique({
-        where: { uploadId }
+        where: { upload_id: uploadId }
       })
 
       // Validate upload record
@@ -128,8 +128,8 @@ export default {
       // Generate presigned download URL
       const s3Service = getS3Service(logger)
       const downloadUrl = await s3Service.getPresignedDownloadUrl(
-        uploadRecord.s3Bucket,
-        uploadRecord.s3Key,
+        uploadRecord.s3_bucket,
+        uploadRecord.s3_key,
         DOWNLOAD_URL_EXPIRES_IN
       )
 

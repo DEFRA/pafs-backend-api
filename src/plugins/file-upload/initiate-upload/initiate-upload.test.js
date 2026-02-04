@@ -110,12 +110,12 @@ describe('initiateUpload', () => {
 
     expect(mockPrisma.file_uploads.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        uploadId: 'test-upload-123',
-        uploadStatus: 'pending',
-        entityType: 'proposal',
-        entityId: 123,
+        upload_id: 'test-upload-123',
+        upload_status: 'pending',
+        entity_type: 'proposal',
+        entity_id: 123,
         reference: 'TEST-REF-001',
-        uploadedByUserId: 1
+        uploaded_by_user_id: 1
       })
     })
 
@@ -152,7 +152,7 @@ describe('initiateUpload', () => {
 
     expect(mockPrisma.file_uploads.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        uploadStatus: 'processing'
+        upload_status: 'processing'
       })
     })
   })
@@ -168,7 +168,7 @@ describe('initiateUpload', () => {
     expect(mockH.response).toHaveBeenCalledWith({
       success: false,
       message: 'Failed to initiate file upload',
-      error: 'CDP service error'
+      error: 'Upload initiation failed'
     })
     expect(mockH.code).toHaveBeenCalledWith(500)
   })
@@ -190,7 +190,7 @@ describe('initiateUpload', () => {
 
     expect(mockPrisma.file_uploads.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        uploadedByUserId: undefined
+        uploaded_by_user_id: undefined
       })
     })
   })

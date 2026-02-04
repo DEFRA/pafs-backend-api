@@ -85,9 +85,28 @@ export class CdpUploaderService {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        const errorText = await response.text()
+        let errorDetails = {
+          status: response.status,
+          statusText: response.statusText
+        }
+        try {
+          const errorData = await response.json()
+          errorDetails = { ...errorDetails, ...errorData }
+        } catch {
+          const errorText = await response.text()
+          errorDetails.message = errorText
+        }
+
+        this.logger.error(
+          {
+            metadata,
+            errorDetails
+          },
+          'CDP Uploader initiate failed'
+        )
+
         throw new Error(
-          `CDP Uploader initiate failed: ${response.status} - ${errorText}`
+          `CDP Uploader initiate failed: ${response.status} - ${JSON.stringify(errorDetails)}`
         )
       }
 
@@ -138,18 +157,51 @@ export class CdpUploaderService {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        const errorText = await response.text()
+        let errorDetails = {
+          status: response.status,
+          statusText: response.statusText
+        }
+        try {
+          const errorData = await response.json()
+          errorDetails = { ...errorDetails, ...errorData }
+        } catch {
+          const errorText = await response.text()
+          errorDetails.message = errorText
+        }
+
+        this.logger.error(
+          {
+            uploadId,
+            errorDetails
+          },
+          'CDP Uploader status check failed'
+        )
+
         throw new Error(
-          `CDP Uploader status check failed: ${response.status} - ${errorText}`
+          `CDP Uploader status check failed: ${response.status} - ${JSON.stringify(errorDetails)}`
         )
       }
 
       const data = await response.json()
 
+      // Log validation failures if present
+      if (data.validationFailure) {
+        this.logger.warn(
+          {
+            uploadId,
+            validationFailure: data.validationFailure,
+            formErrors: data.form?.errorMessage,
+            fileErrors: data.form?.file?.rejectionReason
+          },
+          'Upload has validation failures'
+        )
+      }
+
       this.logger.debug(
         {
           uploadId,
-          uploadStatus: data.uploadStatus
+          uploadStatus: data.uploadStatus,
+          numberOfRejectedFiles: data.numberOfRejectedFiles
         },
         'Upload status retrieved'
       )

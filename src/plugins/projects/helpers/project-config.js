@@ -63,6 +63,7 @@ export const PROJECT_FIELDS_MAP = {
  */
 export const PROJECT_SELECT_FIELDS_MAP = {
   ...PROJECT_FIELDS_MAP,
+  id: 'id',
   referenceNumber: 'reference_number',
   slug: 'slug',
   isLegacy: 'is_legacy',
