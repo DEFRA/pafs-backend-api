@@ -9,7 +9,20 @@ import {
   projectInterventionTypeSchema,
   projectMainInterventionTypeSchema,
   projectFinancialStartYearSchema,
-  projectFinancialEndYearSchema
+  projectFinancialEndYearSchema,
+  startOutlineBusinessCaseMonthSchema,
+  startOutlineBusinessCaseYearSchema,
+  completeOutlineBusinessCaseMonthSchema,
+  completeOutlineBusinessCaseYearSchema,
+  awardContractMonthSchema,
+  awardContractYearSchema,
+  startConstructionMonthSchema,
+  startConstructionYearSchema,
+  readyForServiceMonthSchema,
+  readyForServiceYearSchema,
+  couldStartEarlySchema,
+  earliestWithGiaMonthSchema,
+  earliestWithGiaYearSchema
 } from './project.js'
 import { PROJECT_TYPES } from '../constants/project.js'
 
@@ -410,6 +423,512 @@ describe('project schemas', () => {
       expect(result1).toBeDefined()
       expect(result2).toBeDefined()
       expect(result3).toBeDefined()
+    })
+  })
+
+  describe('Timeline date schemas', () => {
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth() + 1
+    const currentYear = currentDate.getFullYear()
+    const futureMonth = currentMonth
+    const futureYear = currentYear + 1
+
+    describe('startOutlineBusinessCaseMonthSchema and yearSchema', () => {
+      it('should accept valid future date', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+          startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema
+        })
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: futureMonth,
+          startOutlineBusinessCaseYear: futureYear
+        })
+        expect(error).toBeUndefined()
+      })
+
+      it('should accept current month/year', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+          startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema
+        })
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: currentMonth,
+          startOutlineBusinessCaseYear: currentYear
+        })
+        expect(error).toBeUndefined()
+      })
+
+      it('should reject date in the past', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+          startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema
+        })
+
+        const pastMonth = currentMonth === 1 ? 12 : currentMonth - 1
+        const pastYear = currentMonth === 1 ? currentYear - 1 : currentYear
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: pastMonth,
+          startOutlineBusinessCaseYear: pastYear
+        })
+        expect(error).toBeDefined()
+      })
+
+      it('should accept missing both month and year', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth:
+            startOutlineBusinessCaseMonthSchema.optional(),
+          startOutlineBusinessCaseYear:
+            startOutlineBusinessCaseYearSchema.optional()
+        })
+
+        const { error } = schema.validate({})
+        expect(error).toBeUndefined()
+      })
+
+      it('should reject invalid month values', () => {
+        expect(
+          startOutlineBusinessCaseMonthSchema.validate(0).error
+        ).toBeDefined()
+        expect(
+          startOutlineBusinessCaseMonthSchema.validate(13).error
+        ).toBeDefined()
+        expect(
+          startOutlineBusinessCaseMonthSchema.validate(-1).error
+        ).toBeDefined()
+      })
+
+      it('should reject invalid year values', () => {
+        expect(
+          startOutlineBusinessCaseYearSchema.validate(1999).error
+        ).toBeDefined()
+        expect(
+          startOutlineBusinessCaseYearSchema.validate(2101).error
+        ).toBeDefined()
+      })
+    })
+
+    describe('completeOutlineBusinessCaseMonthSchema and yearSchema', () => {
+      it('should accept date after start OBC date', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth:
+            startOutlineBusinessCaseMonthSchema.optional(),
+          startOutlineBusinessCaseYear:
+            startOutlineBusinessCaseYearSchema.optional(),
+          completeOutlineBusinessCaseMonth:
+            completeOutlineBusinessCaseMonthSchema,
+          completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema
+        })
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: futureMonth,
+          startOutlineBusinessCaseYear: futureYear,
+          completeOutlineBusinessCaseMonth: futureMonth,
+          completeOutlineBusinessCaseYear: futureYear + 1
+        })
+        expect(error).toBeUndefined()
+      })
+
+      it('should reject date before start OBC date', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth:
+            startOutlineBusinessCaseMonthSchema.optional(),
+          startOutlineBusinessCaseYear:
+            startOutlineBusinessCaseYearSchema.optional(),
+          completeOutlineBusinessCaseMonth:
+            completeOutlineBusinessCaseMonthSchema,
+          completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema
+        })
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: 6,
+          startOutlineBusinessCaseYear: futureYear,
+          completeOutlineBusinessCaseMonth: 5,
+          completeOutlineBusinessCaseYear: futureYear
+        })
+        expect(error).toBeDefined()
+      })
+
+      it('should accept same month/year as start OBC', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth:
+            startOutlineBusinessCaseMonthSchema.optional(),
+          startOutlineBusinessCaseYear:
+            startOutlineBusinessCaseYearSchema.optional(),
+          completeOutlineBusinessCaseMonth:
+            completeOutlineBusinessCaseMonthSchema,
+          completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema
+        })
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: 6,
+          startOutlineBusinessCaseYear: futureYear,
+          completeOutlineBusinessCaseMonth: 6,
+          completeOutlineBusinessCaseYear: futureYear
+        })
+        expect(error).toBeUndefined()
+      })
+    })
+
+    describe('awardContractMonthSchema and yearSchema', () => {
+      it('should accept date after complete OBC date', () => {
+        const schema = Joi.object({
+          completeOutlineBusinessCaseMonth:
+            completeOutlineBusinessCaseMonthSchema.optional(),
+          completeOutlineBusinessCaseYear:
+            completeOutlineBusinessCaseYearSchema.optional(),
+          awardContractMonth: awardContractMonthSchema,
+          awardContractYear: awardContractYearSchema
+        })
+
+        const { error } = schema.validate({
+          completeOutlineBusinessCaseMonth: 5,
+          completeOutlineBusinessCaseYear: futureYear,
+          awardContractMonth: 6,
+          awardContractYear: futureYear
+        })
+        expect(error).toBeUndefined()
+      })
+
+      it('should reject date before complete OBC date', () => {
+        const schema = Joi.object({
+          completeOutlineBusinessCaseMonth:
+            completeOutlineBusinessCaseMonthSchema.optional(),
+          completeOutlineBusinessCaseYear:
+            completeOutlineBusinessCaseYearSchema.optional(),
+          awardContractMonth: awardContractMonthSchema,
+          awardContractYear: awardContractYearSchema
+        })
+
+        const { error } = schema.validate({
+          completeOutlineBusinessCaseMonth: 7,
+          completeOutlineBusinessCaseYear: futureYear,
+          awardContractMonth: 6,
+          awardContractYear: futureYear
+        })
+        expect(error).toBeDefined()
+      })
+    })
+
+    describe('startConstructionMonthSchema and yearSchema', () => {
+      it('should accept date after award contract date', () => {
+        const schema = Joi.object({
+          awardContractMonth: awardContractMonthSchema.optional(),
+          awardContractYear: awardContractYearSchema.optional(),
+          startConstructionMonth: startConstructionMonthSchema,
+          startConstructionYear: startConstructionYearSchema
+        })
+
+        const { error } = schema.validate({
+          awardContractMonth: 6,
+          awardContractYear: futureYear,
+          startConstructionMonth: 7,
+          startConstructionYear: futureYear
+        })
+        expect(error).toBeUndefined()
+      })
+
+      it('should reject date before award contract date', () => {
+        const schema = Joi.object({
+          awardContractMonth: awardContractMonthSchema.optional(),
+          awardContractYear: awardContractYearSchema.optional(),
+          startConstructionMonth: startConstructionMonthSchema,
+          startConstructionYear: startConstructionYearSchema
+        })
+
+        const { error } = schema.validate({
+          awardContractMonth: 8,
+          awardContractYear: futureYear,
+          startConstructionMonth: 7,
+          startConstructionYear: futureYear
+        })
+        expect(error).toBeDefined()
+      })
+    })
+
+    describe('readyForServiceMonthSchema and yearSchema', () => {
+      it('should accept date after start construction date', () => {
+        const schema = Joi.object({
+          startConstructionMonth: startConstructionMonthSchema.optional(),
+          startConstructionYear: startConstructionYearSchema.optional(),
+          readyForServiceMonth: readyForServiceMonthSchema,
+          readyForServiceYear: readyForServiceYearSchema
+        })
+
+        const { error } = schema.validate({
+          startConstructionMonth: 7,
+          startConstructionYear: futureYear,
+          readyForServiceMonth: 8,
+          readyForServiceYear: futureYear
+        })
+        expect(error).toBeUndefined()
+      })
+
+      it('should reject date before start construction date', () => {
+        const schema = Joi.object({
+          startConstructionMonth: startConstructionMonthSchema.optional(),
+          startConstructionYear: startConstructionYearSchema.optional(),
+          readyForServiceMonth: readyForServiceMonthSchema,
+          readyForServiceYear: readyForServiceYearSchema
+        })
+
+        const { error } = schema.validate({
+          startConstructionMonth: 9,
+          startConstructionYear: futureYear,
+          readyForServiceMonth: 8,
+          readyForServiceYear: futureYear
+        })
+        expect(error).toBeDefined()
+      })
+    })
+
+    describe('Sequential timeline validation', () => {
+      it('should accept complete timeline in correct order', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+          startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+          completeOutlineBusinessCaseMonth:
+            completeOutlineBusinessCaseMonthSchema,
+          completeOutlineBusinessCaseYear:
+            completeOutlineBusinessCaseYearSchema,
+          awardContractMonth: awardContractMonthSchema,
+          awardContractYear: awardContractYearSchema,
+          startConstructionMonth: startConstructionMonthSchema,
+          startConstructionYear: startConstructionYearSchema,
+          readyForServiceMonth: readyForServiceMonthSchema,
+          readyForServiceYear: readyForServiceYearSchema
+        })
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: 4,
+          startOutlineBusinessCaseYear: futureYear,
+          completeOutlineBusinessCaseMonth: 6,
+          completeOutlineBusinessCaseYear: futureYear,
+          awardContractMonth: 8,
+          awardContractYear: futureYear,
+          startConstructionMonth: 10,
+          startConstructionYear: futureYear,
+          readyForServiceMonth: 12,
+          readyForServiceYear: futureYear
+        })
+        expect(error).toBeUndefined()
+      })
+
+      it('should accept timeline with year progression', () => {
+        const schema = Joi.object({
+          startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+          startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+          completeOutlineBusinessCaseMonth:
+            completeOutlineBusinessCaseMonthSchema,
+          completeOutlineBusinessCaseYear:
+            completeOutlineBusinessCaseYearSchema,
+          awardContractMonth: awardContractMonthSchema,
+          awardContractYear: awardContractYearSchema,
+          startConstructionMonth: startConstructionMonthSchema,
+          startConstructionYear: startConstructionYearSchema,
+          readyForServiceMonth: readyForServiceMonthSchema,
+          readyForServiceYear: readyForServiceYearSchema
+        })
+
+        const { error } = schema.validate({
+          startOutlineBusinessCaseMonth: 10,
+          startOutlineBusinessCaseYear: futureYear,
+          completeOutlineBusinessCaseMonth: 12,
+          completeOutlineBusinessCaseYear: futureYear,
+          awardContractMonth: 2,
+          awardContractYear: futureYear + 1,
+          startConstructionMonth: 4,
+          startConstructionYear: futureYear + 1,
+          readyForServiceMonth: 6,
+          readyForServiceYear: futureYear + 1
+        })
+        expect(error).toBeUndefined()
+      })
+    })
+  })
+
+  describe('couldStartEarlySchema', () => {
+    it('should accept true', () => {
+      const { error } = couldStartEarlySchema.validate(true)
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept false', () => {
+      const { error } = couldStartEarlySchema.validate(false)
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject non-boolean values', () => {
+      // Note: Joi.boolean() converts 'true'/'false' strings and 0/1 to booleans
+      // Test with values that cannot be converted
+      expect(couldStartEarlySchema.validate('invalid').error).toBeDefined()
+      expect(couldStartEarlySchema.validate(2).error).toBeDefined()
+      expect(couldStartEarlySchema.validate({}).error).toBeDefined()
+      expect(couldStartEarlySchema.validate([]).error).toBeDefined()
+    })
+  })
+
+  describe('earliestWithGiaMonthSchema and yearSchema', () => {
+    it('should require month/year when couldStartEarly is true', () => {
+      const schema = Joi.object({
+        couldStartEarly: couldStartEarlySchema,
+        earliestWithGiaMonth: earliestWithGiaMonthSchema,
+        earliestWithGiaYear: earliestWithGiaYearSchema
+      })
+
+      const { error } = schema.validate({
+        couldStartEarly: true,
+        earliestWithGiaMonth: 6,
+        earliestWithGiaYear: 2027
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('should forbid month/year when couldStartEarly is false', () => {
+      const schema = Joi.object({
+        couldStartEarly: couldStartEarlySchema,
+        earliestWithGiaMonth: earliestWithGiaMonthSchema,
+        earliestWithGiaYear: earliestWithGiaYearSchema
+      })
+
+      const { error } = schema.validate({
+        couldStartEarly: false,
+        earliestWithGiaMonth: 6,
+        earliestWithGiaYear: 2027
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('should accept when couldStartEarly is false and fields are not provided', () => {
+      const schema = Joi.object({
+        couldStartEarly: couldStartEarlySchema,
+        earliestWithGiaMonth: earliestWithGiaMonthSchema,
+        earliestWithGiaYear: earliestWithGiaYearSchema
+      })
+
+      const { error } = schema.validate({
+        couldStartEarly: false
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('should validate month range when couldStartEarly is true', () => {
+      const schema = Joi.object({
+        couldStartEarly: couldStartEarlySchema,
+        earliestWithGiaMonth: earliestWithGiaMonthSchema
+      })
+
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaMonth: 1 })
+          .error
+      ).toBeUndefined()
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaMonth: 12 })
+          .error
+      ).toBeUndefined()
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaMonth: 0 })
+          .error
+      ).toBeDefined()
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaMonth: 13 })
+          .error
+      ).toBeDefined()
+    })
+
+    it('should validate year range when couldStartEarly is true', () => {
+      const schema = Joi.object({
+        couldStartEarly: couldStartEarlySchema,
+        earliestWithGiaYear: earliestWithGiaYearSchema
+      })
+
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaYear: 2000 })
+          .error
+      ).toBeUndefined()
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaYear: 2100 })
+          .error
+      ).toBeUndefined()
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaYear: 1999 })
+          .error
+      ).toBeDefined()
+      expect(
+        schema.validate({ couldStartEarly: true, earliestWithGiaYear: 2101 })
+          .error
+      ).toBeDefined()
+    })
+  })
+
+  describe('Edge cases and helper functions', () => {
+    it('should handle intervention type validation with edge values', () => {
+      const schema = Joi.object({
+        projectType: projectTypeSchema,
+        projectInterventionType: projectInterventionTypeSchema,
+        projectMainInterventionType: projectMainInterventionTypeSchema
+      })
+
+      // Test with single intervention type that matches main
+      const singleResult = schema.validate({
+        projectType: PROJECT_TYPES.DEF,
+        projectInterventionType: ['NFM'],
+        projectMainInterventionType: 'NFM'
+      })
+      expect(singleResult.error).toBeUndefined()
+
+      // Test with multiple intervention types
+      const multiResult = schema.validate({
+        projectType: PROJECT_TYPES.REP,
+        projectInterventionType: ['NFM', 'SUDS', 'PFR'],
+        projectMainInterventionType: 'SUDS'
+      })
+      expect(multiResult.error).toBeUndefined()
+    })
+
+    it('should handle month/year comparison edge cases', () => {
+      const schema = Joi.object({
+        startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+        startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+        completeOutlineBusinessCaseMonth:
+          completeOutlineBusinessCaseMonthSchema,
+        completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema
+      })
+
+      // Test year boundary crossing (December to January)
+      const yearBoundaryResult = schema.validate({
+        startOutlineBusinessCaseMonth: 12,
+        startOutlineBusinessCaseYear: 2026,
+        completeOutlineBusinessCaseMonth: 1,
+        completeOutlineBusinessCaseYear: 2027
+      })
+      expect(yearBoundaryResult.error).toBeUndefined()
+
+      // Test same year, different months
+      const sameYearResult = schema.validate({
+        startOutlineBusinessCaseMonth: 6,
+        startOutlineBusinessCaseYear: 2027,
+        completeOutlineBusinessCaseMonth: 8,
+        completeOutlineBusinessCaseYear: 2027
+      })
+      expect(sameYearResult.error).toBeUndefined()
+    })
+
+    it('should handle missing previous stage dates gracefully', () => {
+      const schema = Joi.object({
+        completeOutlineBusinessCaseMonth:
+          completeOutlineBusinessCaseMonthSchema,
+        completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema
+      })
+
+      // Should not error when previous stage is not provided
+      const { error } = schema.validate({
+        completeOutlineBusinessCaseMonth: 6,
+        completeOutlineBusinessCaseYear: 2027
+      })
+      expect(error).toBeUndefined()
     })
   })
 })

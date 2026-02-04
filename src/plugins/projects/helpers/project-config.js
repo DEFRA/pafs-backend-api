@@ -1,3 +1,5 @@
+import { PROJECT_TYPES } from '../../../common/constants/project.js'
+
 /**
  * Conversion directions and types for data transformations
  */
@@ -39,7 +41,20 @@ export const PROJECT_FIELDS_MAP = {
   projectInterventionTypes: 'project_intervention_types',
   mainInterventionType: 'main_intervention_type',
   financialStartYear: 'earliest_start_year',
-  financialEndYear: 'project_end_financial_year'
+  financialEndYear: 'project_end_financial_year',
+  startOutlineBusinessCaseMonth: 'start_outline_business_case_month',
+  startOutlineBusinessCaseYear: 'start_outline_business_case_year',
+  completeOutlineBusinessCaseMonth: 'complete_outline_business_case_month',
+  completeOutlineBusinessCaseYear: 'complete_outline_business_case_year',
+  awardContractMonth: 'award_contract_month',
+  awardContractYear: 'award_contract_year',
+  startConstructionMonth: 'start_construction_month',
+  startConstructionYear: 'start_construction_year',
+  readyForServiceMonth: 'ready_for_service_month',
+  readyForServiceYear: 'ready_for_service_year',
+  couldStartEarly: 'could_start_early',
+  earliestWithGiaMonth: 'earliest_with_gia_month',
+  earliestWithGiaYear: 'earliest_with_gia_year'
 }
 
 /**
@@ -75,6 +90,19 @@ export const getProjectSelectFields = () => {
  */
 export const getJoinedTableConfig = () => {
   return structuredClone(PROJECT_JOIN_TABLES)
+}
+
+export const requiredInterventionTypesForProjectType = (projectType) => {
+  const skipInterventionTypes = [
+    PROJECT_TYPES.HCR,
+    PROJECT_TYPES.STR,
+    PROJECT_TYPES.STU,
+    PROJECT_TYPES.ELO
+  ]
+  if (skipInterventionTypes.includes(projectType)) {
+    return false
+  }
+  return true
 }
 
 /**

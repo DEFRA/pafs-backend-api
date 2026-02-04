@@ -6,8 +6,10 @@ import {
   CONVERSION_DIRECTIONS,
   getProjectSelectFields,
   getJoinedTableConfig,
-  getJoinedSelectFields
+  getJoinedSelectFields,
+  requiredInterventionTypesForProjectType
 } from './project-config.js'
+import { PROJECT_TYPES } from '../../../common/constants/project.js'
 
 describe('project-config', () => {
   describe('CONVERSION_DIRECTIONS', () => {
@@ -33,7 +35,21 @@ describe('project-config', () => {
         projectInterventionTypes: 'project_intervention_types',
         mainInterventionType: 'main_intervention_type',
         financialStartYear: 'earliest_start_year',
-        financialEndYear: 'project_end_financial_year'
+        financialEndYear: 'project_end_financial_year',
+        startOutlineBusinessCaseMonth: 'start_outline_business_case_month',
+        startOutlineBusinessCaseYear: 'start_outline_business_case_year',
+        completeOutlineBusinessCaseMonth:
+          'complete_outline_business_case_month',
+        completeOutlineBusinessCaseYear: 'complete_outline_business_case_year',
+        awardContractMonth: 'award_contract_month',
+        awardContractYear: 'award_contract_year',
+        startConstructionMonth: 'start_construction_month',
+        startConstructionYear: 'start_construction_year',
+        readyForServiceMonth: 'ready_for_service_month',
+        readyForServiceYear: 'ready_for_service_year',
+        couldStartEarly: 'could_start_early',
+        earliestWithGiaMonth: 'earliest_with_gia_month',
+        earliestWithGiaYear: 'earliest_with_gia_year'
       })
     })
 
@@ -80,8 +96,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 12 total fields (7 common + 5 read-only)', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(12)
+    it('should have 25 total fields (20 common + 5 read-only)', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(25)
     })
   })
 
@@ -132,9 +148,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 12 fields', () => {
+    it('should return an object with 25 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(12)
+      expect(Object.keys(result)).toHaveLength(25)
     })
 
     it('should return a new object each time', () => {
@@ -283,6 +299,54 @@ describe('project-config', () => {
           expect(result[tableKey].select[dbField]).toBe(true)
         })
       })
+    })
+  })
+
+  describe('requiredInterventionTypesForProjectType', () => {
+    it('should return false for HCR project type', () => {
+      expect(requiredInterventionTypesForProjectType(PROJECT_TYPES.HCR)).toBe(
+        false
+      )
+    })
+
+    it('should return false for STR project type', () => {
+      expect(requiredInterventionTypesForProjectType(PROJECT_TYPES.STR)).toBe(
+        false
+      )
+    })
+
+    it('should return false for STU project type', () => {
+      expect(requiredInterventionTypesForProjectType(PROJECT_TYPES.STU)).toBe(
+        false
+      )
+    })
+
+    it('should return false for ELO project type', () => {
+      expect(requiredInterventionTypesForProjectType(PROJECT_TYPES.ELO)).toBe(
+        false
+      )
+    })
+
+    it('should return true for DEF project type', () => {
+      expect(requiredInterventionTypesForProjectType(PROJECT_TYPES.DEF)).toBe(
+        true
+      )
+    })
+
+    it('should return true for REP project type', () => {
+      expect(requiredInterventionTypesForProjectType(PROJECT_TYPES.REP)).toBe(
+        true
+      )
+    })
+
+    it('should return true for REF project type', () => {
+      expect(requiredInterventionTypesForProjectType(PROJECT_TYPES.REF)).toBe(
+        true
+      )
+    })
+
+    it('should return true for unknown project types', () => {
+      expect(requiredInterventionTypesForProjectType('UNKNOWN')).toBe(true)
     })
   })
 

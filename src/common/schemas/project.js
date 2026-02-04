@@ -2,7 +2,7 @@ import Joi from 'joi'
 import {
   PROJECT_INTERVENTION_TYPES,
   PROJECT_TYPES,
-  PROPOSAL_VALIDATION_MESSAGES
+  PROJECT_VALIDATION_MESSAGES
 } from '../constants/project.js'
 import { SIZE, PATTERN } from '../constants/common.js'
 
@@ -26,9 +26,9 @@ export const projectIdSchema = Joi.number()
   .label('Project ID')
   .required()
   .messages({
-    'number.base': PROPOSAL_VALIDATION_MESSAGES.PROJECT_ID_INVALID,
-    'number.positive': PROPOSAL_VALIDATION_MESSAGES.PROJECT_ID_INVALID,
-    'any.required': PROPOSAL_VALIDATION_MESSAGES.PROJECT_ID_REQUIRED
+    'number.base': PROJECT_VALIDATION_MESSAGES.PROJECT_ID_INVALID,
+    'number.positive': PROJECT_VALIDATION_MESSAGES.PROJECT_ID_INVALID,
+    'any.required': PROJECT_VALIDATION_MESSAGES.PROJECT_ID_REQUIRED
   })
 
 /**
@@ -42,10 +42,10 @@ export const projectReferenceNumberSchema = Joi.string()
   .pattern(PATTERN.PROJECT_REFERENCE_NUMBER)
   .optional()
   .allow('')
-  .label('Project Reference Number')
+  .label('referenceNumber')
   .messages({
     'string.pattern.base':
-      PROPOSAL_VALIDATION_MESSAGES.REFERENCE_NUMBER_INVALID_FORMAT
+      PROJECT_VALIDATION_MESSAGES.REFERENCE_NUMBER_INVALID_FORMAT
   })
 
 /**
@@ -53,13 +53,13 @@ export const projectReferenceNumberSchema = Joi.string()
  */
 export const projectNameSchema = Joi.string()
   .trim()
-  .pattern(PATTERN.NAME_WITH_ALPHANUMERIC_UNDERSCORE_DASH)
+  .pattern(PATTERN.NAME_WITH_ALPHANUMERIC_SPACE_UNDERSCORE_DASH)
   .required()
-  .label('Project Name')
+  .label('name')
   .messages({
-    'string.empty': PROPOSAL_VALIDATION_MESSAGES.NAME_REQUIRED,
-    'string.required': PROPOSAL_VALIDATION_MESSAGES.NAME_REQUIRED,
-    'string.pattern.base': PROPOSAL_VALIDATION_MESSAGES.NAME_INVALID_FORMAT
+    'string.empty': PROJECT_VALIDATION_MESSAGES.NAME_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.NAME_REQUIRED,
+    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.NAME_INVALID_FORMAT
   })
 
 /**
@@ -68,13 +68,13 @@ export const projectNameSchema = Joi.string()
 export const projectAreaIdSchema = Joi.number()
   .integer()
   .positive()
-  .label('Project Area ID')
+  .label('areaId')
   .required()
   .messages({
-    'number.base': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
-    'number.positive': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
-    'number.integer': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_INVALID,
-    'any.required': PROPOSAL_VALIDATION_MESSAGES.RMA_ID_REQUIRED
+    'number.base': PROJECT_VALIDATION_MESSAGES.AREA_ID_INVALID,
+    'number.positive': PROJECT_VALIDATION_MESSAGES.AREA_ID_INVALID,
+    'number.integer': PROJECT_VALIDATION_MESSAGES.AREA_ID_INVALID,
+    'any.required': PROJECT_VALIDATION_MESSAGES.AREA_ID_REQUIRED
   })
 
 /**
@@ -84,11 +84,11 @@ export const projectTypeSchema = Joi.string()
   .trim()
   .required()
   .valid(...Object.values(PROJECT_TYPES))
-  .label('Project Type')
+  .label('projectType')
   .messages({
-    'string.empty': PROPOSAL_VALIDATION_MESSAGES.PROJECT_TYPE_REQUIRED,
-    'string.required': PROPOSAL_VALIDATION_MESSAGES.PROJECT_TYPE_REQUIRED,
-    'any.only': PROPOSAL_VALIDATION_MESSAGES.PROJECT_TYPE_INVALID
+    'string.empty': PROJECT_VALIDATION_MESSAGES.PROJECT_TYPE_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.PROJECT_TYPE_REQUIRED,
+    'any.only': PROJECT_VALIDATION_MESSAGES.PROJECT_TYPE_INVALID
   })
 
 /**
@@ -142,11 +142,11 @@ export const projectInterventionTypeSchema = Joi.array()
       .required()
       .messages({
         'array.min':
-          PROPOSAL_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
+          PROJECT_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
         'any.required':
-          PROPOSAL_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
+          PROJECT_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
         'any.only':
-          PROPOSAL_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_INVALID
+          PROJECT_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_INVALID
       }),
     otherwise: Joi.when('projectType', {
       is: PROJECT_TYPES.REF,
@@ -158,11 +158,11 @@ export const projectInterventionTypeSchema = Joi.array()
         .required()
         .messages({
           'array.min':
-            PROPOSAL_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
+            PROJECT_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
           'any.required':
-            PROPOSAL_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
+            PROJECT_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_REQUIRED,
           'any.only':
-            PROPOSAL_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_INVALID
+            PROJECT_VALIDATION_MESSAGES.PROJECT_INTERVENTION_TYPE_INVALID
         }),
       otherwise: Joi.forbidden().messages({
         'any.unknown':
@@ -170,7 +170,7 @@ export const projectInterventionTypeSchema = Joi.array()
       })
     })
   })
-  .label('Project Intervention Type')
+  .label('projectInterventionTypes')
 
 /**
  * Helper: Validate main intervention type is in selected intervention types
@@ -217,11 +217,11 @@ export const projectMainInterventionTypeSchema = Joi.string()
         .custom(validateMainInterventionType)
         .messages({
           'string.empty':
-            PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
+            PROJECT_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
           'any.required':
-            PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
+            PROJECT_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_REQUIRED,
           'any.only':
-            PROPOSAL_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_INVALID
+            PROJECT_VALIDATION_MESSAGES.PROJECT_MAIN_INTERVENTION_TYPE_INVALID
         }),
       otherwise: Joi.string().optional()
     }),
@@ -230,7 +230,7 @@ export const projectMainInterventionTypeSchema = Joi.string()
         'Main Intervention Type should not be provided for this project type'
     })
   })
-  .label('Project Main Intervention Type')
+  .label('mainInterventionType')
 
 /**
  * Get current financial year (April to March)
@@ -269,15 +269,24 @@ const getCurrentFinancialYear = () => {
  * @param {Object} helpers - Joi validation helpers
  * @returns {number|Error} The year if valid, or Joi error
  */
-const validateFinancialYearNotPast = (year, helpers) => {
+const validateFinancialYearNotPast = (startYear, helpers) => {
   const currentFinancialYear = getCurrentFinancialYear()
-  if (year < currentFinancialYear) {
+  if (startYear < currentFinancialYear) {
     return helpers.error('number.min', {
       limit: currentFinancialYear,
-      value: year
+      value: startYear
     })
   }
-  return year
+
+  // Check start year is <= end year
+  const endYear = helpers.state.ancestors[0]?.financialEndYear
+  if (endYear && startYear > endYear) {
+    return helpers.error('number.custom', {
+      startYear,
+      endYear
+    })
+  }
+  return startYear
 }
 
 /**
@@ -291,13 +300,15 @@ export const projectFinancialStartYearSchema = Joi.number()
   .custom(validateFinancialYearNotPast)
   .required()
   .messages({
-    'number.base': PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_REQUIRED,
+    'number.base': PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_REQUIRED,
     'number.min':
-      PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_SHOULD_BE_IN_FUTURE,
-    'number.max': PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_INVALID,
-    'any.required': PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_REQUIRED
+      PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_SHOULD_BE_IN_FUTURE,
+    'number.max': PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_INVALID,
+    'number.custom':
+      PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_SHOULD_BE_LESS_THAN_END_YEAR,
+    'any.required': PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_REQUIRED
   })
-  .label('Project Financial Start Year')
+  .label('financialStartYear')
 
 /**
  * Helper: Validate financial end year constraints
@@ -339,12 +350,271 @@ export const projectFinancialEndYearSchema = Joi.number()
   .custom(validateFinancialEndYear)
   .required()
   .messages({
-    'number.base': PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_REQUIRED,
+    'number.base': PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_REQUIRED,
     'number.min':
-      PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_SHOULD_BE_IN_FUTURE,
+      PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_SHOULD_BE_IN_FUTURE,
     'number.custom':
-      PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_SHOULD_BE_GREATER_THAN_START_YEAR,
-    'number.max': PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_INVALID,
-    'any.required': PROPOSAL_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_REQUIRED
+      PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_SHOULD_BE_GREATER_THAN_START_YEAR,
+    'number.max': PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_INVALID,
+    'any.required': PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_REQUIRED
   })
-  .label('Project Financial End Year')
+  .label('financialEndYear')
+
+/**
+ * Helper: Get current month and year
+ * @returns {{month: number, year: number}} Current month (1-12) and year
+ */
+const getCurrentMonthYear = () => {
+  const now = new Date()
+  return {
+    month: now.getMonth() + SIZE.LENGTH_1, // getMonth() returns 0-11
+    year: now.getFullYear()
+  }
+}
+
+/**
+ * Helper: Compare two month/year dates
+ * @param {number} month1 - Month (1-12)
+ * @param {number} year1 - Year
+ * @param {number} month2 - Month (1-12)
+ * @param {number} year2 - Year
+ * @returns {number} -1 if date1 < date2, 0 if equal, 1 if date1 > date2
+ */
+const compareMonthYear = (month1, year1, month2, year2) => {
+  if (year1 < year2) return -1
+  if (year1 > year2) return 1
+  if (month1 < month2) return -1
+  if (month1 > month2) return 1
+  return 0
+}
+
+/**
+ * Generic month schema - validates 1-12
+ */
+const monthSchema = Joi.number()
+  .integer()
+  .min(SIZE.LENGTH_1)
+  .max(SIZE.LENGTH_12)
+  .required()
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.MONTH_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.MONTH_INVALID,
+    'number.max': PROJECT_VALIDATION_MESSAGES.MONTH_INVALID,
+    'any.required': PROJECT_VALIDATION_MESSAGES.MONTH_REQUIRED
+  })
+
+/**
+ * Generic year schema - validates 2000-2100
+ */
+const yearSchema = Joi.number()
+  .integer()
+  .min(FINANCIAL_YEAR.MIN_YEAR)
+  .max(FINANCIAL_YEAR.MAX_YEAR)
+  .required()
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.YEAR_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.YEAR_INVALID,
+    'number.max': PROJECT_VALIDATION_MESSAGES.YEAR_INVALID,
+    'any.required': PROJECT_VALIDATION_MESSAGES.YEAR_REQUIRED
+  })
+
+/**
+ * Helper: Validate month/year is not in the past and falls within financial years
+ */
+const validateTimelineDate = (
+  monthField,
+  yearField,
+  prevMonthField,
+  prevYearField,
+  stageName
+) => {
+  return (value, helpers) => {
+    const data = helpers.state.ancestors[0]
+    const month = data[monthField]
+    const year = data[yearField]
+
+    // Both month and year must be present
+    if (month === undefined || year === undefined) {
+      return value
+    }
+
+    const current = getCurrentMonthYear()
+
+    // Check not in past
+    if (compareMonthYear(month, year, current.month, current.year) < 0) {
+      return helpers.error('custom.date_in_past', {
+        stageName
+      })
+    }
+
+    // Check sequential ordering if previous stage exists
+    if (prevMonthField && prevYearField) {
+      const prevMonth = data[prevMonthField]
+      const prevYear = data[prevYearField]
+
+      if (prevMonth !== undefined && prevYear !== undefined) {
+        if (compareMonthYear(month, year, prevMonth, prevYear) < 0) {
+          return helpers.error('custom.date_before_previous_stage', {
+            stageName,
+            prevStage: prevMonthField.replace('Month', '')
+          })
+        }
+      }
+    }
+
+    return value
+  }
+}
+
+/**
+ * Start Outline Business Case schemas
+ */
+export const startOutlineBusinessCaseMonthSchema = monthSchema
+  .custom(
+    validateTimelineDate(
+      'startOutlineBusinessCaseMonth',
+      'startOutlineBusinessCaseYear',
+      null,
+      null,
+      'Start Outline Business Case'
+    )
+  )
+  .messages({
+    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST
+  })
+  .label('startOutlineBusinessCaseMonth')
+
+export const startOutlineBusinessCaseYearSchema = yearSchema.label(
+  'startOutlineBusinessCaseYear'
+)
+
+/**
+ * Complete Outline Business Case schemas
+ */
+export const completeOutlineBusinessCaseMonthSchema = monthSchema
+  .custom(
+    validateTimelineDate(
+      'completeOutlineBusinessCaseMonth',
+      'completeOutlineBusinessCaseYear',
+      'startOutlineBusinessCaseMonth',
+      'startOutlineBusinessCaseYear',
+      'Complete Outline Business Case'
+    )
+  )
+  .messages({
+    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
+    'custom.date_before_previous_stage':
+      PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
+  })
+  .label('completeOutlineBusinessCaseMonth')
+
+export const completeOutlineBusinessCaseYearSchema = yearSchema.label(
+  'completeOutlineBusinessCaseYear'
+)
+
+/**
+ * Award Contract schemas
+ */
+export const awardContractMonthSchema = monthSchema
+  .custom(
+    validateTimelineDate(
+      'awardContractMonth',
+      'awardContractYear',
+      'completeOutlineBusinessCaseMonth',
+      'completeOutlineBusinessCaseYear',
+      'Award Contract'
+    )
+  )
+  .messages({
+    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
+    'custom.date_before_previous_stage':
+      PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
+  })
+  .label('awardContractMonth')
+
+export const awardContractYearSchema = yearSchema.label('awardContractYear')
+
+/**
+ * Start Construction schemas
+ */
+export const startConstructionMonthSchema = monthSchema
+  .custom(
+    validateTimelineDate(
+      'startConstructionMonth',
+      'startConstructionYear',
+      'awardContractMonth',
+      'awardContractYear',
+      'Start Construction'
+    )
+  )
+  .messages({
+    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
+    'custom.date_before_previous_stage':
+      PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
+  })
+  .label('startConstructionMonth')
+
+export const startConstructionYearSchema = yearSchema.label(
+  'startConstructionYear'
+)
+
+/**
+ * Ready for Service schemas
+ */
+export const readyForServiceMonthSchema = monthSchema
+  .custom(
+    validateTimelineDate(
+      'readyForServiceMonth',
+      'readyForServiceYear',
+      'startConstructionMonth',
+      'startConstructionYear',
+      'Ready for Service'
+    )
+  )
+  .messages({
+    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
+    'custom.date_before_previous_stage':
+      PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
+  })
+  .label('readyForServiceMonth')
+
+export const readyForServiceYearSchema = yearSchema.label('readyForServiceYear')
+
+/**
+ * Could Start Early schema - boolean field
+ */
+export const couldStartEarlySchema = Joi.boolean()
+  .required()
+  .label('couldStartEarly')
+  .messages({
+    'boolean.base': PROJECT_VALIDATION_MESSAGES.COULD_START_EARLY_INVALID,
+    'any.required': PROJECT_VALIDATION_MESSAGES.COULD_START_EARLY_REQUIRED
+  })
+
+/**
+ * Earliest With GIA schemas - conditional on couldStartEarly
+ */
+export const earliestWithGiaMonthSchema = Joi.when('couldStartEarly', {
+  is: true,
+  then: monthSchema
+    .custom(
+      validateTimelineDate(
+        'earliestWithGiaMonth',
+        'earliestWithGiaYear',
+        null,
+        null,
+        'Earliest With GIA'
+      )
+    )
+    .messages({
+      'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST
+    })
+    .label('earliestWithGiaMonth'),
+  otherwise: Joi.forbidden()
+})
+
+export const earliestWithGiaYearSchema = Joi.when('couldStartEarly', {
+  is: true,
+  then: yearSchema.label('earliestWithGiaYear'),
+  otherwise: Joi.forbidden()
+})

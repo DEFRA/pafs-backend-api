@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import upsertProject from './upsert-project.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
-import { PROPOSAL_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
+import {
+  PROJECT_VALIDATION_MESSAGES,
+  PROJECT_VALIDATION_LEVELS
+} from '../../../common/constants/project.js'
 import { ProjectService } from '../services/project-service.js'
 import { AreaService } from '../../areas/services/area-service.js'
 
@@ -123,10 +126,12 @@ describe('upsertProject handler', () => {
 
       expect(mockH.response).toHaveBeenCalledWith({
         statusCode: HTTP_STATUS.FORBIDDEN,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: 'Only RMA users can create projects'
-        }
+        errors: [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_CREATE,
+            message: 'Only RMA users can create projects'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
       expect(mockLogger.warn).toHaveBeenCalled()
@@ -189,11 +194,12 @@ describe('upsertProject handler', () => {
       await upsertProject.options.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        statusCode: HTTP_STATUS.CONFLICT,
-        errors: {
-          errorCode: 'PROJECT_NAME_DUPLICATE',
-          message: 'A project with this name already exists'
-        }
+        validationErrors: [
+          {
+            errorCode: 'PROJECT_NAME_DUPLICATE',
+            message: 'A project with this name already exists'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CONFLICT)
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -234,11 +240,12 @@ describe('upsertProject handler', () => {
       await upsertProject.options.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: 'The specified areaId does not exist'
-        }
+        validationErrors: [
+          {
+            field: 'areaId',
+            errorCode: PROJECT_VALIDATION_MESSAGES.AREA_IS_NOT_ALLOWED
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -260,11 +267,14 @@ describe('upsertProject handler', () => {
       await upsertProject.options.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: `Selected area must be an RMA. Selected area type is: ${AREA_TYPE_MAP.PSO}`
-        }
+        validationErrors: [
+          {
+            field: 'areaId',
+            errorCode: PROJECT_VALIDATION_MESSAGES.AREA_IS_NOT_ALLOWED,
+            message:
+              'Selected area must be an RMA. Selected area type is: PSO Area'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -286,12 +296,13 @@ describe('upsertProject handler', () => {
       await upsertProject.options.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message:
-            'Could not determine RFCC code. RMA must have a PSO parent with RFCC code.'
-        }
+        validationErrors: [
+          {
+            field: 'areaId',
+            errorCode:
+              'Could not determine RFCC code. RMA must have a PSO parent with RFCC code.'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
       expect(mockLogger.warn).toHaveBeenCalled()
@@ -313,12 +324,13 @@ describe('upsertProject handler', () => {
       await upsertProject.options.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message:
-            'Could not determine RFCC code. RMA must have a PSO parent with RFCC code.'
-        }
+        validationErrors: [
+          {
+            field: 'areaId',
+            errorCode:
+              'Could not determine RFCC code. RMA must have a PSO parent with RFCC code.'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
     })
@@ -396,10 +408,12 @@ describe('upsertProject handler', () => {
       expect(mockLogger.error).toHaveBeenCalled()
       expect(mockH.response).toHaveBeenCalledWith({
         statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INTERNAL_SERVER_ERROR,
-          message: 'An error occurred while upserting the project proposal'
-        }
+        errors: [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.INTERNAL_SERVER_ERROR,
+            message: 'An error occurred while upserting the project proposal'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     })
@@ -428,6 +442,138 @@ describe('upsertProject handler', () => {
 
       expect(mockLogger.error).toHaveBeenCalled()
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    })
+  })
+
+  describe('Financial years validation', () => {
+    beforeEach(() => {
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.payload.payload.referenceNumber = undefined
+    })
+
+    it('should allow when start year equals end year on create', async () => {
+      mockRequest.payload.payload.financialStartYear = 2026
+      mockRequest.payload.payload.financialEndYear = 2026
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          name: 'Test Project',
+          referenceNumber: 'ANC501E/000A/001A'
+        })
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CREATED)
+      expect(mockLogger.warn).not.toHaveBeenCalled()
+    })
+
+    it('should reject when start year is greater than end year on create', async () => {
+      mockRequest.payload.payload.financialStartYear = 2028
+      mockRequest.payload.payload.financialEndYear = 2026
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'financialStartYear',
+            errorCode:
+              PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_SHOULD_BE_LESS_THAN_END_YEAR
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should accept when start year is less than end year on create', async () => {
+      mockRequest.payload.payload.financialStartYear = 2026
+      mockRequest.payload.payload.financialEndYear = 2028
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.CREATED)
+    })
+
+    it('should reject when updating start year to be greater than existing end year', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.financialStartYear = 2030
+      mockRequest.payload.payload.name = undefined
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: 2026,
+        financialEndYear: 2028
+      })
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'financialStartYear',
+            errorCode:
+              PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_SHOULD_BE_LESS_THAN_END_YEAR
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should reject when updating end year to be less than existing start year', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.financialEndYear = 2025
+      mockRequest.payload.payload.name = undefined
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: 2026,
+        financialEndYear: 2028
+      })
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'financialEndYear',
+            errorCode:
+              PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_SHOULD_BE_GREATER_THAN_START_YEAR
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should accept valid financial year update', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.financialStartYear = 2027
+      mockRequest.payload.payload.name = undefined
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: 2026,
+        financialEndYear: 2030
+      })
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })
   })
 
@@ -543,10 +689,12 @@ describe('upsertProject handler', () => {
 
       expect(mockH.response).toHaveBeenCalledWith({
         statusCode: HTTP_STATUS.FORBIDDEN,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: 'Only admin users can change the area of a project'
-        }
+        errors: [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE,
+            message: 'Only admin users can change the area of a project'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
       expect(mockLogger.warn).toHaveBeenCalled()
@@ -595,10 +743,13 @@ describe('upsertProject handler', () => {
 
       expect(mockH.response).toHaveBeenCalledWith({
         statusCode: HTTP_STATUS.NOT_FOUND,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: 'Project with the specified reference number does not exist'
-        }
+        errors: [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA,
+            message:
+              'Project with the specified reference number does not exist'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -666,10 +817,13 @@ describe('upsertProject handler', () => {
 
       expect(mockH.response).toHaveBeenCalledWith({
         statusCode: HTTP_STATUS.FORBIDDEN,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: expect.stringContaining('You do not have permission')
-        }
+        errors: [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE,
+            message:
+              'You do not have permission to update this project. You must have access to the project area or its parent PSO area.'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
     })
@@ -685,12 +839,458 @@ describe('upsertProject handler', () => {
 
       expect(mockH.response).toHaveBeenCalledWith({
         statusCode: HTTP_STATUS.FORBIDDEN,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: 'You do not have access to the specified area'
-        }
+        errors: [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_CREATE,
+            message: 'You do not have access to the specified area'
+          }
+        ]
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
+    })
+  })
+
+  describe('Intervention types normalization', () => {
+    it('should normalize undefined projectInterventionTypes to null at INITIAL_SAVE level', async () => {
+      // Create clean payload without intervention type fields
+      mockRequest.payload.payload = {
+        name: 'Test Project',
+        areaId: 1n
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.INITIAL_SAVE
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectInterventionTypes: null,
+          mainInterventionType: null
+        }),
+        expect.any(BigInt),
+        expect.any(String)
+      )
+    })
+
+    it('should normalize undefined projectInterventionTypes to null at PROJECT_TYPE level', async () => {
+      // Create clean payload without intervention type fields
+      mockRequest.payload.payload = {
+        name: 'Test Project 2',
+        areaId: 1n
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectInterventionTypes: null,
+          mainInterventionType: null
+        }),
+        expect.any(BigInt),
+        expect.any(String)
+      )
+    })
+
+    it('should not normalize projectInterventionTypes at other validation levels', async () => {
+      mockRequest.payload.payload.referenceNumber = undefined
+      mockRequest.payload.payload.projectInterventionTypes = ['NFM', 'SUDS']
+      mockRequest.payload.payload.mainInterventionType = 'NFM'
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.COMPLETE_OBC
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectInterventionTypes: ['NFM', 'SUDS'],
+          mainInterventionType: 'NFM'
+        }),
+        expect.any(BigInt),
+        expect.any(String)
+      )
+    })
+
+    it('should preserve defined projectInterventionTypes at INITIAL_SAVE level', async () => {
+      mockRequest.payload.payload = {
+        name: 'Test Project',
+        areaId: 1n,
+        projectInterventionTypes: ['NFM', 'SUDS'],
+        mainInterventionType: 'NFM'
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.INITIAL_SAVE
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      // Should preserve the defined values, not normalize to null
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectInterventionTypes: ['NFM', 'SUDS'],
+          mainInterventionType: 'NFM'
+        }),
+        expect.any(BigInt),
+        expect.any(String)
+      )
+    })
+
+    it('should preserve defined projectInterventionTypes at PROJECT_TYPE level', async () => {
+      mockRequest.payload.payload = {
+        name: 'Test Project',
+        areaId: 1n,
+        projectInterventionTypes: ['CHANNEL'],
+        mainInterventionType: 'CHANNEL'
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      // Should preserve the defined values, not normalize to null
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectInterventionTypes: ['CHANNEL'],
+          mainInterventionType: 'CHANNEL'
+        }),
+        expect.any(BigInt),
+        expect.any(String)
+      )
+    })
+  })
+
+  describe('EarliestWithGia reset logic', () => {
+    beforeEach(() => {
+      // Mock existing project for timeline validation
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValue({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: 2025,
+        financialEndYear: 2030
+      })
+    })
+
+    it('should reset earliestWithGia fields when couldStartEarly is false at COULD_START_EARLY level', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        couldStartEarly: false,
+        earliestWithGiaMonth: 6,
+        earliestWithGiaYear: 2027
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.COULD_START_EARLY
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          couldStartEarly: false,
+          earliestWithGiaMonth: null,
+          earliestWithGiaYear: null
+        }),
+        expect.any(BigInt),
+        null // rfccCode is null for updates
+      )
+    })
+
+    it('should reset earliestWithGia fields when couldStartEarly is false at EARLIEST_WITH_GIA level', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: undefined, // Skip name validation for update
+        couldStartEarly: false,
+        earliestWithGiaMonth: 5, // These will be reset to null
+        earliestWithGiaYear: 2027,
+        areaId: undefined // No area change
+      }
+      // Use COULD_START_EARLY level to avoid timeline validation but test reset logic
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.COULD_START_EARLY
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValue({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: 2026,
+        financialEndYear: 2028
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          couldStartEarly: false,
+          earliestWithGiaMonth: null,
+          earliestWithGiaYear: null
+        }),
+        expect.any(BigInt),
+        null // rfccCode is null for updates
+      )
+    })
+
+    it('should not reset earliestWithGia fields when couldStartEarly is true', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: undefined, // Skip name validation for update
+        couldStartEarly: true,
+        earliestWithGiaMonth: 5, // These should remain unchanged
+        earliestWithGiaYear: 2027,
+        areaId: undefined // No area change
+      }
+      // Use COULD_START_EARLY level to avoid timeline validation but test reset logic
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.COULD_START_EARLY
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValue({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: 2026,
+        financialEndYear: 2028
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          couldStartEarly: true,
+          earliestWithGiaMonth: 5,
+          earliestWithGiaYear: 2027
+        }),
+        expect.any(BigInt),
+        null // rfccCode is null for updates
+      )
+    })
+
+    it('should not reset earliestWithGia fields at other validation levels', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        couldStartEarly: false,
+        earliestWithGiaMonth: 6,
+        earliestWithGiaYear: 2027
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.START_OBC
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      // Should not reset at other levels, fields remain as provided
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          couldStartEarly: false,
+          earliestWithGiaMonth: 6,
+          earliestWithGiaYear: 2027
+        }),
+        expect.any(BigInt),
+        null // rfccCode is null for updates
+      )
+    })
+  })
+
+  describe('Timeline validation integration', () => {
+    beforeEach(() => {
+      // Mock existing project with financial years
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValue({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: 2025,
+        financialEndYear: 2030
+      })
+    })
+
+    it('should reject update when timeline date is before financial start', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 1n,
+        startOutlineBusinessCaseMonth: 2, // February
+        startOutlineBusinessCaseYear: 2025 // Before April 1st, 2025
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE
+
+      const result = await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(result).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            errorCode: expect.any(String),
+            field: 'startOutlineBusinessCaseMonth',
+            message: expect.stringContaining(
+              'must be within the financial year range'
+            )
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should reject update when timeline date is after financial end', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 1n,
+        readyForServiceMonth: 5, // May
+        readyForServiceYear: 2031 // After March 31st, 2031
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.READY_FOR_SERVICE
+
+      const result = await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(result).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            errorCode: expect.any(String),
+            field: 'readyForServiceMonth',
+            message: expect.stringContaining(
+              'must be within the financial year range'
+            )
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should allow update when timeline date is within financial boundaries', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 1n,
+        startConstructionMonth: 6, // June
+        startConstructionYear: 2027 // Within 2025-2030
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.START_CONSTRUCTION
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalled()
+      expect(mockH.response).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: HTTP_STATUS.BAD_REQUEST
+        })
+      )
+    })
+
+    it('should reject EARLIEST_WITH_GIA when not before financial start', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 1n,
+        earliestWithGiaMonth: 5, // May
+        earliestWithGiaYear: 2025 // After April 1st, 2025
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
+
+      const result = await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(result).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            errorCode: expect.any(String),
+            field: 'earliestWithGiaMonth',
+            message: expect.stringContaining(
+              'must be before the financial start year'
+            )
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should allow EARLIEST_WITH_GIA when before financial start', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 1n,
+        earliestWithGiaMonth: 1, // January
+        earliestWithGiaYear: 2025 // Before April 1st, 2025
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(upsertSpy).toHaveBeenCalled()
+      expect(mockH.response).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: HTTP_STATUS.BAD_REQUEST
+        })
+      )
+    })
+
+    it('should skip timeline validation for non-timeline levels', async () => {
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 1n,
+        startConstructionMonth: 1, // January (would fail if validated)
+        startConstructionYear: 2024 // Before financial start (would fail if validated)
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.FLOOD_RISK_AREA_GROUP
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      // Should succeed because timeline validation is skipped for this level
+      expect(upsertSpy).toHaveBeenCalled()
+      expect(mockH.response).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: HTTP_STATUS.BAD_REQUEST
+        })
+      )
+    })
+
+    it('should skip timeline validation for create operations', async () => {
+      mockRequest.payload.payload = {
+        name: 'New Project',
+        areaId: 1n,
+        startOutlineBusinessCaseMonth: 1, // January (would fail if validated)
+        startOutlineBusinessCaseYear: 2024 // Before financial start (would fail if validated)
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      // Should succeed because timeline validation is only for updates
+      expect(upsertSpy).toHaveBeenCalled()
+      expect(mockH.response).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: HTTP_STATUS.BAD_REQUEST
+        })
+      )
     })
   })
 

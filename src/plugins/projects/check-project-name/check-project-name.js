@@ -29,7 +29,7 @@ const checkProjectName = {
 
         if (!result.isValid) {
           return h
-            .response({ validationErrors: result.errors })
+            .response({ validationErrors: [result.errors] })
             .code(HTTP_STATUS.BAD_REQUEST)
         }
 
@@ -47,7 +47,7 @@ const checkProjectName = {
               {
                 errorCode: PROPOSAL_ERROR_MESSAGES.NAME_VALIDATION_ERROR,
                 message: 'An error occurred while validating the name',
-                field: null
+                field: 'name'
               }
             ]
           })

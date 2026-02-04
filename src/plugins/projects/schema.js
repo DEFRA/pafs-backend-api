@@ -3,7 +3,7 @@ import {
   projectNameSchema,
   projectReferenceNumberSchema
 } from '../../common/schemas/project.js'
-import { PROPOSAL_VALIDATION_MESSAGES } from '../../common/constants/project.js'
+import { PROJECT_VALIDATION_MESSAGES } from '../../common/constants/project.js'
 import {
   generateSchemaForLevel,
   VALIDATION_LEVELS
@@ -13,7 +13,7 @@ import { VALIDATION_ERROR_CODES } from '../../common/constants/common.js'
 export const validateProjectName = Joi.object({
   name: projectNameSchema,
   referenceNumber: projectReferenceNumberSchema
-})
+}).options({ abortEarly: false })
 
 export const upsertProjectSchema = Joi.object({
   level: Joi.string()
@@ -21,9 +21,9 @@ export const upsertProjectSchema = Joi.object({
     .required()
     .label('Validation Level')
     .messages({
-      'any.only': PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-      'string.empty': PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-      'any.required': PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA
+      'any.only': PROJECT_VALIDATION_MESSAGES.INVALID_DATA,
+      'string.empty': PROJECT_VALIDATION_MESSAGES.INVALID_DATA,
+      'any.required': PROJECT_VALIDATION_MESSAGES.INVALID_DATA
     }),
 
   payload: Joi.when('level', {
@@ -36,7 +36,7 @@ export const upsertProjectSchema = Joi.object({
     .required()
     .label('Payload')
     .messages({
-      'any.required': PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
+      'any.required': PROJECT_VALIDATION_MESSAGES.INVALID_DATA,
       'alternatives.match':
         'Payload does not match the required schema for the specified level'
     })

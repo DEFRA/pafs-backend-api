@@ -1,7 +1,7 @@
 import { PASSWORD, SIZE } from '../../../common/constants/common.js'
 import {
   PROJECT_STATUS,
-  PROPOSAL_VALIDATION_MESSAGES
+  PROJECT_VALIDATION_MESSAGES
 } from '../../../common/constants/project.js'
 import { ProjectMapper } from '../helpers/project-mapper.js'
 import {
@@ -56,8 +56,9 @@ export class ProjectService {
         return {
           isValid: false,
           errors: {
-            errorCode: PROPOSAL_VALIDATION_MESSAGES.NAME_DUPLICATE,
-            message: 'A project with this name already exists'
+            errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
+            message: 'A project with this name already exists',
+            field: 'name'
           }
         }
       }
@@ -72,8 +73,9 @@ export class ProjectService {
       return {
         isValid: false,
         errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.NAME_DUPLICATE,
-          message: 'Unable to verify project name uniqueness'
+          errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
+          message: 'Unable to verify project name uniqueness',
+          field: 'name'
         }
       }
     }

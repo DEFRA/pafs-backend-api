@@ -92,6 +92,7 @@ export const SIZE = {
   LENGTH_3: 3,
   LENGTH_4: 4,
   LENGTH_8: 8,
+  LENGTH_12: 12,
   LENGTH_32: 32,
   LENGTH_50: 50,
   LENGTH_100: 100,
@@ -108,7 +109,7 @@ export const STATIC_TEXT = {
 }
 
 export const PATTERN = {
-  NAME_WITH_ALPHANUMERIC_UNDERSCORE_DASH: /^[a-zA-Z0-9_ -]+$/,
+  NAME_WITH_ALPHANUMERIC_SPACE_UNDERSCORE_DASH: /^[a-zA-Z0-9_ -]+$/,
   PROJECT_REFERENCE_NUMBER: /^[A-Z]{2}C501E\/\d{3}A\/\d{3}A$/
 }
 

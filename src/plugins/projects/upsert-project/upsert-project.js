@@ -1,400 +1,13 @@
 import { ProjectService } from '../services/project-service.js'
 import { AreaService } from '../../areas/services/area-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
-import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
-import { PROPOSAL_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
-import { upsertProjectSchema } from '../schema.js'
 import {
-  canCreateProject,
-  canUpdateProject
-} from '../helpers/project-permissions.js'
-
-/**
- * Validates project existence for update operations
- * Returns existing project if found, error response if not
- */
-const validateProjectExists = async (
-  projectService,
-  referenceNumber,
-  userId,
-  logger,
-  h
-) => {
-  const existingProject =
-    await projectService.getProjectByReferenceNumber(referenceNumber)
-
-  if (!existingProject) {
-    logger.warn(
-      { userId, referenceNumber },
-      'Attempted to update non-existent project'
-    )
-    return {
-      error: h
-        .response({
-          statusCode: HTTP_STATUS.NOT_FOUND,
-          errors: {
-            errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-            message:
-              'Project with the specified reference number does not exist'
-          }
-        })
-        .code(HTTP_STATUS.NOT_FOUND)
-    }
-  }
-
-  return { project: existingProject }
-}
-
-/**
- * Validates user permissions for create operations
- */
-const validateCreatePermissions = (credentials, areaId, logger, h) => {
-  const userId = credentials.userId
-  const createCheck = canCreateProject(credentials, areaId)
-
-  if (!createCheck.allowed) {
-    logger.warn(
-      {
-        userId,
-        areaId,
-        primaryAreaType: credentials.primaryAreaType
-      },
-      'User does not have permission to create project'
-    )
-    return h
-      .response({
-        statusCode: HTTP_STATUS.FORBIDDEN,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: createCheck.reason
-        }
-      })
-      .code(HTTP_STATUS.FORBIDDEN)
-  }
-
-  return null
-}
-
-/**
- * Validates user permissions for update operations
- */
-const validateUpdatePermissions = async (
-  credentials,
-  existingProject,
-  areaId,
-  areaService,
-  logger,
-  h
-) => {
-  const userId = credentials.userId
-  const projectAreaId = areaId || existingProject.areaId
-  const projectAreaDetails =
-    await areaService.getAreaByIdWithParents(projectAreaId)
-
-  const updateCheck = canUpdateProject(credentials, projectAreaDetails)
-
-  if (!updateCheck.allowed) {
-    logger.warn(
-      {
-        userId,
-        referenceNumber: existingProject.referenceNumber,
-        projectAreaId
-      },
-      'User does not have permission to update project'
-    )
-    return h
-      .response({
-        statusCode: HTTP_STATUS.FORBIDDEN,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: updateCheck.reason
-        }
-      })
-      .code(HTTP_STATUS.FORBIDDEN)
-  }
-
-  return null
-}
-
-/**
- * Validates project name uniqueness
- */
-const validateProjectName = async (
-  projectService,
-  name,
-  referenceNumber,
-  userId,
-  logger,
-  h
-) => {
-  const nameCheck = await projectService.checkDuplicateProjectName({
-    name,
-    referenceNumber
-  })
-  if (!nameCheck.isValid) {
-    logger.warn(
-      { name, userId },
-      'Duplicate project name detected during upsert'
-    )
-    return h
-      .response({
-        statusCode: HTTP_STATUS.CONFLICT,
-        errors: {
-          errorCode: nameCheck.errors.errorCode,
-          message: nameCheck.errors.message
-        }
-      })
-      .code(HTTP_STATUS.CONFLICT)
-  }
-  return null
-}
-
-/**
- * Validates area and RMA type
- */
-const validateArea = (areaWithParents, areaId, userId, logger, h) => {
-  if (!areaWithParents) {
-    logger.warn({ areaId, userId }, 'Specified areaId does not exist')
-    return h
-      .response({
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: 'The specified areaId does not exist'
-        }
-      })
-      .code(HTTP_STATUS.NOT_FOUND)
-  }
-
-  if (areaWithParents.area_type !== AREA_TYPE_MAP.RMA) {
-    logger.warn({ areaId, userId }, 'Selected area is not an RMA')
-    return h
-      .response({
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message: `Selected area must be an RMA. Selected area type is: ${areaWithParents.area_type}`
-        }
-      })
-      .code(HTTP_STATUS.BAD_REQUEST)
-  }
-
-  return null
-}
-
-/**
- * Validates and extracts RFCC code from area
- */
-const validateRfccCode = (areaWithParents, areaId, userId, logger, h) => {
-  if (!areaWithParents?.PSO?.sub_type) {
-    logger.warn(
-      { areaId, userId },
-      'Could not determine RFCC code. RMA must have a PSO parent with RFCC code.'
-    )
-    return h
-      .response({
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        errors: {
-          errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-          message:
-            'Could not determine RFCC code. RMA must have a PSO parent with RFCC code.'
-        }
-      })
-      .code(HTTP_STATUS.BAD_REQUEST)
-  }
-  return null
-}
-
-/**
- * Fetches and validates area (RMA type check)
- * Returns area data if valid, error response if invalid
- */
-const fetchAndValidateArea = async (areaService, areaId, userId, logger, h) => {
-  const areaWithParents = await areaService.getAreaByIdWithParents(areaId)
-  const areaError = validateArea(areaWithParents, areaId, userId, logger, h)
-
-  if (areaError) {
-    return { error: areaError }
-  }
-
-  return { areaWithParents }
-}
-
-/**
- * Validates area and RFCC for create operations
- * Returns area data to avoid redundant fetches
- */
-const validateCreateSpecificFields = async (
-  areaService,
-  areaId,
-  userId,
-  logger,
-  h
-) => {
-  const { areaWithParents, error } = await fetchAndValidateArea(
-    areaService,
-    areaId,
-    userId,
-    logger,
-    h
-  )
-  if (error) {
-    return { error }
-  }
-
-  // Validate RFCC code
-  const rfccError = validateRfccCode(areaWithParents, areaId, userId, logger, h)
-  if (rfccError) {
-    return { error: rfccError }
-  }
-
-  return {
-    rfccCode: areaWithParents.PSO.sub_type,
-    areaData: areaWithParents
-  }
-}
-
-/**
- * Validates area for update operations when area is changing
- * Only admin users can change the area of an existing project
- * Returns area data to avoid redundant fetches
- */
-const validateUpdateAreaChange = async (
-  areaService,
-  areaId,
-  existingProject,
-  credentials,
-  userId,
-  logger,
-  h
-) => {
-  const needsValidation = areaId && existingProject?.areaId !== areaId
-  if (!needsValidation) {
-    return { areaData: null }
-  }
-
-  // Check if user is admin (only admins can change area)
-  if (!credentials.isAdmin) {
-    logger.warn(
-      {
-        userId,
-        referenceNumber: existingProject.referenceNumber,
-        currentAreaId: existingProject.areaId,
-        newAreaId: areaId
-      },
-      'Non-admin user attempted to change project area'
-    )
-    return {
-      error: h
-        .response({
-          statusCode: HTTP_STATUS.FORBIDDEN,
-          errors: {
-            errorCode: PROPOSAL_VALIDATION_MESSAGES.INVALID_DATA,
-            message: 'Only admin users can change the area of a project'
-          }
-        })
-        .code(HTTP_STATUS.FORBIDDEN)
-    }
-  }
-
-  const { areaWithParents, error } = await fetchAndValidateArea(
-    areaService,
-    areaId,
-    userId,
-    logger,
-    h
-  )
-
-  if (error) {
-    return { error }
-  }
-
-  return { areaData: areaWithParents }
-}
-
-/**
- * Orchestrates all validation checks for the project upsert
- * Returns validation results including area data to avoid redundant fetches
- */
-const performValidations = async (
-  projectService,
-  areaService,
-  proposalPayload,
-  credentials,
-  logger,
-  h
-) => {
-  const { referenceNumber, name, areaId } = proposalPayload
-  const isCreate = !referenceNumber
-  const userId = credentials.userId
-
-  // For updates, check if project exists first
-  let existingProject = null
-  if (!isCreate) {
-    const projectCheck = await validateProjectExists(
-      projectService,
-      referenceNumber,
-      userId,
-      logger,
-      h
-    )
-    if (projectCheck.error) {
-      return projectCheck
-    }
-    existingProject = projectCheck.project
-  }
-
-  // Validate permissions
-  const permissionError = isCreate
-    ? validateCreatePermissions(credentials, areaId, logger, h)
-    : await validateUpdatePermissions(
-        credentials,
-        existingProject,
-        areaId,
-        areaService,
-        logger,
-        h
-      )
-  if (permissionError) {
-    return { error: permissionError }
-  }
-
-  // Validate project name uniqueness (always for create, only when name present for update)
-  if (isCreate || name) {
-    const nameError = await validateProjectName(
-      projectService,
-      name,
-      referenceNumber,
-      userId,
-      logger,
-      h
-    )
-    if (nameError) {
-      return { error: nameError }
-    }
-  }
-
-  if (isCreate) {
-    return validateCreateSpecificFields(areaService, areaId, userId, logger, h)
-  }
-
-  // For updates, only validate area if it's changing
-  const areaResult = await validateUpdateAreaChange(
-    areaService,
-    areaId,
-    existingProject,
-    credentials,
-    userId,
-    logger,
-    h
-  )
-  if (areaResult.error) {
-    return { error: areaResult.error }
-  }
-
-  return { rfccCode: null, areaData: areaResult.areaData }
-}
+  PROJECT_VALIDATION_MESSAGES,
+  PROJECT_VALIDATION_LEVELS
+} from '../../../common/constants/project.js'
+import { upsertProjectSchema } from '../schema.js'
+import { performValidations } from '../helpers/project-validations/index.js'
 
 /**
  * Creates the success response
@@ -406,6 +19,7 @@ const createSuccessResponse = (h, project, isCreate) => {
       data: {
         id: String(project.id),
         referenceNumber: project.reference_number,
+        slug: project.slug,
         name: project.name
       }
     })
@@ -431,6 +45,7 @@ const upsertProject = {
       const apiPayload = request.payload
       const proposalPayload = apiPayload.payload
       const { referenceNumber, name, areaId } = proposalPayload
+      const validationLevel = apiPayload.level
 
       try {
         const projectService = new ProjectService(
@@ -447,6 +62,7 @@ const upsertProject = {
           areaService,
           proposalPayload,
           request.auth.credentials,
+          validationLevel,
           request.server.logger,
           h
         )
@@ -461,6 +77,31 @@ const upsertProject = {
 
         // Fetch area name if areaId is provided and add to payload
         const enrichedPayload = { ...proposalPayload }
+
+        // Normalize empty intervention types only for INITIAL_SAVE or PROJECT_TYPE levels
+        if (
+          validationLevel === PROJECT_VALIDATION_LEVELS.INITIAL_SAVE ||
+          validationLevel === PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
+        ) {
+          if (enrichedPayload?.projectInterventionTypes === undefined) {
+            enrichedPayload.projectInterventionTypes = null
+          }
+          if (enrichedPayload?.mainInterventionType === undefined) {
+            enrichedPayload.mainInterventionType = null
+          }
+        }
+
+        // Reset earliestWithGia fields when couldStartEarly is false or when saving COULD_START_EARLY level
+        if (
+          validationLevel === PROJECT_VALIDATION_LEVELS.COULD_START_EARLY ||
+          validationLevel === PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
+        ) {
+          if (enrichedPayload.couldStartEarly === false) {
+            enrichedPayload.earliestWithGiaMonth = null
+            enrichedPayload.earliestWithGiaYear = null
+          }
+        }
+
         if (areaId) {
           const area = await areaService.getAreaByIdWithParents(areaId)
           enrichedPayload.rmaName = area.name // Add area name for database storage
@@ -482,10 +123,13 @@ const upsertProject = {
         return h
           .response({
             statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-            errors: {
-              errorCode: PROPOSAL_VALIDATION_MESSAGES.INTERNAL_SERVER_ERROR,
-              message: 'An error occurred while upserting the project proposal'
-            }
+            errors: [
+              {
+                errorCode: PROJECT_VALIDATION_MESSAGES.INTERNAL_SERVER_ERROR,
+                message:
+                  'An error occurred while upserting the project proposal'
+              }
+            ]
           })
           .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
       }

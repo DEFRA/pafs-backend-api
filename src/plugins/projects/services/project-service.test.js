@@ -65,6 +65,7 @@ describe('ProjectService', () => {
         isValid: false,
         errors: {
           errorCode: 'PROJECT_NAME_DUPLICATE',
+          field: 'name',
           message: 'A project with this name already exists'
         }
       })
@@ -140,6 +141,7 @@ describe('ProjectService', () => {
         isValid: false,
         errors: {
           errorCode: 'PROJECT_NAME_DUPLICATE',
+          field: 'name',
           message: 'Unable to verify project name uniqueness'
         }
       })
@@ -256,6 +258,7 @@ describe('ProjectService', () => {
         isValid: false,
         errors: {
           errorCode: 'PROJECT_NAME_DUPLICATE',
+          field: 'name',
           message: 'A project with this name already exists'
         }
       })
@@ -775,6 +778,19 @@ describe('ProjectService', () => {
           main_intervention_type: true,
           earliest_start_year: true,
           project_end_financial_year: true,
+          start_outline_business_case_month: true,
+          start_outline_business_case_year: true,
+          complete_outline_business_case_month: true,
+          complete_outline_business_case_year: true,
+          award_contract_month: true,
+          award_contract_year: true,
+          start_construction_month: true,
+          start_construction_year: true,
+          ready_for_service_month: true,
+          ready_for_service_year: true,
+          could_start_early: true,
+          earliest_with_gia_month: true,
+          earliest_with_gia_year: true,
           updated_at: true,
           created_at: true,
           is_legacy: true

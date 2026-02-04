@@ -88,10 +88,13 @@ describe('checkProjectName', () => {
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.data).toEqual({
-        validationErrors: {
-          errorCode: 'PROJECT_NAME_DUPLICATE',
-          message: 'A project with this name already exists'
-        }
+        validationErrors: [
+          {
+            errorCode: 'PROJECT_NAME_DUPLICATE',
+            field: 'name',
+            message: 'A project with this name already exists'
+          }
+        ]
       })
       expect(result.statusCode).toBe(HTTP_STATUS.BAD_REQUEST)
     })
@@ -105,10 +108,13 @@ describe('checkProjectName', () => {
       // Service catches DB errors and returns isValid: false with error message
       expect(result.statusCode).toBe(HTTP_STATUS.BAD_REQUEST)
       expect(result.data).toEqual({
-        validationErrors: {
-          errorCode: 'PROJECT_NAME_DUPLICATE',
-          message: 'Unable to verify project name uniqueness'
-        }
+        validationErrors: [
+          {
+            errorCode: 'PROJECT_NAME_DUPLICATE',
+            field: 'name',
+            message: 'Unable to verify project name uniqueness'
+          }
+        ]
       })
       expect(mockLogger.error).toHaveBeenCalledWith(
         { projectName: 'Test_Project', error: dbError.message },
@@ -132,7 +138,7 @@ describe('checkProjectName', () => {
           {
             errorCode: 'PROJECT_NAME_VALIDATION_ERROR',
             message: 'An error occurred while validating the name',
-            field: null
+            field: 'name'
           }
         ]
       })
@@ -167,10 +173,13 @@ describe('checkProjectName', () => {
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(result.data).toEqual({
-        validationErrors: {
-          errorCode: 'PROJECT_NAME_DUPLICATE',
-          message: 'A project with this name already exists'
-        }
+        validationErrors: [
+          {
+            errorCode: 'PROJECT_NAME_DUPLICATE',
+            field: 'name',
+            message: 'A project with this name already exists'
+          }
+        ]
       })
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({

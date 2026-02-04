@@ -7,17 +7,33 @@ import {
   projectNameSchema,
   projectReferenceNumberSchema,
   projectAreaIdSchema,
-  projectTypeSchema
+  projectTypeSchema,
+  startOutlineBusinessCaseMonthSchema,
+  startOutlineBusinessCaseYearSchema,
+  completeOutlineBusinessCaseMonthSchema,
+  completeOutlineBusinessCaseYearSchema,
+  awardContractMonthSchema,
+  awardContractYearSchema,
+  startConstructionMonthSchema,
+  startConstructionYearSchema,
+  readyForServiceMonthSchema,
+  readyForServiceYearSchema,
+  couldStartEarlySchema,
+  earliestWithGiaMonthSchema,
+  earliestWithGiaYearSchema
 } from '../../../common/schemas/project.js'
-import { PROPOSAL_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
+import {
+  PROJECT_VALIDATION_MESSAGES,
+  PROJECT_VALIDATION_LEVELS
+} from '../../../common/constants/project.js'
 
 const referenceNumber = projectReferenceNumberSchema.required().messages({
-  'any.required': PROPOSAL_VALIDATION_MESSAGES.REFERENCE_NUMBER_REQUIRED
+  'any.required': PROJECT_VALIDATION_MESSAGES.REFERENCE_NUMBER_REQUIRED
 })
 
 export const VALIDATION_LEVELS = {
-  INITIAL_SAVE: {
-    name: 'INITIAL_SAVE',
+  [PROJECT_VALIDATION_LEVELS.INITIAL_SAVE]: {
+    name: PROJECT_VALIDATION_LEVELS.INITIAL_SAVE,
     fields: {
       name: projectNameSchema,
       areaId: projectAreaIdSchema,
@@ -29,24 +45,24 @@ export const VALIDATION_LEVELS = {
     }
   },
 
-  PROJECT_NAME: {
-    name: 'PROJECT_NAME',
+  [PROJECT_VALIDATION_LEVELS.PROJECT_NAME]: {
+    name: PROJECT_VALIDATION_LEVELS.PROJECT_NAME,
     fields: {
       referenceNumber,
       name: projectNameSchema
     }
   },
 
-  PROJECT_AREA: {
-    name: 'PROJECT_AREA',
+  [PROJECT_VALIDATION_LEVELS.PROJECT_AREA]: {
+    name: PROJECT_VALIDATION_LEVELS.PROJECT_AREA,
     fields: {
       referenceNumber,
       areaId: projectAreaIdSchema
     }
   },
 
-  PROJECT_TYPE: {
-    name: 'PROJECT_TYPE',
+  [PROJECT_VALIDATION_LEVELS.PROJECT_TYPE]: {
+    name: PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
     fields: {
       referenceNumber,
       projectType: projectTypeSchema,
@@ -55,19 +71,90 @@ export const VALIDATION_LEVELS = {
     }
   },
 
-  FINANCIAL_START_YEAR: {
-    name: 'FINANCIAL_START_YEAR',
+  [PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR]: {
+    name: PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
     fields: {
       referenceNumber,
       financialStartYear: projectFinancialStartYearSchema
     }
   },
 
-  FINANCIAL_END_YEAR: {
-    name: 'FINANCIAL_END_YEAR',
+  [PROJECT_VALIDATION_LEVELS.FINANCIAL_END_YEAR]: {
+    name: PROJECT_VALIDATION_LEVELS.FINANCIAL_END_YEAR,
     fields: {
       referenceNumber,
       financialEndYear: projectFinancialEndYearSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE]: {
+    name: PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
+    fields: {
+      referenceNumber,
+      startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+      startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.COMPLETE_OUTLINE_BUSINESS_CASE]: {
+    name: PROJECT_VALIDATION_LEVELS.COMPLETE_OUTLINE_BUSINESS_CASE,
+    fields: {
+      referenceNumber,
+      completeOutlineBusinessCaseMonth: completeOutlineBusinessCaseMonthSchema,
+      completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema,
+      startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+      startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.AWARD_CONTRACT]: {
+    name: PROJECT_VALIDATION_LEVELS.AWARD_CONTRACT,
+    fields: {
+      referenceNumber,
+      awardContractMonth: awardContractMonthSchema,
+      awardContractYear: awardContractYearSchema,
+      completeOutlineBusinessCaseMonth: completeOutlineBusinessCaseMonthSchema,
+      completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.START_CONSTRUCTION]: {
+    name: PROJECT_VALIDATION_LEVELS.START_CONSTRUCTION,
+    fields: {
+      referenceNumber,
+      startConstructionMonth: startConstructionMonthSchema,
+      startConstructionYear: startConstructionYearSchema,
+      awardContractMonth: awardContractMonthSchema,
+      awardContractYear: awardContractYearSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.READY_FOR_SERVICE]: {
+    name: PROJECT_VALIDATION_LEVELS.READY_FOR_SERVICE,
+    fields: {
+      referenceNumber,
+      readyForServiceMonth: readyForServiceMonthSchema,
+      readyForServiceYear: readyForServiceYearSchema,
+      startConstructionMonth: startConstructionMonthSchema,
+      startConstructionYear: startConstructionYearSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.COULD_START_EARLY]: {
+    name: PROJECT_VALIDATION_LEVELS.COULD_START_EARLY,
+    fields: {
+      referenceNumber,
+      couldStartEarly: couldStartEarlySchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA]: {
+    name: PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
+    fields: {
+      referenceNumber,
+      couldStartEarly: couldStartEarlySchema,
+      earliestWithGiaMonth: earliestWithGiaMonthSchema,
+      earliestWithGiaYear: earliestWithGiaYearSchema
     }
   }
 
