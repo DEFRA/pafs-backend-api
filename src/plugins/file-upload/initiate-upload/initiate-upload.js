@@ -119,20 +119,16 @@ const initiateUpload = {
   handler: async (request, h) => {
     const { logger } = request.server
     const { payload, prisma, server } = request
-    const userId = request.auth?.credentials?.user?.id
+    const userId = request.auth?.credentials?.userId
     const cdpUploader = getCdpUploaderService(logger)
 
     try {
-      // Build callback URL for CDP Uploader
-      const callbackUrl = `${server.info.uri}/api/v1/file-uploads/callback`
-
       // Prepare metadata to send to CDP Uploader
       const uploadMetadata = buildUploadMetadata(payload, userId)
 
-      // Initiate upload with CDP Uploader
+      // Initiate upload with CDP Uploader (no callback - using status polling instead)
       const uploadSession = await cdpUploader.initiate({
         redirect: payload.redirect || '/upload-complete',
-        callback: callbackUrl,
         metadata: uploadMetadata,
         downloadUrls: payload.downloadUrls
       })

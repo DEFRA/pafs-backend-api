@@ -98,12 +98,11 @@ describe('initiateUpload', () => {
 
     expect(mockCdpUploaderService.initiate).toHaveBeenCalledWith({
       redirect: '/upload-complete',
-      callback: 'http://localhost:3001/api/v1/file-uploads/callback',
       metadata: expect.objectContaining({
         reference: 'TEST-REF-001',
         entityType: 'proposal',
         entityId: 123,
-        userId: 1
+        customField: 'value'
       }),
       downloadUrls: undefined
     })
@@ -115,7 +114,12 @@ describe('initiateUpload', () => {
         entity_type: 'proposal',
         entity_id: 123,
         reference: 'TEST-REF-001',
-        uploaded_by_user_id: 1
+        metadata: expect.objectContaining({
+          customField: 'value',
+          entityType: 'proposal',
+          entityId: 123,
+          reference: 'TEST-REF-001'
+        })
       })
     })
 

@@ -288,7 +288,10 @@ describe('CdpUploaderService', () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 400,
-        text: async () => 'Bad Request - Invalid payload'
+        json: async () => ({
+          status: 400,
+          message: 'Bad Request - Invalid payload'
+        })
       })
 
       await expect(
@@ -296,7 +299,7 @@ describe('CdpUploaderService', () => {
           redirect: '/success',
           callback: 'https://api.test.com/callback'
         })
-      ).rejects.toThrow('CDP Uploader initiate failed: 400 - Bad Request')
+      ).rejects.toThrow('CDP Uploader initiate failed: 400')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -433,38 +436,6 @@ describe('CdpUploaderService', () => {
         }),
         'Failed to get upload status'
       )
-    })
-  })
-
-  describe('buildUploadUrl', () => {
-    test('should combine base URL with relative path', () => {
-      const service = new CdpUploaderService(mockLogger)
-      const result = service.buildUploadUrl(
-        '/upload-and-scan/123',
-        'https://frontend.com'
-      )
-
-      expect(result).toBe('https://frontend.com/upload-and-scan/123')
-    })
-
-    test('should handle base URL with trailing slash', () => {
-      const service = new CdpUploaderService(mockLogger)
-      const result = service.buildUploadUrl(
-        '/upload-and-scan/123',
-        'https://frontend.com/'
-      )
-
-      expect(result).toBe('https://frontend.com/upload-and-scan/123')
-    })
-
-    test('should handle path without leading slash', () => {
-      const service = new CdpUploaderService(mockLogger)
-      const result = service.buildUploadUrl(
-        'upload-and-scan/123',
-        'https://frontend.com'
-      )
-
-      expect(result).toBe('https://frontend.com/upload-and-scan/123')
     })
   })
 

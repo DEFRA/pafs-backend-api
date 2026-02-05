@@ -20,6 +20,7 @@ export class CdpUploaderService {
     this.allowedMimeTypes = config
       .get('cdpUploader.allowedMimeTypes')
       .split(',')
+      .map((type) => type.trim())
     this.timeout = config.get('cdpUploader.timeout')
     this.awsRegion = config.get('awsRegion')
 
@@ -27,7 +28,8 @@ export class CdpUploaderService {
       this.logger.info(
         {
           baseUrl: this.baseUrl,
-          s3Bucket: this.s3Bucket
+          s3Bucket: this.s3Bucket,
+          allowedMimeTypes: this.allowedMimeTypes
         },
         'CDP Uploader service initialized'
       )
@@ -217,19 +219,6 @@ export class CdpUploaderService {
       )
       throw error
     }
-  }
-
-  /**
-   * Get the full upload URL by combining frontend base URL with upload path
-   *
-   * @param {string} uploadUrl - Relative upload URL from CDP Uploader
-   * @param {string} frontendBaseUrl - Frontend base URL
-   * @returns {string} Full upload URL
-   */
-  buildUploadUrl(uploadUrl, frontendBaseUrl) {
-    const baseUrl = frontendBaseUrl.replace(/\/$/, '')
-    const path = uploadUrl.startsWith('/') ? uploadUrl : `/${uploadUrl}`
-    return `${baseUrl}${path}`
   }
 
   /**

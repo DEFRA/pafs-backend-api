@@ -418,7 +418,7 @@ const config = convict({
     s3Path: {
       doc: 'S3 path (folder) for organizing uploaded files within the bucket',
       format: String,
-      default: 'uploads/',
+      default: '',
       env: 'CDP_UPLOADER_S3_PATH'
     },
     s3Endpoint: {
@@ -438,7 +438,7 @@ const config = convict({
       doc: 'Comma-separated list of allowed MIME types',
       format: String,
       default:
-        'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/gif,text/csv,application/zip',
+        'application/zip,application/x-zip-compressed,application/octet-stream',
       env: 'CDP_UPLOADER_ALLOWED_MIME_TYPES'
     },
     allowedZipExtensions: {

@@ -341,6 +341,10 @@ model pafs_core_projects {
   created_at                                                  DateTime                         @db.Timestamp(6)
   updated_at                                                  DateTime                         @db.Timestamp(6)
   is_legacy                                                   Boolean                          @default(true)
+  benefit_area_file_s3_bucket                                 String?                          @db.VarChar(255)
+  benefit_area_file_s3_key                                    String?                          @db.VarChar(1000)
+  benefit_area_file_download_url                              String?
+  benefit_area_file_download_expiry                           DateTime?                        @db.Timestamp(6)
   pafs_core_nfm_land_use_changes                              pafs_core_nfm_land_use_changes[]
   pafs_core_nfm_measures                                      pafs_core_nfm_measures[]
 
@@ -348,6 +352,7 @@ model pafs_core_projects {
   @@index([reference_number], map: "index_pafs_core_projects_on_reference_number")
   @@index([submitted_to_pol], map: "index_pafs_core_projects_on_submitted_to_pol")
   @@index([updated_by_type, updated_by_id], map: "index_pafs_core_projects_on_updated_by")
+  @@index([benefit_area_file_s3_bucket, benefit_area_file_s3_key], map: "idx_core_projects_benefit_area_s3")
 }
 
 model pafs_core_reference_counters {

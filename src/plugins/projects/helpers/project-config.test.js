@@ -96,8 +96,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 26 total fields (20 common + 6 read-only)', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(26)
+    it('should have 34 total fields (20 common + 6 read-only + 8 benefit area file)', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(34)
     })
   })
 
@@ -149,9 +149,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 26 fields', () => {
+    it('should return an object with 34 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(26)
+      expect(Object.keys(result)).toHaveLength(34)
     })
 
     it('should return a new object each time', () => {

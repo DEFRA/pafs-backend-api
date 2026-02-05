@@ -391,7 +391,7 @@ describe('config', () => {
     test('Should have S3 configuration', async () => {
       const { config } = await import('./config.js')
       expect(config.get('cdpUploader.s3Bucket')).toBe('pafs-uploads')
-      expect(config.get('cdpUploader.s3Path')).toBe('uploads/')
+      expect(config.get('cdpUploader.s3Path')).toBe('')
     })
 
     test('Should have file upload limits', async () => {
@@ -403,8 +403,8 @@ describe('config', () => {
     test('Should have allowed MIME types configuration', async () => {
       const { config } = await import('./config.js')
       const mimeTypes = config.get('cdpUploader.allowedMimeTypes')
-      expect(mimeTypes).toContain('application/pdf')
-      expect(mimeTypes).toContain('image/jpeg')
+      expect(mimeTypes).toContain('application/zip')
+      expect(mimeTypes).toContain('application/zip')
     })
 
     test('Should have allowed ZIP extensions configuration', async () => {

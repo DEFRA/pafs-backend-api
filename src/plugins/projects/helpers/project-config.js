@@ -68,7 +68,15 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   slug: 'slug',
   isLegacy: 'is_legacy',
   updatedAt: 'updated_at',
-  createdAt: 'created_at'
+  createdAt: 'created_at',
+  benefitAreaFileName: 'benefit_area_file_name',
+  benefitAreaFileSize: 'benefit_area_file_size',
+  benefitAreaContentType: 'benefit_area_content_type',
+  benefitAreaFileS3Bucket: 'benefit_area_file_s3_bucket',
+  benefitAreaFileS3Key: 'benefit_area_file_s3_key',
+  benefitAreaFileUpdatedAt: 'benefit_area_file_updated_at',
+  benefitAreaFileDownloadUrl: 'benefit_area_file_download_url',
+  benefitAreaFileDownloadExpiry: 'benefit_area_file_download_expiry'
 }
 
 /**

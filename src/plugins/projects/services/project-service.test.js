@@ -793,7 +793,15 @@ describe('ProjectService', () => {
           earliest_with_gia_year: true,
           updated_at: true,
           created_at: true,
-          is_legacy: true
+          is_legacy: true,
+          benefit_area_file_name: true,
+          benefit_area_file_size: true,
+          benefit_area_content_type: true,
+          benefit_area_file_s3_bucket: true,
+          benefit_area_file_s3_key: true,
+          benefit_area_file_updated_at: true,
+          benefit_area_file_download_url: true,
+          benefit_area_file_download_expiry: true
         }
       })
 
