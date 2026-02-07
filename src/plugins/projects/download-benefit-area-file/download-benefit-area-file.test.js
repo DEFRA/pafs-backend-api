@@ -4,10 +4,15 @@ import {
   HTTP_STATUS,
   FILE_UPLOAD_VALIDATION_CODES
 } from '../../../common/constants/index.js'
+import { PROJECT_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
+
+// Mock validation helper
+vi.mock('../helpers/benefit-area-validation-helper.js', () => ({
+  validateProjectWithBenefitAreaFile: vi.fn()
+}))
 
 // Mock helper functions
 vi.mock('../helpers/benefit-area-file-helper.js', () => ({
-  getProjectByReference: vi.fn(),
   generateDownloadUrl: vi.fn(),
   updateBenefitAreaFile: vi.fn()
 }))
@@ -18,9 +23,14 @@ describe('download-benefit-area-file endpoint', () => {
   let mockLogger
   let mockPrisma
   let helpers
+  let validateProjectWithBenefitAreaFile
 
   beforeEach(async () => {
     helpers = await import('../helpers/benefit-area-file-helper.js')
+    const validationModule =
+      await import('../helpers/benefit-area-validation-helper.js')
+    validateProjectWithBenefitAreaFile =
+      validationModule.validateProjectWithBenefitAreaFile
 
     mockLogger = {
       info: vi.fn(),
@@ -59,7 +69,7 @@ describe('download-benefit-area-file endpoint', () => {
 
     it('should have correct path', () => {
       expect(downloadBenefitAreaFile.path).toBe(
-        '/api/v1/projects/{referenceNumber}/benefit-area-file/download'
+        '/api/v1/project/{referenceNumber}/benefit-area-file/download'
       )
     })
 
@@ -95,7 +105,10 @@ describe('download-benefit-area-file endpoint', () => {
         'https://s3.amazonaws.com/test-bucket/file?signature=abc'
       const mockExpiry = new Date('2026-02-12T00:00:00Z')
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001'
+      })
       helpers.generateDownloadUrl.mockResolvedValue({
         downloadUrl: mockDownloadUrl,
         downloadExpiry: mockExpiry
@@ -104,14 +117,15 @@ describe('download-benefit-area-file endpoint', () => {
 
       await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
-      expect(helpers.getProjectByReference).toHaveBeenCalledWith(
-        mockPrisma,
-        'TEST/001/001'
+      expect(validateProjectWithBenefitAreaFile).toHaveBeenCalledWith(
+        mockRequest,
+        mockH
       )
       expect(helpers.generateDownloadUrl).toHaveBeenCalledWith(
         'test-bucket',
         'TEST/001/001/1/test.zip',
-        mockLogger
+        mockLogger,
+        'test-shapefile.zip'
       )
       expect(helpers.updateBenefitAreaFile).toHaveBeenCalledWith(
         mockPrisma,
@@ -151,7 +165,10 @@ describe('download-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: 'key'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001'
+      })
       helpers.generateDownloadUrl.mockResolvedValue({
         downloadUrl: 'url',
         downloadExpiry: new Date()
@@ -172,14 +189,26 @@ describe('download-benefit-area-file endpoint', () => {
 
   describe('error handling - project not found', () => {
     it('should return 404 when project does not exist', async () => {
-      helpers.getProjectByReference.mockResolvedValue(null)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: PROJECT_VALIDATION_MESSAGES.PROJECT_NOT_FOUND,
+                message: 'Project TEST/001/001 not found'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      await downloadBenefitAreaFile.handler(mockRequest, mockH)
+      const result = await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.PROJECT_NOT_FOUND,
+            errorCode: PROJECT_VALIDATION_MESSAGES.PROJECT_NOT_FOUND,
             message: 'Project TEST/001/001 not found'
           }
         ]
@@ -191,19 +220,26 @@ describe('download-benefit-area-file endpoint', () => {
 
   describe('error handling - file not found', () => {
     it('should return 404 when s3_bucket is missing', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: null,
-        benefit_area_file_s3_key: 'key'
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
-      await downloadBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -212,19 +248,26 @@ describe('download-benefit-area-file endpoint', () => {
     })
 
     it('should return 404 when s3_key is missing', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: 'bucket',
-        benefit_area_file_s3_key: null
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
-      await downloadBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -233,19 +276,26 @@ describe('download-benefit-area-file endpoint', () => {
     })
 
     it('should return 404 when both s3_bucket and s3_key are missing', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: null,
-        benefit_area_file_s3_key: null
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
-      await downloadBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -262,7 +312,11 @@ describe('download-benefit-area-file endpoint', () => {
         benefit_area_file_name: 'test.zip'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.generateDownloadUrl.mockRejectedValue(
         new Error('S3 connection failed')
       )
@@ -279,8 +333,7 @@ describe('download-benefit-area-file endpoint', () => {
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode:
-              FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DOWNLOAD_FAILED,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DOWNLOAD_FAILED,
             message: 'Failed to generate download URL: S3 connection failed'
           }
         ]
@@ -297,7 +350,11 @@ describe('download-benefit-area-file endpoint', () => {
         benefit_area_content_type: 'application/zip'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.generateDownloadUrl.mockResolvedValue({
         downloadUrl: 'url',
         downloadExpiry: new Date()
@@ -311,8 +368,7 @@ describe('download-benefit-area-file endpoint', () => {
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode:
-              FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DOWNLOAD_FAILED,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DOWNLOAD_FAILED,
             message: 'Failed to generate download URL: Database update failed'
           }
         ]
@@ -320,8 +376,8 @@ describe('download-benefit-area-file endpoint', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     })
 
-    it('should handle getProjectByReference errors', async () => {
-      helpers.getProjectByReference.mockRejectedValue(
+    it('should handle validation errors', async () => {
+      validateProjectWithBenefitAreaFile.mockRejectedValue(
         new Error('Database connection lost')
       )
 
@@ -331,8 +387,7 @@ describe('download-benefit-area-file endpoint', () => {
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode:
-              FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DOWNLOAD_FAILED,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DOWNLOAD_FAILED,
             message: 'Failed to generate download URL: Database connection lost'
           }
         ]
@@ -342,19 +397,26 @@ describe('download-benefit-area-file endpoint', () => {
 
   describe('edge cases', () => {
     it('should handle empty string s3_bucket', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: '',
-        benefit_area_file_s3_key: 'key'
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
-      await downloadBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -362,19 +424,26 @@ describe('download-benefit-area-file endpoint', () => {
     })
 
     it('should handle empty string s3_key', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: 'bucket',
-        benefit_area_file_s3_key: ''
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
-      await downloadBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -392,7 +461,11 @@ describe('download-benefit-area-file endpoint', () => {
         benefit_area_content_type: 'application/zip'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'ABC123/XYZ/999',
+        projectService: {}
+      })
       helpers.generateDownloadUrl.mockResolvedValue({
         downloadUrl: 'url',
         downloadExpiry: new Date()
@@ -401,9 +474,9 @@ describe('download-benefit-area-file endpoint', () => {
 
       await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
-      expect(helpers.getProjectByReference).toHaveBeenCalledWith(
-        mockPrisma,
-        'ABC123/XYZ/999'
+      expect(validateProjectWithBenefitAreaFile).toHaveBeenCalledWith(
+        mockRequest,
+        mockH
       )
       expect(mockH.response).toHaveBeenCalledWith(
         expect.objectContaining({ success: true })

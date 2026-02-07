@@ -1,25 +1,33 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import {
-  validateUploadExists,
-  validateS3Information,
-  validateZipContents,
-  getAllowedMimeTypes
-} from './validation-helpers.js'
-import {
-  HTTP_STATUS,
-  FILE_UPLOAD_VALIDATION_CODES
-} from '../../../common/constants/index.js'
+
+// Mock S3 service
+const mockS3Service = {
+  getObject: vi.fn(),
+  deleteObject: vi.fn()
+}
+
+vi.mock('../../../common/services/file-upload/s3-service.js', () => ({
+  getS3Service: vi.fn(() => mockS3Service)
+}))
+
+// Mock adm-zip
+const mockZipEntries = []
+const mockGetEntries = vi.fn(() => mockZipEntries)
+
+vi.mock('adm-zip', () => ({
+  default: vi.fn(function () {
+    this.getEntries = mockGetEntries
+  })
+}))
+
+// Import after mocks are set up
+const { validateZipContents, validateZipFileFromS3, getAllowedMimeTypes } =
+  await import('./validation-helpers.js')
 
 describe('validation-helpers', () => {
-  let mockH
   let mockLogger
 
   beforeEach(() => {
-    mockH = {
-      response: vi.fn().mockReturnThis(),
-      code: vi.fn().mockReturnThis()
-    }
-
     mockLogger = {
       info: vi.fn(),
       warn: vi.fn(),
@@ -30,167 +38,13 @@ describe('validation-helpers', () => {
     vi.clearAllMocks()
   })
 
-  describe('validateUploadExists', () => {
-    test('should return null when upload record exists', () => {
-      const uploadRecord = { uploadId: 'test-123' }
-
-      const result = validateUploadExists(uploadRecord, mockH)
-
-      expect(result).toBeNull()
-      expect(mockH.response).not.toHaveBeenCalled()
-    })
-
-    test('should return 404 error when upload record is null', () => {
-      validateUploadExists(null, mockH)
-
-      expect(mockH.response).toHaveBeenCalledWith({
-        validationErrors: [
-          {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.UPLOAD_NOT_FOUND,
-            message: 'File upload not found'
-          }
-        ]
-      })
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
-    })
-
-    test('should return 404 error when upload record is undefined', () => {
-      validateUploadExists(undefined, mockH)
-
-      expect(mockH.response).toHaveBeenCalledWith({
-        validationErrors: [
-          {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.UPLOAD_NOT_FOUND,
-            message: 'File upload not found'
-          }
-        ]
-      })
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
-    })
-  })
-
-  describe('validateS3Information', () => {
-    test('should return null when S3 bucket and key exist', () => {
-      const uploadRecord = {
-        upload_id: 'test-123',
-        s3_bucket: 'test-bucket',
-        s3_key: 'test-key'
-      }
-
-      const result = validateS3Information(
-        uploadRecord,
-        mockH,
-        mockLogger,
-        'test-123'
-      )
-
-      expect(result).toBeNull()
-      expect(mockH.response).not.toHaveBeenCalled()
-      expect(mockLogger.error).not.toHaveBeenCalled()
-    })
-
-    test('should return 500 error when S3 bucket is missing', () => {
-      const uploadRecord = {
-        uploadId: 'test-123',
-        s3Bucket: null,
-        s3Key: 'test-key'
-      }
-
-      validateS3Information(uploadRecord, mockH, mockLogger, 'test-123')
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        { uploadId: 'test-123', uploadRecord },
-        'Upload record missing S3 information'
-      )
-      expect(mockH.response).toHaveBeenCalledWith({
-        validationErrors: [
-          {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.MISSING_S3_INFO,
-            message: 'File storage information is missing'
-          }
-        ]
-      })
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    })
-
-    test('should return 500 error when S3 key is missing', () => {
-      const uploadRecord = {
-        uploadId: 'test-123',
-        s3Bucket: 'test-bucket',
-        s3Key: null
-      }
-
-      validateS3Information(uploadRecord, mockH, mockLogger, 'test-123')
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        { uploadId: 'test-123', uploadRecord },
-        'Upload record missing S3 information'
-      )
-      expect(mockH.response).toHaveBeenCalledWith({
-        validationErrors: [
-          {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.MISSING_S3_INFO,
-            message: 'File storage information is missing'
-          }
-        ]
-      })
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    })
-
-    test('should return 500 error when both S3 bucket and key are missing', () => {
-      const uploadRecord = {
-        uploadId: 'test-123',
-        s3Bucket: null,
-        s3Key: null
-      }
-
-      validateS3Information(uploadRecord, mockH, mockLogger, 'test-123')
-
-      expect(mockLogger.error).toHaveBeenCalled()
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    })
-
-    test('should return 500 error when S3 bucket is empty string', () => {
-      const uploadRecord = {
-        uploadId: 'test-123',
-        s3Bucket: '',
-        s3Key: 'test-key'
-      }
-
-      validateS3Information(uploadRecord, mockH, mockLogger, 'test-123')
-
-      expect(mockLogger.error).toHaveBeenCalled()
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    })
-
-    test('should return 500 error when S3 key is empty string', () => {
-      const uploadRecord = {
-        uploadId: 'test-123',
-        s3Bucket: 'test-bucket',
-        s3Key: ''
-      }
-
-      validateS3Information(uploadRecord, mockH, mockLogger, 'test-123')
-
-      expect(mockLogger.error).toHaveBeenCalled()
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    })
-  })
-
   describe('validateZipContents', () => {
     test('should return valid when all required extensions are present', () => {
       const filenames = [
-        'document.pdf',
-        'spreadsheet.xlsx',
-        'presentation.doc',
-        'data.csv',
-        'image.jpg',
-        'notes.txt',
-        'report.docx',
-        'chart.png',
-        'photo.gif',
-        'table.xls',
-        'picture.jpeg'
+        'shapefile.dbf',
+        'shapefile.shx',
+        'shapefile.shp',
+        'shapefile.prj'
       ]
 
       const result = validateZipContents(filenames)
@@ -201,17 +55,10 @@ describe('validation-helpers', () => {
 
     test('should return valid when extensions have different cases', () => {
       const filenames = [
-        'document.PDF',
-        'spreadsheet.XLSX',
-        'presentation.DOC',
-        'data.CSV',
-        'image.JPG',
-        'notes.TXT',
-        'report.DOCX',
-        'chart.PNG',
-        'photo.GIF',
-        'table.XLS',
-        'picture.JPEG'
+        'shapefile.DBF',
+        'shapefile.SHX',
+        'shapefile.SHP',
+        'shapefile.PRJ'
       ]
 
       const result = validateZipContents(filenames)
@@ -221,17 +68,10 @@ describe('validation-helpers', () => {
 
     test('should return valid when ZIP contains extra files', () => {
       const filenames = [
-        'document.pdf',
-        'spreadsheet.xlsx',
-        'presentation.doc',
-        'data.csv',
-        'image.jpg',
-        'notes.txt',
-        'report.docx',
-        'chart.png',
-        'photo.gif',
-        'table.xls',
-        'picture.jpeg',
+        'shapefile.dbf',
+        'shapefile.shx',
+        'shapefile.shp',
+        'shapefile.prj',
         'readme.md',
         'metadata.xml'
       ]
@@ -262,89 +102,45 @@ describe('validation-helpers', () => {
       expect(result.message).toBe('The uploaded shapefile is empty or invalid')
     })
 
-    test('should return invalid when .pdf file is missing', () => {
-      const filenames = [
-        'document.docx',
-        'data.csv',
-        'image.jpg',
-        'notes.txt',
-        'table.xlsx',
-        'presentation.doc',
-        'chart.png',
-        'photo.gif',
-        'spreadsheet.xls',
-        'picture.jpeg'
-      ]
+    test('should return invalid when .dbf file is missing', () => {
+      const filenames = ['document.shx', 'document.shp', 'document.prj']
 
       const result = validateZipContents(filenames)
 
       expect(result.isValid).toBe(false)
       expect(result.message).toContain('missing required files')
-      expect(result.message).toContain('.pdf')
+      expect(result.message).toContain('.dbf')
     })
 
-    test('should return invalid when .csv file is missing', () => {
-      const filenames = [
-        'document.pdf',
-        'report.docx',
-        'image.jpg',
-        'notes.txt',
-        'table.xlsx',
-        'presentation.doc',
-        'chart.png',
-        'photo.gif',
-        'spreadsheet.xls',
-        'picture.jpeg'
-      ]
+    test('should return invalid when .shx file is missing', () => {
+      const filenames = ['document.dbf', 'document.shp', 'document.prj']
 
       const result = validateZipContents(filenames)
 
       expect(result.isValid).toBe(false)
-      expect(result.message).toContain('.csv')
+      expect(result.message).toContain('.shx')
     })
 
-    test('should return invalid when .txt file is missing', () => {
-      const filenames = [
-        'document.pdf',
-        'report.docx',
-        'image.jpg',
-        'data.csv',
-        'table.xlsx',
-        'presentation.doc',
-        'chart.png',
-        'photo.gif',
-        'spreadsheet.xls',
-        'picture.jpeg'
-      ]
+    test('should return invalid when .shp file is missing', () => {
+      const filenames = ['document.dbf', 'document.shx', 'document.prj']
 
       const result = validateZipContents(filenames)
 
       expect(result.isValid).toBe(false)
-      expect(result.message).toContain('.txt')
+      expect(result.message).toContain('.shp')
     })
 
-    test('should return invalid when .jpg file is missing', () => {
-      const filenames = [
-        'document.pdf',
-        'report.docx',
-        'notes.txt',
-        'data.csv',
-        'table.xlsx',
-        'presentation.doc',
-        'chart.png',
-        'photo.gif',
-        'spreadsheet.xls',
-        'picture.jpeg'
-      ]
+    test('should return invalid when .prj file is missing', () => {
+      const filenames = ['document.dbf', 'document.shx', 'document.shp']
 
       const result = validateZipContents(filenames)
 
       expect(result.isValid).toBe(false)
-      expect(result.message).toContain('.jpg')
+      expect(result.message).toContain('.prj')
     })
 
     test('should return invalid when multiple extensions are missing', () => {
-      const filenames = ['document.pdf', 'notes.txt']
+      const filenames = ['document.dbf']
 
       const result = validateZipContents(filenames)
 
@@ -364,17 +160,10 @@ describe('validation-helpers', () => {
 
     test('should handle files with multiple dots in filename', () => {
       const filenames = [
-        'my.document.pdf',
-        'my.spreadsheet.xlsx',
-        'my.presentation.doc',
-        'my.data.csv',
-        'my.image.jpg',
-        'my.notes.txt',
-        'my.report.docx',
-        'my.chart.png',
-        'my.photo.gif',
-        'my.table.xls',
-        'my.picture.jpeg'
+        'my.document.dbf',
+        'my.document.shx',
+        'my.document.shp',
+        'my.document.prj'
       ]
 
       const result = validateZipContents(filenames)
@@ -384,17 +173,10 @@ describe('validation-helpers', () => {
 
     test('should handle files in subdirectories', () => {
       const filenames = [
-        'folder/document.pdf',
-        'folder/spreadsheet.xlsx',
-        'folder/presentation.doc',
-        'folder/data.csv',
-        'folder/image.jpg',
-        'folder/notes.txt',
-        'folder/report.docx',
-        'folder/chart.png',
-        'folder/photo.gif',
-        'folder/table.xls',
-        'folder/picture.jpeg'
+        'folder/document.dbf',
+        'folder/document.shx',
+        'folder/document.shp',
+        'folder/document.prj'
       ]
 
       const result = validateZipContents(filenames)
@@ -423,6 +205,231 @@ describe('validation-helpers', () => {
       mimeTypes.forEach((type) => {
         expect(type).toBe(type.trim())
       })
+    })
+  })
+
+  describe('validateZipFileFromS3', () => {
+    beforeEach(() => {
+      mockZipEntries.length = 0
+      vi.clearAllMocks()
+    })
+
+    test('should successfully validate ZIP with all required extensions', async () => {
+      const bucket = 'test-bucket'
+      const key = 'test-file.zip'
+      const mockBuffer = Buffer.from('mock zip content')
+
+      mockS3Service.getObject.mockResolvedValue(mockBuffer)
+
+      // Mock ZIP entries with all required extensions
+      mockZipEntries.push(
+        { isDirectory: false, entryName: 'document.dbf' },
+        { isDirectory: false, entryName: 'document.shx' },
+        { isDirectory: false, entryName: 'document.shp' },
+        { isDirectory: false, entryName: 'document.prj' }
+      )
+
+      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+
+      expect(mockS3Service.getObject).toHaveBeenCalledWith(bucket, key)
+      expect(result.isValid).toBe(true)
+      expect(result.filenames).toHaveLength(4)
+      expect(mockS3Service.deleteObject).not.toHaveBeenCalled()
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ bucket, key }),
+        'ZIP validation successful'
+      )
+    })
+
+    test('should fail validation and delete file when required extensions are missing', async () => {
+      const bucket = 'test-bucket'
+      const key = 'incomplete-file.zip'
+      const mockBuffer = Buffer.from('mock zip content')
+
+      mockS3Service.getObject.mockResolvedValue(mockBuffer)
+      mockS3Service.deleteObject.mockResolvedValue()
+
+      // Mock ZIP entries with only some extensions
+      mockZipEntries.push(
+        { isDirectory: false, entryName: 'document.dbf' },
+        { isDirectory: false, entryName: 'document.shx' }
+      )
+
+      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+
+      expect(result.isValid).toBe(false)
+      expect(result.message).toContain('missing required files')
+      expect(mockS3Service.deleteObject).toHaveBeenCalledWith(bucket, key)
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bucket,
+          key,
+          message: expect.stringContaining('missing required files')
+        }),
+        'ZIP validation failed - deleting file from S3'
+      )
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { bucket, key },
+        'Failed validation file deleted from S3'
+      )
+    })
+
+    test('should filter out directories from ZIP entries', async () => {
+      const bucket = 'test-bucket'
+      const key = 'test-file.zip'
+      const mockBuffer = Buffer.from('mock zip content')
+
+      mockS3Service.getObject.mockResolvedValue(mockBuffer)
+
+      // Mock ZIP entries with directories and files
+      mockZipEntries.push(
+        { isDirectory: true, entryName: 'folder/' },
+        { isDirectory: false, entryName: 'document.dbf' },
+        { isDirectory: true, entryName: 'subfolder/' },
+        { isDirectory: false, entryName: 'document.shx' },
+        { isDirectory: false, entryName: 'document.shp' },
+        { isDirectory: false, entryName: 'document.prj' }
+      )
+
+      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+
+      expect(result.isValid).toBe(true)
+      // Should only count files, not directories
+      expect(result.filenames).toHaveLength(4)
+      expect(result.filenames).not.toContain('folder/')
+      expect(result.filenames).not.toContain('subfolder/')
+    })
+
+    test('should handle empty ZIP file', async () => {
+      const bucket = 'test-bucket'
+      const key = 'empty.zip'
+      const mockBuffer = Buffer.from('mock zip content')
+
+      mockS3Service.getObject.mockResolvedValue(mockBuffer)
+      mockS3Service.deleteObject.mockResolvedValue()
+
+      // Empty ZIP - no entries (mockZipEntries is already empty from beforeEach)
+
+      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+
+      expect(result.isValid).toBe(false)
+      expect(result.message).toBe('The uploaded shapefile is empty or invalid')
+      expect(mockS3Service.deleteObject).toHaveBeenCalledWith(bucket, key)
+    })
+
+    test('should handle S3 getObject errors', async () => {
+      const bucket = 'test-bucket'
+      const key = 'non-existent.zip'
+      const error = new Error('NoSuchKey')
+
+      mockS3Service.getObject.mockRejectedValue(error)
+
+      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+
+      expect(result.isValid).toBe(false)
+      expect(result.message).toBe(
+        'Failed to validate uploaded file. Please ensure it is a valid ZIP file.'
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: error,
+          bucket,
+          key
+        }),
+        'Failed to validate ZIP file from S3'
+      )
+      expect(mockS3Service.deleteObject).not.toHaveBeenCalled()
+    })
+
+    test('should handle invalid ZIP format', async () => {
+      const bucket = 'test-bucket'
+      const key = 'corrupted.zip'
+      const mockBuffer = Buffer.from('not a valid zip')
+
+      mockS3Service.getObject.mockResolvedValue(mockBuffer)
+
+      // Import AdmZip to get the mock and make it throw
+      const AdmZip = (await import('adm-zip')).default
+      const originalImplementation = AdmZip.getMockImplementation()
+
+      AdmZip.mockImplementationOnce(() => {
+        throw new Error('Invalid ZIP format')
+      })
+
+      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+
+      expect(result.isValid).toBe(false)
+      expect(result.message).toBe(
+        'Failed to validate uploaded file. Please ensure it is a valid ZIP file.'
+      )
+      expect(mockLogger.error).toHaveBeenCalled()
+
+      // Restore original implementation
+      if (originalImplementation) {
+        AdmZip.mockImplementation(originalImplementation)
+      }
+    })
+
+    test('should handle S3 deleteObject errors', async () => {
+      const bucket = 'test-bucket'
+      const key = 'test-file.zip'
+      const mockBuffer = Buffer.from('mock zip content')
+
+      mockS3Service.getObject.mockResolvedValue(mockBuffer)
+      mockS3Service.deleteObject.mockRejectedValue(new Error('Delete failed'))
+
+      // Mock ZIP with missing extensions
+      mockZipEntries.length = 0
+      mockZipEntries.push({ isDirectory: false, entryName: 'document.pdf' })
+
+      // The function catches delete errors and continues returning validation failure
+      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+
+      expect(result.isValid).toBe(false)
+      // Should attempt to delete despite validation failure
+      expect(mockS3Service.deleteObject).toHaveBeenCalled()
+    })
+
+    test('should log extracted filenames during validation', async () => {
+      const bucket = 'test-bucket'
+      const key = 'test-file.zip'
+      const mockBuffer = Buffer.from('mock zip content')
+
+      mockS3Service.getObject.mockResolvedValue(mockBuffer)
+
+      mockZipEntries.push(
+        { isDirectory: false, entryName: 'file1.pdf' },
+        { isDirectory: false, entryName: 'file2.txt' },
+        { isDirectory: false, entryName: 'file3.jpg' },
+        { isDirectory: false, entryName: 'file4.csv' },
+        { isDirectory: false, entryName: 'file5.doc' },
+        { isDirectory: false, entryName: 'file6.docx' },
+        { isDirectory: false, entryName: 'file7.xls' },
+        { isDirectory: false, entryName: 'file8.xlsx' },
+        { isDirectory: false, entryName: 'file9.png' },
+        { isDirectory: false, entryName: 'file10.gif' },
+        { isDirectory: false, entryName: 'file11.jpeg' }
+      )
+
+      await validateZipFileFromS3(bucket, key, mockLogger)
+
+      // Should log both download and extraction
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bucket,
+          key
+        }),
+        'Downloading ZIP file from S3 for validation'
+      )
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        {
+          bucket,
+          key,
+          fileCount: 11
+        },
+        'Extracted filenames from ZIP'
+      )
     })
   })
 })

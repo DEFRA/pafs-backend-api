@@ -8,13 +8,18 @@ import {
 } from '../../../common/constants/project.js'
 import { upsertProjectSchema } from '../schema.js'
 import { performValidations } from '../helpers/project-validations/index.js'
+import {
+  buildErrorResponse,
+  buildSuccessResponse
+} from '../../../common/helpers/response-builder.js'
 
 /**
  * Creates the success response
  */
 const createSuccessResponse = (h, project, isCreate) => {
-  return h
-    .response({
+  return buildSuccessResponse(
+    h,
+    {
       success: true,
       data: {
         id: String(project.id),
@@ -22,8 +27,9 @@ const createSuccessResponse = (h, project, isCreate) => {
         slug: project.slug,
         name: project.name
       }
-    })
-    .code(isCreate ? HTTP_STATUS.CREATED : HTTP_STATUS.OK)
+    },
+    isCreate ? HTTP_STATUS.CREATED : HTTP_STATUS.OK
+  )
 }
 
 const upsertProject = {
@@ -120,18 +126,17 @@ const upsertProject = {
           'Error upserting project proposal'
         )
 
-        return h
-          .response({
-            statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-            errors: [
-              {
-                errorCode: PROJECT_VALIDATION_MESSAGES.INTERNAL_SERVER_ERROR,
-                message:
-                  'An error occurred while upserting the project proposal'
-              }
-            ]
-          })
-          .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        return buildErrorResponse(
+          h,
+          HTTP_STATUS.INTERNAL_SERVER_ERROR,
+          [
+            {
+              errorCode: PROJECT_VALIDATION_MESSAGES.INTERNAL_SERVER_ERROR,
+              message: 'An error occurred while upserting the project proposal'
+            }
+          ],
+          true
+        )
       }
     }
   }

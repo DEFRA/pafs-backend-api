@@ -4,17 +4,21 @@ import {
   FILE_UPLOAD_VALIDATION_CODES
 } from '../../../common/constants/index.js'
 import {
-  getProjectByReference,
   generateDownloadUrl,
   updateBenefitAreaFile
 } from '../helpers/benefit-area-file-helper.js'
+import { validateProjectWithBenefitAreaFile } from '../helpers/benefit-area-validation-helper.js'
+import {
+  buildValidationErrorResponse,
+  buildSuccessResponse
+} from '../../../common/helpers/response-builder.js'
 
 /**
  * Download benefit area file - regenerates presigned URL
  */
 export default {
   method: 'GET',
-  path: '/api/v1/projects/{referenceNumber}/benefit-area-file/download',
+  path: '/api/v1/project/{referenceNumber}/benefit-area-file/download',
   options: {
     auth: 'jwt',
     description: 'Download benefit area file',
@@ -28,48 +32,23 @@ export default {
   },
   handler: async (request, h) => {
     const { logger, prisma } = request.server
-    const { referenceNumber } = request.params
 
     try {
-      const project = await getProjectByReference(prisma, referenceNumber)
-
-      if (!project) {
-        return h
-          .response({
-            validationErrors: [
-              {
-                errorCode: FILE_UPLOAD_VALIDATION_CODES.PROJECT_NOT_FOUND,
-                message: `Project ${referenceNumber} not found`
-              }
-            ]
-          })
-          .code(HTTP_STATUS.NOT_FOUND)
+      const validation = await validateProjectWithBenefitAreaFile(request, h)
+      if (validation.error) {
+        return validation.error
       }
 
-      if (
-        !project.benefit_area_file_s3_bucket ||
-        !project.benefit_area_file_s3_key
-      ) {
-        return h
-          .response({
-            validationErrors: [
-              {
-                errorCode:
-                  FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
-                message: 'No benefit area file found for this project'
-              }
-            ]
-          })
-          .code(HTTP_STATUS.NOT_FOUND)
-      }
+      const { project } = validation
 
       const { downloadUrl, downloadExpiry } = await generateDownloadUrl(
         project.benefit_area_file_s3_bucket,
         project.benefit_area_file_s3_key,
-        logger
+        logger,
+        project.benefit_area_file_name
       )
 
-      await updateBenefitAreaFile(prisma, referenceNumber, {
+      await updateBenefitAreaFile(prisma, project.reference_number, {
         filename: project.benefit_area_file_name,
         fileSize: project.benefit_area_file_size,
         contentType: project.benefit_area_content_type,
@@ -79,9 +58,12 @@ export default {
         downloadExpiry
       })
 
-      logger.info({ referenceNumber }, 'Download URL generated')
+      logger.info(
+        { referenceNumber: project.reference_number },
+        'Download URL generated'
+      )
 
-      return h.response({
+      return buildSuccessResponse(h, {
         success: true,
         data: {
           downloadUrl,
@@ -92,18 +74,22 @@ export default {
         }
       })
     } catch (error) {
+      // Extract referenceNumber safely for logging
+      const referenceNumber = request.params.referenceNumber?.replaceAll(
+        '-',
+        '/'
+      )
       logger.error({ err: error, referenceNumber }, 'Download failed')
-      return h
-        .response({
-          validationErrors: [
-            {
-              errorCode:
-                FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DOWNLOAD_FAILED,
-              message: `Failed to generate download URL: ${error.message}`
-            }
-          ]
-        })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      return buildValidationErrorResponse(
+        h,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        [
+          {
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DOWNLOAD_FAILED,
+            message: `Failed to generate download URL: ${error.message}`
+          }
+        ]
+      )
     }
   }
 }

@@ -4,12 +4,17 @@ import {
   HTTP_STATUS,
   FILE_UPLOAD_VALIDATION_CODES
 } from '../../../common/constants/index.js'
+import { PROJECT_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
 
 // Mock helper functions
 vi.mock('../helpers/benefit-area-file-helper.js', () => ({
-  getProjectByReference: vi.fn(),
   deleteFromS3: vi.fn(),
   clearBenefitAreaFile: vi.fn()
+}))
+
+// Mock validation helper
+vi.mock('../helpers/benefit-area-validation-helper.js', () => ({
+  validateProjectWithBenefitAreaFile: vi.fn()
 }))
 
 describe('delete-benefit-area-file endpoint', () => {
@@ -18,9 +23,14 @@ describe('delete-benefit-area-file endpoint', () => {
   let mockLogger
   let mockPrisma
   let helpers
+  let validateProjectWithBenefitAreaFile
 
   beforeEach(async () => {
     helpers = await import('../helpers/benefit-area-file-helper.js')
+    const validationModule =
+      await import('../helpers/benefit-area-validation-helper.js')
+    validateProjectWithBenefitAreaFile =
+      validationModule.validateProjectWithBenefitAreaFile
 
     mockLogger = {
       info: vi.fn(),
@@ -59,7 +69,7 @@ describe('delete-benefit-area-file endpoint', () => {
 
     it('should have correct path', () => {
       expect(deleteBenefitAreaFile.path).toBe(
-        '/api/v1/projects/{referenceNumber}/benefit-area-file'
+        '/api/v1/project/{referenceNumber}/benefit-area-file'
       )
     })
 
@@ -89,15 +99,19 @@ describe('delete-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: 'TEST/001/001/1/test.zip'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockResolvedValue(undefined)
       helpers.clearBenefitAreaFile.mockResolvedValue(undefined)
 
       await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      expect(helpers.getProjectByReference).toHaveBeenCalledWith(
-        mockPrisma,
-        'TEST/001/001'
+      expect(validateProjectWithBenefitAreaFile).toHaveBeenCalledWith(
+        mockRequest,
+        mockH
       )
       expect(helpers.deleteFromS3).toHaveBeenCalledWith(
         'test-bucket',
@@ -125,9 +139,13 @@ describe('delete-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: 'key'
       }
 
-      helpers.getProjectByReference.mockImplementation(async () => {
-        callOrder.push('getProject')
-        return mockProject
+      validateProjectWithBenefitAreaFile.mockImplementation(async () => {
+        callOrder.push('validateProject')
+        return {
+          project: mockProject,
+          referenceNumber: 'TEST/001/001',
+          projectService: {}
+        }
       })
       helpers.deleteFromS3.mockImplementation(async () => {
         callOrder.push('deleteS3')
@@ -138,20 +156,36 @@ describe('delete-benefit-area-file endpoint', () => {
 
       await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      expect(callOrder).toEqual(['getProject', 'deleteS3', 'clearMetadata'])
+      expect(callOrder).toEqual([
+        'validateProject',
+        'deleteS3',
+        'clearMetadata'
+      ])
     })
   })
 
   describe('error handling - project not found', () => {
     it('should return 404 when project does not exist', async () => {
-      helpers.getProjectByReference.mockResolvedValue(null)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: PROJECT_VALIDATION_MESSAGES.PROJECT_NOT_FOUND,
+                message: 'Project TEST/001/001 not found'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      await deleteBenefitAreaFile.handler(mockRequest, mockH)
+      const result = await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.PROJECT_NOT_FOUND,
+            errorCode: PROJECT_VALIDATION_MESSAGES.PROJECT_NOT_FOUND,
             message: 'Project TEST/001/001 not found'
           }
         ]
@@ -164,19 +198,26 @@ describe('delete-benefit-area-file endpoint', () => {
 
   describe('error handling - file not found', () => {
     it('should return 404 when s3_bucket is missing', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: null,
-        benefit_area_file_s3_key: 'key'
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      await deleteBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -186,19 +227,26 @@ describe('delete-benefit-area-file endpoint', () => {
     })
 
     it('should return 404 when s3_key is missing', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: 'bucket',
-        benefit_area_file_s3_key: null
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      await deleteBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -207,19 +255,26 @@ describe('delete-benefit-area-file endpoint', () => {
     })
 
     it('should return 404 when both s3_bucket and s3_key are missing', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: null,
-        benefit_area_file_s3_key: null
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      await deleteBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -228,19 +283,26 @@ describe('delete-benefit-area-file endpoint', () => {
     })
 
     it('should return 404 when s3_bucket is empty string', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: '',
-        benefit_area_file_s3_key: 'key'
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      await deleteBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -248,19 +310,26 @@ describe('delete-benefit-area-file endpoint', () => {
     })
 
     it('should return 404 when s3_key is empty string', async () => {
-      const mockProject = {
-        benefit_area_file_s3_bucket: 'bucket',
-        benefit_area_file_s3_key: ''
-      }
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        error: mockH
+          .response({
+            validationErrors: [
+              {
+                errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+                message: 'No benefit area file found for this project'
+              }
+            ]
+          })
+          .code(HTTP_STATUS.NOT_FOUND)
+      })
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      const result = await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      await deleteBenefitAreaFile.handler(mockRequest, mockH)
-
+      expect(result).toBe(mockH)
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
             message: 'No benefit area file found for this project'
           }
         ]
@@ -275,7 +344,11 @@ describe('delete-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: 'key'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockRejectedValue(new Error('S3 deletion failed'))
 
       await deleteBenefitAreaFile.handler(mockRequest, mockH)
@@ -290,7 +363,7 @@ describe('delete-benefit-area-file endpoint', () => {
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DELETE_FAILED,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DELETE_FAILED,
             message: 'Failed to delete file: S3 deletion failed'
           }
         ]
@@ -304,7 +377,11 @@ describe('delete-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: 'key'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockResolvedValue(undefined)
       helpers.clearBenefitAreaFile.mockRejectedValue(
         new Error('Database update failed')
@@ -315,7 +392,7 @@ describe('delete-benefit-area-file endpoint', () => {
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DELETE_FAILED,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DELETE_FAILED,
             message: 'Failed to delete file: Database update failed'
           }
         ]
@@ -323,8 +400,8 @@ describe('delete-benefit-area-file endpoint', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     })
 
-    it('should handle getProjectByReference errors', async () => {
-      helpers.getProjectByReference.mockRejectedValue(
+    it('should handle validation errors', async () => {
+      validateProjectWithBenefitAreaFile.mockRejectedValue(
         new Error('Database connection lost')
       )
 
@@ -334,7 +411,7 @@ describe('delete-benefit-area-file endpoint', () => {
       expect(mockH.response).toHaveBeenCalledWith({
         validationErrors: [
           {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DELETE_FAILED,
+            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DELETE_FAILED,
             message: 'Failed to delete file: Database connection lost'
           }
         ]
@@ -347,7 +424,11 @@ describe('delete-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: 'key'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockRejectedValue(new Error('S3 error'))
 
       await deleteBenefitAreaFile.handler(mockRequest, mockH)
@@ -361,19 +442,24 @@ describe('delete-benefit-area-file endpoint', () => {
       mockRequest.params.referenceNumber = 'ABC123/XYZ/999'
 
       const mockProject = {
+        reference_number: 'ABC123/XYZ/999',
         benefit_area_file_s3_bucket: 'bucket',
         benefit_area_file_s3_key: 'key'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'ABC123/XYZ/999',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockResolvedValue(undefined)
       helpers.clearBenefitAreaFile.mockResolvedValue(undefined)
 
       await deleteBenefitAreaFile.handler(mockRequest, mockH)
 
-      expect(helpers.getProjectByReference).toHaveBeenCalledWith(
-        mockPrisma,
-        'ABC123/XYZ/999'
+      expect(validateProjectWithBenefitAreaFile).toHaveBeenCalledWith(
+        mockRequest,
+        mockH
       )
       expect(helpers.clearBenefitAreaFile).toHaveBeenCalledWith(
         mockPrisma,
@@ -390,7 +476,11 @@ describe('delete-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: 'path/to/file with spaces.zip'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockResolvedValue(undefined)
       helpers.clearBenefitAreaFile.mockResolvedValue(undefined)
 
@@ -410,7 +500,11 @@ describe('delete-benefit-area-file endpoint', () => {
         benefit_area_file_s3_key: longKey
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockResolvedValue(undefined)
       helpers.clearBenefitAreaFile.mockResolvedValue(undefined)
 
@@ -430,11 +524,16 @@ describe('delete-benefit-area-file endpoint', () => {
   describe('logging', () => {
     it('should log successful deletion', async () => {
       const mockProject = {
+        reference_number: 'TEST/001/001',
         benefit_area_file_s3_bucket: 'bucket',
         benefit_area_file_s3_key: 'key'
       }
 
-      helpers.getProjectByReference.mockResolvedValue(mockProject)
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: mockProject,
+        referenceNumber: 'TEST/001/001',
+        projectService: {}
+      })
       helpers.deleteFromS3.mockResolvedValue(undefined)
       helpers.clearBenefitAreaFile.mockResolvedValue(undefined)
 
@@ -448,7 +547,7 @@ describe('delete-benefit-area-file endpoint', () => {
 
     it('should log errors with proper context', async () => {
       const error = new Error('Test error')
-      helpers.getProjectByReference.mockRejectedValue(error)
+      validateProjectWithBenefitAreaFile.mockRejectedValue(error)
 
       await deleteBenefitAreaFile.handler(mockRequest, mockH)
 

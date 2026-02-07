@@ -410,8 +410,7 @@ describe('config', () => {
     test('Should have allowed ZIP extensions configuration', async () => {
       const { config } = await import('./config.js')
       const extensions = config.get('cdpUploader.allowedZipExtensions')
-      expect(extensions).toContain('.pdf')
-      expect(extensions).toContain('.docx')
+      expect(extensions).toContain('.dbf,.shx,.shp,.prj')
     })
   })
 

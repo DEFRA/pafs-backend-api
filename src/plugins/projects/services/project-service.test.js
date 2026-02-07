@@ -715,6 +715,65 @@ describe('ProjectService', () => {
     })
   })
 
+  describe('getProjectByReference', () => {
+    test('Should return project when found with version 1', async () => {
+      const referenceNumber = 'RGT1DMQR01'
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        version: 1,
+        name: 'Test Project',
+        creator: 1
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+
+      const result = await service.getProjectByReference(referenceNumber)
+
+      expect(result).toEqual(mockProject)
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          reference_number: referenceNumber,
+          version: 1
+        }
+      })
+    })
+
+    test('Should return null when project is not found', async () => {
+      const referenceNumber = 'NONEXISTENT01'
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      const result = await service.getProjectByReference(referenceNumber)
+
+      expect(result).toBeNull()
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          reference_number: referenceNumber,
+          version: 1
+        }
+      })
+    })
+
+    test('Should propagate errors from database', async () => {
+      const referenceNumber = 'RGT1DMQR01'
+      const dbError = new Error('Database connection failed')
+
+      mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
+
+      await expect(
+        service.getProjectByReference(referenceNumber)
+      ).rejects.toThrow('Database connection failed')
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: {
+          reference_number: referenceNumber,
+          version: 1
+        }
+      })
+    })
+  })
+
   describe('getProjectByReferenceNumber', () => {
     test('Should return empty array if reference number is not provided', async () => {
       const result = await service.getProjectByReferenceNumber('')

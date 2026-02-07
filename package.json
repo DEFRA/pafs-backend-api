@@ -43,6 +43,7 @@
     "@hapi/hapi": "21.4.4",
     "@prisma/adapter-pg": "7.3.0",
     "@prisma/client": "7.3.0",
+    "adm-zip": "0.5.16",
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
     "bcrypt": "6.0.0",

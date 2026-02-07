@@ -1,5 +1,6 @@
 import { HTTP_STATUS } from '../../../../common/constants/index.js'
 import { PROJECT_VALIDATION_MESSAGES } from '../../../../common/constants/project.js'
+import { buildValidationErrorResponse } from '../../../../common/helpers/response-builder.js'
 
 /**
  * Validates financial years - start year must be less than end year
@@ -28,22 +29,16 @@ export const validateFinancialYears = (
       { userId, startYear: effectiveStartYear, endYear: effectiveEndYear },
       'Financial start year should be less than end year'
     )
-    return h
-      .response({
-        validationErrors: [
-          {
-            field:
-              startYear === undefined
-                ? 'financialEndYear'
-                : 'financialStartYear',
-            errorCode:
-              startYear === undefined
-                ? PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_SHOULD_BE_GREATER_THAN_START_YEAR
-                : PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_SHOULD_BE_LESS_THAN_END_YEAR
-          }
-        ]
-      })
-      .code(HTTP_STATUS.BAD_REQUEST)
+    return buildValidationErrorResponse(h, HTTP_STATUS.BAD_REQUEST, [
+      {
+        field:
+          startYear === undefined ? 'financialEndYear' : 'financialStartYear',
+        errorCode:
+          startYear === undefined
+            ? PROJECT_VALIDATION_MESSAGES.FINANCIAL_END_YEAR_SHOULD_BE_GREATER_THAN_START_YEAR
+            : PROJECT_VALIDATION_MESSAGES.FINANCIAL_START_YEAR_SHOULD_BE_LESS_THAN_END_YEAR
+      }
+    ])
   }
 
   return null

@@ -7,9 +7,22 @@ const mockCdpUploaderService = {
 const mockGetCdpUploaderService = vi.fn(() => mockCdpUploaderService)
 
 const mockBenefitAreaFileHelper = {
-  getProjectByReference: vi.fn(),
   generateDownloadUrl: vi.fn(),
   updateBenefitAreaFile: vi.fn()
+}
+
+const mockValidationHelpers = {
+  validateZipFileFromS3: vi.fn()
+}
+
+const mockProjectService = {
+  getProjectByReference: vi.fn()
+}
+
+class MockProjectService {
+  constructor() {
+    return mockProjectService
+  }
 }
 
 vi.mock('../../../common/services/file-upload/cdp-uploader-service.js', () => ({
@@ -17,12 +30,19 @@ vi.mock('../../../common/services/file-upload/cdp-uploader-service.js', () => ({
 }))
 
 vi.mock('../../projects/helpers/benefit-area-file-helper.js', () => ({
-  getProjectByReference: (...args) =>
-    mockBenefitAreaFileHelper.getProjectByReference(...args),
   generateDownloadUrl: (...args) =>
     mockBenefitAreaFileHelper.generateDownloadUrl(...args),
   updateBenefitAreaFile: (...args) =>
     mockBenefitAreaFileHelper.updateBenefitAreaFile(...args)
+}))
+
+vi.mock('../../projects/services/project-service.js', () => ({
+  ProjectService: MockProjectService
+}))
+
+vi.mock('../helpers/validation-helpers.js', () => ({
+  validateZipFileFromS3: (...args) =>
+    mockValidationHelpers.validateZipFileFromS3(...args)
 }))
 
 // Import after mocks are set up
@@ -417,7 +437,7 @@ describe('getUploadStatus', () => {
     }
 
     mockPrisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
-    mockBenefitAreaFileHelper.getProjectByReference.mockResolvedValue({
+    mockProjectService.getProjectByReference.mockResolvedValue({
       id: 1,
       reference_number: 'ANC501E/000A/001A'
     })
@@ -429,13 +449,14 @@ describe('getUploadStatus', () => {
 
     await getUploadStatus.handler(mockRequest, mockH)
 
-    expect(
-      mockBenefitAreaFileHelper.getProjectByReference
-    ).toHaveBeenCalledWith(mockPrisma, 'ANC501E/000A/001A', mockLogger)
+    expect(mockProjectService.getProjectByReference).toHaveBeenCalledWith(
+      'ANC501E/000A/001A'
+    )
     expect(mockBenefitAreaFileHelper.generateDownloadUrl).toHaveBeenCalledWith(
       'test-bucket',
       'uploads/shapefile.zip',
-      mockLogger
+      mockLogger,
+      'shapefile.zip'
     )
     expect(
       mockBenefitAreaFileHelper.updateBenefitAreaFile
@@ -467,9 +488,7 @@ describe('getUploadStatus', () => {
 
     await getUploadStatus.handler(mockRequest, mockH)
 
-    expect(
-      mockBenefitAreaFileHelper.getProjectByReference
-    ).not.toHaveBeenCalled()
+    expect(mockProjectService.getProjectByReference).not.toHaveBeenCalled()
   })
 
   test('should not update project when upload status is not ready', async () => {
@@ -486,19 +505,19 @@ describe('getUploadStatus', () => {
 
     await getUploadStatus.handler(mockRequest, mockH)
 
-    expect(
-      mockBenefitAreaFileHelper.getProjectByReference
-    ).not.toHaveBeenCalled()
+    expect(mockProjectService.getProjectByReference).not.toHaveBeenCalled()
   })
 
   test('should log warning when project not found for benefit area update', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
       upload_status: 'ready',
-      reference: 'INVALID-REF'
+      reference: 'INVALID-REF',
+      s3_bucket: 'test-bucket',
+      s3_key: 'test-key'
     })
 
-    mockBenefitAreaFileHelper.getProjectByReference.mockResolvedValue(null)
+    mockProjectService.getProjectByReference.mockResolvedValue(null)
 
     await getUploadStatus.handler(mockRequest, mockH)
 
@@ -516,10 +535,12 @@ describe('getUploadStatus', () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
       upload_status: 'ready',
-      reference: 'TEST-REF'
+      reference: 'TEST-REF',
+      s3_bucket: 'test-bucket',
+      s3_key: 'test-key'
     })
 
-    mockBenefitAreaFileHelper.getProjectByReference.mockRejectedValue(
+    mockProjectService.getProjectByReference.mockRejectedValue(
       new Error('Database connection failed')
     )
 
@@ -550,7 +571,7 @@ describe('getUploadStatus', () => {
       s3_key: 'test-key'
     })
 
-    mockBenefitAreaFileHelper.getProjectByReference.mockResolvedValue({ id: 1 })
+    mockProjectService.getProjectByReference.mockResolvedValue({ id: 1 })
     mockBenefitAreaFileHelper.generateDownloadUrl.mockResolvedValue({
       downloadUrl: 'url',
       downloadExpiry: new Date()
@@ -610,6 +631,226 @@ describe('getUploadStatus', () => {
         createdAt: new Date('2026-01-01'),
         completedAt: new Date('2026-01-02')
       }
+    })
+  })
+
+  describe('Host application ZIP validation', () => {
+    test('should validate ZIP contents when CDP status changes to ready', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            fileId: 'file-456',
+            filename: 'shapefile.zip',
+            contentType: 'application/zip',
+            fileStatus: 'complete',
+            s3Bucket: 'test-bucket',
+            s3Key: 'uploads/shapefile.zip'
+          }
+        }
+      })
+
+      mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
+        isValid: true,
+        filenames: ['file1.shp', 'file1.dbf', 'file1.shx']
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'ready'
+      })
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockValidationHelpers.validateZipFileFromS3).toHaveBeenCalledWith(
+        'test-bucket',
+        'uploads/shapefile.zip',
+        mockLogger
+      )
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        {
+          uploadId: 'test-upload-123',
+          filenames: ['file1.shp', 'file1.dbf', 'file1.shx']
+        },
+        'ZIP validation passed'
+      )
+
+      expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
+        where: { upload_id: 'test-upload-123' },
+        data: expect.objectContaining({
+          upload_status: 'ready'
+        })
+      })
+    })
+
+    test('should set status to failed when ZIP validation fails', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            fileId: 'file-456',
+            filename: 'incomplete.zip',
+            s3Bucket: 'test-bucket',
+            s3Key: 'uploads/incomplete.zip'
+          }
+        }
+      })
+
+      mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
+        isValid: false,
+        message: 'The uploaded shapefile is missing required files: .shp, .dbf'
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'failed'
+      })
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        {
+          uploadId: 'test-upload-123',
+          validationMessage:
+            'The uploaded shapefile is missing required files: .shp, .dbf'
+        },
+        'Host application ZIP validation failed - setting status to failed'
+      )
+
+      expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
+        where: { upload_id: 'test-upload-123' },
+        data: expect.objectContaining({
+          upload_status: 'failed',
+          rejection_reason:
+            'The uploaded shapefile is missing required files: .shp, .dbf'
+        })
+      })
+    })
+
+    test('should not validate ZIP when S3 info is missing', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            fileId: 'file-456',
+            filename: 'file.zip'
+            // No s3Bucket or s3Key
+          }
+        }
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({})
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockValidationHelpers.validateZipFileFromS3).not.toHaveBeenCalled()
+    })
+
+    test('should not validate ZIP when status is not ready', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'pending',
+        form: {
+          file: {
+            s3Bucket: 'test-bucket',
+            s3Key: 'test-key'
+          }
+        }
+      })
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockValidationHelpers.validateZipFileFromS3).not.toHaveBeenCalled()
+    })
+
+    test('should combine CDP errors with validation errors', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: {
+            errorMessage: 'File too large',
+            s3Bucket: 'test-bucket',
+            s3Key: 'test-key'
+          }
+        }
+      })
+
+      mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
+        isValid: false,
+        message: 'Missing required extensions'
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({})
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
+        where: { upload_id: 'test-upload-123' },
+        data: expect.objectContaining({
+          upload_status: 'failed',
+          rejection_reason: 'File too large; Missing required extensions'
+        })
+      })
+    })
+
+    test('should use default message when ZIP validation message is missing', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Bucket: 'test-bucket',
+            s3Key: 'test-key'
+          }
+        }
+      })
+
+      mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
+        isValid: false,
+        message: null // No message provided
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({})
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
+        where: { upload_id: 'test-upload-123' },
+        data: expect.objectContaining({
+          rejection_reason:
+            'Uploaded file failed validation - required files are missing'
+        })
+      })
     })
   })
 })

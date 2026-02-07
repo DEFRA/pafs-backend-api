@@ -3,6 +3,10 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { getAccountsQuerySchema } from '../schema.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
+import {
+  buildErrorResponse,
+  buildSuccessResponse
+} from '../../../common/helpers/response-builder.js'
 
 const listAccounts = {
   method: 'GET',
@@ -34,14 +38,14 @@ const listAccounts = {
         pageSize
       })
 
-      return h.response(result).code(HTTP_STATUS.OK)
+      return buildSuccessResponse(h, result, HTTP_STATUS.OK)
     } catch (error) {
       request.server.logger.error({ error }, 'Failed to retrieve accounts')
-      return h
-        .response({
-          errors: [{ errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED }]
-        })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      return buildErrorResponse(h, HTTP_STATUS.INTERNAL_SERVER_ERROR, [
+        {
+          errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED
+        }
+      ])
     }
   }
 }

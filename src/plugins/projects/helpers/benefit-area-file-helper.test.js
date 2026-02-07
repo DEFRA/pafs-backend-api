@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
-  getProjectByReference,
   generateDownloadUrl,
   updateBenefitAreaFile,
   clearBenefitAreaFile,
@@ -43,49 +42,6 @@ describe('benefit-area-file-helper', () => {
     vi.clearAllMocks()
   })
 
-  describe('getProjectByReference', () => {
-    it('should return project when found', async () => {
-      const mockProject = {
-        id: 1n,
-        reference_number: 'TEST/001/001',
-        version: 1,
-        name: 'Test Project'
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-
-      const result = await getProjectByReference(mockPrisma, 'TEST/001/001')
-
-      expect(result).toEqual(mockProject)
-      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
-        where: {
-          reference_number: 'TEST/001/001',
-          version: 1
-        }
-      })
-    })
-
-    it('should return null when project not found', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
-
-      const result = await getProjectByReference(
-        mockPrisma,
-        'NONEXISTENT/001/001'
-      )
-
-      expect(result).toBeNull()
-    })
-
-    it('should handle database errors', async () => {
-      const dbError = new Error('Database connection failed')
-      mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
-
-      await expect(
-        getProjectByReference(mockPrisma, 'TEST/001/001')
-      ).rejects.toThrow('Database connection failed')
-    })
-  })
-
   describe('generateDownloadUrl', () => {
     beforeEach(async () => {
       const { getS3Service } =
@@ -108,7 +64,8 @@ describe('benefit-area-file-helper', () => {
       expect(mockS3Service.getPresignedDownloadUrl).toHaveBeenCalledWith(
         'test-bucket',
         'test-key',
-        604800
+        604800,
+        null
       )
     })
 

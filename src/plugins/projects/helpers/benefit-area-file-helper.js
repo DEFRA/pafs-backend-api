@@ -2,26 +2,20 @@ import { getS3Service } from '../../../common/services/file-upload/s3-service.js
 import { DOWNLOAD_URL_EXPIRES_IN } from '../../../common/constants/index.js'
 
 /**
- * Get project by reference number (version always 1)
- */
-export async function getProjectByReference(prisma, referenceNumber) {
-  return prisma.pafs_core_projects.findFirst({
-    where: {
-      reference_number: referenceNumber,
-      version: 1
-    }
-  })
-}
-
-/**
  * Generate presigned download URL with expiry
  */
-export async function generateDownloadUrl(s3Bucket, s3Key, logger) {
+export async function generateDownloadUrl(
+  s3Bucket,
+  s3Key,
+  logger,
+  filename = null
+) {
   const s3Service = getS3Service(logger)
   const downloadUrl = await s3Service.getPresignedDownloadUrl(
     s3Bucket,
     s3Key,
-    DOWNLOAD_URL_EXPIRES_IN
+    DOWNLOAD_URL_EXPIRES_IN,
+    filename
   )
   return {
     downloadUrl,
