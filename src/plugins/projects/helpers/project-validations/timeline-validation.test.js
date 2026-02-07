@@ -1,12 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-  validateTimelineFinancialBoundaries,
-  TIMELINE_LEVELS
-} from './timeline-validation.js'
+import { validateTimelineFinancialBoundaries } from './timeline-validation.js'
 import { HTTP_STATUS } from '../../../../common/constants/index.js'
 import {
   PROJECT_VALIDATION_MESSAGES,
-  PROJECT_VALIDATION_LEVELS
+  PROJECT_VALIDATION_LEVELS,
+  TIMELINE_VALIDATION_LEVELS
 } from '../../../../common/constants/project.js'
 
 describe('timeline-validation', () => {
@@ -24,9 +22,9 @@ describe('timeline-validation', () => {
     }
   })
 
-  describe('TIMELINE_LEVELS export', () => {
-    it('should export TIMELINE_LEVELS array with all timeline validation levels', () => {
-      expect(TIMELINE_LEVELS).toEqual([
+  describe('TIMELINE_VALIDATION_LEVELS export', () => {
+    it('should export TIMELINE_VALIDATION_LEVELS array with all timeline validation levels', () => {
+      expect(TIMELINE_VALIDATION_LEVELS).toEqual([
         PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
         PROJECT_VALIDATION_LEVELS.COMPLETE_OUTLINE_BUSINESS_CASE,
         PROJECT_VALIDATION_LEVELS.AWARD_CONTRACT,

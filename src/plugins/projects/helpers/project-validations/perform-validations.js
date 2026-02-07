@@ -4,10 +4,8 @@ import { validateUpdatePermissions } from './validate-update-permissions.js'
 import { validateCommonFields } from './validate-common-fields.js'
 import { validateCreateSpecificFields } from './validate-create-specific-fields.js'
 import { validateUpdateAreaChange } from './validate-update-area-change.js'
-import {
-  TIMELINE_LEVELS,
-  validateTimelineFinancialBoundaries
-} from './timeline-validation.js'
+import { validateTimelineFinancialBoundaries } from './timeline-validation.js'
+import { TIMELINE_VALIDATION_LEVELS } from '../../../../common/constants/project.js'
 
 /**
  * Validates timeline boundaries for update operations
@@ -21,7 +19,10 @@ const validateUpdateTimeline = (
   logger,
   h
 ) => {
-  if (!existingProject || !TIMELINE_LEVELS.includes(validationLevel)) {
+  if (
+    !existingProject ||
+    !TIMELINE_VALIDATION_LEVELS.includes(validationLevel)
+  ) {
     return null
   }
 

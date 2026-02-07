@@ -108,10 +108,7 @@ export const requiredInterventionTypesForProjectType = (projectType) => {
     PROJECT_TYPES.STU,
     PROJECT_TYPES.ELO
   ]
-  if (skipInterventionTypes.includes(projectType)) {
-    return false
-  }
-  return true
+  return !skipInterventionTypes.includes(projectType)
 }
 
 /**
