@@ -1,17 +1,11 @@
 import Joi from 'joi'
-import {
-  HTTP_STATUS,
-  FILE_UPLOAD_VALIDATION_CODES
-} from '../../../common/constants/index.js'
+import { FILE_UPLOAD_VALIDATION_CODES } from '../../../common/constants/index.js'
 import {
   deleteFromS3,
-  clearBenefitAreaFile
+  clearBenefitAreaFile,
+  withBenefitAreaFileValidation
 } from '../helpers/benefit-area-file-helper.js'
-import { validateProjectWithBenefitAreaFile } from '../helpers/benefit-area-validation-helper.js'
-import {
-  buildValidationErrorResponse,
-  buildSuccessResponse
-} from '../../../common/helpers/response-builder.js'
+import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 
 /**
  * Delete benefit area file - removes from S3 and clears metadata
@@ -31,50 +25,33 @@ export default {
     }
   },
   handler: async (request, h) => {
-    const { logger, prisma } = request.server
+    return withBenefitAreaFileValidation(
+      request,
+      h,
+      async (project, req) => {
+        const { logger, prisma } = req.server
 
-    try {
-      const validation = await validateProjectWithBenefitAreaFile(request, h)
-      if (validation.error) {
-        return validation.error
-      }
+        await deleteFromS3(
+          project.benefit_area_file_s3_bucket,
+          project.benefit_area_file_s3_key,
+          logger
+        )
 
-      const { project } = validation
+        await clearBenefitAreaFile(prisma, project.reference_number)
 
-      await deleteFromS3(
-        project.benefit_area_file_s3_bucket,
-        project.benefit_area_file_s3_key,
-        logger
-      )
+        logger.info(
+          { referenceNumber: project.reference_number },
+          'File deleted successfully'
+        )
 
-      await clearBenefitAreaFile(prisma, project.reference_number)
-
-      logger.info(
-        { referenceNumber: project.reference_number },
-        'File deleted successfully'
-      )
-
-      return buildSuccessResponse(h, {
-        success: true,
-        message: 'Benefit area file deleted successfully'
-      })
-    } catch (error) {
-      // Extract referenceNumber safely for logging
-      const referenceNumber = request.params.referenceNumber?.replaceAll(
-        '-',
-        '/'
-      )
-      logger.error({ err: error, referenceNumber }, 'Delete failed')
-      return buildValidationErrorResponse(
-        h,
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
-        [
-          {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_DELETE_FAILED,
-            message: `Failed to delete file: ${error.message}`
-          }
-        ]
-      )
-    }
+        return buildSuccessResponse(h, {
+          success: true,
+          message: 'Benefit area file deleted successfully'
+        })
+      },
+      FILE_UPLOAD_VALIDATION_CODES.FILE_DELETE_FAILED,
+      'delete file',
+      'Delete'
+    )
   }
 }

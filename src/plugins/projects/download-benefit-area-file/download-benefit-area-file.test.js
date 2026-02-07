@@ -12,10 +12,14 @@ vi.mock('../helpers/benefit-area-validation-helper.js', () => ({
 }))
 
 // Mock helper functions
-vi.mock('../helpers/benefit-area-file-helper.js', () => ({
-  generateDownloadUrl: vi.fn(),
-  updateBenefitAreaFile: vi.fn()
-}))
+vi.mock('../helpers/benefit-area-file-helper.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    generateDownloadUrl: vi.fn(),
+    updateBenefitAreaFile: vi.fn()
+  }
+})
 
 describe('download-benefit-area-file endpoint', () => {
   let mockRequest

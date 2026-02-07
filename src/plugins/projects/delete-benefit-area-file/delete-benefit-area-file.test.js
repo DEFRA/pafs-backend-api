@@ -7,10 +7,14 @@ import {
 import { PROJECT_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
 
 // Mock helper functions
-vi.mock('../helpers/benefit-area-file-helper.js', () => ({
-  deleteFromS3: vi.fn(),
-  clearBenefitAreaFile: vi.fn()
-}))
+vi.mock('../helpers/benefit-area-file-helper.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    deleteFromS3: vi.fn(),
+    clearBenefitAreaFile: vi.fn()
+  }
+})
 
 // Mock validation helper
 vi.mock('../helpers/benefit-area-validation-helper.js', () => ({

@@ -1,5 +1,6 @@
 import { config } from '../../../config.js'
 import fetch from 'node-fetch'
+import { randomUUID } from 'node:crypto'
 import { UPLOAD_STATUS, FILE_STATUS } from '../../constants/index.js'
 
 /**
@@ -236,15 +237,11 @@ export class CdpUploaderService {
   }
 
   /**
-   * Generate a unique upload ID
+   * Generate a unique upload ID using cryptographic random UUID
    * @private
    */
   generateUploadId() {
-    const timestamp = Date.now()
-    const base = 36
-    const endIndex = 15
-    const random = Math.random().toString(base).substring(2, endIndex)
-    return `${timestamp}-${random}`
+    return randomUUID()
   }
 
   /**
