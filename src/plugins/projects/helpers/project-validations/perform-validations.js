@@ -31,10 +31,7 @@ const validateUpdateTimeline = (
     validationLevel,
     existingProject.financialStartYear,
     existingProject.financialEndYear,
-    userId,
-    referenceNumber,
-    logger,
-    h
+    { userId, referenceNumber, logger, h }
   )
 }
 

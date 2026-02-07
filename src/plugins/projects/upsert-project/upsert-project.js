@@ -32,6 +32,43 @@ const createSuccessResponse = (h, project, isCreate) => {
   )
 }
 
+/**
+ * Normalizes intervention types for INITIAL_SAVE and PROJECT_TYPE levels
+ */
+const normalizeInterventionTypes = (enrichedPayload, validationLevel) => {
+  if (
+    validationLevel === PROJECT_VALIDATION_LEVELS.INITIAL_SAVE ||
+    validationLevel === PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
+  ) {
+    if (enrichedPayload?.projectInterventionTypes === undefined) {
+      enrichedPayload.projectInterventionTypes = null
+    }
+    if (enrichedPayload?.mainInterventionType === undefined) {
+      enrichedPayload.mainInterventionType = null
+    }
+  }
+}
+
+/**
+ * Resets earliestWithGia fields when couldStartEarly is false
+ */
+const resetEarliestWithGiaFields = (enrichedPayload, validationLevel) => {
+  const isValidationLevelForCouldStartEarly =
+    validationLevel === PROJECT_VALIDATION_LEVELS.COULD_START_EARLY
+  const isValidationLevelForEarliestWithGia =
+    validationLevel === PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
+  const isCouldStartEarlyFalse = enrichedPayload.couldStartEarly === false
+
+  if (
+    (isValidationLevelForCouldStartEarly ||
+      isValidationLevelForEarliestWithGia) &&
+    isCouldStartEarlyFalse
+  ) {
+    enrichedPayload.earliestWithGiaMonth = null
+    enrichedPayload.earliestWithGiaYear = null
+  }
+}
+
 const upsertProject = {
   method: 'POST',
   path: '/api/v1/project/upsert',
@@ -85,28 +122,10 @@ const upsertProject = {
         const enrichedPayload = { ...proposalPayload }
 
         // Normalize empty intervention types only for INITIAL_SAVE or PROJECT_TYPE levels
-        if (
-          validationLevel === PROJECT_VALIDATION_LEVELS.INITIAL_SAVE ||
-          validationLevel === PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
-        ) {
-          if (enrichedPayload?.projectInterventionTypes === undefined) {
-            enrichedPayload.projectInterventionTypes = null
-          }
-          if (enrichedPayload?.mainInterventionType === undefined) {
-            enrichedPayload.mainInterventionType = null
-          }
-        }
+        normalizeInterventionTypes(enrichedPayload, validationLevel)
 
         // Reset earliestWithGia fields when couldStartEarly is false or when saving COULD_START_EARLY level
-        if (
-          validationLevel === PROJECT_VALIDATION_LEVELS.COULD_START_EARLY ||
-          validationLevel === PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
-        ) {
-          if (enrichedPayload.couldStartEarly === false) {
-            enrichedPayload.earliestWithGiaMonth = null
-            enrichedPayload.earliestWithGiaYear = null
-          }
-        }
+        resetEarliestWithGiaFields(enrichedPayload, validationLevel)
 
         if (areaId) {
           const area = await areaService.getAreaByIdWithParents(areaId)

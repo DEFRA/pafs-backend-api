@@ -39,18 +39,20 @@ describe('timeline-validation', () => {
     const userId = 'test-user-123'
     const referenceNumber = 'TEST123'
 
+    // Helper function to call validateTimelineFinancialBoundaries with context
+    const callValidation = (payload, validationLevel, startYear, endYear) => {
+      return validateTimelineFinancialBoundaries(
+        payload,
+        validationLevel,
+        startYear,
+        endYear,
+        { userId, referenceNumber, logger: mockLogger, h: mockH }
+      )
+    }
+
     describe('when fieldConfig is not found', () => {
       it('should return null for invalid validation level', () => {
-        const result = validateTimelineFinancialBoundaries(
-          {},
-          'INVALID_LEVEL',
-          2025,
-          2026,
-          userId,
-          referenceNumber,
-          mockLogger,
-          mockH
-        )
+        const result = callValidation({}, 'INVALID_LEVEL', 2025, 2026)
 
         expect(result).toBeNull()
         expect(mockLogger.warn).not.toHaveBeenCalled()
@@ -63,15 +65,11 @@ describe('timeline-validation', () => {
           startOutlineBusinessCaseYear: 2025
         }
 
-        const result = validateTimelineFinancialBoundaries(
+        const result = callValidation(
           payload,
           PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
           2025,
-          2026,
-          userId,
-          referenceNumber,
-          mockLogger,
-          mockH
+          2026
         )
 
         expect(result).toBeNull()
@@ -83,15 +81,11 @@ describe('timeline-validation', () => {
           startOutlineBusinessCaseMonth: 5
         }
 
-        const result = validateTimelineFinancialBoundaries(
+        const result = callValidation(
           payload,
           PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
           2025,
-          2026,
-          userId,
-          referenceNumber,
-          mockLogger,
-          mockH
+          2026
         )
 
         expect(result).toBeNull()
@@ -107,15 +101,11 @@ describe('timeline-validation', () => {
             earliestWithGiaYear: 2024
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBeNull()
@@ -127,15 +117,11 @@ describe('timeline-validation', () => {
             earliestWithGiaYear: 2025
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBeNull()
@@ -147,15 +133,11 @@ describe('timeline-validation', () => {
             earliestWithGiaYear: 2025
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBeNull()
@@ -169,15 +151,11 @@ describe('timeline-validation', () => {
             earliestWithGiaYear: 2025
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBe(mockH)
@@ -212,15 +190,11 @@ describe('timeline-validation', () => {
             earliestWithGiaYear: 2026
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBe(mockH)
@@ -255,15 +229,11 @@ describe('timeline-validation', () => {
             earliestWithGiaYear: 2025
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBe(mockH)
@@ -279,15 +249,11 @@ describe('timeline-validation', () => {
             earliestWithGiaYear: 2026
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA,
             null,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBeNull()
@@ -305,15 +271,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2024
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBe(mockH)
@@ -348,15 +310,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2025
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBe(mockH)
@@ -370,15 +328,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2025
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBeNull()
@@ -392,15 +346,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2027
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBe(mockH)
@@ -413,15 +363,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2026
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBe(mockH)
@@ -456,15 +402,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2027
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBe(mockH)
@@ -480,15 +422,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2025
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBeNull()
@@ -503,15 +441,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2024
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               null,
-              2026,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              2026
             )
 
             expect(result).toBeNull()
@@ -523,15 +457,11 @@ describe('timeline-validation', () => {
               startOutlineBusinessCaseYear: 2027
             }
 
-            const result = validateTimelineFinancialBoundaries(
+            const result = callValidation(
               payload,
               PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
               2025,
-              null,
-              userId,
-              referenceNumber,
-              mockLogger,
-              mockH
+              null
             )
 
             expect(result).toBeNull()
@@ -546,15 +476,11 @@ describe('timeline-validation', () => {
             completeOutlineBusinessCaseYear: 2024
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.COMPLETE_OUTLINE_BUSINESS_CASE,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBe(mockH)
@@ -572,15 +498,11 @@ describe('timeline-validation', () => {
             completeOutlineBusinessCaseYear: 2025
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.COMPLETE_OUTLINE_BUSINESS_CASE,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBeNull()
@@ -594,15 +516,11 @@ describe('timeline-validation', () => {
             awardContractYear: 2025
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.AWARD_CONTRACT,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBe(mockH)
@@ -622,15 +540,11 @@ describe('timeline-validation', () => {
             startConstructionYear: 2025
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.START_CONSTRUCTION,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBeNull()
@@ -644,15 +558,11 @@ describe('timeline-validation', () => {
             readyForServiceYear: 2027
           }
 
-          const result = validateTimelineFinancialBoundaries(
+          const result = callValidation(
             payload,
             PROJECT_VALIDATION_LEVELS.READY_FOR_SERVICE,
             2025,
-            2026,
-            userId,
-            referenceNumber,
-            mockLogger,
-            mockH
+            2026
           )
 
           expect(result).toBe(mockH)
@@ -673,15 +583,11 @@ describe('timeline-validation', () => {
           startOutlineBusinessCaseYear: 2025
         }
 
-        const result = validateTimelineFinancialBoundaries(
+        const result = callValidation(
           payload,
           PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
           2025,
-          2026,
-          userId,
-          referenceNumber,
-          mockLogger,
-          mockH
+          2026
         )
 
         expect(result).toBe(mockH) // Before April
@@ -693,15 +599,11 @@ describe('timeline-validation', () => {
           startOutlineBusinessCaseYear: 2025
         }
 
-        const result = validateTimelineFinancialBoundaries(
+        const result = callValidation(
           payload,
           PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
           2025,
-          2026,
-          userId,
-          referenceNumber,
-          mockLogger,
-          mockH
+          2026
         )
 
         expect(result).toBeNull() // Within range
@@ -713,15 +615,11 @@ describe('timeline-validation', () => {
           startOutlineBusinessCaseYear: 2025
         }
 
-        const result = validateTimelineFinancialBoundaries(
+        const result = callValidation(
           payload,
           PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
           2025,
-          2025,
-          userId,
-          referenceNumber,
-          mockLogger,
-          mockH
+          2025
         )
 
         expect(result).toBe(mockH) // April 2025 is boundary - same as financial end, so invalid

@@ -162,10 +162,7 @@ const validateStandardTimeline = (context) => {
  * @param {string} validationLevel - The validation level being processed
  * @param {number} financialStartYear - Financial start year from database
  * @param {number} financialEndYear - Financial end year from database
- * @param {string} userId - User ID for logging
- * @param {string} referenceNumber - Project reference number for logging
- * @param {Object} logger - Logger instance
- * @param {Object} h - Hapi response toolkit
+ * @param {Object} context - Context object containing userId, referenceNumber, logger, and h
  * @returns {Object|null} Error response or null if valid
  */
 export const validateTimelineFinancialBoundaries = (
@@ -173,11 +170,9 @@ export const validateTimelineFinancialBoundaries = (
   validationLevel,
   financialStartYear,
   financialEndYear,
-  userId,
-  referenceNumber,
-  logger,
-  h
+  context
 ) => {
+  const { userId, referenceNumber, logger, h } = context
   const fieldConfig = TIMELINE_FIELD_CONFIG[validationLevel]
   if (!fieldConfig) {
     return null
@@ -190,7 +185,7 @@ export const validateTimelineFinancialBoundaries = (
     return null
   }
 
-  const context = {
+  const validationContext = {
     month,
     year,
     financialStartYear,
@@ -206,6 +201,6 @@ export const validateTimelineFinancialBoundaries = (
     validationLevel === PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
 
   return isEarliestWithGia
-    ? validateEarliestWithGia(context)
-    : validateStandardTimeline(context)
+    ? validateEarliestWithGia(validationContext)
+    : validateStandardTimeline(validationContext)
 }
