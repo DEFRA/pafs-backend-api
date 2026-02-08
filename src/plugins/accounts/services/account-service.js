@@ -326,6 +326,7 @@ export class AccountService {
     await this.prisma.pafs_core_users.update({
       where: { id: BigInt(userId) },
       data: {
+        inactivity_warning_sent_at: null,
         disabled: false,
         updated_at: new Date()
       }
