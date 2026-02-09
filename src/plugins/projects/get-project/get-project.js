@@ -1,9 +1,10 @@
 import { ProjectService } from '../services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 
-const getProjectOverview = {
+const getProject = {
   method: 'GET',
-  path: '/api/v1/project-proposal/proposal-overview/{referenceNumber}',
+  path: '/api/v1/project/{referenceNumber}',
   options: {
     auth: 'jwt',
     description: 'Get project overview by reference number',
@@ -13,17 +14,18 @@ const getProjectOverview = {
   },
   handler: async (request, h) => {
     try {
-      const referenceNumber = request.params.referenceNumber.replace(/-/g, '/')
+      const referenceNumber = request.params.referenceNumber.replaceAll(
+        '-',
+        '/'
+      )
       const projectService = new ProjectService(
         request.prisma,
         request.server.logger
       )
       const result =
-        await projectService.getProjectOverviewByReferenceNumber(
-          referenceNumber
-        )
+        await projectService.getProjectByReferenceNumber(referenceNumber)
 
-      return h.response(result).code(HTTP_STATUS.OK)
+      return buildSuccessResponse(h, result)
     } catch (error) {
       request.server.logger.error(
         { error },
@@ -38,4 +40,4 @@ const getProjectOverview = {
   }
 }
 
-export default getProjectOverview
+export default getProject

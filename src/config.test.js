@@ -270,4 +270,208 @@ describe('config', () => {
       expect(hasProductionPaths || hasNonProductionPaths).toBe(true)
     })
   })
+
+  describe('auth configuration', () => {
+    test('Should have JWT configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('auth.jwt.accessSecret')).toBeDefined()
+      expect(config.get('auth.jwt.refreshSecret')).toBeDefined()
+      expect(config.get('auth.jwt.accessExpiresIn')).toBe('15m')
+      expect(config.get('auth.jwt.refreshExpiresIn')).toBe('7d')
+    })
+
+    test('Should have account locking configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('auth.accountLocking.enabled')).toBe(true)
+      expect(config.get('auth.accountLocking.maxAttempts')).toBe(5)
+      expect(config.get('auth.accountLocking.lockDuration')).toBe(30)
+    })
+
+    test('Should have account disabling configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('auth.accountDisabling.enabled')).toBe(true)
+      expect(config.get('auth.accountDisabling.inactivityWarningDays')).toBe(
+        335
+      )
+      expect(config.get('auth.accountDisabling.inactivityDays')).toBe(365)
+    })
+
+    test('Should have password reset configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('auth.passwordReset.tokenExpiryHours')).toBe(6)
+    })
+
+    test('Should have invitation configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('auth.invitation.tokenExpiryHours')).toBe(720)
+    })
+
+    test('Should have password history configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('auth.passwordHistory.enabled')).toBe(true)
+      expect(config.get('auth.passwordHistory.limit')).toBe(5)
+    })
+  })
+
+  describe('notify configuration', () => {
+    test('Should have notify enabled by default', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('notify.enabled')).toBe(true)
+    })
+
+    test('Should have notify API key', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('notify.apiKey')).toBeDefined()
+    })
+
+    test('Should have all notify template IDs', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('notify.templatePasswordReset')).toBeDefined()
+      expect(config.get('notify.templateAccountVerification')).toBeDefined()
+      expect(
+        config.get('notify.templateAccountApprovedSetPassword')
+      ).toBeDefined()
+      expect(config.get('notify.templateAccountApprovedToAdmin')).toBeDefined()
+      expect(
+        config.get('notify.templateAccountInactivityWarning')
+      ).toBeDefined()
+      expect(config.get('notify.templateAccountReactivated')).toBeDefined()
+    })
+
+    test('Should have admin email configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('notify.adminEmail')).toBeDefined()
+    })
+  })
+
+  describe('email validation configuration', () => {
+    test('Should have auto-approved domains', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('emailValidation.autoApprovedDomains')).toBeDefined()
+    })
+
+    test('Should have all email validation checks enabled by default', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('emailValidation.checkDisposable')).toBe(true)
+      expect(config.get('emailValidation.checkDnsMx')).toBe(true)
+      expect(config.get('emailValidation.checkDuplicate')).toBe(true)
+    })
+  })
+
+  describe('scheduler configuration', () => {
+    test('Should have scheduler configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('scheduler.enabled')).toBeDefined()
+      expect(config.get('scheduler.lockTimeout')).toBe(300000)
+      expect(config.get('scheduler.lockRefreshInterval')).toBe(60000)
+      expect(config.get('scheduler.timezone')).toBe('Europe/London')
+    })
+
+    test('Should disable scheduler in test environment', async () => {
+      process.env.NODE_ENV = 'test'
+      delete require.cache[require.resolve('./config.js')]
+      const { config } = await import('./config.js?t=' + Date.now())
+      expect(config.get('scheduler.enabled')).toBe(false)
+    })
+  })
+
+  describe('cdp uploader configuration', () => {
+    test('Should have CDP uploader enabled by default', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.enabled')).toBe(true)
+    })
+
+    test('Should have CDP uploader base URL', async () => {
+      const { config } = await import('./config.js')
+      const baseUrl = config.get('cdpUploader.baseUrl')
+      expect(baseUrl).toBeDefined()
+      expect(typeof baseUrl).toBe('string')
+    })
+
+    test('Should have S3 configuration', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.s3Bucket')).toBe('pafs-uploads')
+      expect(config.get('cdpUploader.s3Path')).toBe('')
+    })
+
+    test('Should have file upload limits', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.maxFileSize')).toBe(20000000)
+      expect(config.get('cdpUploader.timeout')).toBe(30000)
+    })
+
+    test('Should have allowed MIME types configuration', async () => {
+      const { config } = await import('./config.js')
+      const mimeTypes = config.get('cdpUploader.allowedMimeTypes')
+      expect(mimeTypes).toContain('application/zip')
+      expect(mimeTypes).toContain('application/zip')
+    })
+
+    test('Should have allowed ZIP extensions configuration', async () => {
+      const { config } = await import('./config.js')
+      const extensions = config.get('cdpUploader.allowedZipExtensions')
+      expect(extensions).toContain('.dbf,.shx,.shp,.prj')
+    })
+  })
+
+  describe('pagination configuration', () => {
+    test('Should have pagination defaults', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('pagination.defaultPageSize')).toBe(20)
+      expect(config.get('pagination.maxPageSize')).toBe(10000)
+    })
+  })
+
+  describe('frontend URL configuration', () => {
+    test('Should have frontend URL', async () => {
+      const { config } = await import('./config.js')
+      const url = config.get('frontendUrl')
+      expect(url).toBeDefined()
+      expect(url).toMatch(/^https?:\/\//)
+    })
+  })
+
+  describe('sensitive configuration', () => {
+    test('Should have sensitive fields marked', async () => {
+      const { config } = await import('./config.js')
+      const schema = config.getSchema()
+
+      // Check that sensitive fields are marked
+      expect(
+        schema._cvtProperties.postgres._cvtProperties.password.sensitive
+      ).toBe(true)
+      expect(
+        schema._cvtProperties.auth._cvtProperties.jwt._cvtProperties
+          .accessSecret.sensitive
+      ).toBe(true)
+      expect(
+        schema._cvtProperties.auth._cvtProperties.jwt._cvtProperties
+          .refreshSecret.sensitive
+      ).toBe(true)
+      expect(schema._cvtProperties.notify._cvtProperties.apiKey.sensitive).toBe(
+        true
+      )
+    })
+  })
+
+  describe('config methods', () => {
+    test('Should support config.has()', async () => {
+      const { config } = await import('./config.js')
+      expect(config.has('host')).toBe(true)
+      expect(config.has('nonexistent')).toBe(false)
+    })
+
+    test('Should support config.toString()', async () => {
+      const { config } = await import('./config.js')
+      const configString = config.toString()
+      expect(typeof configString).toBe('string')
+      expect(configString.length).toBeGreaterThan(0)
+    })
+
+    test('Should have validated config', async () => {
+      const { config } = await import('./config.js')
+      // Config is validated on load, so this should not throw
+      expect(() => config.validate({ allowed: 'strict' })).not.toThrow()
+    })
+  })
 })

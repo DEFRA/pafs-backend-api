@@ -1,11 +1,11 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import getProjectOverview from './read-project-overview.js'
+import getProject from './get-project.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ProjectService } from '../services/project-service.js'
 
 vi.mock('../services/project-service.js')
 
-describe('getProjectOverview', () => {
+describe('getProject', () => {
   let mockRequest
   let mockH
   let mockLogger
@@ -38,24 +38,19 @@ describe('getProjectOverview', () => {
 
   describe('Route configuration', () => {
     test('Should have correct method', () => {
-      expect(getProjectOverview.method).toBe('GET')
+      expect(getProject.method).toBe('GET')
     })
 
     test('Should have correct path', () => {
-      expect(getProjectOverview.path).toBe(
-        '/api/v1/project-proposal/proposal-overview/{referenceNumber}'
-      )
+      expect(getProject.path).toBe('/api/v1/project/{referenceNumber}')
     })
 
     test('Should require JWT authentication', () => {
-      expect(getProjectOverview.options.auth).toBe('jwt')
+      expect(getProject.options.auth).toBe('jwt')
     })
 
     test('Should have proper tags', () => {
-      expect(getProjectOverview.options.tags).toEqual([
-        'api',
-        'referenceNumber'
-      ])
+      expect(getProject.options.tags).toEqual(['api', 'referenceNumber'])
     })
   })
 
@@ -67,15 +62,15 @@ describe('getProjectOverview', () => {
       }
 
       // Mock the service method implementation
-      ProjectService.prototype.getProjectOverviewByReferenceNumber.mockResolvedValue(
+      ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue(
         mockData
       )
 
-      const result = await getProjectOverview.handler(mockRequest, mockH)
+      const result = await getProject.handler(mockRequest, mockH)
 
       // Verify reference number formatting (hyphens replaced with slashes)
       expect(
-        ProjectService.prototype.getProjectOverviewByReferenceNumber
+        ProjectService.prototype.getProjectByReferenceNumber
       ).toHaveBeenCalledWith('RM/2023/001')
 
       expect(mockH.response).toHaveBeenCalledWith(mockData)
@@ -85,11 +80,11 @@ describe('getProjectOverview', () => {
 
     test('Should handle errors gracefully', async () => {
       const error = new Error('Database error')
-      ProjectService.prototype.getProjectOverviewByReferenceNumber.mockRejectedValue(
+      ProjectService.prototype.getProjectByReferenceNumber.mockRejectedValue(
         error
       )
 
-      const result = await getProjectOverview.handler(mockRequest, mockH)
+      const result = await getProject.handler(mockRequest, mockH)
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         { error },

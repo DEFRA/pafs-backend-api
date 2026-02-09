@@ -3,10 +3,15 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { validateProjectName } from '../schema.js'
 import { PROPOSAL_ERROR_MESSAGES } from '../../../common/constants/project.js'
+import {
+  buildValidationErrorResponse,
+  buildErrorResponse,
+  buildSuccessResponse
+} from '../../../common/helpers/response-builder.js'
 
 const checkProjectName = {
   method: 'POST',
-  path: '/api/v1/project-proposal/check-name',
+  path: '/api/v1/project/check-name',
   options: {
     auth: 'jwt',
     description: 'Check if project name exists',
@@ -28,30 +33,24 @@ const checkProjectName = {
         const result = await projectService.checkDuplicateProjectName(payload)
 
         if (!result.isValid) {
-          return h
-            .response({ validationErrors: result.errors })
-            .code(HTTP_STATUS.BAD_REQUEST)
+          return buildValidationErrorResponse(h, HTTP_STATUS.BAD_REQUEST, [
+            result.errors
+          ])
         }
 
-        return h
-          .response({
-            name: payload.name,
-            valid: true
-          })
-          .code(HTTP_STATUS.OK)
+        return buildSuccessResponse(h, {
+          name: payload.name,
+          valid: true
+        })
       } catch (error) {
         request.server.logger.error({ error }, 'Name validation failed')
-        return h
-          .response({
-            errors: [
-              {
-                errorCode: PROPOSAL_ERROR_MESSAGES.NAME_VALIDATION_ERROR,
-                message: 'An error occurred while validating the name',
-                field: null
-              }
-            ]
-          })
-          .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        return buildErrorResponse(h, HTTP_STATUS.INTERNAL_SERVER_ERROR, [
+          {
+            errorCode: PROPOSAL_ERROR_MESSAGES.NAME_VALIDATION_ERROR,
+            message: 'An error occurred while validating the name',
+            field: 'name'
+          }
+        ])
       }
     }
   }

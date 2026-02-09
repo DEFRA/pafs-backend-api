@@ -33,6 +33,40 @@ model databasechangeloglock {
   lockedby    String?   @db.VarChar(255)
 }
 
+model file_uploads {
+  id                       BigInt           @id @default(autoincrement())
+  upload_id                String           @unique @db.VarChar(255)
+  file_id                  String?          @db.VarChar(255)
+  filename                 String?          @db.VarChar(500)
+  original_filename        String?          @db.VarChar(500)
+  content_type             String?          @db.VarChar(255)
+  detected_content_type    String?          @db.VarChar(255)
+  content_length           BigInt?
+  checksum_sha256          String?          @db.VarChar(255)
+  upload_status            String           @db.VarChar(50)
+  file_status              String?          @db.VarChar(50)
+  rejection_reason         String?
+  number_of_rejected_files Int              @default(0)
+  s3_bucket                String?          @db.VarChar(255)
+  s3_key                   String?          @db.VarChar(1000)
+  entity_type              String?          @db.VarChar(100)
+  entity_id                BigInt?
+  reference                String?          @db.VarChar(255)
+  uploaded_by_user_id      BigInt?
+  metadata                 Json?
+  created_at               DateTime         @default(now()) @db.Timestamp(6)
+  updated_at               DateTime         @default(now()) @db.Timestamp(6)
+  completed_at             DateTime?        @db.Timestamp(6)
+  pafs_core_users          pafs_core_users? @relation(fields: [uploaded_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_file_uploads_user")
+
+  @@index([created_at], map: "idx_file_uploads_created_at")
+  @@index([entity_type, entity_id], map: "idx_file_uploads_entity")
+  @@index([reference], map: "idx_file_uploads_reference")
+  @@index([upload_status], map: "idx_file_uploads_status")
+  @@index([upload_id], map: "idx_file_uploads_upload_id")
+  @@index([uploaded_by_user_id], map: "idx_file_uploads_user")
+}
+
 model old_passwords {
   id                       BigInt    @id @default(autoincrement())
   encrypted_password       String    @db.VarChar(255)
@@ -307,6 +341,10 @@ model pafs_core_projects {
   created_at                                                  DateTime                         @db.Timestamp(6)
   updated_at                                                  DateTime                         @db.Timestamp(6)
   is_legacy                                                   Boolean                          @default(true)
+  benefit_area_file_s3_bucket                                 String?                          @db.VarChar(255)
+  benefit_area_file_s3_key                                    String?                          @db.VarChar(1000)
+  benefit_area_file_download_url                              String?
+  benefit_area_file_download_expiry                           DateTime?                        @db.Timestamp(6)
   pafs_core_nfm_land_use_changes                              pafs_core_nfm_land_use_changes[]
   pafs_core_nfm_measures                                      pafs_core_nfm_measures[]
 
@@ -314,6 +352,7 @@ model pafs_core_projects {
   @@index([reference_number], map: "index_pafs_core_projects_on_reference_number")
   @@index([submitted_to_pol], map: "index_pafs_core_projects_on_submitted_to_pol")
   @@index([updated_by_type, updated_by_id], map: "index_pafs_core_projects_on_updated_by")
+  @@index([benefit_area_file_s3_bucket, benefit_area_file_s3_key], map: "idx_core_projects_benefit_area_s3")
 }
 
 model pafs_core_reference_counters {
@@ -382,6 +421,7 @@ model pafs_core_users {
   telephone_number           String?                @db.VarChar(255)
   status                     String                 @default("active") @db.VarChar(255)
   inactivity_warning_sent_at DateTime?              @db.Timestamp(6)
+  file_uploads               file_uploads[]
   pafs_core_user_areas       pafs_core_user_areas[]
 
   @@index([disabled], map: "index_pafs_core_users_on_disabled")

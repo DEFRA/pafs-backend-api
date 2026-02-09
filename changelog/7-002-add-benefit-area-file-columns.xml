@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="7-002-add-benefit-area-file-columns" author="migration-team">
+    <comment>Add benefit area file columns to pafs_core_projects table</comment>
+
+    <addColumn tableName="pafs_core_projects">
+      <column name="benefit_area_file_s3_bucket" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+    </addColumn>
+
+    <addColumn tableName="pafs_core_projects">
+      <column name="benefit_area_file_s3_key" type="VARCHAR(1000)">
+        <constraints nullable="true"/>
+      </column>
+    </addColumn>
+
+    <addColumn tableName="pafs_core_projects">
+      <column name="benefit_area_file_download_url" type="TEXT">
+        <constraints nullable="true"/>
+      </column>
+    </addColumn>
+
+    <addColumn tableName="pafs_core_projects">
+      <column name="benefit_area_file_download_expiry" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="true"/>
+      </column>
+    </addColumn>
+
+    <!-- Create index for S3 bucket/key lookup -->
+    <createIndex indexName="idx_core_projects_benefit_area_s3" tableName="pafs_core_projects">
+      <column name="benefit_area_file_s3_bucket"/>
+      <column name="benefit_area_file_s3_key"/>
+    </createIndex>
+  </changeSet>
+</databaseChangeLog>

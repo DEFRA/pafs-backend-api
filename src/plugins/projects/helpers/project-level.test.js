@@ -8,7 +8,7 @@ describe('project-level', () => {
       expect(VALIDATION_LEVELS.INITIAL_SAVE.name).toBe('INITIAL_SAVE')
       expect(VALIDATION_LEVELS.INITIAL_SAVE.fields).toBeDefined()
       expect(VALIDATION_LEVELS.INITIAL_SAVE.fields.name).toBeDefined()
-      expect(VALIDATION_LEVELS.INITIAL_SAVE.fields.rmaId).toBeDefined()
+      expect(VALIDATION_LEVELS.INITIAL_SAVE.fields.areaId).toBeDefined()
       expect(VALIDATION_LEVELS.INITIAL_SAVE.fields.projectType).toBeDefined()
     })
 
@@ -19,6 +19,15 @@ describe('project-level', () => {
         VALIDATION_LEVELS.PROJECT_NAME.fields.referenceNumber
       ).toBeDefined()
       expect(VALIDATION_LEVELS.PROJECT_NAME.fields.name).toBeDefined()
+    })
+
+    it('should define PROJECT_AREA level', () => {
+      expect(VALIDATION_LEVELS.PROJECT_AREA).toBeDefined()
+      expect(VALIDATION_LEVELS.PROJECT_AREA.name).toBe('PROJECT_AREA')
+      expect(
+        VALIDATION_LEVELS.PROJECT_AREA.fields.referenceNumber
+      ).toBeDefined()
+      expect(VALIDATION_LEVELS.PROJECT_AREA.fields.areaId).toBeDefined()
     })
 
     it('should define PROJECT_TYPE level', () => {
@@ -118,7 +127,7 @@ describe('project-level', () => {
 
       const validData = {
         name: 'Test_Project',
-        rmaId: '1',
+        areaId: 1,
         projectType: 'DEF',
         projectInterventionTypes: ['NFM'],
         mainInterventionType: 'NFM',

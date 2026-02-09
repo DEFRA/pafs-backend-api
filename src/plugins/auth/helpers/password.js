@@ -9,7 +9,9 @@ export async function hashPassword(plainPassword) {
 }
 
 export async function verifyPassword(plainPassword, hashedPassword) {
-  if (!hashedPassword?.startsWith(PASSWORD.BCRYPT_PREFIX)) {
+  // Accept bcrypt hashes with valid prefixes
+  // $2a: Original bcrypt, $2b: OpenBSD/Ruby on Rails, $2x/$2y: Other variants
+  if (!hashedPassword?.match(PASSWORD.BCRYPT_VALID_PREFIXES)) {
     return false
   }
 

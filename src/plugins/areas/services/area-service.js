@@ -460,7 +460,7 @@ export class AreaService {
     }
 
     // If PSO area, return sub_type directly (contains RFCC code)
-    if (this.#isPsoArea(area.area_type)) {
+    if (this._isPsoArea(area.area_type)) {
       return area.sub_type || null
     }
 
@@ -471,7 +471,7 @@ export class AreaService {
         select: { area_type: true, sub_type: true }
       })
 
-      if (parentArea && this.#isPsoArea(parentArea.area_type)) {
+      if (parentArea && this._isPsoArea(parentArea.area_type)) {
         return parentArea.sub_type || null
       }
     }
@@ -648,7 +648,7 @@ export class AreaService {
    * @returns {boolean}
    * @private
    */
-  #isPsoArea(areaType) {
+  _isPsoArea(areaType) {
     const normalized = areaType?.toUpperCase()
     return (
       normalized === 'PSO' || normalized === AREA_TYPE_MAP.PSO?.toUpperCase()
