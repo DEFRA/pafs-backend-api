@@ -20,7 +20,17 @@ import {
   readyForServiceYearSchema,
   couldStartEarlySchema,
   earliestWithGiaMonthSchema,
-  earliestWithGiaYearSchema
+  earliestWithGiaYearSchema,
+  projectRisksProtectedAgainstSchema,
+  mainSourceOfRiskSchema,
+  noPropertiesAtFloodRiskSchema,
+  propertiesBenefitMaintainingAssetsSchema,
+  propertiesBenefit50PercentReductionSchema,
+  propertiesBenefitLess50PercentReductionSchema,
+  propertiesBenefitIndividualInterventionSchema,
+  noPropertiesAtCoastalErosionRiskSchema,
+  propertiesBenefitMaintainingAssetsCoastalSchema,
+  propertiesBenefitInvestmentCoastalErosionSchema
 } from '../../../common/schemas/project.js'
 import {
   PROJECT_VALIDATION_MESSAGES,
@@ -155,6 +165,59 @@ export const VALIDATION_LEVELS = {
       couldStartEarly: couldStartEarlySchema,
       earliestWithGiaMonth: earliestWithGiaMonthSchema,
       earliestWithGiaYear: earliestWithGiaYearSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.RISK]: {
+    name: PROJECT_VALIDATION_LEVELS.RISK,
+    fields: {
+      referenceNumber,
+      risks: projectRisksProtectedAgainstSchema,
+      // Optional property fields to allow clearing when risks change
+      noPropertiesAtRisk: noPropertiesAtFloodRiskSchema.optional().allow(null),
+      maintainingExistingAssets: propertiesBenefitMaintainingAssetsSchema,
+      reducingFloodRisk50Plus: propertiesBenefit50PercentReductionSchema,
+      reducingFloodRiskLess50: propertiesBenefitLess50PercentReductionSchema,
+      increasingFloodResilience: propertiesBenefitIndividualInterventionSchema,
+      noPropertiesAtCoastalErosionRisk: noPropertiesAtCoastalErosionRiskSchema
+        .optional()
+        .allow(null),
+      propertiesBenefitMaintainingAssetsCoastal:
+        propertiesBenefitMaintainingAssetsCoastalSchema,
+      propertiesBenefitInvestmentCoastalErosion:
+        propertiesBenefitInvestmentCoastalErosionSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.MAIN_RISK]: {
+    name: PROJECT_VALIDATION_LEVELS.MAIN_RISK,
+    fields: {
+      referenceNumber,
+      mainRisk: mainSourceOfRiskSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_FLOODING]: {
+    name: PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_FLOODING,
+    fields: {
+      referenceNumber,
+      noPropertiesAtRisk: noPropertiesAtFloodRiskSchema,
+      maintainingExistingAssets: propertiesBenefitMaintainingAssetsSchema,
+      reducingFloodRisk50Plus: propertiesBenefit50PercentReductionSchema,
+      reducingFloodRiskLess50: propertiesBenefitLess50PercentReductionSchema,
+      increasingFloodResilience: propertiesBenefitIndividualInterventionSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION]: {
+    name: PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION,
+    fields: {
+      referenceNumber,
+      noPropertiesAtCoastalErosionRisk: noPropertiesAtCoastalErosionRiskSchema,
+      propertiesBenefitMaintainingAssetsCoastal:
+        propertiesBenefitMaintainingAssetsCoastalSchema,
+      propertiesBenefitInvestmentCoastalErosion:
+        propertiesBenefitInvestmentCoastalErosionSchema
     }
   }
 

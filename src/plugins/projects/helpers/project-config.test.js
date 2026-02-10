@@ -49,7 +49,20 @@ describe('project-config', () => {
         readyForServiceYear: 'ready_for_service_year',
         couldStartEarly: 'could_start_early',
         earliestWithGiaMonth: 'earliest_with_gia_month',
-        earliestWithGiaYear: 'earliest_with_gia_year'
+        earliestWithGiaYear: 'earliest_with_gia_year',
+        risks: 'project_risks_protected_against',
+        mainRisk: 'main_source_of_risk',
+        noPropertiesAtRisk: 'no_properties_at_flood_risk',
+        maintainingExistingAssets: 'properties_benefit_maintaining_assets',
+        reducingFloodRisk50Plus: 'properties_benefit_50_percent_reduction',
+        reducingFloodRiskLess50: 'properties_benefit_less_50_percent_reduction',
+        increasingFloodResilience: 'properties_benefit_individual_intervention',
+        noPropertiesAtCoastalErosionRisk:
+          'no_properties_at_coastal_erosion_risk',
+        propertiesBenefitMaintainingAssetsCoastal:
+          'properties_benefit_maintaining_assets_coastal',
+        propertiesBenefitInvestmentCoastalErosion:
+          'properties_benefit_investment_coastal_erosion'
       })
     })
 
@@ -61,6 +74,20 @@ describe('project-config', () => {
       expect(PROJECT_FIELDS_MAP).toHaveProperty('mainInterventionType')
       expect(PROJECT_FIELDS_MAP).toHaveProperty('financialStartYear')
       expect(PROJECT_FIELDS_MAP).toHaveProperty('financialEndYear')
+      // Risk and properties fields
+      expect(PROJECT_FIELDS_MAP).toHaveProperty('risks')
+      expect(PROJECT_FIELDS_MAP).toHaveProperty('mainRisk')
+      expect(PROJECT_FIELDS_MAP).toHaveProperty('noPropertiesAtRisk')
+      expect(PROJECT_FIELDS_MAP).toHaveProperty('maintainingExistingAssets')
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'noPropertiesAtCoastalErosionRisk'
+      )
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'propertiesBenefitMaintainingAssetsCoastal'
+      )
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'propertiesBenefitInvestmentCoastalErosion'
+      )
     })
 
     it('should have snake_case database column names', () => {
@@ -68,7 +95,7 @@ describe('project-config', () => {
       values.forEach((value) => {
         if (value !== 'name') {
           // 'name' is same in both
-          expect(value).toMatch(/^[a-z_]+$/)
+          expect(value).toMatch(/^[a-z0-9_]+$/)
         }
       })
     })
@@ -96,8 +123,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 34 total fields (20 common + 6 read-only + 8 benefit area file)', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(34)
+    it('should have 44 total fields (20 common + 6 read-only + 8 benefit area file + 10 risk/property)', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(44)
     })
   })
 
@@ -149,9 +176,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 34 fields', () => {
+    it('should return an object with 44 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(34)
+      expect(Object.keys(result)).toHaveLength(44)
     })
 
     it('should return a new object each time', () => {

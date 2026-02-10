@@ -88,6 +88,11 @@ export class ProjectMapper {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
 
+    if (field === 'risks') {
+      // Convert array to comma-separated string for database
+      return Array.isArray(value) ? value.join(',') : value
+    }
+
     if (field === 'financialStartYear' || field === 'financialEndYear') {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
@@ -106,6 +111,13 @@ export class ProjectMapper {
   static reverseTransformValue(field, value) {
     if (field === 'projectInterventionTypes') {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_API)
+    }
+
+    if (field === 'risks') {
+      // Convert comma-separated string back to array for API
+      return value && typeof value === 'string'
+        ? value.split(',').map((r) => r.trim())
+        : value
     }
 
     if (

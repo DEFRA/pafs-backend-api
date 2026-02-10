@@ -2,7 +2,8 @@ import Joi from 'joi'
 import {
   PROJECT_INTERVENTION_TYPES,
   PROJECT_TYPES,
-  PROJECT_VALIDATION_MESSAGES
+  PROJECT_VALIDATION_MESSAGES,
+  PROJECT_RISK_TYPES
 } from '../constants/project.js'
 import { SIZE, PATTERN } from '../constants/common.js'
 
@@ -618,3 +619,160 @@ export const earliestWithGiaYearSchema = Joi.when('couldStartEarly', {
   then: yearSchema.label('earliestWithGiaYear'),
   otherwise: Joi.forbidden()
 })
+
+/**
+ * Project risks protected against schema (API format)
+ * Accepts array of risk types from frontend
+ * Will be converted to comma-separated string by ProjectMapper
+ * Valid risk types defined in PROJECT_RISK_TYPES
+ */
+export const projectRisksProtectedAgainstSchema = Joi.array()
+  .items(Joi.string().valid(...Object.values(PROJECT_RISK_TYPES)))
+  .min(SIZE.LENGTH_1)
+  .required()
+  .label('risks')
+  .messages({
+    'array.min': PROJECT_VALIDATION_MESSAGES.RISKS_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.RISKS_REQUIRED,
+    'any.only': PROJECT_VALIDATION_MESSAGES.RISKS_INVALID
+  })
+
+/**
+ * Main source of risk schema (API format)
+ * Accepts single risk type string from frontend
+ * Database field: main_source_of_risk (String - single value from PROJECT_RISK_TYPES)
+ */
+export const mainSourceOfRiskSchema = Joi.string()
+  .trim()
+  .required()
+  .valid(...Object.values(PROJECT_RISK_TYPES))
+  .label('mainRisk')
+  .messages({
+    'string.empty': PROJECT_VALIDATION_MESSAGES.MAIN_RISK_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.MAIN_RISK_REQUIRED,
+    'any.only': PROJECT_VALIDATION_MESSAGES.MAIN_RISK_INVALID
+  })
+
+/**
+ * No properties at flood risk schema (API format)
+ * Database field: no_properties_at_flood_risk (Boolean)
+ */
+export const noPropertiesAtFloodRiskSchema = Joi.boolean()
+  .required()
+  .label('noPropertiesAtRisk')
+  .messages({
+    'boolean.base':
+      PROJECT_VALIDATION_MESSAGES.NO_PROPERTIES_AT_FLOOD_RISK_INVALID,
+    'any.required':
+      PROJECT_VALIDATION_MESSAGES.NO_PROPERTIES_AT_FLOOD_RISK_REQUIRED
+  })
+
+/**
+ * Properties benefit maintaining assets schema (API format)
+ * Database field: properties_benefit_maintaining_assets (Int)
+ */
+export const propertiesBenefitMaintainingAssetsSchema = Joi.number()
+  .integer()
+  .min(0)
+  .optional()
+  .allow(null)
+  .label('maintainingExistingAssets')
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
+  })
+
+/**
+ * Properties benefit 50 percent reduction schema (API format)
+ * Database field: properties_benefit_50_percent_reduction (Int)
+ */
+export const propertiesBenefit50PercentReductionSchema = Joi.number()
+  .integer()
+  .min(0)
+  .optional()
+  .allow(null)
+  .label('reducingFloodRisk50Plus')
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
+  })
+
+/**
+ * Properties benefit less 50 percent reduction schema (API format)
+ * Database field: properties_benefit_less_50_percent_reduction (Int)
+ */
+export const propertiesBenefitLess50PercentReductionSchema = Joi.number()
+  .integer()
+  .min(0)
+  .optional()
+  .allow(null)
+  .label('reducingFloodRiskLess50')
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
+  })
+
+/**
+ * Properties benefit individual intervention schema (API format)
+ * Database field: properties_benefit_individual_intervention (Int)
+ */
+export const propertiesBenefitIndividualInterventionSchema = Joi.number()
+  .integer()
+  .min(0)
+  .optional()
+  .allow(null)
+  .label('increasingFloodResilience')
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
+  })
+
+/**
+ * No properties at coastal erosion risk schema (API format)
+ * Database field: no_properties_at_coastal_erosion_risk (Boolean)
+ */
+export const noPropertiesAtCoastalErosionRiskSchema = Joi.boolean()
+  .required()
+  .label('noPropertiesAtCoastalErosionRisk')
+  .messages({
+    'boolean.base':
+      PROJECT_VALIDATION_MESSAGES.NO_PROPERTIES_AT_COASTAL_EROSION_RISK_INVALID,
+    'any.required':
+      PROJECT_VALIDATION_MESSAGES.NO_PROPERTIES_AT_COASTAL_EROSION_RISK_REQUIRED
+  })
+
+/**
+ * Properties benefit maintaining assets coastal schema (API format)
+ * Database field: properties_benefit_maintaining_assets_coastal (Int)
+ */
+export const propertiesBenefitMaintainingAssetsCoastalSchema = Joi.number()
+  .integer()
+  .min(0)
+  .optional()
+  .allow(null)
+  .label('propertiesBenefitMaintainingAssetsCoastal')
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
+  })
+
+/**
+ * Properties benefit investment coastal erosion schema (API format)
+ * Database field: properties_benefit_investment_coastal_erosion (Int)
+ */
+export const propertiesBenefitInvestmentCoastalErosionSchema = Joi.number()
+  .integer()
+  .min(0)
+  .optional()
+  .allow(null)
+  .label('propertiesBenefitInvestmentCoastalErosion')
+  .messages({
+    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
+  })
