@@ -1,5 +1,6 @@
 import { HTTP_STATUS } from '../../../../common/constants/index.js'
 import { PROJECT_VALIDATION_MESSAGES } from '../../../../common/constants/project.js'
+import { buildErrorResponse } from '../../../../common/helpers/response-builder.js'
 
 /**
  * Validates project existence for update operations
@@ -21,18 +22,18 @@ export const validateProjectExists = async (
       'Attempted to update non-existent project'
     )
     return {
-      error: h
-        .response({
-          statusCode: HTTP_STATUS.NOT_FOUND,
-          errors: [
-            {
-              errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA,
-              message:
-                'Project with the specified reference number does not exist'
-            }
-          ]
-        })
-        .code(HTTP_STATUS.NOT_FOUND)
+      error: buildErrorResponse(
+        h,
+        HTTP_STATUS.NOT_FOUND,
+        [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA,
+            message:
+              'Project with the specified reference number does not exist'
+          }
+        ],
+        true
+      )
     }
   }
 

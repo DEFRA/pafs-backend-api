@@ -1,8 +1,6 @@
-import {
-  HTTP_STATUS,
-  FILE_UPLOAD_VALIDATION_CODES
-} from '../../../common/constants/index.js'
 import { config } from '../../../config.js'
+import AdmZip from 'adm-zip'
+import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
 
 // Get allowed ZIP extensions from config
 const getAllowedZipExtensions = () =>
@@ -16,58 +14,6 @@ export const getAllowedMimeTypes = () =>
     .get('cdpUploader.allowedMimeTypes')
     .split(',')
     .map((ext) => ext.trim())
-
-/**
- * Validate upload record exists
- *
- * @param {Object} uploadRecord - Upload record from database
- * @param {Object} h - Hapi response toolkit
- * @returns {Object|null} Error response or null if valid
- */
-export function validateUploadExists(uploadRecord, h) {
-  if (!uploadRecord) {
-    return h
-      .response({
-        validationErrors: [
-          {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.UPLOAD_NOT_FOUND,
-            message: 'File upload not found'
-          }
-        ]
-      })
-      .code(HTTP_STATUS.NOT_FOUND)
-  }
-  return null
-}
-
-/**
- * Validate S3 information exists
- *
- * @param {Object} uploadRecord - Upload record from database
- * @param {Object} h - Hapi response toolkit
- * @param {Object} logger - Logger instance
- * @param {string} uploadId - Upload ID for logging
- * @returns {Object|null} Error response or null if valid
- */
-export function validateS3Information(uploadRecord, h, logger, uploadId) {
-  if (!uploadRecord.s3_bucket || !uploadRecord.s3_key) {
-    logger.error(
-      { uploadId, uploadRecord },
-      'Upload record missing S3 information'
-    )
-    return h
-      .response({
-        validationErrors: [
-          {
-            errorCode: FILE_UPLOAD_VALIDATION_CODES.MISSING_S3_INFO,
-            message: 'File storage information is missing'
-          }
-        ]
-      })
-      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  }
-  return null
-}
 
 /**
  * Validate ZIP file contains all required shapefile extensions
@@ -85,18 +31,20 @@ export function validateZipContents(filenames) {
   // Get required extensions from config
   const requiredExtensions = getAllowedZipExtensions()
 
-  // Extract extensions from filenames
-  const fileExtensions = filenames.map((filename) => {
-    const ext = filename.split('.').pop()?.toLowerCase()
-    return ext ? `.${ext}` : ''
-  })
+  // Extract extensions from filenames into a Set for efficient lookup
+  const fileExtensions = new Set(
+    filenames.map((filename) => {
+      const ext = filename.split('.').pop()?.toLowerCase()
+      return ext ? `.${ext}` : ''
+    })
+  )
 
   // Check that all required extensions are present
   const missingExtensions = requiredExtensions.filter((required) => {
     const normalizedRequired = required.startsWith('.')
       ? required
       : `.${required}`
-    return !fileExtensions.includes(normalizedRequired.toLowerCase())
+    return !fileExtensions.has(normalizedRequired.toLowerCase())
   })
 
   if (missingExtensions.length > 0) {
@@ -107,4 +55,86 @@ export function validateZipContents(filenames) {
   }
 
   return { isValid: true }
+}
+
+/**
+ * Validate ZIP file from S3 by reading its contents and checking file extensions
+ * Deletes the file from S3 if validation fails
+ *
+ * @param {string} bucket - S3 bucket name
+ * @param {string} key - S3 object key
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<{isValid: boolean, message?: string, filenames?: Array<string>}>} Validation result
+ */
+export async function validateZipFileFromS3(bucket, key, logger) {
+  try {
+    // Get S3 service instance
+    const s3Service = getS3Service(logger)
+
+    // Download the ZIP file from S3
+    logger.info({ bucket, key }, 'Downloading ZIP file from S3 for validation')
+    const fileBuffer = await s3Service.getObject(bucket, key)
+
+    // Read ZIP contents
+    const zip = new AdmZip(fileBuffer)
+    const zipEntries = zip.getEntries()
+
+    // Extract filenames from ZIP
+    const filenames = zipEntries
+      .filter((entry) => !entry.isDirectory)
+      .map((entry) => entry.entryName)
+
+    logger.info(
+      { bucket, key, fileCount: filenames.length },
+      'Extracted filenames from ZIP'
+    )
+
+    // Validate ZIP contents against required extensions
+    const validationResult = validateZipContents(filenames)
+
+    if (!validationResult.isValid) {
+      logger.warn(
+        {
+          bucket,
+          key,
+          filenames,
+          message: validationResult.message
+        },
+        'ZIP validation failed - deleting file from S3'
+      )
+
+      // Delete the file from S3 since validation failed
+      await s3Service.deleteObject(bucket, key)
+
+      logger.info({ bucket, key }, 'Failed validation file deleted from S3')
+
+      return {
+        isValid: false,
+        message: validationResult.message
+      }
+    }
+
+    logger.info({ bucket, key, filenames }, 'ZIP validation successful')
+
+    return {
+      isValid: true,
+      filenames
+    }
+  } catch (error) {
+    logger.error(
+      {
+        err: error,
+        bucket,
+        key
+      },
+      'Failed to validate ZIP file from S3'
+    )
+
+    // Return validation failure if we can't read/process the file
+    return {
+      isValid: false,
+      message:
+        'Failed to validate uploaded file. Please ensure it is a valid ZIP file.'
+    }
+  }
 }

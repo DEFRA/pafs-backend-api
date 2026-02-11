@@ -74,8 +74,8 @@ async function createUploadRecord(
 function buildSuccessResponse(
   h,
   uploadSession,
-  cdpUploader,
-  serverUri,
+  _cdpUploader,
+  _serverUri,
   reference
 ) {
   return h

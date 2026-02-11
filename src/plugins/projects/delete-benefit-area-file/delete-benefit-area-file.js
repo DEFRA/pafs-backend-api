@@ -1,20 +1,18 @@
 import Joi from 'joi'
+import { FILE_UPLOAD_VALIDATION_CODES } from '../../../common/constants/index.js'
 import {
-  HTTP_STATUS,
-  FILE_UPLOAD_VALIDATION_CODES
-} from '../../../common/constants/index.js'
-import {
-  getProjectByReference,
   deleteFromS3,
-  clearBenefitAreaFile
+  clearBenefitAreaFile,
+  withBenefitAreaFileValidation
 } from '../helpers/benefit-area-file-helper.js'
+import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 
 /**
  * Delete benefit area file - removes from S3 and clears metadata
  */
 export default {
   method: 'DELETE',
-  path: '/api/v1/projects/{referenceNumber}/benefit-area-file',
+  path: '/api/v1/project/{referenceNumber}/benefit-area-file',
   options: {
     auth: 'jwt',
     description: 'Delete benefit area file',
@@ -27,69 +25,33 @@ export default {
     }
   },
   handler: async (request, h) => {
-    const { logger, prisma } = request.server
-    const { referenceNumber } = request.params
+    return withBenefitAreaFileValidation(
+      request,
+      h,
+      async (project, req) => {
+        const { logger, prisma } = req.server
 
-    try {
-      const project = await getProjectByReference(prisma, referenceNumber)
+        await deleteFromS3(
+          project.benefit_area_file_s3_bucket,
+          project.benefit_area_file_s3_key,
+          logger
+        )
 
-      if (!project) {
-        return h
-          .response({
-            validationErrors: [
-              {
-                errorCode: FILE_UPLOAD_VALIDATION_CODES.PROJECT_NOT_FOUND,
-                message: `Project ${referenceNumber} not found`
-              }
-            ]
-          })
-          .code(HTTP_STATUS.NOT_FOUND)
-      }
+        await clearBenefitAreaFile(prisma, project.reference_number)
 
-      if (
-        !project.benefit_area_file_s3_bucket ||
-        !project.benefit_area_file_s3_key
-      ) {
-        return h
-          .response({
-            validationErrors: [
-              {
-                errorCode:
-                  FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
-                message: 'No benefit area file found for this project'
-              }
-            ]
-          })
-          .code(HTTP_STATUS.NOT_FOUND)
-      }
+        logger.info(
+          { referenceNumber: project.reference_number },
+          'File deleted successfully'
+        )
 
-      await deleteFromS3(
-        project.benefit_area_file_s3_bucket,
-        project.benefit_area_file_s3_key,
-        logger
-      )
-
-      await clearBenefitAreaFile(prisma, referenceNumber)
-
-      logger.info({ referenceNumber }, 'File deleted successfully')
-
-      return h.response({
-        success: true,
-        message: 'Benefit area file deleted successfully'
-      })
-    } catch (error) {
-      logger.error({ err: error, referenceNumber }, 'Delete failed')
-      return h
-        .response({
-          validationErrors: [
-            {
-              errorCode:
-                FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DELETE_FAILED,
-              message: `Failed to delete file: ${error.message}`
-            }
-          ]
+        return buildSuccessResponse(h, {
+          success: true,
+          message: 'Benefit area file deleted successfully'
         })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    }
+      },
+      FILE_UPLOAD_VALIDATION_CODES.FILE_DELETE_FAILED,
+      'delete file',
+      'Delete'
+    )
   }
 }

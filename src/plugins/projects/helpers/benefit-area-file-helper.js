@@ -1,27 +1,63 @@
 import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
-import { DOWNLOAD_URL_EXPIRES_IN } from '../../../common/constants/index.js'
+import {
+  DOWNLOAD_URL_EXPIRES_IN,
+  HTTP_STATUS
+} from '../../../common/constants/index.js'
+import { validateProjectWithBenefitAreaFile } from './benefit-area-validation-helper.js'
+import { buildValidationErrorResponse } from '../../../common/helpers/response-builder.js'
 
 /**
- * Get project by reference number (version always 1)
+ * Common handler wrapper for benefit area file operations
+ * Handles validation and error handling consistently
  */
-export async function getProjectByReference(prisma, referenceNumber) {
-  return prisma.pafs_core_projects.findFirst({
-    where: {
-      reference_number: referenceNumber,
-      version: 1
+export async function withBenefitAreaFileValidation(
+  request,
+  h,
+  operation,
+  errorCode,
+  operationName,
+  logName = null
+) {
+  const { logger } = request.server
+
+  try {
+    const validation = await validateProjectWithBenefitAreaFile(request, h)
+    if (validation.error) {
+      return validation.error
     }
-  })
+
+    const { project } = validation
+    return await operation(project, request, h)
+  } catch (error) {
+    const referenceNumber = request.params.referenceNumber
+    // Use logName if provided, otherwise capitalize operationName
+    const logMessage =
+      logName || operationName.charAt(0).toUpperCase() + operationName.slice(1)
+    logger.error({ err: error, referenceNumber }, `${logMessage} failed`)
+    return buildValidationErrorResponse(h, HTTP_STATUS.INTERNAL_SERVER_ERROR, [
+      {
+        errorCode,
+        message: `Failed to ${operationName}: ${error.message}`
+      }
+    ])
+  }
 }
 
 /**
  * Generate presigned download URL with expiry
  */
-export async function generateDownloadUrl(s3Bucket, s3Key, logger) {
+export async function generateDownloadUrl(
+  s3Bucket,
+  s3Key,
+  logger,
+  filename = null
+) {
   const s3Service = getS3Service(logger)
   const downloadUrl = await s3Service.getPresignedDownloadUrl(
     s3Bucket,
     s3Key,
-    DOWNLOAD_URL_EXPIRES_IN
+    DOWNLOAD_URL_EXPIRES_IN,
+    filename
   )
   return {
     downloadUrl,

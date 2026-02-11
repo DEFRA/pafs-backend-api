@@ -382,10 +382,18 @@ const getCurrentMonthYear = () => {
  * @returns {number} -1 if date1 < date2, 0 if equal, 1 if date1 > date2
  */
 const compareMonthYear = (month1, year1, month2, year2) => {
-  if (year1 < year2) return -1
-  if (year1 > year2) return 1
-  if (month1 < month2) return -1
-  if (month1 > month2) return 1
+  if (year1 < year2) {
+    return -1
+  }
+  if (year1 > year2) {
+    return 1
+  }
+  if (month1 < month2) {
+    return -1
+  }
+  if (month1 > month2) {
+    return 1
+  }
   return 0
 }
 
@@ -452,17 +460,17 @@ const validateTimelineDate = (
     if (prevMonthField && prevYearField) {
       const prevMonth = data[prevMonthField]
       const prevYear = data[prevYearField]
+      const prevDataExists = prevMonth !== undefined && prevYear !== undefined
+      const isBeforePreviousStage =
+        compareMonthYear(month, year, prevMonth, prevYear) < 0
 
-      if (prevMonth !== undefined && prevYear !== undefined) {
-        if (compareMonthYear(month, year, prevMonth, prevYear) < 0) {
-          return helpers.error('custom.date_before_previous_stage', {
-            stageName,
-            prevStage: prevMonthField.replace('Month', '')
-          })
-        }
+      if (prevDataExists && isBeforePreviousStage) {
+        return helpers.error('custom.date_before_previous_stage', {
+          stageName,
+          prevStage: prevMonthField.replace('Month', '')
+        })
       }
     }
-
     return value
   }
 }

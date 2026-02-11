@@ -164,6 +164,34 @@ describe('S3Service', () => {
       )
     })
 
+    it('should generate presigned URL with Content-Disposition header when filename provided', async () => {
+      const service = new S3Service(mockLogger)
+      const mockUrl = 'https://s3.example.com/presigned-url'
+      const filename = 'my-document.zip'
+
+      mockGetSignedUrl.mockResolvedValue(mockUrl)
+
+      const url = await service.getPresignedDownloadUrl(
+        'test-bucket',
+        'test-key',
+        900,
+        filename
+      )
+
+      expect(url).toBe(mockUrl)
+      expect(mockGetSignedUrl).toHaveBeenCalledWith(
+        service.s3Client,
+        expect.objectContaining({
+          input: {
+            Bucket: 'test-bucket',
+            Key: 'test-key',
+            ResponseContentDisposition: `attachment; filename="${filename}"; filename*=UTF-8''my-document.zip`
+          }
+        }),
+        { expiresIn: 900 }
+      )
+    })
+
     it('should handle errors when generating presigned URL', async () => {
       const service = new S3Service(mockLogger)
       const error = new Error('S3 error')
@@ -403,6 +431,163 @@ describe('S3Service', () => {
       })
 
       expect(service.s3Client.send).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('getObject', () => {
+    it('should successfully retrieve an object from S3', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'test-folder/test-file.pdf'
+      const mockBuffer = Buffer.from('test file content')
+
+      // Mock S3 response with readable stream
+      const mockStream = {
+        async *[Symbol.asyncIterator]() {
+          yield mockBuffer
+        }
+      }
+
+      service.s3Client.send.mockResolvedValue({
+        Body: mockStream
+      })
+
+      const result = await service.getObject(bucket, key)
+
+      // Verify GetObjectCommand was called with correct params
+      const { GetObjectCommand } = await import('@aws-sdk/client-s3')
+      expect(GetObjectCommand).toHaveBeenCalledWith({
+        Bucket: bucket,
+        Key: key
+      })
+
+      // Verify S3 client send was called
+      expect(service.s3Client.send).toHaveBeenCalledTimes(1)
+
+      // Verify result is a Buffer with correct content
+      expect(Buffer.isBuffer(result)).toBe(true)
+      expect(result.toString()).toBe('test file content')
+
+      // Verify success logging
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        {
+          bucket,
+          key,
+          size: mockBuffer.length
+        },
+        'Successfully retrieved S3 object'
+      )
+    })
+
+    it('should handle multiple chunks from S3 stream', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'large-file.pdf'
+
+      const chunk1 = Buffer.from('chunk1')
+      const chunk2 = Buffer.from('chunk2')
+      const chunk3 = Buffer.from('chunk3')
+
+      // Mock S3 response with multiple chunks
+      const mockStream = {
+        async *[Symbol.asyncIterator]() {
+          yield chunk1
+          yield chunk2
+          yield chunk3
+        }
+      }
+
+      service.s3Client.send.mockResolvedValue({
+        Body: mockStream
+      })
+
+      const result = await service.getObject(bucket, key)
+
+      expect(Buffer.isBuffer(result)).toBe(true)
+      expect(result.toString()).toBe('chunk1chunk2chunk3')
+      expect(result.length).toBe(chunk1.length + chunk2.length + chunk3.length)
+    })
+
+    it('should handle S3 retrieval errors', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'non-existent-file.pdf'
+      const error = new Error('NoSuchKey: The specified key does not exist')
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(service.getObject(bucket, key)).rejects.toThrow(
+        'NoSuchKey: The specified key does not exist'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        {
+          err: error,
+          bucket,
+          key
+        },
+        'Failed to retrieve S3 object'
+      )
+    })
+
+    it('should handle access denied errors', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'private-bucket'
+      const key = 'secure-file.pdf'
+      const error = new Error('Access Denied')
+      error.name = 'AccessDenied'
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(service.getObject(bucket, key)).rejects.toThrow(
+        'Access Denied'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
+
+    it('should handle empty file', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'empty-file.txt'
+
+      const mockStream = {
+        async *[Symbol.asyncIterator]() {
+          // No chunks yielded
+        }
+      }
+
+      service.s3Client.send.mockResolvedValue({
+        Body: mockStream
+      })
+
+      const result = await service.getObject(bucket, key)
+
+      expect(Buffer.isBuffer(result)).toBe(true)
+      expect(result.length).toBe(0)
+    })
+
+    it('should handle network timeout during retrieval', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'file.pdf'
+      const error = new Error('Request timeout')
+      error.name = 'TimeoutError'
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(service.getObject(bucket, key)).rejects.toThrow(
+        'Request timeout'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: error,
+          bucket,
+          key
+        }),
+        'Failed to retrieve S3 object'
+      )
     })
   })
 })

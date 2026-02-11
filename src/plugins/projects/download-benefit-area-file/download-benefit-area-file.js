@@ -1,20 +1,18 @@
 import Joi from 'joi'
+import { FILE_UPLOAD_VALIDATION_CODES } from '../../../common/constants/index.js'
 import {
-  HTTP_STATUS,
-  FILE_UPLOAD_VALIDATION_CODES
-} from '../../../common/constants/index.js'
-import {
-  getProjectByReference,
   generateDownloadUrl,
-  updateBenefitAreaFile
+  updateBenefitAreaFile,
+  withBenefitAreaFileValidation
 } from '../helpers/benefit-area-file-helper.js'
+import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 
 /**
  * Download benefit area file - regenerates presigned URL
  */
 export default {
   method: 'GET',
-  path: '/api/v1/projects/{referenceNumber}/benefit-area-file/download',
+  path: '/api/v1/project/{referenceNumber}/benefit-area-file/download',
   options: {
     auth: 'jwt',
     description: 'Download benefit area file',
@@ -27,83 +25,48 @@ export default {
     }
   },
   handler: async (request, h) => {
-    const { logger, prisma } = request.server
-    const { referenceNumber } = request.params
+    return withBenefitAreaFileValidation(
+      request,
+      h,
+      async (project, req) => {
+        const { logger, prisma } = req.server
 
-    try {
-      const project = await getProjectByReference(prisma, referenceNumber)
+        const { downloadUrl, downloadExpiry } = await generateDownloadUrl(
+          project.benefit_area_file_s3_bucket,
+          project.benefit_area_file_s3_key,
+          logger,
+          project.benefit_area_file_name
+        )
 
-      if (!project) {
-        return h
-          .response({
-            validationErrors: [
-              {
-                errorCode: FILE_UPLOAD_VALIDATION_CODES.PROJECT_NOT_FOUND,
-                message: `Project ${referenceNumber} not found`
-              }
-            ]
-          })
-          .code(HTTP_STATUS.NOT_FOUND)
-      }
-
-      if (
-        !project.benefit_area_file_s3_bucket ||
-        !project.benefit_area_file_s3_key
-      ) {
-        return h
-          .response({
-            validationErrors: [
-              {
-                errorCode:
-                  FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_FILE_NOT_FOUND,
-                message: 'No benefit area file found for this project'
-              }
-            ]
-          })
-          .code(HTTP_STATUS.NOT_FOUND)
-      }
-
-      const { downloadUrl, downloadExpiry } = await generateDownloadUrl(
-        project.benefit_area_file_s3_bucket,
-        project.benefit_area_file_s3_key,
-        logger
-      )
-
-      await updateBenefitAreaFile(prisma, referenceNumber, {
-        filename: project.benefit_area_file_name,
-        fileSize: project.benefit_area_file_size,
-        contentType: project.benefit_area_content_type,
-        s3Bucket: project.benefit_area_file_s3_bucket,
-        s3Key: project.benefit_area_file_s3_key,
-        downloadUrl,
-        downloadExpiry
-      })
-
-      logger.info({ referenceNumber }, 'Download URL generated')
-
-      return h.response({
-        success: true,
-        data: {
-          downloadUrl,
-          expiresAt: downloadExpiry,
+        await updateBenefitAreaFile(prisma, project.reference_number, {
           filename: project.benefit_area_file_name,
           fileSize: project.benefit_area_file_size,
-          contentType: project.benefit_area_content_type
-        }
-      })
-    } catch (error) {
-      logger.error({ err: error, referenceNumber }, 'Download failed')
-      return h
-        .response({
-          validationErrors: [
-            {
-              errorCode:
-                FILE_UPLOAD_VALIDATION_CODES.BENEFIT_AREA_DOWNLOAD_FAILED,
-              message: `Failed to generate download URL: ${error.message}`
-            }
-          ]
+          contentType: project.benefit_area_content_type,
+          s3Bucket: project.benefit_area_file_s3_bucket,
+          s3Key: project.benefit_area_file_s3_key,
+          downloadUrl,
+          downloadExpiry
         })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    }
+
+        logger.info(
+          { referenceNumber: project.reference_number },
+          'Download URL generated'
+        )
+
+        return buildSuccessResponse(h, {
+          success: true,
+          data: {
+            downloadUrl,
+            expiresAt: downloadExpiry,
+            filename: project.benefit_area_file_name,
+            fileSize: project.benefit_area_file_size,
+            contentType: project.benefit_area_content_type
+          }
+        })
+      },
+      FILE_UPLOAD_VALIDATION_CODES.FILE_DOWNLOAD_FAILED,
+      'generate download URL',
+      'Download'
+    )
   }
 }

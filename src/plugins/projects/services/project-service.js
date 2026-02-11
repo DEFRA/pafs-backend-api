@@ -231,6 +231,25 @@ export class ProjectService {
     }
   }
 
+  async _getProjectDetails(referenceNumber, options = {}) {
+    const where = {
+      reference_number: referenceNumber,
+      ...(options?.includeVersion ? { version: 1 } : {})
+    }
+    return this.prisma.pafs_core_projects.findFirst({
+      where,
+      ...(options?.selectFields ? { select: options.selectFields } : {})
+    })
+  }
+
+  /**
+   * Get project by reference number (version always 1)
+   * Returns raw project data without mapping
+   */
+  async getProjectByReference(referenceNumber) {
+    return this._getProjectDetails(referenceNumber, { includeVersion: true })
+  }
+
   /**
    * Get Project Overview data using reference number
    * Fetches project with joined tables and returns mapped API format
@@ -246,14 +265,8 @@ export class ProjectService {
         'Fetching project details by reference number'
       )
 
-      const project = await this.prisma.pafs_core_projects.findFirst({
-        where: {
-          reference_number: referenceNumber
-        },
-        select: {
-          id: true, // Need id for manual joins
-          ...getProjectSelectFields()
-        }
+      const project = await this._getProjectDetails(referenceNumber, {
+        selectFields: { id: true, ...getProjectSelectFields() }
       })
 
       if (!project) {
@@ -286,57 +299,77 @@ export class ProjectService {
     }
   }
 
-  async upsertProjectState(projectId, newState) {
+  /**
+   * Generic helper for upserting project-related records
+   * @param {string} tableName - Prisma table name
+   * @param {number} projectId - Project ID
+   * @param {Object} fields - Fields to upsert
+   * @param {Object} createOnlyFields - Fields only for create operation
+   * @param {Object} updateOnlyFields - Fields only for update operation
+   * @param {Object} logContext - Additional context for logging
+   * @param {string} errorMessage - Error message template
+   * @returns {Promise<Object>} Upserted record
+   * @private
+   */
+  async _upsertProjectRelatedRecord(
+    tableName,
+    projectId,
+    fields,
+    createOnlyFields = {},
+    updateOnlyFields = {},
+    logContext = {},
+    errorMessage = 'Error upserting record'
+  ) {
     try {
       const commonFields = {
-        state: newState,
+        ...fields,
         updated_at: new Date()
       }
-      const stateRecord = await this.prisma.pafs_core_states.upsert({
+
+      const record = await this.prisma[tableName].upsert({
         where: { project_id: Number(projectId) },
-        update: commonFields,
+        update: {
+          ...commonFields,
+          ...updateOnlyFields
+        },
         create: {
           project_id: Number(projectId),
           ...commonFields,
+          ...createOnlyFields,
           created_at: new Date()
         }
       })
-      return stateRecord
+      return record
     } catch (error) {
       this.logger.error(
-        { error: error.message, projectId, newState },
-        'Error upserting project state'
+        { error: error.message, projectId, ...logContext },
+        errorMessage
       )
       throw error
     }
   }
 
+  async upsertProjectState(projectId, newState) {
+    return this._upsertProjectRelatedRecord(
+      'pafs_core_states',
+      projectId,
+      { state: newState },
+      {},
+      {},
+      { newState },
+      'Error upserting project state'
+    )
+  }
+
   async upsertProjectArea(projectId, areaId) {
-    try {
-      const commonFields = {
-        area_id: Number(areaId),
-        updated_at: new Date()
-      }
-      const areaRecord = await this.prisma.pafs_core_area_projects.upsert({
-        where: { project_id: Number(projectId) },
-        update: {
-          ...commonFields,
-          owner: false
-        },
-        create: {
-          project_id: Number(projectId),
-          created_at: new Date(),
-          owner: true,
-          ...commonFields
-        }
-      })
-      return areaRecord
-    } catch (error) {
-      this.logger.error(
-        { error: error.message, projectId, areaId },
-        'Error upserting project area'
-      )
-      throw error
-    }
+    return this._upsertProjectRelatedRecord(
+      'pafs_core_area_projects',
+      projectId,
+      { area_id: Number(areaId) },
+      { owner: true },
+      { owner: false },
+      { areaId },
+      'Error upserting project area'
+    )
   }
 }

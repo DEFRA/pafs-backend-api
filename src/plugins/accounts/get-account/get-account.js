@@ -3,6 +3,7 @@ import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { getAccountByIdSchema } from '../schema.js'
 import { AccountService } from '../services/account-service.js'
+import { buildErrorResponse } from '../../../common/helpers/response-builder.js'
 
 const getAccount = {
   method: 'GET',
@@ -29,11 +30,9 @@ const getAccount = {
       const account = await accountService.getAccountById(id)
 
       if (!account) {
-        return h
-          .response({
-            errors: [{ errorCode: ACCOUNT_ERROR_CODES.ACCOUNT_NOT_FOUND }]
-          })
-          .code(HTTP_STATUS.NOT_FOUND)
+        return buildErrorResponse(h, HTTP_STATUS.NOT_FOUND, [
+          { errorCode: ACCOUNT_ERROR_CODES.ACCOUNT_NOT_FOUND }
+        ])
       }
 
       return h.response(account).code(HTTP_STATUS.OK)
@@ -42,11 +41,11 @@ const getAccount = {
         { error, accountId: request.params.id },
         'Failed to retrieve account'
       )
-      return h
-        .response({
-          errors: [{ errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED }]
-        })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      return buildErrorResponse(h, HTTP_STATUS.INTERNAL_SERVER_ERROR, [
+        {
+          errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED
+        }
+      ])
     }
   }
 }

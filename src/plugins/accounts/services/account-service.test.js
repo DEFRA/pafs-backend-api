@@ -1065,6 +1065,7 @@ describe('AccountService', () => {
       expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
         where: { id: BigInt(1) },
         data: {
+          inactivity_warning_sent_at: null,
           disabled: false,
           updated_at: expect.any(Date)
         }
@@ -1144,6 +1145,7 @@ describe('AccountService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(disabledUser)
       mockPrisma.pafs_core_users.update.mockResolvedValue({
         ...disabledUser,
+        inactivity_warning_sent_at: null,
         disabled: false
       })
 
@@ -1189,6 +1191,7 @@ describe('AccountService', () => {
 
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(disabledUser)
       mockPrisma.pafs_core_users.update.mockResolvedValue({
+        inactivity_warning_sent_at: null,
         ...disabledUser,
         disabled: false
       })
@@ -1219,6 +1222,7 @@ describe('AccountService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(disabledUser)
       mockPrisma.pafs_core_users.update.mockResolvedValue({
         ...disabledUser,
+        inactivity_warning_sent_at: null,
         disabled: false
       })
 

@@ -444,7 +444,7 @@ const config = convict({
     allowedZipExtensions: {
       doc: 'Comma-separated list of allowed file extensions inside ZIP files',
       format: String,
-      default: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.csv,.txt',
+      default: '.dbf,.shx,.shp,.prj',
       env: 'CDP_UPLOADER_ALLOWED_ZIP_EXTENSIONS'
     },
     timeout: {

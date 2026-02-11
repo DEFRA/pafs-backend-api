@@ -1,5 +1,6 @@
 import { ProjectService } from '../services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 
 const getProject = {
   method: 'GET',
@@ -24,7 +25,7 @@ const getProject = {
       const result =
         await projectService.getProjectByReferenceNumber(referenceNumber)
 
-      return h.response(result).code(HTTP_STATUS.OK)
+      return buildSuccessResponse(h, result)
     } catch (error) {
       request.server.logger.error(
         { error },

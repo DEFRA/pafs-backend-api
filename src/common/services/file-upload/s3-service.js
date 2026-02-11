@@ -43,14 +43,24 @@ export class S3Service {
    * @param {string} bucket - S3 bucket name
    * @param {string} key - S3 object key
    * @param {number} expiresIn - URL expiration time in seconds (default: 900 = 15 minutes)
+   * @param {string} filename - Optional filename for Content-Disposition header
    * @returns {Promise<string>} Presigned URL
    */
-  async getPresignedDownloadUrl(bucket, key, expiresIn = 900) {
+  async getPresignedDownloadUrl(bucket, key, expiresIn = 900, filename = null) {
     try {
-      const command = new GetObjectCommand({
+      const commandInput = {
         Bucket: bucket,
         Key: key
-      })
+      }
+
+      // Add Content-Disposition header if filename is provided
+      if (filename) {
+        // RFC 6266: Use filename* for UTF-8 encoded filenames
+        const encodedFilename = encodeURIComponent(filename)
+        commandInput.ResponseContentDisposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`
+      }
+
+      const command = new GetObjectCommand(commandInput)
 
       const url = await getSignedUrl(this.s3Client, command, { expiresIn })
 
@@ -72,6 +82,52 @@ export class S3Service {
           key
         },
         'Failed to generate presigned download URL'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Get a file object from S3
+   *
+   * @param {string} bucket - S3 bucket name
+   * @param {string} key - S3 object key
+   * @returns {Promise<Buffer>} File contents as Buffer
+   */
+  async getObject(bucket, key) {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key
+      })
+
+      const response = await this.s3Client.send(command)
+
+      // Convert stream to buffer
+      const chunks = []
+      for await (const chunk of response.Body) {
+        chunks.push(chunk)
+      }
+      const buffer = Buffer.concat(chunks)
+
+      this.logger.info(
+        {
+          bucket,
+          key,
+          size: buffer.length
+        },
+        'Successfully retrieved S3 object'
+      )
+
+      return buffer
+    } catch (error) {
+      this.logger.error(
+        {
+          err: error,
+          bucket,
+          key
+        },
+        'Failed to retrieve S3 object'
       )
       throw error
     }
