@@ -32,7 +32,10 @@ import {
   propertiesBenefitMaintainingAssetsCoastalSchema,
   propertiesBenefitInvestmentCoastalErosionSchema,
   percentProperties20PercentDeprivedSchema,
-  percentProperties40PercentDeprivedSchema
+  percentProperties40PercentDeprivedSchema,
+  currentFloodRiskSchema,
+  currentFloodSurfaceWaterRiskSchema,
+  currentCoastalErosionRiskSchema
 } from '../../../common/schemas/project.js'
 import {
   PROJECT_VALIDATION_MESSAGES,
@@ -238,6 +241,30 @@ export const VALIDATION_LEVELS = {
       referenceNumber,
       percentProperties40PercentDeprived:
         percentProperties40PercentDeprivedSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK]: {
+    name: PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK,
+    fields: {
+      referenceNumber,
+      currentFloodRisk: currentFloodRiskSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_SURFACE_WATER_RISK]: {
+    name: PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_SURFACE_WATER_RISK,
+    fields: {
+      referenceNumber,
+      currentFloodSurfaceWaterRisk: currentFloodSurfaceWaterRiskSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.CURRENT_COASTAL_EROSION_RISK]: {
+    name: PROJECT_VALIDATION_LEVELS.CURRENT_COASTAL_EROSION_RISK,
+    fields: {
+      referenceNumber,
+      currentCoastalErosionRisk: currentCoastalErosionRiskSchema
     }
   }
 

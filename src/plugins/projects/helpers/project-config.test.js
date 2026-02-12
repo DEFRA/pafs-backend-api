@@ -66,7 +66,10 @@ describe('project-config', () => {
         percentProperties20PercentDeprived:
           'percent_properties_20_percent_deprived',
         percentProperties40PercentDeprived:
-          'percent_properties_40_percent_deprived'
+          'percent_properties_40_percent_deprived',
+        currentFloodRisk: 'current_flood_risk',
+        currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
+        currentCoastalErosionRisk: 'current_coastal_erosion_risk'
       })
     })
 
@@ -127,8 +130,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 46 total fields (20 common + 6 read-only + 8 benefit area file + 12 risk/property)', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(46)
+    it('should have 49 total fields (20 common + 6 read-only + 8 benefit area file + 15 risk/property)', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(49)
     })
   })
 
@@ -180,9 +183,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 46 fields', () => {
+    it('should return an object with 49 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(46)
+      expect(Object.keys(result)).toHaveLength(49)
     })
 
     it('should return a new object each time', () => {

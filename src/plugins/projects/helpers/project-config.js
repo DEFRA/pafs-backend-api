@@ -68,7 +68,10 @@ export const PROJECT_FIELDS_MAP = {
   propertiesBenefitInvestmentCoastalErosion:
     'properties_benefit_investment_coastal_erosion',
   percentProperties20PercentDeprived: 'percent_properties_20_percent_deprived',
-  percentProperties40PercentDeprived: 'percent_properties_40_percent_deprived'
+  percentProperties40PercentDeprived: 'percent_properties_40_percent_deprived',
+  currentFloodRisk: 'current_flood_risk',
+  currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
+  currentCoastalErosionRisk: 'current_coastal_erosion_risk'
 }
 
 /**

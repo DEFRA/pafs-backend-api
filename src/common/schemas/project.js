@@ -829,3 +829,51 @@ export const percentProperties40PercentDeprivedSchema = Joi.number()
     'number.precision':
       PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_PRECISION
   })
+
+/**
+ * Current flood risk schema (for fluvial, tidal, sea flooding)
+ * Database field: current_flood_risk (VARCHAR)
+ * Valid values: high, medium, low, very_low
+ */
+export const currentFloodRiskSchema = Joi.string()
+  .valid('high', 'medium', 'low', 'very_low')
+  .optional()
+  .allow(null)
+  .label('currentFloodRisk')
+  .messages({
+    'string.base': PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_RISK_INVALID,
+    'any.only': PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_RISK_INVALID
+  })
+
+/**
+ * Current flood surface water risk schema
+ * Database field: current_flood_surface_water_risk (VARCHAR)
+ * Valid values: high, medium, low, very_low
+ */
+export const currentFloodSurfaceWaterRiskSchema = Joi.string()
+  .valid('high', 'medium', 'low', 'very_low')
+  .optional()
+  .allow(null)
+  .label('currentFloodSurfaceWaterRisk')
+  .messages({
+    'string.base':
+      PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_SURFACE_WATER_RISK_INVALID,
+    'any.only':
+      PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_SURFACE_WATER_RISK_INVALID
+  })
+
+/**
+ * Current coastal erosion risk schema
+ * Database field: current_coastal_erosion_risk (VARCHAR)
+ * Valid values: medium_term, longer_term
+ */
+export const currentCoastalErosionRiskSchema = Joi.string()
+  .valid('medium_term', 'longer_term')
+  .optional()
+  .allow(null)
+  .label('currentCoastalErosionRisk')
+  .messages({
+    'string.base':
+      PROJECT_VALIDATION_MESSAGES.CURRENT_COASTAL_EROSION_RISK_INVALID,
+    'any.only': PROJECT_VALIDATION_MESSAGES.CURRENT_COASTAL_EROSION_RISK_INVALID
+  })

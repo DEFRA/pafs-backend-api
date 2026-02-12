@@ -71,7 +71,10 @@ describe('upsertProject handler', () => {
     ).mockResolvedValue({
       referenceNumber: 'REF123',
       name: 'Existing Project',
-      areaId: 1
+      areaId: 1,
+      financialYearStart: 2025,
+      financialYearEnd: 2030,
+      risks: ['fluvial_flooding', 'surface_water_flooding', 'coastal_erosion']
     })
     vi.spyOn(AreaService.prototype, 'getAreaByIdWithParents').mockResolvedValue(
       {
@@ -1291,6 +1294,480 @@ describe('upsertProject handler', () => {
           statusCode: HTTP_STATUS.BAD_REQUEST
         })
       )
+    })
+  })
+
+  describe('Current risk fields reset logic', () => {
+    beforeEach(() => {
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.RISK
+      mockRequest.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        financialYearStart: 2025,
+        financialYearEnd: 2030
+      }
+    })
+
+    describe('when flood risk types are deselected', () => {
+      it('should reset currentFloodRisk when fluvial flooding is not selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['surface_water_flooding', 'coastal_erosion'],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium',
+          currentCoastalErosionRisk: 'medium_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: 'medium',
+            currentCoastalErosionRisk: 'medium_term'
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should reset currentFloodRisk when tidal flooding is not selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['surface_water_flooding'],
+          currentFloodRisk: 'medium',
+          currentFloodSurfaceWaterRisk: 'high'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: 'high'
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should reset currentFloodRisk when sea flooding is not selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['groundwater_flooding'],
+          currentFloodRisk: 'low'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should preserve currentFloodRisk when fluvial flooding is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['fluvial_flooding', 'surface_water_flooding'],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: 'high',
+            currentFloodSurfaceWaterRisk: 'medium',
+            currentCoastalErosionRisk: null // Reset because coastal_erosion not in risks
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should preserve currentFloodRisk when tidal flooding is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['tidal_flooding'],
+          currentFloodRisk: 'very_low'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: 'very_low'
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should preserve currentFloodRisk when sea flooding is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['sea_flooding'],
+          currentFloodRisk: 'medium'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: 'medium'
+          }),
+          123n,
+          null
+        )
+      })
+    })
+
+    describe('when surface water risk is deselected', () => {
+      it('should reset currentFloodSurfaceWaterRisk when surface water flooding is not selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['fluvial_flooding', 'coastal_erosion'],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium',
+          currentCoastalErosionRisk: 'longer_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: 'high',
+            currentFloodSurfaceWaterRisk: null,
+            currentCoastalErosionRisk: 'longer_term'
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should preserve currentFloodSurfaceWaterRisk when surface water flooding is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['surface_water_flooding'],
+          currentFloodSurfaceWaterRisk: 'low'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodSurfaceWaterRisk: 'low'
+          }),
+          123n,
+          null
+        )
+      })
+    })
+
+    describe('when coastal erosion risk is deselected', () => {
+      it('should reset currentCoastalErosionRisk when coastal erosion is not selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['fluvial_flooding', 'surface_water_flooding'],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium',
+          currentCoastalErosionRisk: 'medium_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: 'high',
+            currentFloodSurfaceWaterRisk: 'medium',
+            currentCoastalErosionRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should preserve currentCoastalErosionRisk when coastal erosion is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['coastal_erosion'],
+          currentCoastalErosionRisk: 'longer_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentCoastalErosionRisk: 'longer_term'
+          }),
+          123n,
+          null
+        )
+      })
+    })
+
+    describe('when multiple risk types are deselected', () => {
+      it('should reset all current risk fields when only reservoir flooding is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['reservoir_flooding'],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium',
+          currentCoastalErosionRisk: 'medium_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: null,
+            currentCoastalErosionRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should reset only unselected risk fields when only groundwater is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['groundwater_flooding'],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium',
+          currentCoastalErosionRisk: 'medium_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: null,
+            currentCoastalErosionRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should reset flood and surface water risks when only coastal erosion is selected', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['coastal_erosion'],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'low',
+          currentCoastalErosionRisk: 'longer_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: null,
+            currentCoastalErosionRisk: 'longer_term'
+          }),
+          123n,
+          null
+        )
+      })
+    })
+
+    describe('validation level check', () => {
+      it('should only reset risk fields when validation level is RISK', async () => {
+        mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.RISK
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: [],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should not reset risk fields when validation level is not RISK', async () => {
+        mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: [],
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        // Risk fields should NOT be reset when level is not RISK
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: 'high',
+            currentFloodSurfaceWaterRisk: 'medium'
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should not reset risk fields when validation level is FORTY_PERCENT_DEPRIVED', async () => {
+        mockRequest.payload.level =
+          PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: [],
+          currentFloodRisk: 'low',
+          currentCoastalErosionRisk: 'medium_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: 'low',
+            currentCoastalErosionRisk: 'medium_term'
+          }),
+          123n,
+          null
+        )
+      })
+    })
+
+    describe('edge cases', () => {
+      it('should handle undefined risks array', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          currentFloodRisk: 'high',
+          currentFloodSurfaceWaterRisk: 'medium'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        // Should reset all when risks is undefined
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should handle null risks array', async () => {
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: null,
+          currentFloodRisk: 'medium',
+          currentCoastalErosionRisk: 'longer_term'
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        // Should reset all when risks is null
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentCoastalErosionRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should handle when current risk fields are already null', async () => {
+        mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.RISK
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['groundwater_flooding'], // Valid risk to pass validation
+          currentFloodRisk: null,
+          currentFloodSurfaceWaterRisk: null,
+          currentCoastalErosionRisk: null
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentFloodRisk: null,
+            currentFloodSurfaceWaterRisk: null,
+            currentCoastalErosionRisk: null
+          }),
+          123n,
+          null
+        )
+      })
+
+      it('should handle when current risk fields are not provided', async () => {
+        mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.RISK
+        mockRequest.payload.payload = {
+          ...mockRequest.payload.payload,
+          risks: ['fluvial_flooding']
+        }
+
+        const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+        await upsertProject.options.handler(mockRequest, mockH)
+
+        expect(upsertSpy).toHaveBeenCalled()
+        // Should not throw error when fields are not present
+        expect(mockH.response).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR
+          })
+        )
+      })
     })
   })
 
