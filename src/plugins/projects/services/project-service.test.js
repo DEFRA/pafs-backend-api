@@ -870,7 +870,9 @@ describe('ProjectService', () => {
           properties_benefit_individual_intervention: true,
           no_properties_at_coastal_erosion_risk: true,
           properties_benefit_maintaining_assets_coastal: true,
-          properties_benefit_investment_coastal_erosion: true
+          properties_benefit_investment_coastal_erosion: true,
+          percent_properties_20_percent_deprived: true,
+          percent_properties_40_percent_deprived: true
         }
       })
 

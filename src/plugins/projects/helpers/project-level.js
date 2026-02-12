@@ -30,7 +30,9 @@ import {
   propertiesBenefitIndividualInterventionSchema,
   noPropertiesAtCoastalErosionRiskSchema,
   propertiesBenefitMaintainingAssetsCoastalSchema,
-  propertiesBenefitInvestmentCoastalErosionSchema
+  propertiesBenefitInvestmentCoastalErosionSchema,
+  percentProperties20PercentDeprivedSchema,
+  percentProperties40PercentDeprivedSchema
 } from '../../../common/schemas/project.js'
 import {
   PROJECT_VALIDATION_MESSAGES,
@@ -218,6 +220,24 @@ export const VALIDATION_LEVELS = {
         propertiesBenefitMaintainingAssetsCoastalSchema,
       propertiesBenefitInvestmentCoastalErosion:
         propertiesBenefitInvestmentCoastalErosionSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED]: {
+    name: PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED,
+    fields: {
+      referenceNumber,
+      percentProperties20PercentDeprived:
+        percentProperties20PercentDeprivedSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED]: {
+    name: PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED,
+    fields: {
+      referenceNumber,
+      percentProperties40PercentDeprived:
+        percentProperties40PercentDeprivedSchema
     }
   }
 

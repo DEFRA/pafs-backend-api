@@ -280,8 +280,7 @@ model pafs_core_projects {
   no_properties_at_coastal_erosion_risk                       Boolean?                         @default(false)
   properties_benefit_maintaining_assets_coastal               Int?
   properties_benefit_investment_coastal_erosion               Int?
-  percent_properties_20_percent_deprived                      Int?
-  percent_properties_10_percent_deprived                      Int?
+  percent_properties_20_percent_deprived                      Float?
   environmental_benefits                                      Boolean?
   intertidal_habitat                                          Boolean?
   hectares_of_intertidal_habitat_created_or_enhanced          Float?
@@ -345,6 +344,8 @@ model pafs_core_projects {
   benefit_area_file_s3_key                                    String?                          @db.VarChar(1000)
   benefit_area_file_download_url                              String?
   benefit_area_file_download_expiry                           DateTime?                        @db.Timestamp(6)
+  percent_properties_40_percent_deprived                      Float?
+  current_flood_surface_water_risk                            String?                          @db.VarChar(255)
   pafs_core_nfm_land_use_changes                              pafs_core_nfm_land_use_changes[]
   pafs_core_nfm_measures                                      pafs_core_nfm_measures[]
 

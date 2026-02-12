@@ -784,3 +784,48 @@ export const propertiesBenefitInvestmentCoastalErosionSchema = Joi.number()
     'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
     'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
   })
+/**
+ * Percent properties 20 percent deprived schema (API format)
+ * Database field: percent_properties_20_percent_deprived (Int)
+ * Accepts percentage values 0-100 (whole numbers or decimals with up to 2 decimal places)
+ */
+export const percentProperties20PercentDeprivedSchema = Joi.number()
+  .min(0)
+  .max(100)
+  .precision(2)
+  .optional()
+  .allow(null)
+  .label('percentProperties20PercentDeprived')
+  .messages({
+    'number.base':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_INVALID,
+    'number.min':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_MIN,
+    'number.max':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_MAX,
+    'number.precision':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_PRECISION
+  })
+
+/**
+ * Percent properties 40 percent deprived schema (API format)
+ * Database field: percent_properties_40_percent_deprived (Float)
+ * Accepts percentage values 0-100 (whole numbers or decimals with up to 2 decimal places)
+ */
+export const percentProperties40PercentDeprivedSchema = Joi.number()
+  .min(0)
+  .max(100)
+  .precision(2)
+  .optional()
+  .allow(null)
+  .label('percentProperties40PercentDeprived')
+  .messages({
+    'number.base':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_INVALID,
+    'number.min':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_MIN,
+    'number.max':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_MAX,
+    'number.precision':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_PRECISION
+  })
