@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <include file="1-001-extensions.xml" relativeToChangelogFile="true"/>
+  <include file="1-001-old-passwords.xml" relativeToChangelogFile="true"/>
+  <include file="1-003-areas.xml" relativeToChangelogFile="true"/>
+  <include file="1-004-users.xml" relativeToChangelogFile="true"/>
+  <include file="1-005-user-areas.xml" relativeToChangelogFile="true"/>
+  <include file="1-006-scheduler-locks.xml" relativeToChangelogFile="true"/>
+  <include file="1-007-scheduler-logs.xml" relativeToChangelogFile="true"/>
+  <include file="1-008-file-uploads.xml" relativeToChangelogFile="true"/>
+  <include file="1-009-core-projects.xml" relativeToChangelogFile="true"/>
+  <include file="1-010-core-area-projects.xml" relativeToChangelogFile="true"/>
+  <include file="1-011-core-reference-counters.xml" relativeToChangelogFile="true"/>
+  <include file="1-012-core-states.xml" relativeToChangelogFile="true"/>
+  <include file="2-001-create-projects-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-002-create-flood-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-003-create-flood-protection-2040-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-004-create-costal-erosion-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-005-create-nfm-measures-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-006-create-nfm-land-use-changes-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-007-create-area-downloads-table.xml" relativeToChangelogFile="true"/>
+
+</databaseChangeLog>

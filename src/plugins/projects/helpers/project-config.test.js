@@ -143,7 +143,6 @@ describe('project-config', () => {
       expect(result.earliest_start_year).toBe(true)
       expect(result.project_end_financial_year).toBe(true)
       expect(result.reference_number).toBe(true)
-      expect(result.is_legacy).toBe(true)
       expect(result.updated_at).toBe(true)
       expect(result.created_at).toBe(true)
       expect(result.slug).toBe(true)

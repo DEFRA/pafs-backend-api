@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2-007-create-area-downloads-table" author="migration-team">
+        <comment>Create pafs_core_area_downloads table</comment>
+
+        <createTable tableName="pafs_core_area_downloads">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="area_id" type="INTEGER"/>
+
+            <column name="user_id" type="INTEGER"/>
+
+            <column name="requested_on" type="TIMESTAMP WITHOUT TIME ZONE"/>
+
+            <column name="number_of_proposals" type="INTEGER"/>
+
+            <column name="fcerm1_filename" type="VARCHAR(255)"/>
+
+            <column name="benefit_areas_filename" type="VARCHAR(255)"/>
+
+            <column name="moderation_filename" type="VARCHAR(255)"/>
+
+            <column name="number_of_proposals_with_moderation" type="INTEGER"/>
+
+            <column name="status" type="VARCHAR(255)" defaultValue="empty">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="funding_calculator_filename" type="VARCHAR(255)"/>
+
+            <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+        </createTable>
+
+        <createIndex indexName="index_pafs_core_area_downloads_on_area_id" tableName="pafs_core_area_downloads">
+            <column name="area_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="pafs_core_area_downloads" cascadeConstraints="true"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

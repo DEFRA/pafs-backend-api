@@ -66,7 +66,6 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   id: 'id',
   referenceNumber: 'reference_number',
   slug: 'slug',
-  isLegacy: 'is_legacy',
   updatedAt: 'updated_at',
   createdAt: 'created_at',
   benefitAreaFileName: 'benefit_area_file_name',

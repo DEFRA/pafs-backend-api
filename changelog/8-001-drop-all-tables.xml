@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="8-001-drop-all-tables" author="migration-team">
+        <comment>Drop all tables for database cleanup or reset</comment>
+
+        <!-- cascadeConstraints="true" translates to PostgreSQL's DROP TABLE ... CASCADE
+            This will automatically drop:
+            - All indexes on the table
+            - All constraints (PRIMARY KEY, UNIQUE, CHECK, NOT NULL)
+            - All triggers associated with the table
+            - All rules associated with the table
+            - All foreign key constraints from OTHER tables that reference this table
+            - All sequences owned by columns in the table (e.g., SERIAL/BIGSERIAL)
+            - All views that depend on the table
+            
+            Tables are dropped in reverse dependency order for clarity, though CASCADE
+            handles most dependency issues automatically in PostgreSQL.
+            
+            ⚠️  WARNING: This will DELETE ALL DATA permanently. Use only for:
+            - Development/testing environments
+            - Database reset scenarios
+            - Never use in production without full backup
+        -->
+
+        <!-- Drop tables in reverse order of dependencies -->
+
+        <!-- Drop NFM related tables -->
+        <dropTable tableName="pafs_core_nfm_land_use_changes" cascadeConstraints="true"/>
+        <dropTable tableName="pafs_core_nfm_measures" cascadeConstraints="true"/>
+
+        <!-- Drop ASITE related tables -->
+        <dropTable tableName="pafs_core_asite_files" cascadeConstraints="true"/>
+        <dropTable tableName="pafs_core_asite_submissions" cascadeConstraints="true"/>
+
+        <!-- Drop area downloads table -->
+        <dropTable tableName="pafs_core_area_downloads" cascadeConstraints="true"/>
+
+        <!-- Drop funding related tables -->
+        <dropTable tableName="pafs_core_funding_contributors" cascadeConstraints="true"/>
+        <dropTable tableName="pafs_core_funding_values" cascadeConstraints="true"/>
+
+        <!-- Drop states table -->
+        <dropTable tableName="pafs_core_states" cascadeConstraints="true"/>
+
+        <!-- Drop area projects junction table -->
+        <dropTable tableName="pafs_core_area_projects" cascadeConstraints="true"/>
+
+        <!-- Drop reference counters and projects table -->
+        <dropTable tableName="pafs_core_reference_counters" cascadeConstraints="true"/>
+        <dropTable tableName="pafs_core_projects" cascadeConstraints="true"/>
+
+        <!-- Drop user areas junction table -->
+        <dropTable tableName="pafs_core_user_areas" cascadeConstraints="true"/>
+
+        <!-- Drop old passwords table (depends on users) -->
+        <dropTable tableName="old_passwords" cascadeConstraints="true"/>
+
+        <!-- Drop users and areas tables -->
+        <dropTable tableName="pafs_core_users" cascadeConstraints="true"/>
+        <dropTable tableName="pafs_core_areas" cascadeConstraints="true"/>
+
+        <!-- Drop scheduler tables -->
+        <dropTable tableName="scheduler_logs" cascadeConstraints="true"/>
+        <dropTable tableName="scheduler_locks" cascadeConstraints="true"/>
+
+        <!-- Drop file uploads table -->
+        <dropTable tableName="file_uploads" cascadeConstraints="true"/>
+
+        <rollback>
+            <!-- 
+                ROLLBACK NOT IMPLEMENTED
+                
+                Rollback is not feasible as it would require:
+                1. Recreating all table structures
+                2. Restoring all indexes and constraints
+                3. Restoring all foreign key relationships
+                4. Restoring all data
+                
+                To restore the database after running this changeset:
+                - Option 1: Restore from a database backup
+                - Option 2: Re-run all migrations from the beginning:
+                    * Drop and recreate the database
+                    * Run: liquibase update (or npm run db:update)
+                
+                Note: Liquibase will track this changeset as executed, so you may need to
+                clear the databasechangelog table or use liquibase rollbackCount.
+            -->
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

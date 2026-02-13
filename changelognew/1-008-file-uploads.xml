@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="8-create-file-uploads-table" author="migration-team">
+    <comment>Create file_uploads table for CDP Uploader integration</comment>
+
+    <createTable tableName="file_uploads">
+      <column name="id" type="BIGSERIAL" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <!-- CDP Uploader identifiers -->
+      <column name="upload_id" type="VARCHAR(255)">
+        <constraints nullable="false" unique="true"/>
+      </column>
+      <column name="file_id" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- Upload metadata -->
+      <column name="filename" type="VARCHAR(500)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="original_filename" type="VARCHAR(500)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="content_type" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="detected_content_type" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="content_length" type="BIGINT">
+        <constraints nullable="true"/>
+      </column>
+      <column name="checksum_sha256" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- Upload status tracking -->
+      <column name="upload_status" type="VARCHAR(50)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="file_status" type="VARCHAR(50)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="rejection_reason" type="TEXT">
+        <constraints nullable="true"/>
+      </column>
+      <column name="number_of_rejected_files" type="INTEGER" defaultValueNumeric="0">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- S3 storage details -->
+      <column name="s3_bucket" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="s3_key" type="VARCHAR(1000)">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- Associated entity references -->
+      <column name="entity_type" type="VARCHAR(100)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="entity_id" type="BIGINT">
+        <constraints nullable="true"/>
+      </column>
+      <column name="reference" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- User tracking -->
+      <column name="uploaded_by_user_id" type="BIGINT">
+        <constraints nullable="true" foreignKeyName="fk_file_uploads_user" references="pafs_core_users(id)" deleteCascade="false"/>
+      </column>
+
+      <!-- Custom metadata (JSON) -->
+      <column name="metadata" type="JSONB">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- Timestamps -->
+      <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+        <constraints nullable="false"/>
+      </column>
+      <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+        <constraints nullable="false"/>
+      </column>
+      <column name="completed_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="true"/>
+      </column>
+    </createTable>
+
+    <!-- Create indexes for common queries -->
+    <createIndex indexName="idx_file_uploads_upload_id" tableName="file_uploads">
+      <column name="upload_id"/>
+    </createIndex>
+
+    <createIndex indexName="idx_file_uploads_entity" tableName="file_uploads">
+      <column name="entity_type"/>
+      <column name="entity_id"/>
+    </createIndex>
+
+    <createIndex indexName="idx_file_uploads_reference" tableName="file_uploads">
+      <column name="reference"/>
+    </createIndex>
+
+    <createIndex indexName="idx_file_uploads_user" tableName="file_uploads">
+      <column name="uploaded_by_user_id"/>
+    </createIndex>
+
+    <createIndex indexName="idx_file_uploads_status" tableName="file_uploads">
+      <column name="upload_status"/>
+    </createIndex>
+
+    <createIndex indexName="idx_file_uploads_created_at" tableName="file_uploads">
+      <column name="created_at"/>
+    </createIndex>
+
+    <rollback>
+      <dropTable tableName="file_uploads" cascadeConstraints="true"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

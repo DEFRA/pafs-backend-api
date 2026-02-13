@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1-004-create-users-table" author="migration-team">
+        <comment>Create pafs_core_users table</comment>
+
+        <createTable tableName="pafs_core_users">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+            <column name="encrypted_password" type="VARCHAR(255)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reset_password_token" type="VARCHAR(255)"/>
+            <column name="reset_password_sent_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="remember_created_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="sign_in_count" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_sign_in_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="last_sign_in_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="current_sign_in_ip" type="INET"/>
+            <column name="last_sign_in_ip" type="INET"/>
+            <column name="failed_attempts" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unlock_token" type="VARCHAR(255)"/>
+            <column name="locked_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="first_name" type="VARCHAR(255)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_name" type="VARCHAR(255)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+            <column name="job_title" type="VARCHAR(255)"/>
+            <column name="organisation" type="VARCHAR(255)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+            <column name="telephone_number" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="status" type="VARCHAR(255)" defaultValue="active">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inactivity_warning_sent_at" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="invitation_token" type="VARCHAR(255)"/>
+            <column name="invitation_created_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="invitation_sent_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="invitation_accepted_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="invitation_limit" type="INTEGER"/>
+            <column name="invited_by_id" type="INTEGER"/>
+            <column name="invited_by_type" type="VARCHAR(255)"/>
+            <column name="invitations_count" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="admin" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="disabled" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unique_session_id" type="VARCHAR(20)"/>
+        </createTable>
+
+        <createIndex indexName="index_pafs_core_users_on_disabled" tableName="pafs_core_users">
+            <column name="disabled"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_email" tableName="pafs_core_users" unique="true">
+            <column name="email"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_invitation_token" tableName="pafs_core_users" unique="true">
+            <column name="invitation_token"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_invitations_count" tableName="pafs_core_users">
+            <column name="invitations_count"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_invited_by_id" tableName="pafs_core_users">
+            <column name="invited_by_id"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_reset_password_token" tableName="pafs_core_users" unique="true">
+            <column name="reset_password_token"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_unlock_token" tableName="pafs_core_users" unique="true">
+            <column name="unlock_token"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_status" tableName="pafs_core_users">
+            <column name="status"/>
+        </createIndex>
+
+        <createIndex indexName="index_pafs_core_users_on_inactivity_warning_sent_at" tableName="pafs_core_users">
+            <column name="inactivity_warning_sent_at"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="pafs_core_users" cascadeConstraints="true"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

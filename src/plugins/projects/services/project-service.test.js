@@ -803,8 +803,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -852,7 +851,6 @@ describe('ProjectService', () => {
           earliest_with_gia_year: true,
           updated_at: true,
           created_at: true,
-          is_legacy: true,
           benefit_area_file_name: true,
           benefit_area_file_size: true,
           benefit_area_content_type: true,
@@ -910,8 +908,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -956,8 +953,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -986,8 +982,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -1016,8 +1011,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2026',
         project_end_financial_year: '2030',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)

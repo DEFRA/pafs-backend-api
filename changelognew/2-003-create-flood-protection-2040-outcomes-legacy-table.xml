@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2-003-create-core-flood-protection-2040-outcomes-legacy" author="migration-team">
+        <comment>Create pafs_core_flood_protection2040_outcomes_legacy table — exact replica of the legacy pafs_core_flood_protection2040_outcomes schema</comment>
+
+        <createTable tableName="pafs_core_flood_protection2040_outcomes_legacy">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="project_id" type="INTEGER"/>
+            <column name="financial_year" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="households_at_reduced_risk" type="INTEGER"/>
+            <column name="moved_from_very_significant_and_significant_to_moderate_or_low" type="INTEGER"/>
+            <column name="households_protected_from_loss_in_20_percent_most_deprived" type="INTEGER"/>
+            <column name="non_residential_properties" type="INTEGER"/>
+        </createTable>
+
+        <!-- Foreign key to pafs_core_projects_legacy -->
+        <addForeignKeyConstraint baseTableName="pafs_core_flood_protection2040_outcomes_legacy" baseColumnNames="project_id" constraintName="fk_legacy_fp2040_outcomes_project" referencedTableName="pafs_core_projects_legacy" referencedColumnNames="id" onDelete="CASCADE"/>
+
+        <rollback>
+            <dropTable tableName="pafs_core_flood_protection2040_outcomes_legacy" cascadeConstraints="true"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

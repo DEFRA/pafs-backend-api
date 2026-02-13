@@ -209,7 +209,6 @@ export class ProjectService {
           reference_number: referenceNumber,
           slug,
           version: 1,
-          is_legacy: false,
           creator_id: userId,
           created_at: new Date()
         }

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="2-005-create-nfm-measures-table" author="migration-team">
+    <comment>Create pafs_core_nfm_measures table for Natural Flood Management measure details</comment>
+
+    <createTable tableName="pafs_core_nfm_measures">
+      <column name="id" type="BIGSERIAL" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <column name="project_id" type="BIGINT">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- Type of NFM measure -->
+      <column name="measure_type" type="VARCHAR(100)">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="area_hectares" type="FLOAT"/>
+
+      <column name="storage_volume_m3" type="FLOAT"/>
+
+      <column name="length_km" type="FLOAT"/>
+
+      <column name="width_m" type="FLOAT"/>
+
+
+      <!-- Timestamps -->
+      <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="false"/>
+      </column>
+      <column name="updated_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+
+    <!-- Foreign key constraint -->
+    <addForeignKeyConstraint baseTableName="pafs_core_nfm_measures" baseColumnNames="project_id" constraintName="fk_nfm_measures_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
+
+    <!-- Indexes -->
+    <createIndex indexName="idx_nfm_measures_project_id" tableName="pafs_core_nfm_measures">
+      <column name="project_id"/>
+    </createIndex>
+
+    <createIndex indexName="idx_nfm_measures_type" tableName="pafs_core_nfm_measures">
+      <column name="measure_type"/>
+    </createIndex>
+
+    <rollback>
+      <dropTable tableName="pafs_core_nfm_measures" cascadeConstraints="true"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

@@ -77,24 +77,6 @@ model old_passwords {
   @@index([password_archivable_type, password_archivable_id], map: "index_password_archivableddu")
 }
 
-model pafs_core_area_downloads {
-  id                                  BigInt    @id @default(autoincrement())
-  area_id                             Int?
-  user_id                             Int?
-  requested_on                        DateTime? @db.Timestamp(6)
-  number_of_proposals                 Int?
-  fcerm1_filename                     String?   @db.VarChar(255)
-  benefit_areas_filename              String?   @db.VarChar(255)
-  moderation_filename                 String?   @db.VarChar(255)
-  number_of_proposals_with_moderation Int?
-  status                              String    @default("empty") @db.VarChar(255)
-  funding_calculator_filename         String?   @db.VarChar(255)
-  created_at                          DateTime? @db.Timestamp(6)
-  updated_at                          DateTime? @db.Timestamp(6)
-
-  @@index([area_id], map: "index_pafs_core_area_downloads_on_area_id")
-}
-
 model pafs_core_area_projects {
   id         BigInt   @id @default(autoincrement())
   area_id    Int
@@ -122,120 +104,80 @@ model pafs_core_areas {
   @@index([name], map: "index_pafs_core_areas_on_name")
 }
 
-model pafs_core_asite_files {
-  id                  BigInt @id @default(autoincrement())
-  asite_submission_id Int?
-  filename            String @db.VarChar(255)
-  checksum            String @db.VarChar(255)
+model pafs_core_coastal_erosion_protection_outcomes_legacy {
+  id                                                         Int                        @id @default(autoincrement())
+  project_id                                                 Int?
+  financial_year                                             Int
+  households_at_reduced_risk                                 Int?
+  households_protected_from_loss_in_next_20_years            Int?
+  households_protected_from_loss_in_20_percent_most_deprived Int?
+  non_residential_properties                                 Int?
+  pafs_core_projects_legacy                                  pafs_core_projects_legacy? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_legacy_cep_outcomes_project")
+
+  @@index([financial_year], map: "idx_legacy_cep_outcomes_on_financial_year")
+  @@index([project_id], map: "idx_legacy_cep_outcomes_on_project_id")
+  @@index([project_id, financial_year], map: "idx_legacy_cep_outcomes_on_project_id_and_fy")
 }
 
-model pafs_core_asite_submissions {
-  id                       BigInt    @id @default(autoincrement())
-  project_id               Int?
-  email_sent_at            DateTime  @db.Timestamp(6)
-  confirmation_received_at DateTime? @db.Timestamp(6)
-  status                   String    @default("created") @db.VarChar(255)
+model pafs_core_flood_protection2040_outcomes_legacy {
+  id                                                             BigInt                     @id @default(autoincrement())
+  project_id                                                     Int?
+  financial_year                                                 Int
+  households_at_reduced_risk                                     Int?
+  moved_from_very_significant_and_significant_to_moderate_or_low Int?
+  households_protected_from_loss_in_20_percent_most_deprived     Int?
+  non_residential_properties                                     Int?
+  pafs_core_projects_legacy                                      pafs_core_projects_legacy? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_legacy_fp2040_outcomes_project")
 }
 
-model pafs_core_funding_contributors {
-  id               BigInt   @id @default(autoincrement())
-  name             String?  @db.VarChar(255)
-  contributor_type String?  @db.VarChar(255)
-  funding_value_id Int?
-  amount           BigInt?
-  secured          Boolean  @default(false)
-  constrained      Boolean  @default(false)
-  created_at       DateTime @db.Timestamp(6)
-  updated_at       DateTime @db.Timestamp(6)
+model pafs_core_flood_protection_outcomes_legacy {
+  id                                                             Int                        @id @default(autoincrement())
+  project_id                                                     Int?
+  financial_year                                                 Int
+  households_at_reduced_risk                                     Int?
+  moved_from_very_significant_and_significant_to_moderate_or_low Int?
+  households_protected_from_loss_in_20_percent_most_deprived     Int?
+  households_protected_through_plp_measures                      Int?
+  non_residential_properties                                     Int?
+  pafs_core_projects_legacy                                      pafs_core_projects_legacy? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_legacy_fp_outcomes_project")
 
-  @@index([funding_value_id, contributor_type], map: "funding_contributors_on_funding_value_id_and_type")
-  @@index([contributor_type], map: "index_pafs_core_funding_contributors_on_contributor_type")
-  @@index([funding_value_id], map: "index_pafs_core_funding_contributors_on_funding_value_id")
-}
-
-model pafs_core_funding_values {
-  id                             BigInt  @id @default(autoincrement())
-  project_id                     Int?
-  financial_year                 Int
-  fcerm_gia                      BigInt?
-  local_levy                     BigInt?
-  internal_drainage_boards       BigInt?
-  public_contributions           BigInt?
-  private_contributions          BigInt?
-  other_ea_contributions         BigInt?
-  not_yet_identified             BigInt?
-  total                          BigInt  @default(0)
-  asset_replacement_allowance    BigInt?
-  environment_statutory_funding  BigInt?
-  frequently_flooded_communities BigInt?
-  other_additional_grant_in_aid  BigInt?
-  other_government_department    BigInt?
-  recovery                       BigInt?
-  summer_economic_fund           BigInt?
-
-  @@index([project_id, financial_year], map: "funding_values_on_project_id_and_financial_year")
-  @@index([financial_year], map: "index_pafs_core_funding_values_on_financial_year")
-  @@index([project_id], map: "index_pafs_core_funding_values_on_project_id")
-}
-
-model pafs_core_nfm_land_use_changes {
-  id                   BigInt             @id @default(autoincrement())
-  project_id           BigInt
-  land_use_type        String             @db.VarChar(50)
-  area_before_hectares Float
-  area_after_hectares  Float
-  created_at           DateTime           @db.Timestamp(6)
-  updated_at           DateTime           @db.Timestamp(6)
-  pafs_core_projects   pafs_core_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_nfm_land_use_project")
-
-  @@unique([project_id, land_use_type], map: "idx_nfm_land_use_unique")
-  @@index([project_id], map: "idx_nfm_land_use_project_id")
-}
-
-model pafs_core_nfm_measures {
-  id                 BigInt             @id @default(autoincrement())
-  project_id         BigInt
-  measure_type       String             @db.VarChar(100)
-  area_hectares      Float?
-  storage_volume_m3  Float?
-  length_km          Float?
-  width_m            Float?
-  created_at         DateTime           @db.Timestamp(6)
-  updated_at         DateTime           @db.Timestamp(6)
-  pafs_core_projects pafs_core_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_nfm_measures_project")
-
-  @@index([project_id], map: "idx_nfm_measures_project_id")
-  @@index([measure_type], map: "idx_nfm_measures_type")
+  @@index([financial_year], map: "idx_legacy_fp_outcomes_on_financial_year")
+  @@index([project_id], map: "idx_legacy_fp_outcomes_on_project_id")
+  @@index([project_id, financial_year], map: "idx_legacy_fp_outcomes_on_project_id_and_fy")
 }
 
 model pafs_core_projects {
-  id                                                          BigInt                           @id @default(autoincrement())
-  reference_number                                            String                           @db.VarChar(255)
+  id                                                          BigInt    @id @default(autoincrement())
+  reference_number                                            String    @db.VarChar(255)
   version                                                     Int
-  slug                                                        String                           @unique(map: "index_pafs_core_projects_on_slug") @default("") @db.VarChar(255)
-  name                                                        String?                          @unique(map: "index_pafs_core_projects_on_name") @db.VarChar(255)
-  rma_name                                                    String?                          @db.VarChar(255)
-  project_type                                                String?                          @db.VarChar(255)
-  project_intervention_types                                  String?                          @db.VarChar(255)
-  main_intervention_type                                      String?                          @db.VarChar(255)
+  slug                                                        String    @unique(map: "index_pafs_core_projects_on_slug") @default("") @db.VarChar(255)
+  name                                                        String?   @unique(map: "index_pafs_core_projects_on_name") @db.VarChar(255)
+  rma_name                                                    String?   @db.VarChar(255)
+  project_type                                                String?   @db.VarChar(255)
+  project_intervention_types                                  String?   @db.VarChar(255)
+  main_intervention_type                                      String?   @db.VarChar(255)
   earliest_start_year                                         Int?
   project_end_financial_year                                  Int?
   pending_earliest_start_year                                 Int?
   pending_financial_year                                      Int?
-  date_change_requires_confirmation                           Boolean                          @default(false)
-  grid_reference                                              String?                          @db.VarChar(255)
-  region                                                      String?                          @db.VarChar(255)
-  parliamentary_constituency                                  String?                          @db.VarChar(255)
-  county                                                      String?                          @db.VarChar(255)
+  date_change_requires_confirmation                           Boolean   @default(false)
+  grid_reference                                              String?   @db.VarChar(255)
+  region                                                      String?   @db.VarChar(255)
+  parliamentary_constituency                                  String?   @db.VarChar(255)
+  county                                                      String?   @db.VarChar(255)
   project_location                                            String[]
-  project_location_zoom_level                                 Int?                             @default(15)
-  benefit_area_file_name                                      String?                          @db.VarChar(255)
-  benefit_area_content_type                                   String?                          @db.VarChar(255)
+  project_location_zoom_level                                 Int?      @default(15)
+  benefit_area_file_name                                      String?   @db.VarChar(255)
+  benefit_area_content_type                                   String?   @db.VarChar(255)
   benefit_area_file_size                                      Int?
-  benefit_area_file_updated_at                                DateTime?                        @db.Timestamp(6)
+  benefit_area_file_updated_at                                DateTime? @db.Timestamp(6)
   benefit_area                                                String?
   benefit_area_centre                                         String[]
   benefit_area_zoom_level                                     Int?
+  benefit_area_file_s3_bucket                                 String?   @db.VarChar(255)
+  benefit_area_file_s3_key                                    String?   @db.VarChar(1000)
+  benefit_area_file_download_url                              String?
+  benefit_area_file_download_expiry                           DateTime? @db.Timestamp(6)
   start_outline_business_case_month                           Int?
   start_outline_business_case_year                            Int?
   complete_outline_business_case_month                        Int?
@@ -253,35 +195,36 @@ model pafs_core_projects {
   local_levy                                                  Boolean?
   internal_drainage_boards                                    Boolean?
   public_contributions                                        Boolean?
-  public_contributor_names                                    String?                          @db.VarChar(255)
+  public_contributor_names                                    String?   @db.VarChar(255)
   private_contributions                                       Boolean?
-  private_contributor_names                                   String?                          @db.VarChar(255)
+  private_contributor_names                                   String?   @db.VarChar(255)
   other_ea_contributions                                      Boolean?
-  other_ea_contributor_names                                  String?                          @db.VarChar(255)
+  other_ea_contributor_names                                  String?   @db.VarChar(255)
   growth_funding                                              Boolean?
   not_yet_identified                                          Boolean?
-  funding_sources_visited                                     Boolean?                         @default(false)
-  asset_replacement_allowance                                 Boolean?                         @default(false)
-  environment_statutory_funding                               Boolean?                         @default(false)
-  frequently_flooded_communities                              Boolean?                         @default(false)
-  other_additional_grant_in_aid                               Boolean?                         @default(false)
-  other_government_department                                 Boolean?                         @default(false)
-  recovery                                                    Boolean?                         @default(false)
-  summer_economic_fund                                        Boolean?                         @default(false)
+  funding_sources_visited                                     Boolean?  @default(false)
+  asset_replacement_allowance                                 Boolean?  @default(false)
+  environment_statutory_funding                               Boolean?  @default(false)
+  frequently_flooded_communities                              Boolean?  @default(false)
+  other_additional_grant_in_aid                               Boolean?  @default(false)
+  other_government_department                                 Boolean?  @default(false)
+  recovery                                                    Boolean?  @default(false)
+  summer_economic_fund                                        Boolean?  @default(false)
   project_risks_protected_against                             String?
-  main_source_of_risk                                         String?                          @db.VarChar(255)
-  current_flood_risk                                          String?                          @db.VarChar(255)
-  current_coastal_erosion_risk                                String?                          @db.VarChar(255)
-  no_properties_at_flood_risk                                 Boolean?                         @default(false)
+  main_source_of_risk                                         String?   @db.VarChar(255)
+  current_flood_fluvial_risk                                  String?   @db.VarChar(255)
+  current_flood_surface_water_risk                            String?   @db.VarChar(255)
+  current_coastal_erosion_risk                                String?   @db.VarChar(255)
+  no_properties_at_flood_risk                                 Boolean?  @default(false)
   properties_benefit_maintaining_assets                       Int?
   properties_benefit_50_percent_reduction                     Int?
   properties_benefit_less_50_percent_reduction                Int?
   properties_benefit_individual_intervention                  Int?
-  no_properties_at_coastal_erosion_risk                       Boolean?                         @default(false)
+  no_properties_at_coastal_erosion_risk                       Boolean?  @default(false)
   properties_benefit_maintaining_assets_coastal               Int?
   properties_benefit_investment_coastal_erosion               Int?
   percent_properties_20_percent_deprived                      Int?
-  percent_properties_10_percent_deprived                      Int?
+  percent_properties_40_percent_deprived                      Int?
   environmental_benefits                                      Boolean?
   intertidal_habitat                                          Boolean?
   hectares_of_intertidal_habitat_created_or_enhanced          Float?
@@ -308,9 +251,9 @@ model pafs_core_projects {
   approach                                                    String?
   nfm_selected_measures                                       String?
   nfm_land_use_change                                         String?
-  nfm_landowner_consent                                       String?                          @db.VarChar(50)
-  nfm_experience_level                                        String?                          @db.VarChar(50)
-  nfm_project_readiness                                       String?                          @db.VarChar(50)
+  nfm_landowner_consent                                       String?   @db.VarChar(50)
+  nfm_experience_level                                        String?   @db.VarChar(50)
+  nfm_project_readiness                                       String?   @db.VarChar(50)
   wlc_estimated_whole_life_pv_costs                           Float?
   wlc_estimated_design_construction_costs                     Float?
   wlc_estimated_risk_contingency_costs                        Float?
@@ -320,39 +263,206 @@ model pafs_core_projects {
   wlc_estimated_environmental_benefits                        Float?
   wlc_estimated_recreation_tourism_benefits                   Float?
   wlc_estimated_land_value_uplift_benefits                    Float?
-  urgency_reason                                              String?                          @db.VarChar(255)
+  urgency_reason                                              String?   @db.VarChar(255)
   urgency_details                                             String?
-  urgency_details_updated_at                                  DateTime?                        @db.Timestamp(6)
-  confidence_homes_better_protected                           String?                          @db.VarChar(20)
-  confidence_homes_by_gateway_four                            String?                          @db.VarChar(20)
-  confidence_secured_partnership_funding                      String?                          @db.VarChar(20)
-  carbon_cost_build                                           Decimal?                         @db.Decimal(20, 2)
-  carbon_cost_operation                                       Decimal?                         @db.Decimal(20, 2)
-  carbon_cost_sequestered                                     Decimal?                         @db.Decimal(20, 2)
-  carbon_cost_avoided                                         Decimal?                         @db.Decimal(20, 2)
-  carbon_savings_net_economic_benefit                         Decimal?                         @db.Decimal(20, 2)
+  urgency_details_updated_at                                  DateTime? @db.Timestamp(6)
+  confidence_homes_better_protected                           String?   @db.VarChar(20)
+  confidence_homes_by_gateway_four                            String?   @db.VarChar(20)
+  confidence_secured_partnership_funding                      String?   @db.VarChar(20)
+  carbon_cost_build                                           Decimal?  @db.Decimal(20, 2)
+  carbon_cost_operation                                       Decimal?  @db.Decimal(20, 2)
+  carbon_cost_sequestered                                     Decimal?  @db.Decimal(20, 2)
+  carbon_cost_avoided                                         Decimal?  @db.Decimal(20, 2)
+  carbon_savings_net_economic_benefit                         Decimal?  @db.Decimal(20, 2)
   carbon_operational_cost_forecast                            BigInt?
-  carbon_values_hexdigest                                     String?                          @db.VarChar(255)
+  carbon_values_hexdigest                                     String?   @db.VarChar(255)
   creator_id                                                  Int?
-  submitted_at                                                DateTime?                        @db.Timestamp(6)
-  submitted_to_pol                                            DateTime?                        @db.Timestamp(6)
-  updated_by_type                                             String?                          @db.VarChar(255)
+  submitted_at                                                DateTime? @db.Timestamp(6)
+  submitted_to_pol                                            DateTime? @db.Timestamp(6)
+  updated_by_type                                             String?   @db.VarChar(255)
   updated_by_id                                               BigInt?
-  created_at                                                  DateTime                         @db.Timestamp(6)
-  updated_at                                                  DateTime                         @db.Timestamp(6)
-  is_legacy                                                   Boolean                          @default(true)
-  benefit_area_file_s3_bucket                                 String?                          @db.VarChar(255)
-  benefit_area_file_s3_key                                    String?                          @db.VarChar(1000)
-  benefit_area_file_download_url                              String?
-  benefit_area_file_download_expiry                           DateTime?                        @db.Timestamp(6)
-  pafs_core_nfm_land_use_changes                              pafs_core_nfm_land_use_changes[]
-  pafs_core_nfm_measures                                      pafs_core_nfm_measures[]
+  created_at                                                  DateTime  @db.Timestamp(6)
+  updated_at                                                  DateTime  @db.Timestamp(6)
 
   @@unique([reference_number, version], map: "index_pafs_core_projects_on_reference_number_and_version")
+  @@index([benefit_area_file_s3_bucket, benefit_area_file_s3_key], map: "idx_core_projects_benefit_area_s3")
   @@index([reference_number], map: "index_pafs_core_projects_on_reference_number")
   @@index([submitted_to_pol], map: "index_pafs_core_projects_on_submitted_to_pol")
   @@index([updated_by_type, updated_by_id], map: "index_pafs_core_projects_on_updated_by")
-  @@index([benefit_area_file_s3_bucket, benefit_area_file_s3_key], map: "idx_core_projects_benefit_area_s3")
+}
+
+model pafs_core_projects_legacy {
+  id                                                          Int                                                    @id @default(autoincrement())
+  reference_number                                            String                                                 @db.VarChar(255)
+  version                                                     Int
+  name                                                        String?                                                @unique(map: "idx_legacy_projects_on_name") @db.VarChar(255)
+  created_at                                                  DateTime                                               @db.Timestamp(6)
+  updated_at                                                  DateTime                                               @db.Timestamp(6)
+  project_end_financial_year                                  Int?
+  slug                                                        String                                                 @unique(map: "idx_legacy_projects_on_slug") @default("") @db.VarChar(255)
+  start_outline_business_case_month                           Int?
+  start_outline_business_case_year                            Int?
+  award_contract_month                                        Int?
+  award_contract_year                                         Int?
+  start_construction_month                                    Int?
+  start_construction_year                                     Int?
+  ready_for_service_month                                     Int?
+  ready_for_service_year                                      Int?
+  fcerm_gia                                                   Boolean?
+  local_levy                                                  Boolean?
+  internal_drainage_boards                                    Boolean?
+  public_contributions                                        Boolean?
+  public_contributor_names                                    String?                                                @db.VarChar(255)
+  private_contributions                                       Boolean?
+  private_contributor_names                                   String?                                                @db.VarChar(255)
+  other_ea_contributions                                      Boolean?
+  other_ea_contributor_names                                  String?                                                @db.VarChar(255)
+  growth_funding                                              Boolean?
+  not_yet_identified                                          Boolean?
+  could_start_early                                           Boolean?
+  earliest_with_gia_month                                     Int?
+  earliest_with_gia_year                                      Int?
+  fluvial_flooding                                            Boolean?
+  tidal_flooding                                              Boolean?
+  groundwater_flooding                                        Boolean?
+  surface_water_flooding                                      Boolean?
+  coastal_erosion                                             Boolean?
+  main_risk                                                   String?                                                @db.VarChar(255)
+  project_type                                                String?                                                @db.VarChar(255)
+  funding_calculator_file_name                                String?                                                @db.VarChar(255)
+  funding_calculator_content_type                             String?                                                @db.VarChar(255)
+  funding_calculator_file_size                                Int?
+  funding_calculator_updated_at                               DateTime?                                              @db.Timestamp(6)
+  project_location                                            String[]                                               @default([])
+  project_location_zoom_level                                 Int?                                                   @default(15)
+  benefit_area                                                String?
+  benefit_area_centre                                         String[]
+  benefit_area_zoom_level                                     Int?
+  submitted_at                                                DateTime?                                              @db.Timestamp(6)
+  flood_protection_before                                     Int?
+  flood_protection_after                                      Int?
+  coastal_protection_before                                   Int?
+  coastal_protection_after                                    Int?
+  urgency_reason                                              String?                                                @db.VarChar(255)
+  urgency_details                                             String?                                                @db.VarChar(255)
+  approach                                                    String?
+  creator_id                                                  Int?
+  improve_surface_or_groundwater                              Boolean?
+  improve_surface_or_groundwater_amount                       Float?
+  improve_river                                               Boolean?
+  improve_spa_or_sac                                          Boolean?
+  improve_sssi                                                Boolean?
+  improve_hpi                                                 Boolean?
+  improve_habitat_amount                                      Float?
+  improve_river_amount                                        Float?
+  create_habitat                                              Boolean?
+  create_habitat_amount                                       Float?
+  remove_fish_barrier                                         Boolean?
+  remove_eel_barrier                                          Boolean?
+  fish_or_eel_amount                                          Float?
+  funding_sources_visited                                     Boolean?                                               @default(false)
+  benefit_area_file_name                                      String?                                                @db.VarChar(255)
+  benefit_area_content_type                                   String?                                                @db.VarChar(255)
+  benefit_area_file_size                                      Int?
+  benefit_area_file_updated_at                                DateTime?                                              @db.Timestamp(6)
+  sea_flooding                                                Boolean?
+  region                                                      String?                                                @db.VarChar(255)
+  parliamentary_constituency                                  String?                                                @db.VarChar(255)
+  strategic_approach                                          Boolean?
+  raw_partnership_funding_score                               Float?
+  adjusted_partnership_funding_score                          Float?
+  pv_whole_life_costs                                         Float?
+  pv_whole_life_benefits                                      Float?
+  duration_of_benefits                                        Int?
+  hectares_of_net_water_dependent_habitat_created             Float?
+  hectares_of_net_water_intertidal_habitat_created            Float?
+  kilometres_of_protected_river_improved                      Float?
+  county                                                      String?                                                @db.VarChar(255)
+  urgency_details_updated_at                                  DateTime?                                              @db.Timestamp(6)
+  grid_reference                                              String?                                                @db.VarChar(255)
+  reservoir_flooding                                          Boolean?
+  consented                                                   Boolean                                                @default(false)
+  reduced_risk_of_households_for_floods                       Boolean                                                @default(false)
+  reduced_risk_of_households_for_coastal_erosion              Boolean                                                @default(false)
+  rma_name                                                    String?                                                @db.VarChar(255)
+  submitted_to_pol                                            DateTime?                                              @db.Timestamp(6)
+  confidence_homes_better_protected                           String?                                                @db.VarChar(255)
+  confidence_homes_by_gateway_four                            String?                                                @db.VarChar(255)
+  confidence_secured_partnership_funding                      String?                                                @db.VarChar(255)
+  carbon_cost_build                                           Decimal?                                               @db.Decimal(20, 2)
+  carbon_cost_operation                                       Decimal?                                               @db.Decimal(20, 2)
+  natural_flood_risk_measures_included                        Boolean?
+  river_restoration                                           Boolean?
+  floodplain_restoration                                      Boolean?
+  leaky_barriers                                              Boolean?
+  offline_flood_storage_areas                                 Boolean?
+  cross_slope_woodland                                        Boolean?
+  catchment_woodland                                          Boolean?
+  riparian_woodland                                           Boolean?
+  floodplain_woodland                                         Boolean?
+  soil_and_land_management                                    Boolean?
+  land_and_headwater_drainage_management                      Boolean?
+  runoff_pathway_management                                   Boolean?
+  saltmarsh_mudflats_and_managed_realignment                  Boolean?
+  sand_dunes                                                  Boolean?
+  beach_nourishment                                           Boolean?
+  other_flood_measures                                        String?                                                @db.VarChar(255)
+  natural_flood_risk_measures_cost                            Float?
+  other_flood_measures_selected                               Boolean?
+  environmental_benefits                                      Boolean?
+  intertidal_habitat                                          Boolean?
+  hectares_of_intertidal_habitat_created_or_enhanced          Float?
+  woodland                                                    Boolean?
+  hectares_of_woodland_habitat_created_or_enhanced            Float?
+  wet_woodland                                                Boolean?
+  hectares_of_wet_woodland_habitat_created_or_enhanced        Float?
+  wetland_or_wet_grassland                                    Boolean?
+  hectares_of_wetland_or_wet_grassland_created_or_enhanced    Float?
+  grassland                                                   Boolean?
+  hectares_of_grassland_habitat_created_or_enhanced           Float?
+  heathland                                                   Boolean?
+  hectares_of_heathland_created_or_enhanced                   Float?
+  ponds_lakes                                                 Boolean?
+  hectares_of_pond_or_lake_habitat_created_or_enhanced        Float?
+  arable_land                                                 Boolean?
+  hectares_of_arable_land_lake_habitat_created_or_enhanced    Float?
+  comprehensive_restoration                                   Boolean?
+  kilometres_of_watercourse_enhanced_or_created_comprehensive Float?
+  partial_restoration                                         Boolean?
+  kilometres_of_watercourse_enhanced_or_created_partial       Float?
+  create_habitat_watercourse                                  Boolean?
+  kilometres_of_watercourse_enhanced_or_created_single        Float?
+  no_properties_affected_by_flooding_2040                     Boolean                                                @default(false)
+  complete_outline_business_case_month                        Int?
+  complete_outline_business_case_year                         Int?
+  asset_replacement_allowance                                 Boolean?                                               @default(false)
+  environment_statutory_funding                               Boolean?                                               @default(false)
+  frequently_flooded_communities                              Boolean?                                               @default(false)
+  other_additional_grant_in_aid                               Boolean?                                               @default(false)
+  other_government_department                                 Boolean?                                               @default(false)
+  recovery                                                    Boolean?                                               @default(false)
+  summer_economic_fund                                        Boolean?                                               @default(false)
+  earliest_start_month                                        Int?
+  earliest_start_year                                         Int?
+  updated_by_type                                             String?                                                @db.VarChar(255)
+  updated_by_id                                               BigInt?
+  carbon_cost_sequestered                                     Decimal?                                               @db.Decimal(20, 2)
+  carbon_cost_avoided                                         Decimal?                                               @db.Decimal(20, 2)
+  carbon_savings_net_economic_benefit                         BigInt?
+  pending_earliest_start_month                                Int?
+  pending_earliest_start_year                                 Int?
+  pending_financial_year                                      Int?
+  date_change_requires_confirmation                           Boolean?                                               @default(false)
+  carbon_operational_cost_forecast                            BigInt?
+  carbon_values_hexdigest                                     String?                                                @db.VarChar(255)
+  is_migrated                                                 Boolean?                                               @default(false)
+  pafs_core_coastal_erosion_protection_outcomes_legacy        pafs_core_coastal_erosion_protection_outcomes_legacy[]
+  pafs_core_flood_protection2040_outcomes_legacy              pafs_core_flood_protection2040_outcomes_legacy[]
+  pafs_core_flood_protection_outcomes_legacy                  pafs_core_flood_protection_outcomes_legacy[]
+
+  @@unique([reference_number, version], map: "idx_legacy_projects_on_ref_and_version")
+  @@index([submitted_to_pol], map: "idx_legacy_projects_on_submitted_to_pol")
+  @@index([updated_by_type, updated_by_id], map: "idx_legacy_projects_on_updated_by")
 }
 
 model pafs_core_reference_counters {
@@ -404,6 +514,10 @@ model pafs_core_users {
   first_name                 String                 @default("") @db.VarChar(255)
   last_name                  String                 @default("") @db.VarChar(255)
   job_title                  String?                @db.VarChar(255)
+  organisation               String                 @default("") @db.VarChar(255)
+  telephone_number           String?                @db.VarChar(255)
+  status                     String                 @default("active") @db.VarChar(255)
+  inactivity_warning_sent_at DateTime?              @db.Timestamp(6)
   created_at                 DateTime               @db.Timestamp(6)
   updated_at                 DateTime               @db.Timestamp(6)
   invitation_token           String?                @unique(map: "index_pafs_core_users_on_invitation_token") @db.VarChar(255)
@@ -417,10 +531,6 @@ model pafs_core_users {
   admin                      Boolean                @default(false)
   disabled                   Boolean                @default(false)
   unique_session_id          String?                @db.VarChar(20)
-  organisation               String                 @default("") @db.VarChar(255)
-  telephone_number           String?                @db.VarChar(255)
-  status                     String                 @default("active") @db.VarChar(255)
-  inactivity_warning_sent_at DateTime?              @db.Timestamp(6)
   file_uploads               file_uploads[]
   pafs_core_user_areas       pafs_core_user_areas[]
 
@@ -428,6 +538,7 @@ model pafs_core_users {
   @@index([inactivity_warning_sent_at], map: "index_pafs_core_users_on_inactivity_warning_sent_at")
   @@index([invitations_count], map: "index_pafs_core_users_on_invitations_count")
   @@index([invited_by_id], map: "index_pafs_core_users_on_invited_by_id")
+  @@index([status], map: "index_pafs_core_users_on_status")
 }
 
 model scheduler_locks {
