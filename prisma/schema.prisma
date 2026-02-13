@@ -108,16 +108,15 @@ model pafs_core_area_projects {
 }
 
 model pafs_core_areas {
-  id                   BigInt                 @id @default(autoincrement())
-  name                 String?                @db.VarChar(255)
-  parent_id            Int?
-  area_type            String?                @db.VarChar(255)
-  created_at           DateTime               @db.Timestamp(6)
-  updated_at           DateTime               @db.Timestamp(6)
-  sub_type             String?                @db.VarChar(255)
-  identifier           String?                @db.VarChar(255)
-  end_date             DateTime?              @db.Date
-  pafs_core_user_areas pafs_core_user_areas[]
+  id         BigInt    @id @default(autoincrement())
+  name       String?   @db.VarChar(255)
+  parent_id  Int?
+  area_type  String?   @db.VarChar(255)
+  created_at DateTime  @db.Timestamp(6)
+  updated_at DateTime  @db.Timestamp(6)
+  sub_type   String?   @db.VarChar(255)
+  identifier String?   @db.VarChar(255)
+  end_date   DateTime? @db.Date
 
   @@index([name], map: "index_pafs_core_areas_on_name")
 }
@@ -373,56 +372,53 @@ model pafs_core_states {
 }
 
 model pafs_core_user_areas {
-  id              BigInt          @id @default(autoincrement())
-  created_at      DateTime        @db.Timestamp(6)
-  updated_at      DateTime        @db.Timestamp(6)
-  user_id         BigInt
-  area_id         BigInt
-  primary         Boolean?        @default(false)
-  pafs_core_areas pafs_core_areas @relation(fields: [area_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_areas_area_id")
-  pafs_core_users pafs_core_users @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_areas_user_id")
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @db.Timestamp(6)
+  updated_at DateTime @db.Timestamp(6)
+  user_id    BigInt
+  area_id    BigInt
+  primary    Boolean? @default(false)
 
   @@index([area_id], map: "index_pafs_core_user_areas_on_area_id")
   @@index([user_id], map: "index_pafs_core_user_areas_on_user_id")
 }
 
 model pafs_core_users {
-  id                         BigInt                 @id @default(autoincrement())
-  email                      String                 @unique(map: "index_pafs_core_users_on_email") @default("") @db.VarChar(255)
-  encrypted_password         String                 @default("") @db.VarChar(255)
-  reset_password_token       String?                @unique(map: "index_pafs_core_users_on_reset_password_token") @db.VarChar(255)
-  reset_password_sent_at     DateTime?              @db.Timestamp(6)
-  remember_created_at        DateTime?              @db.Timestamp(6)
-  sign_in_count              Int                    @default(0)
-  current_sign_in_at         DateTime?              @db.Timestamp(6)
-  last_sign_in_at            DateTime?              @db.Timestamp(6)
-  current_sign_in_ip         String?                @db.Inet
-  last_sign_in_ip            String?                @db.Inet
-  failed_attempts            Int                    @default(0)
-  unlock_token               String?                @unique(map: "index_pafs_core_users_on_unlock_token") @db.VarChar(255)
-  locked_at                  DateTime?              @db.Timestamp(6)
-  first_name                 String                 @default("") @db.VarChar(255)
-  last_name                  String                 @default("") @db.VarChar(255)
-  job_title                  String?                @db.VarChar(255)
-  created_at                 DateTime               @db.Timestamp(6)
-  updated_at                 DateTime               @db.Timestamp(6)
-  invitation_token           String?                @unique(map: "index_pafs_core_users_on_invitation_token") @db.VarChar(255)
-  invitation_created_at      DateTime?              @db.Timestamp(6)
-  invitation_sent_at         DateTime?              @db.Timestamp(6)
-  invitation_accepted_at     DateTime?              @db.Timestamp(6)
+  id                         BigInt         @id @default(autoincrement())
+  email                      String         @unique(map: "index_pafs_core_users_on_email") @default("") @db.VarChar(255)
+  encrypted_password         String         @default("") @db.VarChar(255)
+  reset_password_token       String?        @unique(map: "index_pafs_core_users_on_reset_password_token") @db.VarChar(255)
+  reset_password_sent_at     DateTime?      @db.Timestamp(6)
+  remember_created_at        DateTime?      @db.Timestamp(6)
+  sign_in_count              Int            @default(0)
+  current_sign_in_at         DateTime?      @db.Timestamp(6)
+  last_sign_in_at            DateTime?      @db.Timestamp(6)
+  current_sign_in_ip         String?        @db.Inet
+  last_sign_in_ip            String?        @db.Inet
+  failed_attempts            Int            @default(0)
+  unlock_token               String?        @unique(map: "index_pafs_core_users_on_unlock_token") @db.VarChar(255)
+  locked_at                  DateTime?      @db.Timestamp(6)
+  first_name                 String         @default("") @db.VarChar(255)
+  last_name                  String         @default("") @db.VarChar(255)
+  job_title                  String?        @db.VarChar(255)
+  created_at                 DateTime       @db.Timestamp(6)
+  updated_at                 DateTime       @db.Timestamp(6)
+  invitation_token           String?        @unique(map: "index_pafs_core_users_on_invitation_token") @db.VarChar(255)
+  invitation_created_at      DateTime?      @db.Timestamp(6)
+  invitation_sent_at         DateTime?      @db.Timestamp(6)
+  invitation_accepted_at     DateTime?      @db.Timestamp(6)
   invitation_limit           Int?
   invited_by_id              Int?
-  invited_by_type            String?                @db.VarChar(255)
-  invitations_count          Int?                   @default(0)
-  admin                      Boolean                @default(false)
-  disabled                   Boolean                @default(false)
-  unique_session_id          String?                @db.VarChar(20)
-  organisation               String                 @default("") @db.VarChar(255)
-  telephone_number           String?                @db.VarChar(255)
-  status                     String                 @default("active") @db.VarChar(255)
-  inactivity_warning_sent_at DateTime?              @db.Timestamp(6)
+  invited_by_type            String?        @db.VarChar(255)
+  invitations_count          Int?           @default(0)
+  admin                      Boolean        @default(false)
+  disabled                   Boolean        @default(false)
+  unique_session_id          String?        @db.VarChar(20)
+  organisation               String         @default("") @db.VarChar(255)
+  telephone_number           String?        @db.VarChar(255)
+  status                     String         @default("active") @db.VarChar(255)
+  inactivity_warning_sent_at DateTime?      @db.Timestamp(6)
   file_uploads               file_uploads[]
-  pafs_core_user_areas       pafs_core_user_areas[]
 
   @@index([disabled], map: "index_pafs_core_users_on_disabled")
   @@index([inactivity_warning_sent_at], map: "index_pafs_core_users_on_inactivity_warning_sent_at")

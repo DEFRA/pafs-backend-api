@@ -1,5 +1,11 @@
 import Joi from 'joi'
 import {
+  searchSchema,
+  areaIdSchema,
+  pageSchema,
+  pageSizeSchema
+} from '../../common/schemas/index.js'
+import {
   projectNameSchema,
   projectReferenceNumberSchema
 } from '../../common/schemas/project.js'
@@ -9,6 +15,21 @@ import {
   VALIDATION_LEVELS
 } from './helpers/project-level.js'
 import { VALIDATION_ERROR_CODES } from '../../common/constants/common.js'
+
+/**
+ * Query schema for listing projects
+ * Combines common filter and pagination schemas
+ */
+export const getProjectsQuerySchema = Joi.object({
+  search: searchSchema,
+  areaId: areaIdSchema,
+  status: Joi.string()
+    .valid('draft', 'submitted', 'archived')
+    .optional()
+    .label('Status'),
+  page: pageSchema,
+  pageSize: pageSizeSchema()
+})
 
 export const validateProjectName = Joi.object({
   name: projectNameSchema,
