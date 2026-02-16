@@ -25,12 +25,15 @@ const validateUpdateTimeline = (
   ) {
     return null
   }
-
+  const finalFinancialEndYear =
+    existingProject.financialEndYear === existingProject.financialStartYear
+      ? existingProject.financialStartYear + 1
+      : existingProject.financialEndYear
   return validateTimelineFinancialBoundaries(
     proposalPayload,
     validationLevel,
     existingProject.financialStartYear,
-    existingProject.financialEndYear,
+    finalFinancialEndYear,
     { userId, referenceNumber, logger, h }
   )
 }
