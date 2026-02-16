@@ -2,8 +2,8 @@ import Joi from 'joi'
 import {
   PROJECT_VALIDATION_MESSAGES,
   PROJECT_RISK_TYPES
-} from '../constants/project.js'
-import { SIZE } from '../constants/common.js'
+} from '../../constants/project.js'
+import { SIZE } from '../../constants/common.js'
 
 /**
  * Project risks protected against schema (API format)

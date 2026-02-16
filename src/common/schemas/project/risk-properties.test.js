@@ -12,8 +12,8 @@ import {
   propertiesBenefitInvestmentCoastalErosionSchema,
   percentProperties20PercentDeprivedSchema,
   percentProperties40PercentDeprivedSchema
-} from './project.js'
-import { PROJECT_RISK_TYPES } from '../constants/project.js'
+} from '../project.js'
+import { PROJECT_RISK_TYPES } from '../../constants/project.js'
 
 describe('project schemas - risk and properties', () => {
   describe('projectRisksProtectedAgainstSchema', () => {

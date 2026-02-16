@@ -71,7 +71,45 @@ export const PROJECT_FIELDS_MAP = {
   percentProperties40PercentDeprived: 'percent_properties_40_percent_deprived',
   currentFloodRisk: 'current_flood_risk',
   currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
-  currentCoastalErosionRisk: 'current_coastal_erosion_risk'
+  currentCoastalErosionRisk: 'current_coastal_erosion_risk',
+  approach: 'approach',
+  urgencyReason: 'urgency_reason',
+  urgencyDetails: 'urgency_details',
+  urgencyDetailsUpdatedAt: 'urgency_details_updated_at',
+  confidenceHomesBetterProtected: 'confidence_homes_better_protected',
+  confidenceHomesByGatewayFour: 'confidence_homes_by_gateway_four',
+  confidenceSecuredPartnershipFunding: 'confidence_secured_partnership_funding',
+  environmentalBenefits: 'environmental_benefits',
+  intertidalHabitat: 'intertidal_habitat',
+  hectaresOfIntertidalHabitatCreatedOrEnhanced:
+    'hectares_of_intertidal_habitat_created_or_enhanced',
+  woodland: 'woodland',
+  hectaresOfWoodlandHabitatCreatedOrEnhanced:
+    'hectares_of_woodland_habitat_created_or_enhanced',
+  wetWoodland: 'wet_woodland',
+  hectaresOfWetWoodlandHabitatCreatedOrEnhanced:
+    'hectares_of_wet_woodland_habitat_created_or_enhanced',
+  wetlandOrWetGrassland: 'wetland_or_wet_grassland',
+  hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced:
+    'hectares_of_wetland_or_wet_grassland_created_or_enhanced',
+  grassland: 'grassland',
+  hectaresOfGrasslandHabitatCreatedOrEnhanced:
+    'hectares_of_grassland_habitat_created_or_enhanced',
+  pondsLakes: 'ponds_lakes',
+  hectaresOfPondOrLakeHabitatCreatedOrEnhanced:
+    'hectares_of_pond_or_lake_habitat_created_or_enhanced',
+  arableLand: 'arable_land',
+  hectaresOfArableLandLakeHabitatCreatedOrEnhanced:
+    'hectares_of_arable_land_lake_habitat_created_or_enhanced',
+  comprehensiveRestoration: 'comprehensive_restoration',
+  kilometresOfWatercourseEnhancedOrCreatedComprehensive:
+    'kilometres_of_watercourse_enhanced_or_created_comprehensive',
+  partialRestoration: 'partial_restoration',
+  kilometresOfWatercourseEnhancedOrCreatedPartial:
+    'kilometres_of_watercourse_enhanced_or_created_partial',
+  createHabitatWatercourse: 'create_habitat_watercourse',
+  kilometresOfWatercourseEnhancedOrCreatedSingle:
+    'kilometres_of_watercourse_enhanced_or_created_single'
 }
 
 /**

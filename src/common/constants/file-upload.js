@@ -20,6 +20,7 @@ export const UPLOAD_STATUS = {
  * Represents the virus scan/validation status of the file
  */
 export const FILE_STATUS = {
+  COMPLETE: 'complete', // File upload fully complete
   SCANNED: 'scanned', // File scanned and clean
   QUARANTINED: 'quarantined', // File contains virus or malware
   REJECTED: 'rejected' // File rejected for other reasons

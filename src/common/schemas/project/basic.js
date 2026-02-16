@@ -3,8 +3,8 @@ import {
   PROJECT_INTERVENTION_TYPES,
   PROJECT_TYPES,
   PROJECT_VALIDATION_MESSAGES
-} from '../constants/project.js'
-import { SIZE, PATTERN } from '../constants/common.js'
+} from '../../constants/project.js'
+import { SIZE, PATTERN } from '../../constants/common.js'
 
 /**
  * Project ID schema - for updates

@@ -1,6 +1,6 @@
 import Joi from 'joi'
-import { PROJECT_VALIDATION_MESSAGES } from '../constants/project.js'
-import { SIZE } from '../constants/common.js'
+import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
+import { SIZE } from '../../constants/common.js'
 
 /**
  * Helper: Get current month and year

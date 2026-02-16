@@ -2,16 +2,20 @@ import { ProjectService } from '../services/project-service.js'
 import { AreaService } from '../../areas/services/area-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
-import {
-  PROJECT_VALIDATION_MESSAGES,
-  PROJECT_VALIDATION_LEVELS
-} from '../../../common/constants/project.js'
+import { PROJECT_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
 import { upsertProjectSchema } from '../schema.js'
 import { performValidations } from '../helpers/project-validations/index.js'
 import {
   buildErrorResponse,
   buildSuccessResponse
 } from '../../../common/helpers/response-builder.js'
+import {
+  normalizeInterventionTypes,
+  resetEarliestWithGiaFields,
+  normalizeUrgencyData,
+  normalizeEnvironmentalBenefits,
+  normalizeRiskFields
+} from '../helpers/payload-normalizers.js'
 
 /**
  * Creates the success response
@@ -30,76 +34,6 @@ const createSuccessResponse = (h, project, isCreate) => {
     },
     isCreate ? HTTP_STATUS.CREATED : HTTP_STATUS.OK
   )
-}
-
-/**
- * Normalizes intervention types for INITIAL_SAVE and PROJECT_TYPE levels
- */
-const normalizeInterventionTypes = (enrichedPayload, validationLevel) => {
-  if (
-    validationLevel === PROJECT_VALIDATION_LEVELS.INITIAL_SAVE ||
-    validationLevel === PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
-  ) {
-    if (enrichedPayload?.projectInterventionTypes === undefined) {
-      enrichedPayload.projectInterventionTypes = null
-    }
-    if (enrichedPayload?.mainInterventionType === undefined) {
-      enrichedPayload.mainInterventionType = null
-    }
-  }
-}
-
-/**
- * Resets earliestWithGia fields when couldStartEarly is false
- */
-const resetEarliestWithGiaFields = (enrichedPayload, validationLevel) => {
-  const isValidationLevelForCouldStartEarly =
-    validationLevel === PROJECT_VALIDATION_LEVELS.COULD_START_EARLY
-  const isValidationLevelForEarliestWithGia =
-    validationLevel === PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
-  const isCouldStartEarlyFalse = enrichedPayload.couldStartEarly === false
-
-  if (
-    (isValidationLevelForCouldStartEarly ||
-      isValidationLevelForEarliestWithGia) &&
-    isCouldStartEarlyFalse
-  ) {
-    enrichedPayload.earliestWithGiaMonth = null
-    enrichedPayload.earliestWithGiaYear = null
-  }
-}
-
-/**
- * Resets current risk fields when their corresponding risk types are not selected
- */
-const resetCurrentRiskFields = (enrichedPayload, validationLevel) => {
-  // Only reset when updating the RISK level
-  if (validationLevel !== PROJECT_VALIDATION_LEVELS.RISK) {
-    return
-  }
-
-  const risks = enrichedPayload.risks || []
-  const hasFloodRisk =
-    risks.includes('fluvial_flooding') ||
-    risks.includes('tidal_flooding') ||
-    risks.includes('sea_flooding')
-  const hasSurfaceWaterRisk = risks.includes('surface_water_flooding')
-  const hasCoastalErosionRisk = risks.includes('coastal_erosion')
-
-  // Reset current flood risk if fluvial/tidal/sea are not selected
-  if (!hasFloodRisk) {
-    enrichedPayload.currentFloodRisk = null
-  }
-
-  // Reset surface water risk if surface water is not selected
-  if (!hasSurfaceWaterRisk) {
-    enrichedPayload.currentFloodSurfaceWaterRisk = null
-  }
-
-  // Reset coastal erosion risk if coastal erosion is not selected
-  if (!hasCoastalErosionRisk) {
-    enrichedPayload.currentCoastalErosionRisk = null
-  }
 }
 
 const upsertProject = {
@@ -160,8 +94,14 @@ const upsertProject = {
         // Reset earliestWithGia fields when couldStartEarly is false or when saving COULD_START_EARLY level
         resetEarliestWithGiaFields(enrichedPayload, validationLevel)
 
-        // Reset current risk fields when their corresponding risk types are not selected
-        resetCurrentRiskFields(enrichedPayload, validationLevel)
+        // Normalize urgency data: nullify details when not_urgent, stamp updatedAt
+        normalizeUrgencyData(enrichedPayload, validationLevel)
+
+        // Normalize environmental benefits: reset fields based on gate values
+        normalizeEnvironmentalBenefits(enrichedPayload, validationLevel)
+
+        //Normalize Risk & Property benefiting fields
+        normalizeRiskFields(enrichedPayload, validationLevel)
 
         if (areaId) {
           const area = await areaService.getAreaByIdWithParents(areaId)
