@@ -89,8 +89,7 @@ export class ProjectMapper {
     }
 
     if (field === 'risks') {
-      // Convert array to comma-separated string for database
-      return Array.isArray(value) ? value.join(',') : value
+      return this._transformRisksToDatabase(value)
     }
 
     if (field === 'financialStartYear' || field === 'financialEndYear') {
@@ -101,14 +100,29 @@ export class ProjectMapper {
       field === 'percentProperties20PercentDeprived' ||
       field === 'percentProperties40PercentDeprived'
     ) {
-      // Convert string to float for database (validation accepts strings with pattern)
-      if (value === '' || value === null || value === undefined) {
-        return null
-      }
-      return typeof value === 'string' ? Number.parseFloat(value) : value
+      return this._transformPercentageToDatabase(value)
     }
 
     return value
+  }
+
+  /**
+   * Transforms risks array to database format
+   * @private
+   */
+  static _transformRisksToDatabase(value) {
+    return Array.isArray(value) ? value.join(',') : value
+  }
+
+  /**
+   * Transforms percentage string to database format
+   * @private
+   */
+  static _transformPercentageToDatabase(value) {
+    if (value === '' || value === null || value === undefined) {
+      return null
+    }
+    return typeof value === 'string' ? Number.parseFloat(value) : value
   }
 
   /**
@@ -125,10 +139,7 @@ export class ProjectMapper {
     }
 
     if (field === 'risks') {
-      // Convert comma-separated string back to array for API
-      return value && typeof value === 'string'
-        ? value.split(',').map((r) => r.trim())
-        : value
+      return this._transformRisksToApi(value)
     }
 
     if (
@@ -143,13 +154,30 @@ export class ProjectMapper {
       field === 'percentProperties20PercentDeprived' ||
       field === 'percentProperties40PercentDeprived'
     ) {
-      // Convert float from database to string for API (to match validation schema)
-      if (value === null || value === undefined) {
-        return null
-      }
-      return typeof value === 'number' ? value.toString() : value
+      return this._transformPercentageToApi(value)
     }
 
     return value
+  }
+
+  /**
+   * Transforms risks string to API format
+   * @private
+   */
+  static _transformRisksToApi(value) {
+    return value && typeof value === 'string'
+      ? value.split(',').map((r) => r.trim())
+      : value
+  }
+
+  /**
+   * Transforms percentage float to API format
+   * @private
+   */
+  static _transformPercentageToApi(value) {
+    if (value === null || value === undefined) {
+      return null
+    }
+    return typeof value === 'number' ? value.toString() : value
   }
 }
