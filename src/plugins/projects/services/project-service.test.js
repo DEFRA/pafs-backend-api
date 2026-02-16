@@ -858,7 +858,22 @@ describe('ProjectService', () => {
           benefit_area_file_s3_key: true,
           benefit_area_file_updated_at: true,
           benefit_area_file_download_url: true,
-          benefit_area_file_download_expiry: true
+          benefit_area_file_download_expiry: true,
+          project_risks_protected_against: true,
+          main_source_of_risk: true,
+          no_properties_at_flood_risk: true,
+          properties_benefit_maintaining_assets: true,
+          properties_benefit_50_percent_reduction: true,
+          properties_benefit_less_50_percent_reduction: true,
+          properties_benefit_individual_intervention: true,
+          no_properties_at_coastal_erosion_risk: true,
+          properties_benefit_maintaining_assets_coastal: true,
+          properties_benefit_investment_coastal_erosion: true,
+          percent_properties_20_percent_deprived: true,
+          percent_properties_40_percent_deprived: true,
+          current_flood_risk: true,
+          current_flood_surface_water_risk: true,
+          current_coastal_erosion_risk: true
         }
       })
 

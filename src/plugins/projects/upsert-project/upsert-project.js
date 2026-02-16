@@ -69,6 +69,39 @@ const resetEarliestWithGiaFields = (enrichedPayload, validationLevel) => {
   }
 }
 
+/**
+ * Resets current risk fields when their corresponding risk types are not selected
+ */
+const resetCurrentRiskFields = (enrichedPayload, validationLevel) => {
+  // Only reset when updating the RISK level
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.RISK) {
+    return
+  }
+
+  const risks = enrichedPayload.risks || []
+  const hasFloodRisk =
+    risks.includes('fluvial_flooding') ||
+    risks.includes('tidal_flooding') ||
+    risks.includes('sea_flooding')
+  const hasSurfaceWaterRisk = risks.includes('surface_water_flooding')
+  const hasCoastalErosionRisk = risks.includes('coastal_erosion')
+
+  // Reset current flood risk if fluvial/tidal/sea are not selected
+  if (!hasFloodRisk) {
+    enrichedPayload.currentFloodRisk = null
+  }
+
+  // Reset surface water risk if surface water is not selected
+  if (!hasSurfaceWaterRisk) {
+    enrichedPayload.currentFloodSurfaceWaterRisk = null
+  }
+
+  // Reset coastal erosion risk if coastal erosion is not selected
+  if (!hasCoastalErosionRisk) {
+    enrichedPayload.currentCoastalErosionRisk = null
+  }
+}
+
 const upsertProject = {
   method: 'POST',
   path: '/api/v1/project/upsert',
@@ -126,6 +159,9 @@ const upsertProject = {
 
         // Reset earliestWithGia fields when couldStartEarly is false or when saving COULD_START_EARLY level
         resetEarliestWithGiaFields(enrichedPayload, validationLevel)
+
+        // Reset current risk fields when their corresponding risk types are not selected
+        resetCurrentRiskFields(enrichedPayload, validationLevel)
 
         if (areaId) {
           const area = await areaService.getAreaByIdWithParents(areaId)

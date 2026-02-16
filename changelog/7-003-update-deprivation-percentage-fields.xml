@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="7-003-update-deprivation-percentage-fields" author="migration-team">
+        <comment>Update deprivation percentage fields and add current_flood_surface_water_risk</comment>
+
+        <!-- Remove the old 10 percent deprived column -->
+        <dropColumn tableName="pafs_core_projects" columnName="percent_properties_10_percent_deprived"/>
+
+        <!-- Change percent_properties_20_percent_deprived from INTEGER to FLOAT -->
+        <modifyDataType tableName="pafs_core_projects" 
+                        columnName="percent_properties_20_percent_deprived" 
+                        newDataType="FLOAT"/>
+
+        <!-- Add new percent_properties_40_percent_deprived column as FLOAT -->
+        <addColumn tableName="pafs_core_projects">
+            <column name="percent_properties_40_percent_deprived" type="FLOAT"/>
+        </addColumn>
+
+        <!-- Add current_flood_surface_water_risk column as VARCHAR(255) -->
+        <addColumn tableName="pafs_core_projects">
+            <column name="current_flood_surface_water_risk" type="VARCHAR(255)"/>
+        </addColumn>
+
+        <rollback>
+            <!-- Rollback: Remove the added columns -->
+            <dropColumn tableName="pafs_core_projects" columnName="current_flood_surface_water_risk"/>
+            <dropColumn tableName="pafs_core_projects" columnName="percent_properties_40_percent_deprived"/>
+            
+            <!-- Rollback: Change percent_properties_20_percent_deprived back to INTEGER -->
+            <modifyDataType tableName="pafs_core_projects" 
+                            columnName="percent_properties_20_percent_deprived" 
+                            newDataType="INTEGER"/>
+            
+            <!-- Rollback: Re-add percent_properties_10_percent_deprived column -->
+            <addColumn tableName="pafs_core_projects">
+                <column name="percent_properties_10_percent_deprived" type="INTEGER"/>
+            </addColumn>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
