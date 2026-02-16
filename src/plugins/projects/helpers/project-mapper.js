@@ -97,6 +97,17 @@ export class ProjectMapper {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
 
+    if (
+      field === 'percentProperties20PercentDeprived' ||
+      field === 'percentProperties40PercentDeprived'
+    ) {
+      // Convert string to float for database (validation accepts strings with pattern)
+      if (value === '' || value === null || value === undefined) {
+        return null
+      }
+      return typeof value === 'string' ? Number.parseFloat(value) : value
+    }
+
     return value
   }
 
@@ -126,6 +137,17 @@ export class ProjectMapper {
       field === 'id'
     ) {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_API)
+    }
+
+    if (
+      field === 'percentProperties20PercentDeprived' ||
+      field === 'percentProperties40PercentDeprived'
+    ) {
+      // Convert float from database to string for API (to match validation schema)
+      if (value === null || value === undefined) {
+        return null
+      }
+      return typeof value === 'number' ? value.toString() : value
     }
 
     return value

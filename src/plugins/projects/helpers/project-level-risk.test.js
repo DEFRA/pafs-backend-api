@@ -320,7 +320,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties20PercentDeprived: 50
+        percentProperties20PercentDeprived: '50'
       })
       expect(error).toBeUndefined()
     })
@@ -331,7 +331,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties20PercentDeprived: 45.5
+        percentProperties20PercentDeprived: '45.5'
       })
       expect(error).toBeUndefined()
     })
@@ -342,7 +342,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties20PercentDeprived: 67.89
+        percentProperties20PercentDeprived: '67.89'
       })
       expect(error).toBeUndefined()
     })
@@ -353,7 +353,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties20PercentDeprived: 0
+        percentProperties20PercentDeprived: '0'
       })
       expect(error).toBeUndefined()
     })
@@ -364,7 +364,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties20PercentDeprived: 100
+        percentProperties20PercentDeprived: '100'
       })
       expect(error).toBeUndefined()
     })
@@ -408,7 +408,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties40PercentDeprived: 25
+        percentProperties40PercentDeprived: '25'
       })
       expect(error).toBeUndefined()
     })
@@ -419,7 +419,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties40PercentDeprived: 33.3
+        percentProperties40PercentDeprived: '33.3'
       })
       expect(error).toBeUndefined()
     })
@@ -430,7 +430,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties40PercentDeprived: 88.99
+        percentProperties40PercentDeprived: '88.99'
       })
       expect(error).toBeUndefined()
     })
@@ -441,7 +441,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties40PercentDeprived: 0
+        percentProperties40PercentDeprived: '0'
       })
       expect(error).toBeUndefined()
     })
@@ -452,7 +452,7 @@ describe('project-level - risk and properties validation', () => {
       )
       const { error } = schema.validate({
         referenceNumber: 'EAC501E/001A/002A',
-        percentProperties40PercentDeprived: 100
+        percentProperties40PercentDeprived: '100'
       })
       expect(error).toBeUndefined()
     })
