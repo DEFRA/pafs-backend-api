@@ -1,10 +1,10 @@
 import Joi from 'joi'
-import { SIZE } from '../../constants/common'
+import { SIZE } from '../../constants/common.js'
 import {
   CONFIDENCE_LEVELS,
   PROJECT_VALIDATION_MESSAGES,
   URGENCY_REASONS
-} from '../../constants/project'
+} from '../../constants/project.js'
 
 /**
  * Approach schema - textarea, max 700 characters

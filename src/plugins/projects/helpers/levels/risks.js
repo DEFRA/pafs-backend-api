@@ -1,4 +1,4 @@
-import { PROJECT_VALIDATION_LEVELS } from '../../../../common/constants/project'
+import { PROJECT_VALIDATION_LEVELS } from '../../../../common/constants/project.js'
 
 import {
   projectRisksProtectedAgainstSchema,

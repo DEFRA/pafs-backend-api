@@ -899,7 +899,7 @@ describe('ProjectService', () => {
           properties_benefit_investment_coastal_erosion: true,
           percent_properties_20_percent_deprived: true,
           percent_properties_40_percent_deprived: true,
-          current_flood_risk: true,
+          current_flood_fluvial_risk: true,
           current_flood_surface_water_risk: true,
           current_coastal_erosion_risk: true
         }

@@ -209,7 +209,7 @@ export const percentProperties40PercentDeprivedSchema = Joi.number()
 
 /**
  * Current flood risk schema (for fluvial, tidal, sea flooding)
- * Database field: current_flood_risk (VARCHAR)
+ * Database field: current_flood_fluvial_risk (VARCHAR)
  * Valid values: high, medium, low, very_low
  */
 export const currentFloodRiskSchema = Joi.string()

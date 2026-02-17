@@ -1,5 +1,5 @@
 import Joi from 'joi'
-import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project'
+import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
 /**
  * Environmental benefits gate/quantity field configuration

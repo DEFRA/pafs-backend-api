@@ -11,7 +11,7 @@ import {
 
 export default {
   name: 'cleanup-incomplete-uploads',
-  schedule: '0 6 * * *', // Every day at 06:00
+  schedule: '0 3 * * *', // Every day at 03:00
   runInWorker: false, // Run in main thread since it needs database access
 
   async handler(context) {

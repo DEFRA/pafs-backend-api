@@ -26,7 +26,7 @@ describe('cleanup-incomplete-uploads task', () => {
 
   it('should have correct task configuration', () => {
     expect(cleanupIncompleteUploadsTask.name).toBe('cleanup-incomplete-uploads')
-    expect(cleanupIncompleteUploadsTask.schedule).toBe('0 6 * * *')
+    expect(cleanupIncompleteUploadsTask.schedule).toBe('0 3 * * *')
     expect(cleanupIncompleteUploadsTask.runInWorker).toBe(false)
     expect(typeof cleanupIncompleteUploadsTask.handler).toBe('function')
   })
