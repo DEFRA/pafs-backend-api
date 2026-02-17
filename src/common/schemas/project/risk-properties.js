@@ -4,8 +4,8 @@ import {
   PROJECT_RISK_TYPES,
   FLOOD_RISK_LEVELS,
   COASTAL_EROSION_RISK_LEVELS
-} from '../constants/project.js'
-import { SIZE } from '../constants/common.js'
+} from '../../constants/project.js'
+import { SIZE } from '../../constants/common.js'
 
 /**
  * Regex pattern for percentage values 0-100
@@ -204,11 +204,11 @@ export const percentProperties40PercentDeprivedSchema = Joi.string()
  * Database field: current_flood_fluvial_risk (VARCHAR)
  * Valid values: high, medium, low, very_low
  */
-export const currentFloodRiskSchema = Joi.string()
+export const currentFloodFluvialRiskSchema = Joi.string()
   .valid(...Object.values(FLOOD_RISK_LEVELS))
   .required()
   .allow(null)
-  .label('currentFloodRisk')
+  .label('currentFloodFluvialRisk')
   .messages({
     'string.base': PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_RISK_INVALID,
     'any.only': PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_RISK_INVALID

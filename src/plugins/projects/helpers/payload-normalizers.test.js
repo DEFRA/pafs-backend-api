@@ -325,79 +325,79 @@ describe('normalizeEnvironmentalBenefits', () => {
 
 describe('normalizeRiskFields', () => {
   describe('when flood risk types are deselected', () => {
-    it('should reset currentFloodRisk when fluvial flooding is not selected', () => {
+    it('should reset currentFloodFluvialRisk when fluvial flooding is not selected', () => {
       const payload = {
         risks: ['surface_water_flooding', 'coastal_erosion'],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium',
         currentCoastalErosionRisk: 'medium_term'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBe('medium')
       expect(payload.currentCoastalErosionRisk).toBe('medium_term')
     })
 
-    it('should reset currentFloodRisk when tidal flooding is not selected', () => {
+    it('should reset currentFloodFluvialRisk when tidal flooding is not selected', () => {
       const payload = {
         risks: ['surface_water_flooding'],
-        currentFloodRisk: 'medium',
+        currentFloodFluvialRisk: 'medium',
         currentFloodSurfaceWaterRisk: 'high'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBe('high')
     })
 
-    it('should reset currentFloodRisk when sea flooding is not selected', () => {
+    it('should reset currentFloodFluvialRisk when sea flooding is not selected', () => {
       const payload = {
         risks: ['groundwater_flooding'],
-        currentFloodRisk: 'low'
+        currentFloodFluvialRisk: 'low'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
     })
 
-    it('should preserve currentFloodRisk when fluvial flooding is selected', () => {
+    it('should preserve currentFloodFluvialRisk when fluvial flooding is selected', () => {
       const payload = {
         risks: ['fluvial_flooding', 'surface_water_flooding'],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBe('high')
+      expect(payload.currentFloodFluvialRisk).toBe('high')
       expect(payload.currentFloodSurfaceWaterRisk).toBe('medium')
       expect(payload.currentCoastalErosionRisk).toBeNull()
     })
 
-    it('should preserve currentFloodRisk when tidal flooding is selected', () => {
+    it('should preserve currentFloodFluvialRisk when tidal flooding is selected', () => {
       const payload = {
         risks: ['tidal_flooding'],
-        currentFloodRisk: 'very_low'
+        currentFloodFluvialRisk: 'very_low'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBe('very_low')
+      expect(payload.currentFloodFluvialRisk).toBe('very_low')
     })
 
-    it('should preserve currentFloodRisk when sea flooding is selected', () => {
+    it('should preserve currentFloodFluvialRisk when sea flooding is selected', () => {
       const payload = {
         risks: ['sea_flooding'],
-        currentFloodRisk: 'medium'
+        currentFloodFluvialRisk: 'medium'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBe('medium')
+      expect(payload.currentFloodFluvialRisk).toBe('medium')
     })
   })
 
@@ -405,14 +405,14 @@ describe('normalizeRiskFields', () => {
     it('should reset currentFloodSurfaceWaterRisk when surface water flooding is not selected', () => {
       const payload = {
         risks: ['fluvial_flooding', 'coastal_erosion'],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium',
         currentCoastalErosionRisk: 'longer_term'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBe('high')
+      expect(payload.currentFloodFluvialRisk).toBe('high')
       expect(payload.currentFloodSurfaceWaterRisk).toBeNull()
       expect(payload.currentCoastalErosionRisk).toBe('longer_term')
     })
@@ -433,14 +433,14 @@ describe('normalizeRiskFields', () => {
     it('should reset currentCoastalErosionRisk when coastal erosion is not selected', () => {
       const payload = {
         risks: ['fluvial_flooding', 'surface_water_flooding'],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium',
         currentCoastalErosionRisk: 'medium_term'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBe('high')
+      expect(payload.currentFloodFluvialRisk).toBe('high')
       expect(payload.currentFloodSurfaceWaterRisk).toBe('medium')
       expect(payload.currentCoastalErosionRisk).toBeNull()
     })
@@ -461,14 +461,14 @@ describe('normalizeRiskFields', () => {
     it('should reset all current risk fields when only reservoir flooding is selected', () => {
       const payload = {
         risks: ['reservoir_flooding'],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium',
         currentCoastalErosionRisk: 'medium_term'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBeNull()
       expect(payload.currentCoastalErosionRisk).toBeNull()
     })
@@ -476,14 +476,14 @@ describe('normalizeRiskFields', () => {
     it('should reset only unselected risk fields when only groundwater is selected', () => {
       const payload = {
         risks: ['groundwater_flooding'],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium',
         currentCoastalErosionRisk: 'medium_term'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBeNull()
       expect(payload.currentCoastalErosionRisk).toBeNull()
     })
@@ -491,14 +491,14 @@ describe('normalizeRiskFields', () => {
     it('should reset flood and surface water risks when only coastal erosion is selected', () => {
       const payload = {
         risks: ['coastal_erosion'],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'low',
         currentCoastalErosionRisk: 'longer_term'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBeNull()
       expect(payload.currentCoastalErosionRisk).toBe('longer_term')
     })
@@ -508,33 +508,33 @@ describe('normalizeRiskFields', () => {
     it('should only reset risk fields when validation level is RISK', () => {
       const payload = {
         risks: [],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBeNull()
     })
 
     it('should not reset risk fields when validation level is not RISK', () => {
       const payload = {
         risks: [],
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK)
 
-      expect(payload.currentFloodRisk).toBe('high')
+      expect(payload.currentFloodFluvialRisk).toBe('high')
       expect(payload.currentFloodSurfaceWaterRisk).toBe('medium')
     })
 
     it('should not reset risk fields when validation level is FORTY_PERCENT_DEPRIVED', () => {
       const payload = {
         risks: [],
-        currentFloodRisk: 'low',
+        currentFloodFluvialRisk: 'low',
         currentCoastalErosionRisk: 'medium_term'
       }
 
@@ -543,7 +543,7 @@ describe('normalizeRiskFields', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
 
-      expect(payload.currentFloodRisk).toBe('low')
+      expect(payload.currentFloodFluvialRisk).toBe('low')
       expect(payload.currentCoastalErosionRisk).toBe('medium_term')
     })
   })
@@ -551,40 +551,40 @@ describe('normalizeRiskFields', () => {
   describe('edge cases', () => {
     it('should handle undefined risks array', () => {
       const payload = {
-        currentFloodRisk: 'high',
+        currentFloodFluvialRisk: 'high',
         currentFloodSurfaceWaterRisk: 'medium'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBeNull()
     })
 
     it('should handle null risks array', () => {
       const payload = {
         risks: null,
-        currentFloodRisk: 'medium',
+        currentFloodFluvialRisk: 'medium',
         currentCoastalErosionRisk: 'longer_term'
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentCoastalErosionRisk).toBeNull()
     })
 
     it('should handle when current risk fields are already null', () => {
       const payload = {
         risks: ['groundwater_flooding'],
-        currentFloodRisk: null,
+        currentFloodFluvialRisk: null,
         currentFloodSurfaceWaterRisk: null,
         currentCoastalErosionRisk: null
       }
 
       normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
 
-      expect(payload.currentFloodRisk).toBeNull()
+      expect(payload.currentFloodFluvialRisk).toBeNull()
       expect(payload.currentFloodSurfaceWaterRisk).toBeNull()
       expect(payload.currentCoastalErosionRisk).toBeNull()
     })

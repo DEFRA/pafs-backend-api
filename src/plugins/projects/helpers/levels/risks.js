@@ -13,7 +13,7 @@ import {
   propertiesBenefitInvestmentCoastalErosionSchema,
   percentProperties20PercentDeprivedSchema,
   percentProperties40PercentDeprivedSchema,
-  currentFloodRiskSchema,
+  currentFloodFluvialRiskSchema,
   currentFloodSurfaceWaterRiskSchema,
   currentCoastalErosionRiskSchema
 } from '../../../../common/schemas/project.js'
@@ -98,7 +98,7 @@ export const risksLevels = (referenceNumber) => ({
     name: PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK,
     fields: {
       referenceNumber,
-      currentFloodRisk: currentFloodRiskSchema
+      currentFloodFluvialRisk: currentFloodFluvialRiskSchema
     }
   },
 

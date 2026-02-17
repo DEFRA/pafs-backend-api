@@ -120,7 +120,7 @@ export const normalizeRiskFields = (enrichedPayload, validationLevel) => {
 
   // Reset current flood risk if fluvial/tidal/sea are not selected
   if (!hasFloodRisk) {
-    enrichedPayload.currentFloodRisk = null
+    enrichedPayload.currentFloodFluvialRisk = null
   }
 
   // Reset surface water risk if surface water is not selected
