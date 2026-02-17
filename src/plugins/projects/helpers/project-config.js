@@ -54,7 +54,24 @@ export const PROJECT_FIELDS_MAP = {
   readyForServiceYear: 'ready_for_service_year',
   couldStartEarly: 'could_start_early',
   earliestWithGiaMonth: 'earliest_with_gia_month',
-  earliestWithGiaYear: 'earliest_with_gia_year'
+  earliestWithGiaYear: 'earliest_with_gia_year',
+  risks: 'project_risks_protected_against',
+  mainRisk: 'main_source_of_risk',
+  noPropertiesAtRisk: 'no_properties_at_flood_risk',
+  maintainingExistingAssets: 'properties_benefit_maintaining_assets',
+  reducingFloodRisk50Plus: 'properties_benefit_50_percent_reduction',
+  reducingFloodRiskLess50: 'properties_benefit_less_50_percent_reduction',
+  increasingFloodResilience: 'properties_benefit_individual_intervention',
+  noPropertiesAtCoastalErosionRisk: 'no_properties_at_coastal_erosion_risk',
+  propertiesBenefitMaintainingAssetsCoastal:
+    'properties_benefit_maintaining_assets_coastal',
+  propertiesBenefitInvestmentCoastalErosion:
+    'properties_benefit_investment_coastal_erosion',
+  percentProperties20PercentDeprived: 'percent_properties_20_percent_deprived',
+  percentProperties40PercentDeprived: 'percent_properties_40_percent_deprived',
+  currentFloodRisk: 'current_flood_risk',
+  currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
+  currentCoastalErosionRisk: 'current_coastal_erosion_risk'
 }
 
 /**

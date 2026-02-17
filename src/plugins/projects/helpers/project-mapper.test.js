@@ -90,6 +90,87 @@ describe('ProjectMapper', () => {
       expect(typeof result.project_end_financial_year).toBe('number')
     })
 
+    it('should transform risks array to comma-separated string', () => {
+      const apiData = {
+        risks: ['fluvial_flooding', 'coastal_erosion', 'surface_water_flooding']
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'project_risks_protected_against',
+        'fluvial_flooding,coastal_erosion,surface_water_flooding'
+      )
+    })
+
+    it('should pass through risks string unchanged', () => {
+      const apiData = {
+        risks: 'fluvial_flooding,coastal_erosion'
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'project_risks_protected_against',
+        'fluvial_flooding,coastal_erosion'
+      )
+    })
+
+    it('should transform percentage string to float', () => {
+      const apiData = {
+        percentProperties20PercentDeprived: '67.89'
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_20_percent_deprived',
+        67.89
+      )
+      expect(typeof result.percent_properties_20_percent_deprived).toBe(
+        'number'
+      )
+    })
+
+    it('should transform percentage empty string to null', () => {
+      const apiData = {
+        percentProperties20PercentDeprived: ''
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_20_percent_deprived',
+        null
+      )
+    })
+
+    it('should handle percentage null value', () => {
+      const apiData = {
+        percentProperties40PercentDeprived: null
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_40_percent_deprived',
+        null
+      )
+    })
+
+    it('should pass through percentage number unchanged', () => {
+      const apiData = {
+        percentProperties40PercentDeprived: 88.99
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_40_percent_deprived',
+        88.99
+      )
+    })
+
     it('should handle complete project data', () => {
       const apiData = {
         name: 'Complete Project',
@@ -165,6 +246,43 @@ describe('ProjectMapper', () => {
       expect(result).toHaveProperty('financialEndYear', 2025)
     })
 
+    it('should transform percentage float to string', () => {
+      const dbData = {
+        percent_properties_20_percent_deprived: 67.89
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty(
+        'percentProperties20PercentDeprived',
+        '67.89'
+      )
+      expect(typeof result.percentProperties20PercentDeprived).toBe('string')
+    })
+
+    it('should handle percentage null value', () => {
+      const dbData = {
+        percent_properties_40_percent_deprived: null
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty('percentProperties40PercentDeprived', null)
+    })
+
+    it('should pass through percentage string unchanged', () => {
+      const dbData = {
+        percent_properties_20_percent_deprived: '45.5'
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty(
+        'percentProperties20PercentDeprived',
+        '45.5'
+      )
+    })
+
     it('should handle complete project data', () => {
       const dbData = {
         name: 'Complete Project',
@@ -201,6 +319,53 @@ describe('ProjectMapper', () => {
       expect(result).toHaveProperty('name')
       expect(result).not.toHaveProperty('unmapped_db_field')
       expect(result).toHaveProperty('rmaName')
+    })
+
+    it('should transform risks string to array', () => {
+      const dbData = {
+        project_risks_protected_against:
+          'fluvial_flooding,coastal_erosion,surface_water_flooding'
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty('risks')
+      expect(Array.isArray(result.risks)).toBe(true)
+      expect(result.risks).toEqual([
+        'fluvial_flooding',
+        'coastal_erosion',
+        'surface_water_flooding'
+      ])
+    })
+
+    it('should handle risks with whitespace', () => {
+      const dbData = {
+        project_risks_protected_against: 'fluvial_flooding , coastal_erosion '
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result.risks).toEqual(['fluvial_flooding', 'coastal_erosion'])
+    })
+
+    it('should handle non-string risks value', () => {
+      const dbData = {
+        project_risks_protected_against: ['fluvial_flooding', 'coastal_erosion']
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result.risks).toEqual(['fluvial_flooding', 'coastal_erosion'])
+    })
+
+    it('should handle null risks value', () => {
+      const dbData = {
+        project_risks_protected_against: null
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty('risks', null)
     })
 
     it('should map select-only fields from database', () => {
@@ -298,6 +463,22 @@ describe('ProjectMapper', () => {
       expect(result).toBe('NFM,PFR')
     })
 
+    it('should convert risks array to comma-separated string', () => {
+      const result = ProjectMapper.transformValue('risks', [
+        'fluvial_flooding',
+        'coastal_erosion'
+      ])
+      expect(result).toBe('fluvial_flooding,coastal_erosion')
+    })
+
+    it('should pass through risks string unchanged', () => {
+      const result = ProjectMapper.transformValue(
+        'risks',
+        'fluvial_flooding,coastal_erosion'
+      )
+      expect(result).toBe('fluvial_flooding,coastal_erosion')
+    })
+
     it('should parse financialStartYear as integer', () => {
       const result = ProjectMapper.transformValue('financialStartYear', '2024')
       expect(result).toBe(2024)
@@ -352,6 +533,39 @@ describe('ProjectMapper', () => {
       )
       expect(Array.isArray(result)).toBe(true)
       expect(result).toEqual([])
+    })
+
+    it('should split comma-separated risks string to array', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'risks',
+        'fluvial_flooding,coastal_erosion'
+      )
+      expect(Array.isArray(result)).toBe(true)
+      expect(result).toEqual(['fluvial_flooding', 'coastal_erosion'])
+    })
+
+    it('should trim whitespace in risks array elements', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'risks',
+        'fluvial_flooding , coastal_erosion '
+      )
+      expect(result).toEqual(['fluvial_flooding', 'coastal_erosion'])
+    })
+
+    it('should return value unchanged if risks is not a string', () => {
+      const arrayValue = ['fluvial_flooding', 'coastal_erosion']
+      const result = ProjectMapper.reverseTransformValue('risks', arrayValue)
+      expect(result).toBe(arrayValue)
+    })
+
+    it('should return value unchanged if risks is null', () => {
+      const result = ProjectMapper.reverseTransformValue('risks', null)
+      expect(result).toBe(null)
+    })
+
+    it('should return value unchanged if risks is undefined', () => {
+      const result = ProjectMapper.reverseTransformValue('risks', undefined)
+      expect(result).toBe(undefined)
     })
 
     it('should convert string years to numbers for financialStartYear', () => {

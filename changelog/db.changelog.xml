@@ -38,4 +38,5 @@
     <include file="changelog/6-001-add-inactivity-warning-sent-at-column.xml" />
     <include file="changelog/7-001-create-file-uploads-table.xml" />
     <include file="changelog/7-002-add-benefit-area-file-columns.xml" />
+    <include file="changelog/7-003-update-deprivation-percentage-fields.xml" />
 </databaseChangeLog>
