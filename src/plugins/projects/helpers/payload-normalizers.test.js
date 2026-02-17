@@ -525,7 +525,10 @@ describe('normalizeRiskFields', () => {
         currentFloodSurfaceWaterRisk: 'medium'
       }
 
-      normalizeRiskFields(payload, PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK)
+      normalizeRiskFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_FLUVIAL_RISK
+      )
 
       expect(payload.currentFloodFluvialRisk).toBe('high')
       expect(payload.currentFloodSurfaceWaterRisk).toBe('medium')

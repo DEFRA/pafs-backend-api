@@ -210,8 +210,9 @@ export const currentFloodFluvialRiskSchema = Joi.string()
   .allow(null)
   .label('currentFloodFluvialRisk')
   .messages({
-    'string.base': PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_RISK_INVALID,
-    'any.only': PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_RISK_INVALID
+    'string.base':
+      PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_FLUVIAL_RISK_INVALID,
+    'any.only': PROJECT_VALIDATION_MESSAGES.CURRENT_FLOOD_FLUVIAL_RISK_INVALID
   })
 
 /**

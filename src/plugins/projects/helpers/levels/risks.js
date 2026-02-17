@@ -94,8 +94,8 @@ export const risksLevels = (referenceNumber) => ({
     }
   },
 
-  [PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK]: {
-    name: PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_RISK,
+  [PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_FLUVIAL_RISK]: {
+    name: PROJECT_VALIDATION_LEVELS.CURRENT_FLOOD_FLUVIAL_RISK,
     fields: {
       referenceNumber,
       currentFloodFluvialRisk: currentFloodFluvialRiskSchema
