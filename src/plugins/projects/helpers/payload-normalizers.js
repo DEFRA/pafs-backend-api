@@ -57,15 +57,16 @@ export const normalizeUrgencyData = (enrichedPayload, validationLevel) => {
     validationLevel === PROJECT_VALIDATION_LEVELS.URGENCY_REASON
   const isUrgencyDetailsLevel =
     validationLevel === PROJECT_VALIDATION_LEVELS.URGENCY_DETAILS
+  const isUrgencyLevel = isUrgencyReasonLevel || isUrgencyDetailsLevel
 
   if (
-    isUrgencyReasonLevel &&
-    enrichedPayload.urgencyReason === URGENCY_REASONS.NOT_URGENT
+    isUrgencyLevel &&
+    enrichedPayload?.urgencyReason === URGENCY_REASONS.NOT_URGENT
   ) {
     enrichedPayload.urgencyDetails = null
   }
 
-  if (isUrgencyReasonLevel || isUrgencyDetailsLevel) {
+  if (isUrgencyLevel) {
     enrichedPayload.urgencyDetailsUpdatedAt = new Date()
   }
 }
