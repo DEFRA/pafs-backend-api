@@ -3,6 +3,7 @@ import getProject from './get-project/get-project.js'
 import upsertProject from './upsert-project/upsert-project.js'
 import downloadBenefitAreaFile from './download-benefit-area-file/download-benefit-area-file.js'
 import deleteBenefitAreaFile from './delete-benefit-area-file/delete-benefit-area-file.js'
+import listProjects from './list-projects/list-projects.js'
 
 const projectsPlugin = {
   name: 'projects',
@@ -13,7 +14,8 @@ const projectsPlugin = {
       getProject,
       upsertProject,
       downloadBenefitAreaFile,
-      deleteBenefitAreaFile
+      deleteBenefitAreaFile,
+      listProjects
     ])
     server.logger.info('Projects plugin registered')
   }
@@ -25,3 +27,4 @@ export { default as getProject } from './get-project/get-project.js'
 export { default as upsertProject } from './upsert-project/upsert-project.js'
 export { default as downloadBenefitAreaFile } from './download-benefit-area-file/download-benefit-area-file.js'
 export { default as deleteBenefitAreaFile } from './delete-benefit-area-file/delete-benefit-area-file.js'
+export { default as listProjects } from './list-projects/list-projects.js'
