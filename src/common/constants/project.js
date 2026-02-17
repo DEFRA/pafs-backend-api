@@ -49,6 +49,18 @@ export const PROJECT_STATUS = {
   ARCHIVED: 'archived'
 }
 
+export const FLOOD_RISK_LEVELS = {
+  HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
+  VERY_LOW: 'very_low'
+}
+
+export const COASTAL_EROSION_RISK_LEVELS = {
+  MEDIUM_TERM: 'medium_term',
+  LONGER_TERM: 'longer_term'
+}
+
 export const PROJECT_VALIDATION_MESSAGES = {
   PROJECT_NOT_FOUND: 'PROJECT_NOT_FOUND',
   INVALID_DATA: 'INVALID_DATA',

@@ -273,27 +273,29 @@ describe('project schemas - risk and properties', () => {
 
   describe('percentProperties20PercentDeprivedSchema', () => {
     it('should validate zero', () => {
-      const { error } = percentProperties20PercentDeprivedSchema.validate(0)
+      const { error } = percentProperties20PercentDeprivedSchema.validate('0')
       expect(error).toBeUndefined()
     })
 
     it('should validate 100', () => {
-      const { error } = percentProperties20PercentDeprivedSchema.validate(100)
+      const { error } = percentProperties20PercentDeprivedSchema.validate('100')
       expect(error).toBeUndefined()
     })
 
     it('should validate whole number within range', () => {
-      const { error } = percentProperties20PercentDeprivedSchema.validate(50)
+      const { error } = percentProperties20PercentDeprivedSchema.validate('50')
       expect(error).toBeUndefined()
     })
 
     it('should validate decimal with 1 decimal place', () => {
-      const { error } = percentProperties20PercentDeprivedSchema.validate(45.5)
+      const { error } =
+        percentProperties20PercentDeprivedSchema.validate('45.5')
       expect(error).toBeUndefined()
     })
 
     it('should validate decimal with 2 decimal places', () => {
-      const { error } = percentProperties20PercentDeprivedSchema.validate(67.89)
+      const { error } =
+        percentProperties20PercentDeprivedSchema.validate('67.89')
       expect(error).toBeUndefined()
     })
 
@@ -315,27 +317,29 @@ describe('project schemas - risk and properties', () => {
 
   describe('percentProperties40PercentDeprivedSchema', () => {
     it('should validate zero', () => {
-      const { error } = percentProperties40PercentDeprivedSchema.validate(0)
+      const { error } = percentProperties40PercentDeprivedSchema.validate('0')
       expect(error).toBeUndefined()
     })
 
     it('should validate 100', () => {
-      const { error } = percentProperties40PercentDeprivedSchema.validate(100)
+      const { error } = percentProperties40PercentDeprivedSchema.validate('100')
       expect(error).toBeUndefined()
     })
 
     it('should validate whole number within range', () => {
-      const { error } = percentProperties40PercentDeprivedSchema.validate(25)
+      const { error } = percentProperties40PercentDeprivedSchema.validate('25')
       expect(error).toBeUndefined()
     })
 
     it('should validate decimal with 1 decimal place', () => {
-      const { error } = percentProperties40PercentDeprivedSchema.validate(33.3)
+      const { error } =
+        percentProperties40PercentDeprivedSchema.validate('33.3')
       expect(error).toBeUndefined()
     })
 
     it('should validate decimal with 2 decimal places', () => {
-      const { error } = percentProperties40PercentDeprivedSchema.validate(88.99)
+      const { error } =
+        percentProperties40PercentDeprivedSchema.validate('88.99')
       expect(error).toBeUndefined()
     })
 

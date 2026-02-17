@@ -116,6 +116,61 @@ describe('ProjectMapper', () => {
       )
     })
 
+    it('should transform percentage string to float', () => {
+      const apiData = {
+        percentProperties20PercentDeprived: '67.89'
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_20_percent_deprived',
+        67.89
+      )
+      expect(typeof result.percent_properties_20_percent_deprived).toBe(
+        'number'
+      )
+    })
+
+    it('should transform percentage empty string to null', () => {
+      const apiData = {
+        percentProperties20PercentDeprived: ''
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_20_percent_deprived',
+        null
+      )
+    })
+
+    it('should handle percentage null value', () => {
+      const apiData = {
+        percentProperties40PercentDeprived: null
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_40_percent_deprived',
+        null
+      )
+    })
+
+    it('should pass through percentage number unchanged', () => {
+      const apiData = {
+        percentProperties40PercentDeprived: 88.99
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'percent_properties_40_percent_deprived',
+        88.99
+      )
+    })
+
     it('should handle complete project data', () => {
       const apiData = {
         name: 'Complete Project',
@@ -189,6 +244,43 @@ describe('ProjectMapper', () => {
 
       expect(result).toHaveProperty('financialStartYear', 2024)
       expect(result).toHaveProperty('financialEndYear', 2025)
+    })
+
+    it('should transform percentage float to string', () => {
+      const dbData = {
+        percent_properties_20_percent_deprived: 67.89
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty(
+        'percentProperties20PercentDeprived',
+        '67.89'
+      )
+      expect(typeof result.percentProperties20PercentDeprived).toBe('string')
+    })
+
+    it('should handle percentage null value', () => {
+      const dbData = {
+        percent_properties_40_percent_deprived: null
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty('percentProperties40PercentDeprived', null)
+    })
+
+    it('should pass through percentage string unchanged', () => {
+      const dbData = {
+        percent_properties_20_percent_deprived: '45.5'
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty(
+        'percentProperties20PercentDeprived',
+        '45.5'
+      )
     })
 
     it('should handle complete project data', () => {

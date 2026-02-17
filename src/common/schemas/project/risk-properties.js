@@ -1,9 +1,17 @@
 import Joi from 'joi'
 import {
   PROJECT_VALIDATION_MESSAGES,
-  PROJECT_RISK_TYPES
-} from '../../constants/project.js'
-import { SIZE } from '../../constants/common.js'
+  PROJECT_RISK_TYPES,
+  FLOOD_RISK_LEVELS,
+  COASTAL_EROSION_RISK_LEVELS
+} from '../constants/project.js'
+import { SIZE } from '../constants/common.js'
+
+/**
+ * Regex pattern for percentage values 0-100
+ * Accepts whole numbers or decimals with up to 2 decimal places
+ */
+const PERCENTAGE_PATTERN = /^(?:100(?:\.0{1,2})?|[1-9]?\d(?:\.\d{1,2})?)$/
 
 /**
  * Project risks protected against schema (API format)
@@ -166,22 +174,14 @@ export const propertiesBenefitInvestmentCoastalErosionSchema = Joi.number()
  * Database field: percent_properties_20_percent_deprived (Int)
  * Accepts percentage values 0-100 (whole numbers or decimals with up to 2 decimal places)
  */
-export const percentProperties20PercentDeprivedSchema = Joi.number()
-  .min(0)
-  .max(100)
-  .precision(2)
-  .optional()
-  .allow(null)
+export const percentProperties20PercentDeprivedSchema = Joi.string()
+  .allow('', null)
+  .pattern(PERCENTAGE_PATTERN)
+  .required()
   .label('percentProperties20PercentDeprived')
   .messages({
-    'number.base':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_INVALID,
-    'number.min':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_MIN,
-    'number.max':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_MAX,
-    'number.precision':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_PRECISION
+    'string.pattern.base':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_20_PERCENT_DEPRIVED_INVALID
   })
 
 /**
@@ -189,22 +189,14 @@ export const percentProperties20PercentDeprivedSchema = Joi.number()
  * Database field: percent_properties_40_percent_deprived (Float)
  * Accepts percentage values 0-100 (whole numbers or decimals with up to 2 decimal places)
  */
-export const percentProperties40PercentDeprivedSchema = Joi.number()
-  .min(0)
-  .max(100)
-  .precision(2)
-  .optional()
-  .allow(null)
+export const percentProperties40PercentDeprivedSchema = Joi.string()
+  .allow('', null)
+  .pattern(PERCENTAGE_PATTERN)
+  .required()
   .label('percentProperties40PercentDeprived')
   .messages({
-    'number.base':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_INVALID,
-    'number.min':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_MIN,
-    'number.max':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_MAX,
-    'number.precision':
-      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_PRECISION
+    'string.pattern.base':
+      PROJECT_VALIDATION_MESSAGES.PERCENT_PROPERTIES_40_PERCENT_DEPRIVED_INVALID
   })
 
 /**
@@ -213,8 +205,8 @@ export const percentProperties40PercentDeprivedSchema = Joi.number()
  * Valid values: high, medium, low, very_low
  */
 export const currentFloodRiskSchema = Joi.string()
-  .valid('high', 'medium', 'low', 'very_low')
-  .optional()
+  .valid(...Object.values(FLOOD_RISK_LEVELS))
+  .required()
   .allow(null)
   .label('currentFloodRisk')
   .messages({
@@ -228,8 +220,8 @@ export const currentFloodRiskSchema = Joi.string()
  * Valid values: high, medium, low, very_low
  */
 export const currentFloodSurfaceWaterRiskSchema = Joi.string()
-  .valid('high', 'medium', 'low', 'very_low')
-  .optional()
+  .valid(...Object.values(FLOOD_RISK_LEVELS))
+  .required()
   .allow(null)
   .label('currentFloodSurfaceWaterRisk')
   .messages({
@@ -245,8 +237,8 @@ export const currentFloodSurfaceWaterRiskSchema = Joi.string()
  * Valid values: medium_term, longer_term
  */
 export const currentCoastalErosionRiskSchema = Joi.string()
-  .valid('medium_term', 'longer_term')
-  .optional()
+  .valid(...Object.values(COASTAL_EROSION_RISK_LEVELS))
+  .required()
   .allow(null)
   .label('currentCoastalErosionRisk')
   .messages({
