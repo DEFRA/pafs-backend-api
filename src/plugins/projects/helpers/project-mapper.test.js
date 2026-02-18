@@ -246,18 +246,15 @@ describe('ProjectMapper', () => {
       expect(result).toHaveProperty('financialEndYear', 2025)
     })
 
-    it('should transform percentage float to string', () => {
+    it('should pass through percentage float unchanged', () => {
       const dbData = {
         percent_properties_20_percent_deprived: 67.89
       }
 
       const result = ProjectMapper.toApi(dbData)
 
-      expect(result).toHaveProperty(
-        'percentProperties20PercentDeprived',
-        '67.89'
-      )
-      expect(typeof result.percentProperties20PercentDeprived).toBe('string')
+      expect(result).toHaveProperty('percentProperties20PercentDeprived', 67.89)
+      expect(typeof result.percentProperties20PercentDeprived).toBe('number')
     })
 
     it('should handle percentage null value', () => {
@@ -270,17 +267,15 @@ describe('ProjectMapper', () => {
       expect(result).toHaveProperty('percentProperties40PercentDeprived', null)
     })
 
-    it('should pass through percentage string unchanged', () => {
+    it('should convert percentage string to number', () => {
       const dbData = {
         percent_properties_20_percent_deprived: '45.5'
       }
 
       const result = ProjectMapper.toApi(dbData)
 
-      expect(result).toHaveProperty(
-        'percentProperties20PercentDeprived',
-        '45.5'
-      )
+      expect(result).toHaveProperty('percentProperties20PercentDeprived', 45.5)
+      expect(typeof result.percentProperties20PercentDeprived).toBe('number')
     })
 
     it('should handle complete project data', () => {
@@ -365,7 +360,9 @@ describe('ProjectMapper', () => {
 
       const result = ProjectMapper.toApi(dbData)
 
-      expect(result).toHaveProperty('risks', null)
+      expect(result).toHaveProperty('risks')
+      expect(Array.isArray(result.risks)).toBe(true)
+      expect(result.risks).toEqual([])
     })
 
     it('should map select-only fields from database', () => {
@@ -558,14 +555,16 @@ describe('ProjectMapper', () => {
       expect(result).toBe(arrayValue)
     })
 
-    it('should return value unchanged if risks is null', () => {
+    it('should return empty array if risks is null', () => {
       const result = ProjectMapper.reverseTransformValue('risks', null)
-      expect(result).toBe(null)
+      expect(Array.isArray(result)).toBe(true)
+      expect(result).toEqual([])
     })
 
-    it('should return value unchanged if risks is undefined', () => {
+    it('should return empty array if risks is undefined', () => {
       const result = ProjectMapper.reverseTransformValue('risks', undefined)
-      expect(result).toBe(undefined)
+      expect(Array.isArray(result)).toBe(true)
+      expect(result).toEqual([])
     })
 
     it('should convert string years to numbers for financialStartYear', () => {
