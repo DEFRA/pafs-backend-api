@@ -95,6 +95,9 @@ export const PROJECT_FIELDS_MAP = {
   grassland: 'grassland',
   hectaresOfGrasslandHabitatCreatedOrEnhanced:
     'hectares_of_grassland_habitat_created_or_enhanced',
+  heathland: 'heathland',
+  hectaresOfHeathlandCreatedOrEnhanced:
+    'hectares_of_heathland_created_or_enhanced',
   pondsLakes: 'ponds_lakes',
   hectaresOfPondOrLakeHabitatCreatedOrEnhanced:
     'hectares_of_pond_or_lake_habitat_created_or_enhanced',

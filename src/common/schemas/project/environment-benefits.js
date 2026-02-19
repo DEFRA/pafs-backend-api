@@ -1,5 +1,8 @@
 import Joi from 'joi'
-import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
+import {
+  PROJECT_VALIDATION_LEVELS,
+  PROJECT_VALIDATION_MESSAGES
+} from '../../constants/project.js'
 
 /**
  * Environmental benefits gate/quantity field configuration
@@ -8,63 +11,80 @@ import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 export const ENVIRONMENTAL_BENEFITS_FIELDS = [
   {
     gate: 'intertidalHabitat',
-    gateLevel: 'INTERTIDAL_HABITAT',
+    gateLevel: PROJECT_VALIDATION_LEVELS.INTERTIDAL_HABITAT,
     quantity: 'hectaresOfIntertidalHabitatCreatedOrEnhanced',
-    quantityLevel: 'HECTARES_OF_INTERTIDAL_HABITAT_CREATED_OR_ENHANCED'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_INTERTIDAL_HABITAT_CREATED_OR_ENHANCED
   },
   {
     gate: 'woodland',
-    gateLevel: 'WOODLAND',
+    gateLevel: PROJECT_VALIDATION_LEVELS.WOODLAND,
     quantity: 'hectaresOfWoodlandHabitatCreatedOrEnhanced',
-    quantityLevel: 'HECTARES_OF_WOODLAND_HABITAT_CREATED_OR_ENHANCED'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_WOODLAND_HABITAT_CREATED_OR_ENHANCED
   },
   {
     gate: 'wetWoodland',
-    gateLevel: 'WET_WOODLAND',
+    gateLevel: PROJECT_VALIDATION_LEVELS.WET_WOODLAND,
     quantity: 'hectaresOfWetWoodlandHabitatCreatedOrEnhanced',
-    quantityLevel: 'HECTARES_OF_WET_WOODLAND_HABITAT_CREATED_OR_ENHANCED'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_WET_WOODLAND_HABITAT_CREATED_OR_ENHANCED
   },
   {
     gate: 'wetlandOrWetGrassland',
-    gateLevel: 'WETLAND_OR_WET_GRASSLAND',
+    gateLevel: PROJECT_VALIDATION_LEVELS.WETLAND_OR_WET_GRASSLAND,
     quantity: 'hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced',
-    quantityLevel: 'HECTARES_OF_WETLAND_OR_WET_GRASSLAND_CREATED_OR_ENHANCED'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_WETLAND_OR_WET_GRASSLAND_CREATED_OR_ENHANCED
   },
   {
     gate: 'grassland',
-    gateLevel: 'GRASSLAND',
+    gateLevel: PROJECT_VALIDATION_LEVELS.GRASSLAND,
     quantity: 'hectaresOfGrasslandHabitatCreatedOrEnhanced',
-    quantityLevel: 'HECTARES_OF_GRASSLAND_HABITAT_CREATED_OR_ENHANCED'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_GRASSLAND_HABITAT_CREATED_OR_ENHANCED
+  },
+  {
+    gate: 'heathland',
+    gateLevel: PROJECT_VALIDATION_LEVELS.HEATHLAND,
+    quantity: 'hectaresOfHeathlandCreatedOrEnhanced',
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_HEATHLAND_CREATED_OR_ENHANCED
   },
   {
     gate: 'pondsLakes',
-    gateLevel: 'PONDS_LAKES',
+    gateLevel: PROJECT_VALIDATION_LEVELS.PONDS_LAKES,
     quantity: 'hectaresOfPondOrLakeHabitatCreatedOrEnhanced',
-    quantityLevel: 'HECTARES_OF_POND_OR_LAKE_HABITAT_CREATED_OR_ENHANCED'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_POND_OR_LAKE_HABITAT_CREATED_OR_ENHANCED
   },
   {
     gate: 'arableLand',
-    gateLevel: 'ARABLE_LAND',
+    gateLevel: PROJECT_VALIDATION_LEVELS.ARABLE_LAND,
     quantity: 'hectaresOfArableLandLakeHabitatCreatedOrEnhanced',
-    quantityLevel: 'HECTARES_OF_ARABLE_LAND_LAKE_HABITAT_CREATED_OR_ENHANCED'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.HECTARES_OF_ARABLE_LAND_LAKE_HABITAT_CREATED_OR_ENHANCED
   },
   {
     gate: 'comprehensiveRestoration',
-    gateLevel: 'COMPREHENSIVE_RESTORATION',
+    gateLevel: PROJECT_VALIDATION_LEVELS.COMPREHENSIVE_RESTORATION,
     quantity: 'kilometresOfWatercourseEnhancedOrCreatedComprehensive',
-    quantityLevel: 'KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_COMPREHENSIVE'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_COMPREHENSIVE
   },
   {
     gate: 'partialRestoration',
-    gateLevel: 'PARTIAL_RESTORATION',
+    gateLevel: PROJECT_VALIDATION_LEVELS.PARTIAL_RESTORATION,
     quantity: 'kilometresOfWatercourseEnhancedOrCreatedPartial',
-    quantityLevel: 'KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_PARTIAL'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_PARTIAL
   },
   {
     gate: 'createHabitatWatercourse',
-    gateLevel: 'CREATE_HABITAT_WATERCOURSE',
+    gateLevel: PROJECT_VALIDATION_LEVELS.CREATE_HABITAT_WATERCOURSE,
     quantity: 'kilometresOfWatercourseEnhancedOrCreatedSingle',
-    quantityLevel: 'KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_SINGLE'
+    quantityLevel:
+      PROJECT_VALIDATION_LEVELS.KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_SINGLE
   }
 ]
 
