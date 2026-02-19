@@ -94,6 +94,9 @@ describe('project-config', () => {
         grassland: 'grassland',
         hectaresOfGrasslandHabitatCreatedOrEnhanced:
           'hectares_of_grassland_habitat_created_or_enhanced',
+        heathland: 'heathland',
+        hectaresOfHeathlandCreatedOrEnhanced:
+          'hectares_of_heathland_created_or_enhanced',
         pondsLakes: 'ponds_lakes',
         hectaresOfPondOrLakeHabitatCreatedOrEnhanced:
           'hectares_of_pond_or_lake_habitat_created_or_enhanced',
@@ -169,8 +172,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 76 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(76)
+    it('should have 78 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(78)
     })
   })
 
@@ -221,9 +224,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 76 fields', () => {
+    it('should return an object with 78 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(76)
+      expect(Object.keys(result)).toHaveLength(78)
     })
 
     it('should return a new object each time', () => {

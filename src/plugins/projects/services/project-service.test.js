@@ -20,6 +20,9 @@ describe('ProjectService', () => {
         create: vi.fn(),
         upsert: vi.fn()
       },
+      pafs_core_projects_legacy: {
+        findFirst: vi.fn()
+      },
       pafs_core_states: {
         create: vi.fn(),
         upsert: vi.fn()
@@ -52,12 +55,14 @@ describe('ProjectService', () => {
   })
 
   describe('checkDuplicateProjectName', () => {
-    test('Should return exists: true when project name exists', async () => {
+    test('Should return exists: true when project name exists in current projects', async () => {
       const payload = { name: 'Existing_Project' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
+        id: 1,
+        reference_number: 'C501E/000A/001A'
       })
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await service.checkDuplicateProjectName(payload)
 
@@ -77,29 +82,34 @@ describe('ProjectService', () => {
           }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        { projectName: payload.name },
-        'Duplicate project name found'
+        { referenceNumber: 'C501E/000A/001A' },
+        'Duplicate project name found in pafs_core_projects'
       )
     })
 
-    test('Should return exists: false when project name does not exist', async () => {
+    test('Should return exists: false when project name does not exist in both tables', async () => {
       const payload = { name: 'New_Project' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await service.checkDuplicateProjectName(payload)
 
       expect(result).toEqual({ isValid: true })
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalled()
+      expect(mockPrisma.pafs_core_projects_legacy.findFirst).toHaveBeenCalled()
     })
 
     test('Should perform case-insensitive search', async () => {
       const payload = { name: 'Test_PROJECT' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       await service.checkDuplicateProjectName(payload)
 
@@ -119,12 +129,13 @@ describe('ProjectService', () => {
       const payload = { name: 'Test_Project' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       await service.checkDuplicateProjectName(payload)
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         { projectName: payload.name },
-        'Checking if project name exists'
+        'Checking if project name exists in both current and legacy projects'
       )
     })
 
@@ -133,6 +144,7 @@ describe('ProjectService', () => {
       const dbError = new Error('Database connection error')
 
       mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockRejectedValue(dbError)
 
       const result = await service.checkDuplicateProjectName(payload)
 
@@ -152,17 +164,22 @@ describe('ProjectService', () => {
       )
     })
 
-    test('Should select only id field from database', async () => {
+    test('Should select id and reference_number fields from database', async () => {
       const payload = { name: 'Test_Project' }
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 123 })
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 123,
+        reference_number: 'C501E/000A/001A'
+      })
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       await service.checkDuplicateProjectName(payload)
 
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           select: {
-            id: true
+            id: true,
+            reference_number: true
           }
         })
       )
@@ -172,6 +189,7 @@ describe('ProjectService', () => {
       const payload = { name: 'Test-Project_123' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await service.checkDuplicateProjectName(payload)
 
@@ -192,6 +210,7 @@ describe('ProjectService', () => {
       const payload = { name: '' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await service.checkDuplicateProjectName(payload)
 
@@ -205,6 +224,7 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       await service.checkDuplicateProjectName(payload)
 
@@ -217,7 +237,8 @@ describe('ProjectService', () => {
           reference_number: { not: payload.referenceNumber }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
     })
@@ -226,6 +247,7 @@ describe('ProjectService', () => {
       const payload = { name: 'Test_Project' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       await service.checkDuplicateProjectName(payload)
 
@@ -237,7 +259,8 @@ describe('ProjectService', () => {
           }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
     })
@@ -249,8 +272,10 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 2 // Different project ID
+        id: 2,
+        reference_number: 'C501E/000A/002A'
       })
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await service.checkDuplicateProjectName(payload)
 
@@ -271,9 +296,142 @@ describe('ProjectService', () => {
           reference_number: { not: payload.referenceNumber }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
+    })
+
+    test('Should return exists: true when project name exists in legacy projects', async () => {
+      const payload = { name: 'Legacy_Project' }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue({
+        id: 100,
+        reference_number: 'C501E/000A/050A'
+      })
+
+      const result = await service.checkDuplicateProjectName(payload)
+
+      expect(result).toEqual({
+        isValid: false,
+        errors: {
+          errorCode: 'PROJECT_NAME_DUPLICATE',
+          field: 'name',
+          message: 'A project with this name already exists in legacy projects'
+        }
+      })
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalled()
+      expect(
+        mockPrisma.pafs_core_projects_legacy.findFirst
+      ).toHaveBeenCalledWith({
+        where: {
+          name: {
+            equals: payload.name,
+            mode: 'insensitive'
+          }
+        },
+        select: {
+          id: true,
+          reference_number: true
+        }
+      })
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { referenceNumber: 'C501E/000A/050A' },
+        'Duplicate project name found in pafs_core_projects_legacy'
+      )
+    })
+
+    test('Should check legacy table even when current project has same reference number', async () => {
+      const payload = {
+        name: 'Test_Project',
+        referenceNumber: 'C501E/000A/001A'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue({
+        id: 200,
+        reference_number: 'C501E/000A/001A'
+      })
+
+      const result = await service.checkDuplicateProjectName(payload)
+
+      expect(result).toEqual({
+        isValid: false,
+        errors: {
+          errorCode: 'PROJECT_NAME_DUPLICATE',
+          field: 'name',
+          message: 'A project with this name already exists in legacy projects'
+        }
+      })
+      // Legacy table should not filter by reference number
+      expect(
+        mockPrisma.pafs_core_projects_legacy.findFirst
+      ).toHaveBeenCalledWith({
+        where: {
+          name: {
+            equals: payload.name,
+            mode: 'insensitive'
+          }
+        },
+        select: {
+          id: true,
+          reference_number: true
+        }
+      })
+    })
+
+    test('Should perform case-insensitive search in legacy table', async () => {
+      const payload = { name: 'LEGACY_project' }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
+
+      await service.checkDuplicateProjectName(payload)
+
+      expect(
+        mockPrisma.pafs_core_projects_legacy.findFirst
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            name: {
+              equals: payload.name,
+              mode: 'insensitive'
+            }
+          }
+        })
+      )
+    })
+
+    test('Should check both current and legacy projects in parallel', async () => {
+      const payload = { name: 'Test_Project' }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1,
+        reference_number: 'C501E/000A/001A'
+      })
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
+
+      const result = await service.checkDuplicateProjectName(payload)
+
+      expect(result.isValid).toBe(false)
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalled()
+      // Both tables are checked in parallel with Promise.all
+      expect(mockPrisma.pafs_core_projects_legacy.findFirst).toHaveBeenCalled()
+    })
+
+    test('Should update log message to indicate checking both tables', async () => {
+      const payload = { name: 'Test_Project' }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
+
+      await service.checkDuplicateProjectName(payload)
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { projectName: payload.name },
+        'Checking if project name exists in both current and legacy projects'
+      )
     })
   })
 
@@ -867,6 +1025,8 @@ describe('ProjectService', () => {
           hectares_of_wetland_or_wet_grassland_created_or_enhanced: true,
           grassland: true,
           hectares_of_grassland_habitat_created_or_enhanced: true,
+          heathland: true,
+          hectares_of_heathland_created_or_enhanced: true,
           ponds_lakes: true,
           hectares_of_pond_or_lake_habitat_created_or_enhanced: true,
           arable_land: true,

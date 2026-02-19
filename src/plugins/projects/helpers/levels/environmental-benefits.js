@@ -1,7 +1,7 @@
 import {
   environmentalBenefitsSchema,
   environmentalBenefitsGateSchema,
-  environmentalBenefitsQuantitySchema,
+  environmentalBenefitsConditionalQuantitySchema,
   ENVIRONMENTAL_BENEFITS_FIELDS
 } from '../../../../common/schemas/project.js'
 import { PROJECT_VALIDATION_LEVELS } from '../../../../common/constants/project.js'
@@ -31,7 +31,11 @@ export const environmentalBenefitsLevels = (referenceNumber) => {
         name: PROJECT_VALIDATION_LEVELS[quantityLevel],
         fields: {
           referenceNumber,
-          [quantity]: environmentalBenefitsQuantitySchema(quantity)
+          [gate]: environmentalBenefitsGateSchema(gate),
+          [quantity]: environmentalBenefitsConditionalQuantitySchema(
+            quantity,
+            gate
+          )
         }
       }
     }

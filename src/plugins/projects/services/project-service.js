@@ -19,48 +19,103 @@ export class ProjectService {
   }
 
   /**
+   * Build where clause for project name search
+   * @private
+   */
+  _buildNameWhereClause(projectName, excludeReferenceNumber = null) {
+    const where = {
+      name: {
+        equals: projectName,
+        mode: 'insensitive'
+      }
+    }
+
+    if (excludeReferenceNumber) {
+      where.reference_number = { not: excludeReferenceNumber }
+    }
+
+    return where
+  }
+
+  /**
+   * Build validation error response
+   * @private
+   */
+  _buildValidationError(message) {
+    return {
+      isValid: false,
+      errors: {
+        errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
+        message,
+        field: 'name'
+      }
+    }
+  }
+
+  /**
+   * Check if project name exists in a specific table
+   * @private
+   */
+  async _checkProjectNameInTable(table, where, tableName) {
+    const project = await table.findFirst({
+      where,
+      select: {
+        id: true,
+        reference_number: true
+      }
+    })
+
+    if (project) {
+      this.logger.warn(
+        { referenceNumber: project.reference_number },
+        `Duplicate project name found in ${tableName}`
+      )
+    }
+
+    return project
+  }
+
+  /**
    * Check if a project name already exists in the database
-   * @param {string} name - Project name to check
-   * @returns {Promise<{exists: boolean}>}
+   * @param {Object} payload - Contains name and optional referenceNumber
+   * @returns {Promise<{isValid: boolean, errors?: Object}>}
    */
   async checkDuplicateProjectName(payload) {
     this.logger.info(
       { projectName: payload.name },
-      'Checking if project name exists'
+      'Checking if project name exists in both current and legacy projects'
     )
 
-    const where = {
-      name: {
-        equals: payload.name,
-        mode: 'insensitive' // Case-insensitive comparison
-      }
-    }
-
-    if (payload.referenceNumber) {
-      where.reference_number = { not: payload.referenceNumber }
-    }
-
     try {
-      const existingProject = await this.prisma.pafs_core_projects.findFirst({
-        where,
-        select: {
-          id: true
-        }
-      })
+      const currentWhere = this._buildNameWhereClause(
+        payload.name,
+        payload.referenceNumber
+      )
+      const legacyWhere = this._buildNameWhereClause(payload.name)
 
-      if (existingProject) {
-        this.logger.warn(
-          { projectName: payload.name },
-          'Duplicate project name found'
+      const [currentProject, legacyProject] = await Promise.all([
+        this._checkProjectNameInTable(
+          this.prisma.pafs_core_projects,
+          currentWhere,
+          'pafs_core_projects'
+        ),
+        this._checkProjectNameInTable(
+          this.prisma.pafs_core_projects_legacy,
+          legacyWhere,
+          'pafs_core_projects_legacy'
         )
-        return {
-          isValid: false,
-          errors: {
-            errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
-            message: 'A project with this name already exists',
-            field: 'name'
-          }
-        }
+      ])
+
+      if (currentProject) {
+        return this._buildValidationError(
+          'A project with this name already exists'
+        )
+      }
+
+      if (legacyProject) {
+        return this._buildValidationError(
+          'A project with this name already exists in legacy projects'
+        )
       }
 
       return { isValid: true }
@@ -69,15 +124,9 @@ export class ProjectService {
         { projectName: payload.name, error: error.message },
         'Error checking duplicate project name'
       )
-      // On error, fail closed (reject the project name)
-      return {
-        isValid: false,
-        errors: {
-          errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
-          message: 'Unable to verify project name uniqueness',
-          field: 'name'
-        }
-      }
+      return this._buildValidationError(
+        'Unable to verify project name uniqueness'
+      )
     }
   }
 

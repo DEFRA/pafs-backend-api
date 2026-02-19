@@ -22,6 +22,9 @@ describe('checkProjectName', () => {
     mockPrisma = {
       pafs_core_projects: {
         findFirst: vi.fn()
+      },
+      pafs_core_projects_legacy: {
+        findFirst: vi.fn()
       }
     }
 
@@ -71,6 +74,7 @@ describe('checkProjectName', () => {
   describe('Handler', () => {
     test('Should return exists: false when project name does not exist', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
@@ -83,7 +87,11 @@ describe('checkProjectName', () => {
     })
 
     test('Should return exists: true when project name exists', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1,
+        reference_number: 'C501E/000A/001A'
+      })
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
@@ -102,6 +110,7 @@ describe('checkProjectName', () => {
     test('Should handle database errors gracefully', async () => {
       const dbError = new Error('Database connection failed')
       mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockRejectedValue(dbError)
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
@@ -150,6 +159,7 @@ describe('checkProjectName', () => {
 
     test('Should pass project name to validation service', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
       mockRequest.payload.name = 'Custom_Project_Name'
 
       await checkProjectName.options.handler(mockRequest, mockH)
@@ -167,7 +177,11 @@ describe('checkProjectName', () => {
     })
 
     test('Should handle case-insensitive project names', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 5 })
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 5,
+        reference_number: 'C501E/000A/005A'
+      })
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
       mockRequest.payload.name = 'TEST_project_NAME'
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
@@ -195,17 +209,19 @@ describe('checkProjectName', () => {
 
     test('Should log info messages during operation', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       await checkProjectName.options.handler(mockRequest, mockH)
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         { projectName: 'Test_Project' },
-        'Checking if project name exists'
+        'Checking if project name exists in both current and legacy projects'
       )
     })
 
     test('Should handle project names with hyphens and underscores', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
       mockRequest.payload.name = 'Test-Project_123'
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
@@ -216,6 +232,7 @@ describe('checkProjectName', () => {
 
     test('Should return OK status code on success', async () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.pafs_core_projects_legacy.findFirst.mockResolvedValue(null)
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 

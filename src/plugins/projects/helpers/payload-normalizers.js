@@ -82,15 +82,15 @@ export const normalizeEnvironmentalBenefits = (
 ) => {
   const isEnvironmentalBenefitsLevel =
     validationLevel === PROJECT_VALIDATION_LEVELS.ENVIRONMENTAL_BENEFITS
+  const isEnvironmentalBenefitsDenied =
+    isEnvironmentalBenefitsLevel &&
+    enrichedPayload?.environmentalBenefits === false
 
-  if (isEnvironmentalBenefitsLevel) {
-    if (enrichedPayload.environmentalBenefits === false) {
-      ENVIRONMENTAL_BENEFITS_FIELDS.forEach(({ gate, quantity }) => {
-        enrichedPayload[gate] = null
-        enrichedPayload[quantity] = null
-      })
-    }
-    return
+  if (isEnvironmentalBenefitsDenied) {
+    ENVIRONMENTAL_BENEFITS_FIELDS.forEach(({ gate, quantity }) => {
+      enrichedPayload[gate] = null
+      enrichedPayload[quantity] = null
+    })
   }
 
   const gateField = ENVIRONMENTAL_BENEFITS_FIELDS.find(

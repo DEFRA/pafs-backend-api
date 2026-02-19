@@ -111,14 +111,35 @@ export const environmentalBenefitsGateSchema = (label) =>
   })
 
 /**
- * Environmental benefits quantity field schema - required number > 0
+ * Conditional environmental benefits quantity field schema
+ * Only requires the quantity field when the gate field is true
+ * Strictly validates maximum 2 decimal places WITHOUT auto-rounding
+ * (e.g., 0.01, 1.5, 10.25 are valid; 1.234, 10.999 are rejected)
+ * Minimum value: 0.01
+ * @param {string} label - Field label for error messages
+ * @param {string} gateField - Name of the gate field to check
  */
-export const environmentalBenefitsQuantitySchema = (label) =>
-  Joi.number().positive().required().label(label).messages({
-    'any.required':
-      PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_REQUIRED,
-    'number.base':
-      PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
-    'number.positive':
-      PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN
+export const environmentalBenefitsConditionalQuantitySchema = (
+  label,
+  gateField
+) =>
+  Joi.when(gateField, {
+    is: true,
+    then: Joi.number()
+      .min(0.01)
+      .precision(2)
+      .required()
+      .prefs({ convert: false })
+      .label(label)
+      .messages({
+        'any.required':
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_REQUIRED,
+        'number.base':
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+        'number.min':
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
+        'number.precision':
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID
+      }),
+    otherwise: Joi.any().strip()
   })
