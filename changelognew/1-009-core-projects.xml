@@ -7,7 +7,7 @@
     <comment>Create pafs_core_projects table</comment>
 
     <createTable tableName="pafs_core_projects">
-      <!-- Bootstrap the proposal -->
+      <!-- START: Core identity fields -->
       <column name="id" type="BIGSERIAL" autoIncrement="true">
         <constraints primaryKey="true" nullable="false"/>
       </column>
@@ -23,22 +23,47 @@
       <column name="name" type="VARCHAR(255)"/>
       <column name="rma_name" type="VARCHAR(255)"/>
       <column name="project_type" type="VARCHAR(255)"/>
+      <!-- START: 2025 policy reform columns as a follow-up for project type -->
       <column name="project_intervention_types" type="VARCHAR(255)"/>
       <column name="main_intervention_type" type="VARCHAR(255)"/>
+      <!-- END: 2025 policy reform columns as a follow-up for project type -->
+      <!-- START: 2025 policy reform, earliest_start_month is just for backward compatibility for legacy project download -->
+      <column name="earliest_start_month" type="INTEGER"/>
+      <!-- END: 2025 policy reform, earliest_start_month is just for backward compatibility for legacy project download -->
+      <!-- START: 2025 policy reform, earliest_start_year is a financial start year -->
       <column name="earliest_start_year" type="INTEGER"/>
+      <!-- END: 2025 policy reform, earliest_start_year is a financial start year -->
       <column name="project_end_financial_year" type="INTEGER"/>
+      <!-- END: Core identity fields -->
 
-      <!-- Benefit area fields -->
+      <!-- START: Location fields, 2025 policy reform - it is just for backward compatibility for legacy project download -->
+      <column name="project_location" type="TEXT[]" defaultValue="{}"/>
+      <column name="project_location_zoom_level" type="INTEGER" defaultValueNumeric="15"/>
+      <column name="region" type="VARCHAR(255)"/>
+      <column name="county" type="VARCHAR(255)"/>
+      <column name="parliamentary_constituency" type="VARCHAR(255)"/>
+      <column name="grid_reference" type="VARCHAR(255)"/>
+      <!-- END: Location fields, 2025 policy reform - it is just for backward compatibility for legacy project download -->
+
+      <!-- START: Benefit area fields -->
       <column name="benefit_area_file_name" type="VARCHAR(255)"/>
       <column name="benefit_area_content_type" type="VARCHAR(255)"/>
       <column name="benefit_area_file_size" type="INTEGER"/>
       <column name="benefit_area_file_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+      <!-- START: Benefit area S3 fields, CDP Uploader -->
       <column name="benefit_area_file_s3_bucket" type="VARCHAR(255)"/>
       <column name="benefit_area_file_s3_key" type="VARCHAR(1000)"/>
       <column name="benefit_area_file_download_url" type="TEXT"/>
       <column name="benefit_area_file_download_expiry" type="TIMESTAMP WITHOUT TIME ZONE"/>
+      <!-- END: Benefit area S3 fields, CDP Uploader -->
+      <!-- START: 2025 policy reform - it is just for backward compatibility for legacy project download -->
+      <column name="benefit_area" type="TEXT"/>
+      <column name="benefit_area_centre" type="TEXT[]"/>
+      <column name="benefit_area_zoom_level" type="INTEGER"/>
+      <!-- END: 2025 policy reform - it is just for backward compatibility for legacy project download -->
+      <!-- END: Benefit area fields -->
 
-      <!-- Important dates -->
+      <!-- START: Important dates -->
       <column name="start_outline_business_case_month" type="INTEGER"/>
       <column name="start_outline_business_case_year" type="INTEGER"/>
       <column name="complete_outline_business_case_month" type="INTEGER"/>
@@ -49,21 +74,24 @@
       <column name="start_construction_year" type="INTEGER"/>
       <column name="ready_for_service_month" type="INTEGER"/>
       <column name="ready_for_service_year" type="INTEGER"/>
+      <!-- START: 2025 policy reform - moved to here from Earliest start section -->
       <column name="could_start_early" type="BOOLEAN"/>
       <column name="earliest_with_gia_month" type="INTEGER"/>
       <column name="earliest_with_gia_year" type="INTEGER"/>
+      <!-- END: 2025 policy reform - moved to here from Earliest start section -->
+      <!-- END: Important dates -->
 
       <!-- Funding sources -->
       <column name="fcerm_gia" type="BOOLEAN"/>
       <column name="local_levy" type="BOOLEAN"/>
-      <column name="growth_funding" type="BOOLEAN"/>
+      <column name="internal_drainage_boards" type="BOOLEAN"/>
       <column name="public_contributions" type="BOOLEAN"/>
       <column name="public_contributor_names" type="VARCHAR(255)"/>
       <column name="private_contributions" type="BOOLEAN"/>
       <column name="private_contributor_names" type="VARCHAR(255)"/>
       <column name="other_ea_contributions" type="BOOLEAN"/>
       <column name="other_ea_contributor_names" type="VARCHAR(255)"/>
-      <column name="internal_drainage_boards" type="BOOLEAN"/>
+      <column name="growth_funding" type="BOOLEAN"/>
       <column name="not_yet_identified" type="BOOLEAN"/>
       <column name="funding_sources_visited" type="BOOLEAN" defaultValueBoolean="false"/>
       <column name="asset_replacement_allowance" type="BOOLEAN" defaultValueBoolean="false"/>
@@ -74,7 +102,7 @@
       <column name="recovery" type="BOOLEAN" defaultValueBoolean="false"/>
       <column name="summer_economic_fund" type="BOOLEAN" defaultValueBoolean="false"/>
 
-      <!-- New risk and property benefit fields -->
+      <!-- START: 2025 policy reform - New risk and property benefit fields -->
       <column name="project_risks_protected_against" type="TEXT"/>
       <column name="main_source_of_risk" type="VARCHAR(255)"/>
       <column name="current_flood_fluvial_risk" type="VARCHAR(255)"/>
@@ -90,8 +118,37 @@
       <column name="properties_benefit_investment_coastal_erosion" type="INTEGER"/>
       <column name="percent_properties_20_percent_deprived" type="FLOAT"/>
       <column name="percent_properties_40_percent_deprived" type="FLOAT"/>
+      <!-- END: 2025 policy reform - New risk and property benefit fields -->
 
-      <!-- Environmental benefits columns -->
+      <!-- START: Risk and property benefiting - these are only for backward compatibility for legacy projects download -->
+      <column name="fluvial_flooding" type="BOOLEAN"/>
+      <column name="tidal_flooding" type="BOOLEAN"/>
+      <column name="groundwater_flooding" type="BOOLEAN"/>
+      <column name="surface_water_flooding" type="BOOLEAN"/>
+      <column name="sea_flooding" type="BOOLEAN"/>
+      <column name="reservoir_flooding" type="BOOLEAN"/>
+      <column name="coastal_erosion" type="BOOLEAN"/>
+      <column name="main_risk" type="VARCHAR(255)"/>
+      <column name="flood_protection_before" type="INTEGER"/>
+      <column name="flood_protection_after" type="INTEGER"/>
+      <column name="coastal_protection_before" type="INTEGER"/>
+      <column name="coastal_protection_after" type="INTEGER"/>
+      <column name="reduced_risk_of_households_for_floods" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+      <column name="reduced_risk_of_households_for_coastal_erosion" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+      <column name="no_properties_affected_by_flooding_2040" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+      <!-- END: Risk and property benefiting - these are only for backward compatibility for legacy projects download -->
+
+      <!-- START: Earliest start -->
+      <!-- 2025 policy reform - moved to different section see above -->
+      <!-- END: Earliest start -->
+
+      <!-- START: Environmental benefits columns (OM4) -->
       <column name="environmental_benefits" type="BOOLEAN"/>
       <column name="intertidal_habitat" type="BOOLEAN"/>
       <column name="hectares_of_intertidal_habitat_created_or_enhanced" type="FLOAT"/>
@@ -115,19 +172,79 @@
       <column name="kilometres_of_watercourse_enhanced_or_created_partial" type="FLOAT"/>
       <column name="create_habitat_watercourse" type="BOOLEAN"/>
       <column name="kilometres_of_watercourse_enhanced_or_created_single" type="FLOAT"/>
+      <!-- END: Environmental benefits columns (OM4) -->
 
-      <!-- Project goals -->
+      <!-- START: Environmental benefits (WFD) - these are only for backward compatibility for legacy projects download -->
+      <column name="improve_surface_or_groundwater" type="BOOLEAN"/>
+      <column name="improve_surface_or_groundwater_amount" type="FLOAT"/>
+      <column name="improve_river" type="BOOLEAN"/>
+      <column name="improve_spa_or_sac" type="BOOLEAN"/>
+      <column name="improve_sssi" type="BOOLEAN"/>
+      <column name="improve_hpi" type="BOOLEAN"/>
+      <column name="improve_habitat_amount" type="FLOAT"/>
+      <column name="improve_river_amount" type="FLOAT"/>
+      <column name="create_habitat" type="BOOLEAN"/>
+      <column name="create_habitat_amount" type="FLOAT"/>
+      <column name="remove_fish_barrier" type="BOOLEAN"/>
+      <column name="remove_eel_barrier" type="BOOLEAN"/>
+      <column name="fish_or_eel_amount" type="FLOAT"/>
+      <!-- END: Environmental benefits (WFD) - these are only for backward compatibility for legacy projects download -->
+
+      <!-- START: Project goals -->
       <column name="approach" type="TEXT"/>
+      <!-- END: Project goals -->
 
-      <!--NFM-->
+      <!-- START: NFM - 2025 policy reform new changes -->
+      <!-- additional data for NFM is in pafs_core_nfm_measures table -->
       <column name="nfm_selected_measures" type="TEXT"/>
+      <!-- additional data for NFM land use is in pafs_core_nfm_land_use_changes table -->
       <column name="nfm_land_use_change" type="TEXT"/>
       <column name="nfm_landowner_consent" type="VARCHAR(50)"/>
       <column name="nfm_experience_level" type="VARCHAR(50)"/>
       <column name="nfm_project_readiness" type="VARCHAR(50)"/>
+      <!-- END: NFM - 2025 policy reform new changes -->
 
-      <!-- Whole Life Costs and Benefits Section -->
+      <!-- START: Natural Flood Risk Measures (NFM) - 2025 policy reform these are only for backward compatibility for legacy projects download -->
+      <column name="natural_flood_risk_measures_included" type="BOOLEAN"/>
+      <column name="river_restoration" type="BOOLEAN"/>
+      <column name="floodplain_restoration" type="BOOLEAN"/>
+      <column name="leaky_barriers" type="BOOLEAN"/>
+      <column name="offline_flood_storage_areas" type="BOOLEAN"/>
+      <column name="cross_slope_woodland" type="BOOLEAN"/>
+      <column name="catchment_woodland" type="BOOLEAN"/>
+      <column name="riparian_woodland" type="BOOLEAN"/>
+      <column name="floodplain_woodland" type="BOOLEAN"/>
+      <column name="soil_and_land_management" type="BOOLEAN"/>
+      <column name="land_and_headwater_drainage_management" type="BOOLEAN"/>
+      <column name="runoff_pathway_management" type="BOOLEAN"/>
+      <column name="saltmarsh_mudflats_and_managed_realignment" type="BOOLEAN"/>
+      <column name="sand_dunes" type="BOOLEAN"/>
+      <column name="beach_nourishment" type="BOOLEAN"/>
+      <column name="other_flood_measures" type="VARCHAR(255)"/>
+      <column name="other_flood_measures_selected" type="BOOLEAN"/>
+      <column name="natural_flood_risk_measures_cost" type="FLOAT"/>
+      <!-- END: Natural Flood Risk Measures (NFM) - 2025 policy reform these are only for backward compatibility for legacy projects download -->
 
+      <!-- START: Funding calculator - 2025 policy reform these are only for backward compatibility for legacy projects download -->
+      <column name="funding_calculator_file_name" type="VARCHAR(255)"/>
+      <column name="funding_calculator_content_type" type="VARCHAR(255)"/>
+      <column name="funding_calculator_file_size" type="INTEGER"/>
+      <column name="funding_calculator_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+      <column name="strategic_approach" type="BOOLEAN"/>
+      <column name="raw_partnership_funding_score" type="FLOAT"/>
+      <column name="adjusted_partnership_funding_score" type="FLOAT"/>
+      <column name="pv_whole_life_costs" type="FLOAT"/>
+      <column name="pv_whole_life_benefits" type="FLOAT"/>
+      <column name="duration_of_benefits" type="INTEGER"/>
+      <column name="hectares_of_net_water_dependent_habitat_created" type="FLOAT"/>
+      <column name="hectares_of_net_water_intertidal_habitat_created" type="FLOAT"/>
+      <column name="kilometres_of_protected_river_improved" type="FLOAT"/>
+      <column name="consented" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+      <!-- END: Funding calculator - 2025 policy reform these are only for backward compatibility for legacy projects download -->
+
+      <!-- START: Whole Life Costs and Benefits Section - 2025 policy reform new changes -->
       <column name="wlc_estimated_whole_life_pv_costs" type="FLOAT"/>
       <column name="wlc_estimated_design_construction_costs" type="FLOAT"/>
       <column name="wlc_estimated_risk_contingency_costs" type="FLOAT"/>
@@ -138,18 +255,21 @@
       <column name="wlc_estimated_environmental_benefits" type="FLOAT"/>
       <column name="wlc_estimated_recreation_tourism_benefits" type="FLOAT"/>
       <column name="wlc_estimated_land_value_uplift_benefits" type="FLOAT"/>
+      <!-- END: Whole Life Costs and Benefits Section - 2025 policy reform new changes -->
 
-      <!-- Urgency fields -->
+      <!-- START: Urgency fields -->
       <column name="urgency_reason" type="VARCHAR(255)"/>
       <column name="urgency_details" type="TEXT"/>
       <column name="urgency_details_updated_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+      <!-- END: Urgency fields -->
 
-      <!-- Confidence assessment fields -->
+      <!-- START: Confidence assessment fields -->
       <column name="confidence_homes_better_protected" type="VARCHAR(20)"/>
       <column name="confidence_homes_by_gateway_four" type="VARCHAR(20)"/>
       <column name="confidence_secured_partnership_funding" type="VARCHAR(20)"/>
+      <!-- END: Confidence assessment fields -->
 
-      <!-- Carbon impact fields -->
+      <!-- START: Carbon impact fields -->
       <column name="carbon_cost_build" type="DECIMAL(20,2)"/>
       <column name="carbon_cost_operation" type="DECIMAL(20,2)"/>
       <column name="carbon_cost_sequestered" type="DECIMAL(20,2)"/>
@@ -157,11 +277,23 @@
       <column name="carbon_savings_net_economic_benefit" type="DECIMAL(20,2)"/>
       <column name="carbon_operational_cost_forecast" type="BIGINT"/>
       <column name="carbon_values_hexdigest" type="VARCHAR(255)"/>
+      <!-- END: Carbon impact fields -->
 
       <!-- Tracking and submission fields -->
       <column name="creator_id" type="INTEGER"/>
       <column name="submitted_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
       <column name="submitted_to_pol" type="TIMESTAMP WITHOUT TIME ZONE"/>
+
+      <!-- START: pending fields - 2025 policy reform, these are only for backward compatibility for legacy projects download -->
+      <column name="pending_earliest_start_month" type="INTEGER"/>
+      <column name="pending_earliest_start_year" type="INTEGER"/>
+      <column name="pending_financial_year" type="INTEGER"/>
+      <column name="date_change_requires_confirmation" type="BOOLEAN" defaultValueBoolean="false"/>
+      <!-- END: pending fields - 2025 policy reform, these are only for backward compatibility for legacy projects download -->
+
+      <!-- Migration tracking column -->
+      <column name="is_legacy" type="BOOLEAN" defaultValueBoolean="true"/>
+      <column name="is_migrated" type="BOOLEAN" defaultValueBoolean="false"/>
 
       <!-- Updated by tracking (polymorphic) -->
       <column name="updated_by_type" type="VARCHAR(255)"/>

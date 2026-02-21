@@ -15,12 +15,11 @@
   <include file="1-010-core-area-projects.xml" relativeToChangelogFile="true"/>
   <include file="1-011-core-reference-counters.xml" relativeToChangelogFile="true"/>
   <include file="1-012-core-states.xml" relativeToChangelogFile="true"/>
-  <include file="2-001-create-projects-legacy-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-002-create-flood-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-003-create-flood-protection-2040-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-004-create-costal-erosion-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-005-create-nfm-measures-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-006-create-nfm-land-use-changes-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-007-create-area-downloads-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-001-create-flood-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-002-create-flood-protection-2040-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-003-create-costal-erosion-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-004-create-nfm-measures-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-005-create-nfm-land-use-changes-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-006-create-area-downloads-table.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

@@ -3,7 +3,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-  <changeSet id="2-006-create-nfm-land-use-changes-table" author="migration-team">
+  <changeSet id="2-005-create-nfm-land-use-changes-table" author="migration-team">
     <comment>Create pafs_core_nfm_land_use_changes table for Natural Flood Management land use before/after data</comment>
 
     <createTable tableName="pafs_core_nfm_land_use_changes">

@@ -3,7 +3,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="2-007-create-area-downloads-table" author="migration-team">
+    <changeSet id="2-006-create-area-downloads-table" author="migration-team">
         <comment>Create pafs_core_area_downloads table</comment>
 
         <createTable tableName="pafs_core_area_downloads">
