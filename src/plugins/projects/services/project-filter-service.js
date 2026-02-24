@@ -1,9 +1,11 @@
-import { Prisma } from '@prisma/client'
 import {
   buildPaginationMeta,
   normalizePaginationParams
 } from '../../../common/helpers/pagination.js'
-import { formatProject } from '../helpers/project-formatter.js'
+import {
+  PROJECT_SELECT_FIELDS,
+  formatProject
+} from '../helpers/project-formatter.js'
 
 export class ProjectFilterService {
   constructor(prisma, logger) {
@@ -15,72 +17,30 @@ export class ProjectFilterService {
    * Get projects with filters and pagination
    * @param {Object} params - Query parameters
    * @param {string} [params.search] - Search term for project number/name
-   * @param {number} [params.areaId] - Filter by area ID
+   * @param {number[]} [params.areaIds] - Filter by area IDs (RMA area IDs)
    * @param {string} [params.status] - Filter by status (draft, submitted, archived)
    * @param {number} [params.page] - Page number
    * @param {number} [params.pageSize] - Records per page
    * @returns {Promise<Object>} Paginated projects with metadata
    */
-  async getProjects({ search, areaId, status, page, pageSize }) {
+  async getProjects({ search, areaIds, status, page, pageSize }) {
     const pagination = normalizePaginationParams(page, pageSize)
-    const whereClause = this.buildWhereClause(search, areaId, status)
+    const where = await this._buildWhereClause(search, areaIds, status)
 
-    // Build the SELECT query with raw SQL
-    const selectQuery = Prisma.sql`
-      SELECT
-        p.id,
-        p.reference_number,
-        p.slug,
-        p.name,
-        p.rma_name,
-        p.created_at,
-        p.updated_at,
-        p.submitted_at
-      FROM pafs_core_projects p
-      ${whereClause}
-      ORDER BY p.updated_at DESC
-      LIMIT ${pagination.take}
-      OFFSET ${pagination.skip}
-    `
-
-    // Build the COUNT query with raw SQL
-    const countQuery = Prisma.sql`
-      SELECT COUNT(*)::int as count
-      FROM pafs_core_projects p
-      ${whereClause}
-    `
-
-    const [projects, countResult] = await Promise.all([
-      this.prisma.$queryRaw(selectQuery),
-      this.prisma.$queryRaw(countQuery)
+    const [projects, total] = await Promise.all([
+      this.prisma.pafs_core_projects.findMany({
+        where,
+        select: PROJECT_SELECT_FIELDS,
+        orderBy: { updated_at: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take
+      }),
+      this.prisma.pafs_core_projects.count({ where })
     ])
 
-    const total = countResult[0]?.count || 0
-
-    // Fetch states for all projects using raw SQL
-    if (projects.length > 0) {
-      const projectIds = projects.map((p) => Number(p.id))
-
-      const states = await this.prisma.$queryRaw`
-        SELECT project_id, state
-        FROM pafs_core_states
-        WHERE project_id = ANY(${projectIds}::int[])
-      `
-
-      // Create a map of project_id to state
-      const statesMap = new Map(
-        states.map((s) => [s.project_id.toString(), s.state])
-      )
-
-      // Merge states with projects
-      const formattedProjects = projects.map((project) =>
-        formatProject(project, statesMap.get(project.id.toString()))
-      )
-
-      this.logger.info({ total, page: pagination.page }, 'Projects retrieved')
-
+    if (projects.length === 0) {
       return {
-        data: formattedProjects,
+        data: [],
         pagination: buildPaginationMeta(
           pagination.page,
           pagination.pageSize,
@@ -89,8 +49,24 @@ export class ProjectFilterService {
       }
     }
 
+    const projectIds = projects.map((p) => Number(p.id))
+    const states = await this.prisma.pafs_core_states.findMany({
+      where: { project_id: { in: projectIds } },
+      select: { project_id: true, state: true }
+    })
+
+    const statesMap = new Map(
+      states.map((s) => [Number(s.project_id), s.state])
+    )
+
+    const formattedProjects = projects.map((project) =>
+      formatProject(project, statesMap.get(Number(project.id)))
+    )
+
+    this.logger.info({ total, page: pagination.page }, 'Projects retrieved')
+
     return {
-      data: [],
+      data: formattedProjects,
       pagination: buildPaginationMeta(
         pagination.page,
         pagination.pageSize,
@@ -100,45 +76,81 @@ export class ProjectFilterService {
   }
 
   /**
-   * Build SQL WHERE clause from filters
+   * Build Prisma where clause from filters
+   * Pre-queries related tables for areaIds/status since no Prisma relations are defined
+   * @param {string} [search] - Search term
+   * @param {number[]} [areaIds] - Area ID filters
+   * @param {string} [status] - Status filter
+   * @returns {Promise<Object>} Prisma where clause
+   * @private
    */
-  buildWhereClause(search, areaId, status) {
-    const conditions = []
+  async _buildWhereClause(search, areaIds, status) {
+    const where = {}
 
     if (search?.trim()) {
-      const searchTerm = `%${search.trim()}%`
-      conditions.push(
-        Prisma.sql`(p.reference_number ILIKE ${searchTerm} OR p.name ILIKE ${searchTerm} OR p.slug ILIKE ${searchTerm})`
-      )
+      const searchTerm = search.trim()
+      where.OR = [
+        { reference_number: { contains: searchTerm, mode: 'insensitive' } },
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { slug: { contains: searchTerm, mode: 'insensitive' } }
+      ]
     }
 
-    if (areaId) {
-      conditions.push(
-        Prisma.sql`EXISTS (
-          SELECT 1
-          FROM pafs_core_area_projects ap
-          WHERE ap.project_id = p.id
-          AND ap.area_id = ${BigInt(areaId)}
-        )`
+    // Pre-query related tables to get matching project IDs
+    const idFilters = await this._getRelatedProjectIds(areaIds, status)
+    if (idFilters) {
+      where.id = { in: idFilters }
+    }
+
+    return where
+  }
+
+  /**
+   * Get project IDs matching area and/or status filters
+   * @param {number[]} [areaIds] - Area ID filters
+   * @param {string} [status] - Status filter
+   * @returns {Promise<BigInt[]|null>} Array of matching project IDs or null if no filters
+   * @private
+   */
+  async _getRelatedProjectIds(areaIds, status) {
+    const hasAreaFilter = areaIds?.length > 0
+
+    if (!hasAreaFilter && !status) {
+      return null
+    }
+
+    const queries = []
+
+    if (hasAreaFilter) {
+      queries.push(
+        this.prisma.pafs_core_area_projects
+          .findMany({
+            where: { area_id: { in: areaIds.map(Number) } },
+            select: { project_id: true }
+          })
+          .then((rows) => new Set(rows.map((r) => BigInt(r.project_id))))
       )
     }
 
     if (status) {
-      conditions.push(
-        Prisma.sql`EXISTS (
-          SELECT 1
-          FROM pafs_core_states s
-          WHERE s.project_id = p.id
-          AND s.state = ${status}
-        )`
+      queries.push(
+        this.prisma.pafs_core_states
+          .findMany({
+            where: { state: status },
+            select: { project_id: true }
+          })
+          .then((rows) => new Set(rows.map((r) => BigInt(r.project_id))))
       )
     }
 
-    let whereClause = Prisma.empty
-    if (conditions.length > 0) {
-      whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+    const results = await Promise.all(queries)
+
+    // Intersect all ID sets
+    if (results.length === 1) {
+      return [...results[0]]
     }
 
-    return whereClause
+    const intersection = [...results[0]].filter((id) => results[1].has(id))
+    return intersection
   }
 }

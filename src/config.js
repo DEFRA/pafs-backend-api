@@ -173,6 +173,13 @@ const config = convict({
         env: 'JWT_AUDIENCE'
       }
     },
+    apiKey: {
+      doc: 'API key for downstream service-to-service authentication',
+      format: String,
+      default: '',
+      sensitive: true,
+      env: 'SERVICE_API_KEY'
+    },
     accountLocking: {
       enabled: {
         doc: 'Enable account locking after failed attempts',

@@ -133,7 +133,9 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   benefitAreaFileS3Key: 'benefit_area_file_s3_key',
   benefitAreaFileUpdatedAt: 'benefit_area_file_updated_at',
   benefitAreaFileDownloadUrl: 'benefit_area_file_download_url',
-  benefitAreaFileDownloadExpiry: 'benefit_area_file_download_expiry'
+  benefitAreaFileDownloadExpiry: 'benefit_area_file_download_expiry',
+  isLegacy: 'is_legacy',
+  isRevised: 'is_revised'
 }
 
 /**

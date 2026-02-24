@@ -293,7 +293,7 @@
 
       <!-- Migration tracking column -->
       <column name="is_legacy" type="BOOLEAN" defaultValueBoolean="true"/>
-      <column name="is_migrated" type="BOOLEAN" defaultValueBoolean="false"/>
+      <column name="is_revised" type="BOOLEAN" defaultValueBoolean="false"/>
 
       <!-- Updated by tracking (polymorphic) -->
       <column name="updated_by_type" type="VARCHAR(255)"/>

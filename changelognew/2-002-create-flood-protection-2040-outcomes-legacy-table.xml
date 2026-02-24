@@ -20,7 +20,7 @@
             <column name="non_residential_properties" type="INTEGER"/>
         </createTable>
 
-        <!-- Foreign key to pafs_core_projects_legacy -->
+        <!-- Foreign key to pafs_core_projects -->
         <addForeignKeyConstraint baseTableName="pafs_core_flood_protection2040_outcomes_legacy" baseColumnNames="project_id" constraintName="fk_legacy_fp2040_outcomes_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
 
         <rollback>

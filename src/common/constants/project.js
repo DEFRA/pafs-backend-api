@@ -43,6 +43,7 @@ export const CONFIDENCE_LEVELS = {
 }
 
 export const PROJECT_STATUS = {
+  REVISE: 'revise',
   DRAFT: 'draft',
   SUBMITTED: 'submitted',
   COMPLETED: 'completed',

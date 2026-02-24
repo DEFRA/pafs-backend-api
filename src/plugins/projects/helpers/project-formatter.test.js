@@ -9,6 +9,8 @@ describe('project-formatter', () => {
         reference_number: true,
         name: true,
         rma_name: true,
+        is_legacy: true,
+        is_revised: true,
         created_at: true,
         updated_at: true,
         submitted_at: true
@@ -24,6 +26,8 @@ describe('project-formatter', () => {
         slug: 'RMS12345/ABC001',
         name: 'Test Project',
         rma_name: 'Environment Agency',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-01-01T10:00:00Z'),
         updated_at: new Date('2024-01-02T15:30:00Z'),
         submitted_at: new Date('2024-01-03T12:00:00Z')
@@ -37,6 +41,8 @@ describe('project-formatter', () => {
         referenceNumberFormatted: 'RMS12345/ABC001',
         name: 'Test Project',
         rmaName: 'Environment Agency',
+        isLegacy: false,
+        isRevised: false,
         status: 'draft',
         createdAt: new Date('2024-01-01T10:00:00Z'),
         updatedAt: new Date('2024-01-02T15:30:00Z'),
@@ -51,6 +57,8 @@ describe('project-formatter', () => {
         slug: 'RMS67890/XYZ002',
         name: 'Submitted Project',
         rma_name: 'Natural England',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-02-01T10:00:00Z'),
         updated_at: new Date('2024-02-02T15:30:00Z'),
         submitted_at: new Date('2024-02-03T12:00:00Z')
@@ -64,6 +72,8 @@ describe('project-formatter', () => {
         referenceNumberFormatted: 'RMS67890/XYZ002',
         name: 'Submitted Project',
         rmaName: 'Natural England',
+        isLegacy: false,
+        isRevised: false,
         status: 'submitted',
         createdAt: new Date('2024-02-01T10:00:00Z'),
         updatedAt: new Date('2024-02-02T15:30:00Z'),
@@ -78,6 +88,8 @@ describe('project-formatter', () => {
         slug: 'RMS11111/OLD003',
         name: 'Archived Project',
         rma_name: 'Historic England',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2023-01-01T10:00:00Z'),
         updated_at: new Date('2023-12-31T15:30:00Z'),
         submitted_at: null
@@ -91,6 +103,8 @@ describe('project-formatter', () => {
         referenceNumberFormatted: 'RMS11111/OLD003',
         name: 'Archived Project',
         rmaName: 'Historic England',
+        isLegacy: false,
+        isRevised: false,
         status: 'archived',
         createdAt: new Date('2023-01-01T10:00:00Z'),
         updatedAt: new Date('2023-12-31T15:30:00Z'),
@@ -105,6 +119,8 @@ describe('project-formatter', () => {
         slug: 'RMS99999/DRAFT004',
         name: 'Draft Project',
         rma_name: 'Environment Agency',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-03-01T10:00:00Z'),
         updated_at: new Date('2024-03-02T15:30:00Z'),
         submitted_at: null
@@ -123,6 +139,8 @@ describe('project-formatter', () => {
         slug: 'RMS00001/BIG005',
         name: 'Big ID Project',
         rma_name: 'Test Authority',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-04-01T10:00:00Z'),
         updated_at: new Date('2024-04-02T15:30:00Z'),
         submitted_at: null
@@ -141,6 +159,8 @@ describe('project-formatter', () => {
         slug: 'RMS00002/NUM006',
         name: 'Number ID Project',
         rma_name: 'Test Authority',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-05-01T10:00:00Z'),
         updated_at: new Date('2024-05-02T15:30:00Z'),
         submitted_at: null
@@ -159,6 +179,8 @@ describe('project-formatter', () => {
         slug: 'RMS00003/STR007',
         name: 'String ID Project',
         rma_name: 'Test Authority',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-06-01T10:00:00Z'),
         updated_at: new Date('2024-06-02T15:30:00Z'),
         submitted_at: null
@@ -177,6 +199,8 @@ describe('project-formatter', () => {
         slug: 'RMS00004/NULL008',
         name: 'Null State Project',
         rma_name: 'Test Authority',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-07-01T10:00:00Z'),
         updated_at: new Date('2024-07-02T15:30:00Z'),
         submitted_at: null
@@ -194,6 +218,8 @@ describe('project-formatter', () => {
         slug: 'RMS00005/CASE009',
         name: 'CamelCase Test',
         rma_name: 'Test Authority',
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-08-01T10:00:00Z'),
         updated_at: new Date('2024-08-02T15:30:00Z'),
         submitted_at: new Date('2024-08-03T12:00:00Z')
@@ -204,12 +230,136 @@ describe('project-formatter', () => {
       expect(result).toHaveProperty('referenceNumber')
       expect(result).toHaveProperty('referenceNumberFormatted')
       expect(result).toHaveProperty('rmaName')
+      expect(result).toHaveProperty('isLegacy')
+      expect(result).toHaveProperty('isRevised')
       expect(result).toHaveProperty('createdAt')
       expect(result).toHaveProperty('updatedAt')
       expect(result).toHaveProperty('submittedAt')
       expect(result).not.toHaveProperty('reference_number')
       expect(result).not.toHaveProperty('rma_name')
+      expect(result).not.toHaveProperty('is_legacy')
+      expect(result).not.toHaveProperty('is_revised')
       expect(result).not.toHaveProperty('created_at')
+    })
+
+    test('Should return status revise when draft, legacy, and not migrated', () => {
+      const mockProject = {
+        id: BigInt(10),
+        reference_number: 'RMS10001',
+        slug: 'RMS10001/LEG010',
+        name: 'Legacy Draft Project',
+        rma_name: 'Test Authority',
+        is_legacy: true,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.status).toBe('revise')
+      expect(result.isLegacy).toBe(true)
+      expect(result.isRevised).toBe(false)
+    })
+
+    test('Should return status revise when state is draft, legacy, and not migrated', () => {
+      const mockProject = {
+        id: BigInt(11),
+        reference_number: 'RMS10002',
+        slug: 'RMS10002/LEG011',
+        name: 'Legacy Draft With State',
+        rma_name: 'Test Authority',
+        is_legacy: true,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject, 'draft')
+
+      expect(result.status).toBe('revise')
+    })
+
+    test('Should return status draft when legacy and migrated', () => {
+      const mockProject = {
+        id: BigInt(12),
+        reference_number: 'RMS10003',
+        slug: 'RMS10003/MIG012',
+        name: 'Migrated Legacy Project',
+        rma_name: 'Test Authority',
+        is_legacy: true,
+        is_revised: true,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.status).toBe('draft')
+      expect(result.isLegacy).toBe(true)
+      expect(result.isRevised).toBe(true)
+    })
+
+    test('Should return submitted status even when legacy and not migrated', () => {
+      const mockProject = {
+        id: BigInt(13),
+        reference_number: 'RMS10004',
+        slug: 'RMS10004/SUB013',
+        name: 'Legacy Submitted Project',
+        rma_name: 'Test Authority',
+        is_legacy: true,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: new Date('2024-09-03T12:00:00Z')
+      }
+
+      const result = formatProject(mockProject, 'submitted')
+
+      expect(result.status).toBe('submitted')
+    })
+
+    test('Should default is_legacy and is_revised to false when null', () => {
+      const mockProject = {
+        id: BigInt(14),
+        reference_number: 'RMS10005',
+        slug: 'RMS10005/NUL014',
+        name: 'Null Flags Project',
+        rma_name: 'Test Authority',
+        is_legacy: null,
+        is_revised: null,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.isLegacy).toBe(false)
+      expect(result.isRevised).toBe(false)
+      expect(result.status).toBe('draft')
+    })
+
+    test('Should default is_legacy and is_revised to false when undefined', () => {
+      const mockProject = {
+        id: BigInt(15),
+        reference_number: 'RMS10006',
+        slug: 'RMS10006/UND015',
+        name: 'Undefined Flags Project',
+        rma_name: 'Test Authority',
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.isLegacy).toBe(false)
+      expect(result.isRevised).toBe(false)
+      expect(result.status).toBe('draft')
     })
   })
 })

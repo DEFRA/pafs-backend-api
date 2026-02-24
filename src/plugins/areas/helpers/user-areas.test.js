@@ -1,6 +1,16 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import { fetchUserAreas, getAreaTypeFlags } from './user-areas.js'
+import {
+  fetchUserAreas,
+  getAreaTypeFlags,
+  resolveUserAreaIds
+} from './user-areas.js'
+import { AreaService } from '../services/area-service.js'
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
+
+// Mock AreaService
+vi.mock('../services/area-service.js', () => ({
+  AreaService: vi.fn()
+}))
 
 describe('user-areas helpers', () => {
   describe('fetchUserAreas', () => {
@@ -360,6 +370,235 @@ describe('user-areas helpers', () => {
       // Should not match because comparison is case-sensitive
       expect(result.isRma).toBe(false)
       expect(result.primaryAreaType).toBe('rma')
+    })
+  })
+
+  describe('resolveUserAreaIds', () => {
+    let mockPrisma
+    let mockLogger
+    let mockGetDescendantRmaAreaIds
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+
+      mockPrisma = {}
+      mockLogger = {
+        info: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn()
+      }
+
+      mockGetDescendantRmaAreaIds = vi.fn()
+      AreaService.mockImplementation(function () {
+        this.getDescendantRmaAreaIds = mockGetDescendantRmaAreaIds
+      })
+    })
+
+    test('Should return null for admin users', async () => {
+      const credentials = {
+        isAdmin: true,
+        isRma: false,
+        isPso: false,
+        isEa: false,
+        areas: []
+      }
+
+      const result = await resolveUserAreaIds(
+        mockPrisma,
+        mockLogger,
+        credentials
+      )
+
+      expect(result).toBeNull()
+      expect(AreaService).not.toHaveBeenCalled()
+    })
+
+    test('Should return RMA area IDs for RMA users', async () => {
+      const credentials = {
+        isAdmin: false,
+        isRma: true,
+        isPso: false,
+        isEa: false,
+        areas: [
+          {
+            areaId: 10,
+            areaType: AREA_TYPE_MAP.RMA,
+            primary: true,
+            name: 'RMA 1'
+          },
+          {
+            areaId: 11,
+            areaType: AREA_TYPE_MAP.RMA,
+            primary: false,
+            name: 'RMA 2'
+          },
+          {
+            areaId: 20,
+            areaType: AREA_TYPE_MAP.PSO,
+            primary: false,
+            name: 'PSO X'
+          }
+        ]
+      }
+
+      const result = await resolveUserAreaIds(
+        mockPrisma,
+        mockLogger,
+        credentials
+      )
+
+      expect(result).toEqual([10, 11])
+      expect(AreaService).not.toHaveBeenCalled()
+    })
+
+    test('Should return descendant RMA IDs for PSO users', async () => {
+      const credentials = {
+        isAdmin: false,
+        isRma: false,
+        isPso: true,
+        isEa: false,
+        areas: [
+          {
+            areaId: 30,
+            areaType: AREA_TYPE_MAP.PSO,
+            primary: true,
+            name: 'PSO 1'
+          }
+        ]
+      }
+
+      mockGetDescendantRmaAreaIds.mockResolvedValue([100, 101, 102])
+
+      const result = await resolveUserAreaIds(
+        mockPrisma,
+        mockLogger,
+        credentials
+      )
+
+      expect(result).toEqual([100, 101, 102])
+      expect(AreaService).toHaveBeenCalledWith(mockPrisma, mockLogger)
+      expect(mockGetDescendantRmaAreaIds).toHaveBeenCalledWith(
+        [30],
+        AREA_TYPE_MAP.PSO
+      )
+    })
+
+    test('Should return descendant RMA IDs for EA users', async () => {
+      const credentials = {
+        isAdmin: false,
+        isRma: false,
+        isPso: false,
+        isEa: true,
+        areas: [
+          { areaId: 5, areaType: AREA_TYPE_MAP.EA, primary: true, name: 'EA 1' }
+        ]
+      }
+
+      mockGetDescendantRmaAreaIds.mockResolvedValue([200, 201])
+
+      const result = await resolveUserAreaIds(
+        mockPrisma,
+        mockLogger,
+        credentials
+      )
+
+      expect(result).toEqual([200, 201])
+      expect(AreaService).toHaveBeenCalledWith(mockPrisma, mockLogger)
+      expect(mockGetDescendantRmaAreaIds).toHaveBeenCalledWith(
+        [5],
+        AREA_TYPE_MAP.EA
+      )
+    })
+
+    test('Should return empty array for unknown role', async () => {
+      const credentials = {
+        isAdmin: false,
+        isRma: false,
+        isPso: false,
+        isEa: false,
+        areas: []
+      }
+
+      const result = await resolveUserAreaIds(
+        mockPrisma,
+        mockLogger,
+        credentials
+      )
+
+      expect(result).toEqual([])
+      expect(AreaService).not.toHaveBeenCalled()
+    })
+
+    test('Should filter only matching area types for RMA user', async () => {
+      const credentials = {
+        isAdmin: false,
+        isRma: true,
+        isPso: false,
+        isEa: false,
+        areas: [
+          {
+            areaId: 10,
+            areaType: AREA_TYPE_MAP.RMA,
+            primary: true,
+            name: 'RMA'
+          },
+          {
+            areaId: 20,
+            areaType: AREA_TYPE_MAP.PSO,
+            primary: false,
+            name: 'PSO'
+          },
+          { areaId: 5, areaType: AREA_TYPE_MAP.EA, primary: false, name: 'EA' }
+        ]
+      }
+
+      const result = await resolveUserAreaIds(
+        mockPrisma,
+        mockLogger,
+        credentials
+      )
+
+      // Only RMA areas should be included
+      expect(result).toEqual([10])
+    })
+
+    test('Should filter only PSO area types for PSO user', async () => {
+      const credentials = {
+        isAdmin: false,
+        isRma: false,
+        isPso: true,
+        isEa: false,
+        areas: [
+          {
+            areaId: 30,
+            areaType: AREA_TYPE_MAP.PSO,
+            primary: true,
+            name: 'PSO 1'
+          },
+          {
+            areaId: 31,
+            areaType: AREA_TYPE_MAP.PSO,
+            primary: false,
+            name: 'PSO 2'
+          },
+          {
+            areaId: 10,
+            areaType: AREA_TYPE_MAP.RMA,
+            primary: false,
+            name: 'RMA'
+          }
+        ]
+      }
+
+      mockGetDescendantRmaAreaIds.mockResolvedValue([100, 101])
+
+      await resolveUserAreaIds(mockPrisma, mockLogger, credentials)
+
+      // Should pass only PSO area IDs to getDescendantRmaAreaIds
+      expect(mockGetDescendantRmaAreaIds).toHaveBeenCalledWith(
+        [30, 31],
+        AREA_TYPE_MAP.PSO
+      )
     })
   })
 })

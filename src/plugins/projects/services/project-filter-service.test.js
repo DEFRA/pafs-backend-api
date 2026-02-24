@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-import { Prisma } from '@prisma/client'
 import { ProjectFilterService } from './project-filter-service.js'
 
 describe('ProjectFilterService', () => {
@@ -9,7 +8,16 @@ describe('ProjectFilterService', () => {
 
   beforeEach(() => {
     mockPrisma = {
-      $queryRaw: vi.fn()
+      pafs_core_projects: {
+        findMany: vi.fn(),
+        count: vi.fn()
+      },
+      pafs_core_states: {
+        findMany: vi.fn()
+      },
+      pafs_core_area_projects: {
+        findMany: vi.fn()
+      }
     }
 
     mockLogger = {
@@ -54,16 +62,13 @@ describe('ProjectFilterService', () => {
       ]
 
       const mockStates = [
-        { project_id: BigInt(1), state: 'draft' },
-        { project_id: BigInt(2), state: 'submitted' }
+        { project_id: 1, state: 'draft' },
+        { project_id: 2, state: 'submitted' }
       ]
 
-      const mockCount = [{ count: 2 }]
-
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects) // First call for SELECT
-        .mockResolvedValueOnce(mockCount) // Second call for COUNT
-        .mockResolvedValueOnce(mockStates) // Third call for states
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(2)
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue(mockStates)
 
       const result = await service.getProjects({
         page: 1,
@@ -105,13 +110,11 @@ describe('ProjectFilterService', () => {
         }
       ]
 
-      const mockStates = [{ project_id: BigInt(1), state: 'draft' }]
-      const mockCount = [{ count: 1 }]
+      const mockStates = [{ project_id: 1, state: 'draft' }]
 
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-        .mockResolvedValueOnce(mockStates)
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(1)
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue(mockStates)
 
       const result = await service.getProjects({
         search: 'Flood',
@@ -122,6 +125,18 @@ describe('ProjectFilterService', () => {
       expect(result.data).toHaveLength(1)
       expect(result.data[0].name).toBe('Flood Defense Project')
       expect(result.pagination.total).toBe(1)
+
+      expect(mockPrisma.pafs_core_projects.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { reference_number: { contains: 'Flood', mode: 'insensitive' } },
+              { name: { contains: 'Flood', mode: 'insensitive' } },
+              { slug: { contains: 'Flood', mode: 'insensitive' } }
+            ]
+          })
+        })
+      )
     })
 
     test('Should filter projects by areaId', async () => {
@@ -138,22 +153,28 @@ describe('ProjectFilterService', () => {
         }
       ]
 
-      const mockStates = [{ project_id: BigInt(1), state: 'draft' }]
-      const mockCount = [{ count: 1 }]
+      const mockStates = [{ project_id: 1, state: 'draft' }]
 
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-        .mockResolvedValueOnce(mockStates)
+      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
+        { project_id: 1 }
+      ])
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(1)
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue(mockStates)
 
       const result = await service.getProjects({
-        areaId: 5,
+        areaIds: [5],
         page: 1,
         pageSize: 10
       })
 
       expect(result.data).toHaveLength(1)
       expect(result.pagination.total).toBe(1)
+
+      expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
+        where: { area_id: { in: [5] } },
+        select: { project_id: true }
+      })
     })
 
     test('Should filter projects by status', async () => {
@@ -170,13 +191,11 @@ describe('ProjectFilterService', () => {
         }
       ]
 
-      const mockStates = [{ project_id: BigInt(2), state: 'submitted' }]
-      const mockCount = [{ count: 1 }]
+      const mockStates = [{ project_id: 2, state: 'submitted' }]
 
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-        .mockResolvedValueOnce(mockStates)
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue(mockStates)
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(1)
 
       const result = await service.getProjects({
         status: 'submitted',
@@ -203,17 +222,20 @@ describe('ProjectFilterService', () => {
         }
       ]
 
-      const mockStates = [{ project_id: BigInt(1), state: 'submitted' }]
-      const mockCount = [{ count: 1 }]
+      const mockStatesFilter = [{ project_id: 1, state: 'submitted' }]
 
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-        .mockResolvedValueOnce(mockStates)
+      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
+        { project_id: 1 }
+      ])
+      mockPrisma.pafs_core_states.findMany
+        .mockResolvedValueOnce(mockStatesFilter) // For status filter
+        .mockResolvedValueOnce(mockStatesFilter) // For states fetch
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(1)
 
       const result = await service.getProjects({
         search: 'Test',
-        areaId: 3,
+        areaIds: [3],
         status: 'submitted',
         page: 1,
         pageSize: 10
@@ -226,12 +248,8 @@ describe('ProjectFilterService', () => {
     })
 
     test('Should return empty array when no projects found', async () => {
-      const mockProjects = []
-      const mockCount = [{ count: 0 }]
-
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue([])
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(0)
 
       const result = await service.getProjects({
         page: 1,
@@ -249,7 +267,8 @@ describe('ProjectFilterService', () => {
         hasNextPage: false,
         hasPreviousPage: false
       })
-      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(2)
+      expect(mockPrisma.pafs_core_projects.findMany).toHaveBeenCalled()
+      expect(mockPrisma.pafs_core_projects.count).toHaveBeenCalled()
     })
 
     test('Should handle pagination with page 2', async () => {
@@ -266,13 +285,11 @@ describe('ProjectFilterService', () => {
         }
       ]
 
-      const mockStates = [{ project_id: BigInt(11), state: 'draft' }]
-      const mockCount = [{ count: 15 }]
+      const mockStates = [{ project_id: 11, state: 'draft' }]
 
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-        .mockResolvedValueOnce(mockStates)
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(15)
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue(mockStates)
 
       const result = await service.getProjects({
         page: 2,
@@ -306,13 +323,9 @@ describe('ProjectFilterService', () => {
         }
       ]
 
-      const mockStates = [] // No states found
-      const mockCount = [{ count: 1 }]
-
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-        .mockResolvedValueOnce(mockStates)
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(1)
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue([])
 
       const result = await service.getProjects({
         page: 1,
@@ -324,12 +337,8 @@ describe('ProjectFilterService', () => {
     })
 
     test('Should trim search term before filtering', async () => {
-      const mockProjects = []
-      const mockCount = [{ count: 0 }]
-
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue([])
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(0)
 
       await service.getProjects({
         search: '  Test Project  ',
@@ -337,32 +346,27 @@ describe('ProjectFilterService', () => {
         pageSize: 10
       })
 
-      expect(mockPrisma.$queryRaw).toHaveBeenCalled()
+      expect(mockPrisma.pafs_core_projects.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              {
+                reference_number: {
+                  contains: 'Test Project',
+                  mode: 'insensitive'
+                }
+              },
+              { name: { contains: 'Test Project', mode: 'insensitive' } },
+              { slug: { contains: 'Test Project', mode: 'insensitive' } }
+            ]
+          })
+        })
+      )
     })
 
-    test('Should handle count result with null count', async () => {
-      const mockProjects = []
-      const mockCount = [{ count: null }]
-
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-
-      const result = await service.getProjects({
-        page: 1,
-        pageSize: 10
-      })
-
-      expect(result.pagination.total).toBe(0)
-    })
-
-    test('Should handle count result with undefined count', async () => {
-      const mockProjects = []
-      const mockCount = []
-
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
+    test('Should handle zero total correctly', async () => {
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue([])
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(0)
 
       const result = await service.getProjects({
         page: 1,
@@ -373,65 +377,99 @@ describe('ProjectFilterService', () => {
     })
   })
 
-  describe('buildWhereClause', () => {
-    test('Should return empty WHERE clause when no filters provided', () => {
-      const whereClause = service.buildWhereClause(null, null, null)
+  describe('_buildWhereClause', () => {
+    test('Should return empty where clause when no filters provided', async () => {
+      const where = await service._buildWhereClause(null, null, null)
 
-      expect(whereClause).toEqual(Prisma.empty)
+      expect(where).toEqual({})
     })
 
-    test('Should build WHERE clause for search term', () => {
-      const whereClause = service.buildWhereClause('Test', null, null)
+    test('Should build where clause for search term', async () => {
+      const where = await service._buildWhereClause('Test', null, null)
 
-      expect(whereClause).toBeDefined()
-      expect(whereClause).not.toEqual(Prisma.empty)
+      expect(where.OR).toEqual([
+        { reference_number: { contains: 'Test', mode: 'insensitive' } },
+        { name: { contains: 'Test', mode: 'insensitive' } },
+        { slug: { contains: 'Test', mode: 'insensitive' } }
+      ])
     })
 
-    test('Should build WHERE clause for areaId', () => {
-      const whereClause = service.buildWhereClause(null, 5, null)
+    test('Should build where clause for areaIds', async () => {
+      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
+        { project_id: 1 },
+        { project_id: 2 }
+      ])
 
-      expect(whereClause).toBeDefined()
-      expect(whereClause).not.toEqual(Prisma.empty)
+      const where = await service._buildWhereClause(null, [5], null)
+
+      expect(where.id).toBeDefined()
+      expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
+        where: { area_id: { in: [5] } },
+        select: { project_id: true }
+      })
     })
 
-    test('Should build WHERE clause for status', () => {
-      const whereClause = service.buildWhereClause(null, null, 'submitted')
+    test('Should build where clause for status', async () => {
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue([
+        { project_id: 1 }
+      ])
 
-      expect(whereClause).toBeDefined()
-      expect(whereClause).not.toEqual(Prisma.empty)
+      const where = await service._buildWhereClause(null, null, 'submitted')
+
+      expect(where.id).toBeDefined()
+      expect(mockPrisma.pafs_core_states.findMany).toHaveBeenCalledWith({
+        where: { state: 'submitted' },
+        select: { project_id: true }
+      })
     })
 
-    test('Should build combined WHERE clause for all filters', () => {
-      const whereClause = service.buildWhereClause('Test Project', 3, 'draft')
+    test('Should build combined where clause for all filters', async () => {
+      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
+        { project_id: 1 },
+        { project_id: 2 }
+      ])
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue([
+        { project_id: 1 }
+      ])
 
-      expect(whereClause).toBeDefined()
-      expect(whereClause).not.toEqual(Prisma.empty)
+      const where = await service._buildWhereClause(
+        'Test Project',
+        [3],
+        'draft'
+      )
+
+      expect(where.OR).toBeDefined()
+      expect(where.id).toBeDefined()
     })
 
-    test('Should handle empty string search term', () => {
-      const whereClause = service.buildWhereClause('', null, null)
+    test('Should handle empty string search term', async () => {
+      const where = await service._buildWhereClause('', null, null)
 
-      expect(whereClause).toEqual(Prisma.empty)
+      expect(where).toEqual({})
     })
 
-    test('Should handle whitespace-only search term', () => {
-      const whereClause = service.buildWhereClause('   ', null, null)
+    test('Should handle whitespace-only search term', async () => {
+      const where = await service._buildWhereClause('   ', null, null)
 
-      expect(whereClause).toEqual(Prisma.empty)
+      expect(where).toEqual({})
     })
 
-    test('Should build WHERE clause with trimmed search term', () => {
-      const whereClause = service.buildWhereClause('  Test  ', null, null)
+    test('Should build where clause with trimmed search term', async () => {
+      const where = await service._buildWhereClause('  Test  ', null, null)
 
-      expect(whereClause).toBeDefined()
-      expect(whereClause).not.toEqual(Prisma.empty)
+      expect(where.OR).toEqual([
+        { reference_number: { contains: 'Test', mode: 'insensitive' } },
+        { name: { contains: 'Test', mode: 'insensitive' } },
+        { slug: { contains: 'Test', mode: 'insensitive' } }
+      ])
     })
   })
 
   describe('error handling', () => {
     test('Should propagate errors from database queries', async () => {
       const dbError = new Error('Database connection failed')
-      mockPrisma.$queryRaw.mockRejectedValueOnce(dbError)
+      mockPrisma.pafs_core_projects.findMany.mockRejectedValue(dbError)
+      mockPrisma.pafs_core_projects.count.mockRejectedValue(dbError)
 
       await expect(
         service.getProjects({ page: 1, pageSize: 10 })
@@ -439,9 +477,10 @@ describe('ProjectFilterService', () => {
     })
 
     test('Should handle errors in count query', async () => {
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce([]) // SELECT query succeeds
-        .mockRejectedValueOnce(new Error('Count query failed')) // COUNT query fails
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue([])
+      mockPrisma.pafs_core_projects.count.mockRejectedValue(
+        new Error('Count query failed')
+      )
 
       await expect(
         service.getProjects({ page: 1, pageSize: 10 })
@@ -461,12 +500,12 @@ describe('ProjectFilterService', () => {
           submitted_at: null
         }
       ]
-      const mockCount = [{ count: 1 }]
 
-      mockPrisma.$queryRaw
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce(mockCount)
-        .mockRejectedValueOnce(new Error('States query failed'))
+      mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
+      mockPrisma.pafs_core_projects.count.mockResolvedValue(1)
+      mockPrisma.pafs_core_states.findMany.mockRejectedValue(
+        new Error('States query failed')
+      )
 
       await expect(
         service.getProjects({ page: 1, pageSize: 10 })

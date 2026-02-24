@@ -53,29 +53,6 @@ export class ProjectService {
   }
 
   /**
-   * Check if project name exists in a specific table
-   * @private
-   */
-  async _checkProjectNameInTable(table, where, tableName) {
-    const project = await table.findFirst({
-      where,
-      select: {
-        id: true,
-        reference_number: true
-      }
-    })
-
-    if (project) {
-      this.logger.warn(
-        { referenceNumber: project.reference_number },
-        `Duplicate project name found in ${tableName}`
-      )
-    }
-
-    return project
-  }
-
-  /**
    * Check if a project name already exists in the database
    * @param {Object} payload - Contains name and optional referenceNumber
    * @returns {Promise<{isValid: boolean, errors?: Object}>}
@@ -83,38 +60,30 @@ export class ProjectService {
   async checkDuplicateProjectName(payload) {
     this.logger.info(
       { projectName: payload.name },
-      'Checking if project name exists in both current and legacy projects'
+      'Checking if project name exists'
     )
 
     try {
-      const currentWhere = this._buildNameWhereClause(
+      const where = this._buildNameWhereClause(
         payload.name,
         payload.referenceNumber
       )
-      const legacyWhere = this._buildNameWhereClause(payload.name)
 
-      const [currentProject, legacyProject] = await Promise.all([
-        this._checkProjectNameInTable(
-          this.prisma.pafs_core_projects,
-          currentWhere,
-          'pafs_core_projects'
-        ),
-        this._checkProjectNameInTable(
-          this.prisma.pafs_core_projects_legacy,
-          legacyWhere,
-          'pafs_core_projects_legacy'
+      const existingProject = await this.prisma.pafs_core_projects.findFirst({
+        where,
+        select: {
+          id: true,
+          reference_number: true
+        }
+      })
+
+      if (existingProject) {
+        this.logger.warn(
+          { referenceNumber: existingProject.reference_number },
+          'Duplicate project name found'
         )
-      ])
-
-      if (currentProject) {
         return this._buildValidationError(
           'A project with this name already exists'
-        )
-      }
-
-      if (legacyProject) {
-        return this._buildValidationError(
-          'A project with this name already exists in legacy projects'
         )
       }
 
@@ -259,6 +228,7 @@ export class ProjectService {
           slug,
           version: 1,
           creator_id: userId,
+          is_legacy: false,
           created_at: new Date()
         }
       })

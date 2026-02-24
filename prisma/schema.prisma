@@ -390,7 +390,7 @@ model pafs_core_projects {
   pending_financial_year                                      Int?
   date_change_requires_confirmation                           Boolean?                                               @default(false)
   is_legacy                                                   Boolean?                                               @default(true)
-  is_migrated                                                 Boolean?                                               @default(false)
+  is_revised                                                  Boolean?                                               @default(false)
   updated_by_type                                             String?                                                @db.VarChar(255)
   updated_by_id                                               BigInt?
   created_at                                                  DateTime                                               @db.Timestamp(6)
