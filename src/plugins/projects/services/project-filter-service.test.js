@@ -37,6 +37,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS12345/ABC001',
           name: 'Test Project 1',
           rma_name: 'Environment Agency',
+          area_id: BigInt(1),
           created_at: new Date('2024-01-01T10:00:00Z'),
           updated_at: new Date('2024-01-02T15:30:00Z'),
           submitted_at: null
@@ -47,6 +48,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS67890/XYZ002',
           name: 'Test Project 2',
           rma_name: 'Natural England',
+          area_id: BigInt(2),
           created_at: new Date('2024-02-01T10:00:00Z'),
           updated_at: new Date('2024-02-02T15:30:00Z'),
           submitted_at: new Date('2024-02-03T12:00:00Z')
@@ -99,6 +101,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS12345/ABC001',
           name: 'Flood Defense Project',
           rma_name: 'Environment Agency',
+          area_id: BigInt(1),
           created_at: new Date('2024-01-01T10:00:00Z'),
           updated_at: new Date('2024-01-02T15:30:00Z'),
           submitted_at: null
@@ -132,6 +135,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS12345/ABC001',
           name: 'Area Specific Project',
           rma_name: 'Environment Agency',
+          area_id: BigInt(5),
           created_at: new Date('2024-01-01T10:00:00Z'),
           updated_at: new Date('2024-01-02T15:30:00Z'),
           submitted_at: null
@@ -164,6 +168,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS67890/XYZ002',
           name: 'Submitted Project',
           rma_name: 'Natural England',
+          area_id: BigInt(2),
           created_at: new Date('2024-02-01T10:00:00Z'),
           updated_at: new Date('2024-02-02T15:30:00Z'),
           submitted_at: new Date('2024-02-03T12:00:00Z')
@@ -197,6 +202,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS12345/ABC001',
           name: 'Test Project',
           rma_name: 'Environment Agency',
+          area_id: BigInt(3),
           created_at: new Date('2024-01-01T10:00:00Z'),
           updated_at: new Date('2024-01-02T15:30:00Z'),
           submitted_at: new Date('2024-01-03T12:00:00Z')
@@ -260,6 +266,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS11111/PAGE011',
           name: 'Page 2 Project',
           rma_name: 'Environment Agency',
+          area_id: BigInt(1),
           created_at: new Date('2024-03-01T10:00:00Z'),
           updated_at: new Date('2024-03-02T15:30:00Z'),
           submitted_at: null
@@ -300,6 +307,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS12345/ABC001',
           name: 'Project Without State',
           rma_name: 'Environment Agency',
+          area_id: null,
           created_at: new Date('2024-01-01T10:00:00Z'),
           updated_at: new Date('2024-01-02T15:30:00Z'),
           submitted_at: null
@@ -456,6 +464,7 @@ describe('ProjectFilterService', () => {
           slug: 'RMS12345/ABC001',
           name: 'Test Project',
           rma_name: 'Environment Agency',
+          area_id: BigInt(1),
           created_at: new Date('2024-01-01T10:00:00Z'),
           updated_at: new Date('2024-01-02T15:30:00Z'),
           submitted_at: null

@@ -35,8 +35,10 @@ export class ProjectFilterService {
         p.rma_name,
         p.created_at,
         p.updated_at,
-        p.submitted_at
+        p.submitted_at,
+        ap.area_id
       FROM pafs_core_projects p
+      LEFT JOIN pafs_core_area_projects ap ON ap.project_id = p.id
       ${whereClause}
       ORDER BY p.updated_at DESC
       LIMIT ${pagination.take}
