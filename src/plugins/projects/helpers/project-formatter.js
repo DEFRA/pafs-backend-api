@@ -16,6 +16,7 @@ export function formatProject(project, state = null) {
     referenceNumberFormatted: project.slug,
     name: project.name,
     rmaName: project.rma_name,
+    areaId: project.area_id ? Number(project.area_id) : null,
     status: state || 'draft',
     createdAt: project.created_at,
     updatedAt: project.updated_at,

@@ -215,6 +215,10 @@ export class ProjectService {
         }
       })
 
+      if (proposalPayload.areaId) {
+        await this.upsertProjectArea(result.id, proposalPayload.areaId)
+      }
+
       if (isCreateOperation) {
         await this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
         await this.upsertProjectArea(result.id, proposalPayload.areaId)
