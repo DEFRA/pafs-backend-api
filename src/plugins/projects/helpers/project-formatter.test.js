@@ -7,6 +7,7 @@ describe('project-formatter', () => {
       expect(PROJECT_SELECT_FIELDS).toEqual({
         id: true,
         reference_number: true,
+        slug: true,
         name: true,
         rma_name: true,
         is_legacy: true,

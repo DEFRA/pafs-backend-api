@@ -4,6 +4,7 @@ import { PROJECT_STATUS } from '../../../common/constants/project.js'
 export const PROJECT_SELECT_FIELDS = {
   id: true,
   reference_number: true,
+  slug: true,
   name: true,
   rma_name: true,
   is_legacy: true,

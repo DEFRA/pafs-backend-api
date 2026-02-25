@@ -6,6 +6,7 @@ import {
   PROJECT_SELECT_FIELDS,
   formatProject
 } from '../helpers/project-formatter.js'
+import { PROJECT_STATUS } from '../../../common/constants/project.js'
 
 export class ProjectFilterService {
   constructor(prisma, logger) {
@@ -100,6 +101,11 @@ export class ProjectFilterService {
     const idFilters = await this._getRelatedProjectIds(areaIds, status)
     if (idFilters) {
       where.id = { in: idFilters }
+    }
+
+    // Failed submissions: submitted but never sent to PoL
+    if (status === PROJECT_STATUS.SUBMITTED) {
+      where.submitted_to_pol = null
     }
 
     return where

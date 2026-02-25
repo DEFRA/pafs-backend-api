@@ -206,6 +206,14 @@ describe('ProjectFilterService', () => {
       expect(result.data).toHaveLength(1)
       expect(result.data[0].status).toBe('submitted')
       expect(result.pagination.total).toBe(1)
+
+      expect(mockPrisma.pafs_core_projects.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            submitted_to_pol: null
+          })
+        })
+      )
     })
 
     test('Should combine multiple filters', async () => {
@@ -417,10 +425,22 @@ describe('ProjectFilterService', () => {
       const where = await service._buildWhereClause(null, null, 'submitted')
 
       expect(where.id).toBeDefined()
+      expect(where.submitted_to_pol).toBeNull()
       expect(mockPrisma.pafs_core_states.findMany).toHaveBeenCalledWith({
         where: { state: 'submitted' },
         select: { project_id: true }
       })
+    })
+
+    test('Should not add submitted_to_pol filter for non-submitted status', async () => {
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue([
+        { project_id: 1 }
+      ])
+
+      const where = await service._buildWhereClause(null, null, 'draft')
+
+      expect(where.id).toBeDefined()
+      expect(where.submitted_to_pol).toBeUndefined()
     })
 
     test('Should build combined where clause for all filters', async () => {
