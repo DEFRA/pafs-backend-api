@@ -8,6 +8,7 @@ import {
   getProjectSelectFields,
   getJoinedTableConfig
 } from '../helpers/project-config.js'
+import { resolveAreaNames } from '../helpers/project-formatter.js'
 
 const COUNTER_SUFFIX = 'A'
 const REFERENCE_NUMBER_TEMPLATE = 'C501E'
@@ -304,6 +305,17 @@ export class ProjectService {
         })
         if (joinData) {
           project[tableKey] = joinData
+        }
+      }
+
+      // Resolve area name when rma_name is empty
+      if (!project.rma_name) {
+        const areaNames = await resolveAreaNames(this.prisma, [
+          Number(project.id)
+        ])
+        const areaName = areaNames.get(Number(project.id))
+        if (areaName) {
+          project.rma_name = areaName
         }
       }
 

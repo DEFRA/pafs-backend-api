@@ -1,5 +1,9 @@
-import { describe, test, expect } from 'vitest'
-import { formatProject, PROJECT_SELECT_FIELDS } from './project-formatter.js'
+import { describe, test, expect, vi } from 'vitest'
+import {
+  formatProject,
+  resolveAreaNames,
+  PROJECT_SELECT_FIELDS
+} from './project-formatter.js'
 
 describe('project-formatter', () => {
   describe('PROJECT_SELECT_FIELDS', () => {
@@ -361,6 +365,143 @@ describe('project-formatter', () => {
       expect(result.isLegacy).toBe(false)
       expect(result.isRevised).toBe(false)
       expect(result.status).toBe('draft')
+    })
+
+    test('Should use areaName as fallback when rma_name is empty', () => {
+      const mockProject = {
+        id: BigInt(16),
+        reference_number: 'RMS10007',
+        slug: 'RMS10007/AREA016',
+        name: 'No RMA Name Project',
+        rma_name: null,
+        is_legacy: false,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject, null, 'Area From Lookup')
+
+      expect(result.rmaName).toBe('Area From Lookup')
+    })
+
+    test('Should prefer rma_name over areaName when both present', () => {
+      const mockProject = {
+        id: BigInt(17),
+        reference_number: 'RMS10008',
+        slug: 'RMS10008/BOTH017',
+        name: 'Both Names Project',
+        rma_name: 'Original RMA',
+        is_legacy: false,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject, null, 'Area From Lookup')
+
+      expect(result.rmaName).toBe('Original RMA')
+    })
+
+    test('Should return null rmaName when both rma_name and areaName are null', () => {
+      const mockProject = {
+        id: BigInt(18),
+        reference_number: 'RMS10009',
+        slug: 'RMS10009/NONE018',
+        name: 'No Name Project',
+        rma_name: null,
+        is_legacy: false,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.rmaName).toBeNull()
+    })
+  })
+
+  describe('resolveAreaNames', () => {
+    test('Should return empty map when no project IDs provided', async () => {
+      const mockPrisma = {}
+      const result = await resolveAreaNames(mockPrisma, [])
+      expect(result).toEqual(new Map())
+    })
+
+    test('Should return empty map when projectIds is null', async () => {
+      const mockPrisma = {}
+      const result = await resolveAreaNames(mockPrisma, null)
+      expect(result).toEqual(new Map())
+    })
+
+    test('Should return empty map when no area_projects found', async () => {
+      const mockPrisma = {
+        pafs_core_area_projects: {
+          findMany: vi.fn().mockResolvedValue([])
+        }
+      }
+      const result = await resolveAreaNames(mockPrisma, [1, 2])
+      expect(result).toEqual(new Map())
+    })
+
+    test('Should resolve area names for project IDs', async () => {
+      const mockPrisma = {
+        pafs_core_area_projects: {
+          findMany: vi.fn().mockResolvedValue([
+            { project_id: 1, area_id: 10 },
+            { project_id: 2, area_id: 20 }
+          ])
+        },
+        pafs_core_areas: {
+          findMany: vi.fn().mockResolvedValue([
+            { id: BigInt(10), name: 'Environment Agency' },
+            { id: BigInt(20), name: 'Natural England' }
+          ])
+        }
+      }
+
+      const result = await resolveAreaNames(mockPrisma, [1, 2])
+
+      expect(result.get(1)).toBe('Environment Agency')
+      expect(result.get(2)).toBe('Natural England')
+      expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
+        where: { project_id: { in: [1, 2] } },
+        select: { project_id: true, area_id: true }
+      })
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [BigInt(10), BigInt(20)] } },
+        select: { id: true, name: true }
+      })
+    })
+
+    test('Should handle multiple projects sharing the same area', async () => {
+      const mockPrisma = {
+        pafs_core_area_projects: {
+          findMany: vi.fn().mockResolvedValue([
+            { project_id: 1, area_id: 10 },
+            { project_id: 2, area_id: 10 }
+          ])
+        },
+        pafs_core_areas: {
+          findMany: vi
+            .fn()
+            .mockResolvedValue([{ id: BigInt(10), name: 'Shared Area' }])
+        }
+      }
+
+      const result = await resolveAreaNames(mockPrisma, [1, 2])
+
+      expect(result.get(1)).toBe('Shared Area')
+      expect(result.get(2)).toBe('Shared Area')
+      // Should deduplicate area IDs
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [BigInt(10)] } },
+        select: { id: true, name: true }
+      })
     })
   })
 })

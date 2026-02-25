@@ -1117,5 +1117,44 @@ describe('ProjectService', () => {
         })
       )
     })
+
+    test('Should resolve area name when rma_name is empty', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        id: 1,
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Project Without RMA',
+        rma_name: null,
+        project_type: 'Type A',
+        project_intervention_types: null,
+        main_intervention_type: null,
+        earliest_start_year: '2024',
+        project_end_financial_year: '2026',
+        updated_at: new Date('2024-01-01'),
+        created_at: new Date('2024-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+      mockPrisma.pafs_core_states = {
+        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
+      }
+      mockPrisma.pafs_core_area_projects = {
+        findFirst: vi.fn().mockResolvedValue({ area_id: 10, owner: true }),
+        findMany: vi.fn().mockResolvedValue([{ project_id: 1, area_id: 10 }])
+      }
+      mockPrisma.pafs_core_areas = {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: BigInt(10), name: 'Resolved Area Name' }])
+      }
+
+      const result = await service.getProjectByReferenceNumber(referenceNumber)
+
+      expect(result.rmaName).toBe('Resolved Area Name')
+      expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
+        where: { project_id: { in: [1] } },
+        select: { project_id: true, area_id: true }
+      })
+    })
   })
 })

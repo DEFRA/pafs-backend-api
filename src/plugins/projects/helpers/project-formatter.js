@@ -14,17 +14,55 @@ export const PROJECT_SELECT_FIELDS = {
   submitted_at: true
 }
 
-export function formatProject(project, state = null) {
+/**
+ * Resolve area names for projects that have empty rma_name.
+ * Looks up pafs_core_area_projects → pafs_core_areas to get the area name.
+ * @param {Object} prisma - Prisma client instance
+ * @param {number[]} projectIds - Array of project IDs to resolve area names for
+ * @returns {Promise<Map<number, string>>} Map of projectId → areaName
+ */
+export async function resolveAreaNames(prisma, projectIds) {
+  if (!projectIds?.length) {
+    return new Map()
+  }
+
+  const areaProjects = await prisma.pafs_core_area_projects.findMany({
+    where: { project_id: { in: projectIds } },
+    select: { project_id: true, area_id: true }
+  })
+
+  if (areaProjects.length === 0) {
+    return new Map()
+  }
+
+  const areaIds = [...new Set(areaProjects.map((ap) => BigInt(ap.area_id)))]
+  const areas = await prisma.pafs_core_areas.findMany({
+    where: { id: { in: areaIds } },
+    select: { id: true, name: true }
+  })
+
+  const areaNameMap = new Map(areas.map((a) => [Number(a.id), a.name]))
+
+  return new Map(
+    areaProjects.map((ap) => [
+      Number(ap.project_id),
+      areaNameMap.get(Number(ap.area_id)) ?? null
+    ])
+  )
+}
+
+export function formatProject(project, state = null, areaName = null) {
   const isLegacy = project.is_legacy ?? false
   const isRevised = project.is_revised ?? false
   const resolvedStatus = _resolveStatus(state, isLegacy, isRevised)
+  const rmaName = project.rma_name || areaName || null
 
   return {
     id: Number(project.id),
     referenceNumber: project.reference_number,
     referenceNumberFormatted: project.slug,
     name: project.name,
-    rmaName: project.rma_name,
+    rmaName,
     isLegacy,
     isRevised,
     status: resolvedStatus,

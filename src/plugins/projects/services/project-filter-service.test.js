@@ -13,10 +13,13 @@ describe('ProjectFilterService', () => {
         count: vi.fn()
       },
       pafs_core_states: {
-        findMany: vi.fn()
+        findMany: vi.fn().mockResolvedValue([])
       },
       pafs_core_area_projects: {
-        findMany: vi.fn()
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      pafs_core_areas: {
+        findMany: vi.fn().mockResolvedValue([])
       }
     }
 
@@ -155,8 +158,11 @@ describe('ProjectFilterService', () => {
 
       const mockStates = [{ project_id: 1, state: 'draft' }]
 
-      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
-        { project_id: 1 }
+      mockPrisma.pafs_core_area_projects.findMany
+        .mockResolvedValueOnce([{ project_id: 1 }]) // For area ID filter
+        .mockResolvedValueOnce([{ project_id: 1, area_id: 5 }]) // For resolveAreaNames
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(5), name: 'Environment Agency' }
       ])
       mockPrisma.pafs_core_projects.findMany.mockResolvedValue(mockProjects)
       mockPrisma.pafs_core_projects.count.mockResolvedValue(1)
@@ -232,8 +238,11 @@ describe('ProjectFilterService', () => {
 
       const mockStatesFilter = [{ project_id: 1, state: 'submitted' }]
 
-      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
-        { project_id: 1 }
+      mockPrisma.pafs_core_area_projects.findMany
+        .mockResolvedValueOnce([{ project_id: 1 }]) // For area ID filter
+        .mockResolvedValueOnce([{ project_id: 1, area_id: 3 }]) // For resolveAreaNames
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(3), name: 'Environment Agency' }
       ])
       mockPrisma.pafs_core_states.findMany
         .mockResolvedValueOnce(mockStatesFilter) // For status filter
@@ -392,6 +401,32 @@ describe('ProjectFilterService', () => {
       expect(where).toEqual({})
     })
 
+    test('Should exclude archived projects when no status filter provided', async () => {
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue([
+        { project_id: 10 },
+        { project_id: 20 }
+      ])
+
+      const where = await service._buildWhereClause(null, null, null)
+
+      expect(where.id).toEqual({ notIn: [BigInt(10), BigInt(20)] })
+      expect(mockPrisma.pafs_core_states.findMany).toHaveBeenCalledWith({
+        where: { state: 'archived' },
+        select: { project_id: true }
+      })
+    })
+
+    test('Should not exclude archived projects when status filter is provided', async () => {
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue([
+        { project_id: 5 }
+      ])
+
+      const where = await service._buildWhereClause(null, null, 'draft')
+
+      expect(where.id).toEqual({ in: [BigInt(5)] })
+      expect(where.id.notIn).toBeUndefined()
+    })
+
     test('Should build where clause for search term', async () => {
       const where = await service._buildWhereClause('Test', null, null)
 
@@ -414,6 +449,24 @@ describe('ProjectFilterService', () => {
       expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
         where: { area_id: { in: [5] } },
         select: { project_id: true }
+      })
+    })
+
+    test('Should combine areaId filter with archived exclusion when no status provided', async () => {
+      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
+        { project_id: 1 },
+        { project_id: 2 },
+        { project_id: 3 }
+      ])
+      mockPrisma.pafs_core_states.findMany.mockResolvedValue([
+        { project_id: 2 }
+      ])
+
+      const where = await service._buildWhereClause(null, [5], null)
+
+      expect(where.id).toEqual({
+        in: [BigInt(1), BigInt(2), BigInt(3)],
+        notIn: [BigInt(2)]
       })
     })
 

@@ -32,6 +32,9 @@ describe('list-projects route', () => {
       },
       pafs_core_area_projects: {
         findMany: vi.fn().mockResolvedValue([])
+      },
+      pafs_core_areas: {
+        findMany: vi.fn().mockResolvedValue([])
       }
     }
 
@@ -211,8 +214,11 @@ describe('list-projects route', () => {
         pageSize: 10
       }
 
-      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
-        { project_id: 1 }
+      mockPrisma.pafs_core_area_projects.findMany
+        .mockResolvedValueOnce([{ project_id: 1 }]) // For area ID filter
+        .mockResolvedValueOnce([{ project_id: 1, area_id: 5 }]) // For resolveAreaNames
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(5), name: 'Environment Agency' }
       ])
       mockPrisma.pafs_core_projects.findMany.mockResolvedValue([
         {
@@ -254,8 +260,11 @@ describe('list-projects route', () => {
       }
       resolveUserAreaIds.mockResolvedValue([10])
 
-      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([
-        { project_id: 1 }
+      mockPrisma.pafs_core_area_projects.findMany
+        .mockResolvedValueOnce([{ project_id: 1 }]) // For area ID filter
+        .mockResolvedValueOnce([{ project_id: 1, area_id: 10 }]) // For resolveAreaNames
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(10), name: 'Test RMA' }
       ])
       mockPrisma.pafs_core_projects.findMany.mockResolvedValue([
         {
