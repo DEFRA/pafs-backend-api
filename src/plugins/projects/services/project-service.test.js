@@ -608,6 +608,174 @@ describe('ProjectService', () => {
         'Error upserting project proposal'
       )
     })
+
+    test('Should call upsertProjectArea when creating project with areaId', async () => {
+      const proposalPayload = {
+        name: 'Test Project',
+        rmaName: '1',
+        areaId: 5
+      }
+      const userId = 123n
+      const rfccCode = 'AN'
+
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        const mockTx = {
+          pafs_core_reference_counters: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            upsert: vi.fn().mockResolvedValue({
+              rfcc_code: 'AN',
+              high_counter: 0,
+              low_counter: 1
+            })
+          }
+        }
+        return callback(mockTx)
+      })
+
+      mockPrisma.pafs_core_projects.upsert.mockResolvedValue({
+        id: 1n,
+        reference_number: 'ANC501E/000A/001A'
+      })
+
+      mockPrisma.pafs_core_states.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n
+      })
+
+      mockPrisma.pafs_core_area_projects.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n,
+        area_id: 5n
+      })
+
+      const result = await service.upsertProject(
+        proposalPayload,
+        userId,
+        rfccCode
+      )
+
+      expect(result).toEqual({
+        id: 1n,
+        reference_number: 'ANC501E/000A/001A'
+      })
+      // Should be called twice: once after upsert, once in isCreateOperation block
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledTimes(2)
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            project_id: 1
+          },
+          create: expect.objectContaining({
+            area_id: 5
+          }),
+          update: expect.objectContaining({
+            area_id: 5
+          })
+        })
+      )
+    })
+
+    test('Should call upsertProjectArea when updating project with areaId', async () => {
+      const proposalPayload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        name: 'Updated Project',
+        rmaName: '1',
+        areaId: 3
+      }
+      const userId = 123n
+      const rfccCode = 'AN'
+
+      mockPrisma.pafs_core_projects.upsert.mockResolvedValue({
+        id: 1n,
+        reference_number: 'ANC501E/000A/001A'
+      })
+
+      mockPrisma.pafs_core_area_projects.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n,
+        area_id: 3n
+      })
+
+      const result = await service.upsertProject(
+        proposalPayload,
+        userId,
+        rfccCode
+      )
+
+      expect(result).toEqual({
+        id: 1n,
+        reference_number: 'ANC501E/000A/001A'
+      })
+      // Should be called once (not a create operation)
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            project_id: 1
+          },
+          create: expect.objectContaining({
+            area_id: 3
+          }),
+          update: expect.objectContaining({
+            area_id: 3
+          })
+        })
+      )
+    })
+
+    test('Should call upsertProjectArea with undefined areaId when creating project without areaId', async () => {
+      const proposalPayload = {
+        name: 'Test Project',
+        rmaName: '1'
+      }
+      const userId = 123n
+      const rfccCode = 'AN'
+
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        const mockTx = {
+          pafs_core_reference_counters: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            upsert: vi.fn().mockResolvedValue({
+              rfcc_code: 'AN',
+              high_counter: 0,
+              low_counter: 1
+            })
+          }
+        }
+        return callback(mockTx)
+      })
+
+      mockPrisma.pafs_core_projects.upsert.mockResolvedValue({
+        id: 1n,
+        reference_number: 'ANC501E/000A/001A'
+      })
+
+      mockPrisma.pafs_core_states.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n
+      })
+
+      mockPrisma.pafs_core_area_projects.upsert.mockResolvedValue({
+        id: 1n,
+        project_id: 1n
+      })
+
+      await service.upsertProject(proposalPayload, userId, rfccCode)
+
+      // Should be called once in isCreateOperation block with undefined areaId
+      // Note: This is current implementation behavior - areaId is undefined/NaN
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            project_id: 1
+          },
+          create: expect.objectContaining({
+            area_id: NaN // Number(undefined) = NaN
+          })
+        })
+      )
+    })
   })
 
   describe('upsertProjectState', () => {
