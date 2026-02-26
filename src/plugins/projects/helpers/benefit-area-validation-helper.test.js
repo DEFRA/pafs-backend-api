@@ -7,6 +7,13 @@ import {
 import { PROJECT_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
 import { ProjectService } from '../services/project-service.js'
 
+vi.mock('./legacy-file-resolver.js', () => ({
+  resolveLegacyBenefitAreaFile: vi.fn().mockResolvedValue(null)
+}))
+
+const { resolveLegacyBenefitAreaFile } =
+  await import('./legacy-file-resolver.js')
+
 describe('benefit-area-validation-helper', () => {
   let mockRequest
   let mockH
@@ -249,6 +256,89 @@ describe('benefit-area-validation-helper', () => {
 
       expect(result.referenceNumber).toBe('ABC/123/XYZ')
       expect(result.project).toEqual(mockProject)
+    })
+
+    describe('legacy fallback', () => {
+      it('should resolve legacy project when S3 data is missing', async () => {
+        const legacyProject = {
+          id: 1n,
+          reference_number: 'TEST/001/001',
+          is_legacy: true,
+          benefit_area_file_name: 'shapefile.zip',
+          benefit_area_file_s3_bucket: null,
+          benefit_area_file_s3_key: null
+        }
+
+        const resolvedProject = {
+          ...legacyProject,
+          benefit_area_file_s3_bucket: 'pafs-uploads',
+          benefit_area_file_s3_key: 'legacy/slug/1/shapefile.zip'
+        }
+
+        getProjectByReferenceSpy.mockResolvedValue(legacyProject)
+        resolveLegacyBenefitAreaFile.mockResolvedValue(resolvedProject)
+
+        const result = await validateProjectWithBenefitAreaFile(
+          mockRequest,
+          mockH
+        )
+
+        expect(result.error).toBeUndefined()
+        expect(result.project).toEqual(resolvedProject)
+        expect(resolveLegacyBenefitAreaFile).toHaveBeenCalledWith(
+          legacyProject,
+          mockPrisma,
+          mockLogger
+        )
+      })
+
+      it('should return file not found when legacy resolver returns null for non-legacy project', async () => {
+        const nonLegacyProject = {
+          id: 1n,
+          reference_number: 'TEST/001/001',
+          is_legacy: false,
+          benefit_area_file_name: null,
+          benefit_area_file_s3_bucket: null,
+          benefit_area_file_s3_key: null
+        }
+
+        getProjectByReferenceSpy.mockResolvedValue(nonLegacyProject)
+        resolveLegacyBenefitAreaFile.mockResolvedValue(null)
+
+        const result = await validateProjectWithBenefitAreaFile(
+          mockRequest,
+          mockH
+        )
+
+        expect(result.error).toBeDefined()
+        expect(mockH.response).toHaveBeenCalledWith({
+          validationErrors: [
+            {
+              errorCode: FILE_UPLOAD_VALIDATION_CODES.FILE_NOT_FOUND,
+              message: 'No benefit area file found for this project'
+            }
+          ]
+        })
+      })
+
+      it('should not call legacy resolver when S3 data is already present', async () => {
+        const projectWithS3 = {
+          id: 1n,
+          reference_number: 'TEST/001/001',
+          benefit_area_file_s3_bucket: 'bucket',
+          benefit_area_file_s3_key: 'key'
+        }
+
+        getProjectByReferenceSpy.mockResolvedValue(projectWithS3)
+
+        const result = await validateProjectWithBenefitAreaFile(
+          mockRequest,
+          mockH
+        )
+
+        expect(result.error).toBeUndefined()
+        expect(resolveLegacyBenefitAreaFile).not.toHaveBeenCalled()
+      })
     })
   })
 })
