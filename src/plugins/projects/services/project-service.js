@@ -8,7 +8,10 @@ import {
   getProjectSelectFields,
   getJoinedTableConfig
 } from '../helpers/project-config.js'
-import { resolveAreaNames } from '../helpers/project-formatter.js'
+import {
+  resolveAreaNames,
+  resolveStatus
+} from '../helpers/project-formatter.js'
 
 const COUNTER_SUFFIX = 'A'
 const REFERENCE_NUMBER_TEMPLATE = 'C501E'
@@ -323,7 +326,16 @@ export class ProjectService {
         }
       }
 
-      return ProjectMapper.toApi(project)
+      const apiData = ProjectMapper.toApi(project)
+
+      // Resolve status for legacy projects
+      apiData.status = resolveStatus(
+        apiData.projectState,
+        apiData.isLegacy ?? false,
+        apiData.isRevised ?? false
+      )
+
+      return apiData
     } catch (error) {
       this.logger.error(
         { error: error.message, referenceNumber },

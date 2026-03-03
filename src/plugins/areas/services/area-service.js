@@ -302,19 +302,18 @@ export class AreaService {
   }
 
   /**
-   * Validate that the area name is unique within the same area type.
-   * On create: no other area with the same name and type should exist.
-   * On update: no other area (excluding the one being updated) with the same name and type should exist.
-   * @param {Object} areaData - Area data containing name, areaType, and optionally id
-   * @throws {ConflictError} If a duplicate name exists within the area type
+   * Validate that the area name is unique across all organization records.
+   * On create: no other area with the same name should exist.
+   * On update: no other area (excluding the one being updated) with the same name should exist.
+   * @param {Object} areaData - Area data containing name and optionally id
+   * @throws {ConflictError} If a duplicate name exists
    * @private
    */
   async _validateUniqueNameWithinType(areaData) {
-    const { id, name, areaType } = areaData
+    const { id, name } = areaData
 
     const where = {
-      name,
-      area_type: areaType
+      name
     }
 
     // When updating, exclude the current record
@@ -329,7 +328,7 @@ export class AreaService {
 
     if (existing) {
       throw new ConflictError(
-        `An area with the name '${name}' already exists within type '${areaType}'`,
+        `An area with the name '${name}' already exists`,
         'DUPLICATE_AREA_NAME',
         'name'
       )
@@ -337,12 +336,12 @@ export class AreaService {
   }
 
   /**
-   * Validate that the area identifier is unique within the same area type.
+   * Validate that the area identifier is unique across Authority and RMA types.
    * Only applies to Authority and RMA types which have identifiers.
-   * On create: no other area with the same identifier and type should exist.
-   * On update: no other area (excluding the one being updated) with the same identifier and type should exist.
+   * On create: no other Authority or RMA area with the same identifier should exist.
+   * On update: no other Authority or RMA area (excluding the one being updated) with the same identifier should exist.
    * @param {Object} areaData - Area data containing identifier, areaType, and optionally id
-   * @throws {ConflictError} If a duplicate identifier exists within the area type
+   * @throws {ConflictError} If a duplicate identifier exists across Authority and RMA types
    * @private
    */
   async _validateUniqueIdentifierWithinType(areaData) {
@@ -358,7 +357,9 @@ export class AreaService {
 
     const where = {
       identifier,
-      area_type: areaType
+      area_type: {
+        in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.RMA]
+      }
     }
 
     // When updating, exclude the current record
@@ -373,7 +374,7 @@ export class AreaService {
 
     if (existing) {
       throw new ConflictError(
-        `An area with the identifier '${identifier}' already exists within type '${areaType}'`,
+        `An area with the identifier '${identifier}' already exists`,
         'DUPLICATE_AREA_IDENTIFIER',
         'identifier'
       )

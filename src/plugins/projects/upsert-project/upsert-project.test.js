@@ -945,40 +945,16 @@ describe('upsertProject handler', () => {
       )
     })
 
-    it('should reject EARLIEST_WITH_GIA when not before financial start', async () => {
+    it('should allow EARLIEST_WITH_GIA when within current financial year and before OBC', async () => {
       mockRequest.payload.payload = {
         referenceNumber: 'REF123',
         name: 'Test Project',
         areaId: 1n,
-        earliestWithGiaMonth: 5, // May
-        earliestWithGiaYear: 2025 // After April 1st, 2025
-      }
-      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
-
-      const result = await upsertProject.options.handler(mockRequest, mockH)
-
-      expect(result).toBeDefined()
-      expect(mockH.response).toHaveBeenCalledWith({
-        validationErrors: [
-          {
-            errorCode: expect.any(String),
-            field: 'earliestWithGiaMonth',
-            message: expect.stringContaining(
-              'must be before the financial start year'
-            )
-          }
-        ]
-      })
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
-    })
-
-    it('should allow EARLIEST_WITH_GIA when before financial start', async () => {
-      mockRequest.payload.payload = {
-        referenceNumber: 'REF123',
-        name: 'Test Project',
-        areaId: 1n,
-        earliestWithGiaMonth: 1, // January
-        earliestWithGiaYear: 2025 // Before April 1st, 2025
+        couldStartEarly: true,
+        startOutlineBusinessCaseMonth: 6, // June 2027
+        startOutlineBusinessCaseYear: 2027,
+        earliestWithGiaMonth: 5, // May 2026 - after April 2025 (current financial) and before June 2027 (OBC)
+        earliestWithGiaYear: 2026
       }
       mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
 
@@ -987,11 +963,29 @@ describe('upsertProject handler', () => {
       await upsertProject.options.handler(mockRequest, mockH)
 
       expect(upsertSpy).toHaveBeenCalled()
-      expect(mockH.response).not.toHaveBeenCalledWith(
-        expect.objectContaining({
-          statusCode: HTTP_STATUS.BAD_REQUEST
-        })
-      )
+    })
+
+    it('should allow EARLIEST_WITH_GIA outside project financial year if within current financial year', async () => {
+      // Project financial year: 2025-2030, but EARLIEST_WITH_GIA is validated against
+      // current financial year (April 2025) and OBC date, not project financial year
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        name: 'Test Project',
+        areaId: 1n,
+        couldStartEarly: true,
+        startOutlineBusinessCaseMonth: 6, // June 2031 - outside project financial year
+        startOutlineBusinessCaseYear: 2031,
+        earliestWithGiaMonth: 5, // May 2031 - outside project financial year but valid
+        earliestWithGiaYear: 2031
+      }
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      // Should succeed because EARLIEST_WITH_GIA is NOT constrained by project financial year
+      expect(upsertSpy).toHaveBeenCalled()
     })
 
     it('should skip timeline validation for non-timeline levels', async () => {

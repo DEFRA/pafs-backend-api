@@ -54,7 +54,7 @@ export async function resolveAreaNames(prisma, projectIds) {
 export function formatProject(project, state = null, areaName = null) {
   const isLegacy = project.is_legacy ?? false
   const isRevised = project.is_revised ?? false
-  const resolvedStatus = _resolveStatus(state, isLegacy, isRevised)
+  const resolvedStatus = resolveStatus(state, isLegacy, isRevised)
   const rmaName = project.rma_name || areaName || null
 
   return {
@@ -80,9 +80,8 @@ export function formatProject(project, state = null, areaName = null) {
  * @param {boolean} isLegacy - Whether the project is legacy
  * @param {boolean} isRevised - Whether the project has been migrated
  * @returns {string} Resolved display status
- * @private
  */
-function _resolveStatus(state, isLegacy, isRevised) {
+export function resolveStatus(state, isLegacy, isRevised) {
   const status = state || PROJECT_STATUS.DRAFT
 
   if (status === PROJECT_STATUS.DRAFT && isLegacy && !isRevised) {

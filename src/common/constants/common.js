@@ -89,6 +89,7 @@ export const DURATION = {
  */
 export const SIZE = {
   LENGTH_1: 1,
+  LENGTH_2: 2,
   LENGTH_3: 3,
   LENGTH_4: 4,
   LENGTH_8: 8,

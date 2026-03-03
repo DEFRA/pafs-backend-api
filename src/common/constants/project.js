@@ -102,9 +102,9 @@ export const PROJECT_VALIDATION_MESSAGES = {
   YEAR_REQUIRED: 'YEAR_REQUIRED',
   YEAR_INVALID: 'YEAR_INVALID',
   DATE_IN_PAST: 'DATE_IN_PAST',
+  DATE_OUTSIDE_FINANCIAL_RANGE: 'DATE_OUTSIDE_FINANCIAL_RANGE',
   DATE_BEFORE_FINANCIAL_START: 'DATE_BEFORE_FINANCIAL_START',
-  DATE_AFTER_FINANCIAL_START: 'DATE_AFTER_FINANCIAL_START',
-  DATE_AFTER_FINANCIAL_END: 'DATE_AFTER_FINANCIAL_END',
+  DATE_AFTER_OBC_START: 'DATE_AFTER_OBC_START',
   DATE_BEFORE_PREVIOUS_STAGE: 'DATE_BEFORE_PREVIOUS_STAGE',
   COULD_START_EARLY_REQUIRED: 'COULD_START_EARLY_REQUIRED',
   COULD_START_EARLY_INVALID: 'COULD_START_EARLY_INVALID',
@@ -245,55 +245,6 @@ export const PROJECT_VALIDATION_LEVELS = {
   CREATE_HABITAT_WATERCOURSE: 'CREATE_HABITAT_WATERCOURSE',
   KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_SINGLE:
     'KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_SINGLE'
-}
-
-/**
- * Timeline validation levels (subset of validation levels)
- */
-export const TIMELINE_VALIDATION_LEVELS = [
-  PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE,
-  PROJECT_VALIDATION_LEVELS.COMPLETE_OUTLINE_BUSINESS_CASE,
-  PROJECT_VALIDATION_LEVELS.AWARD_CONTRACT,
-  PROJECT_VALIDATION_LEVELS.START_CONSTRUCTION,
-  PROJECT_VALIDATION_LEVELS.READY_FOR_SERVICE,
-  PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA
-]
-
-/**
- * Timeline field configuration mapping
- * Maps validation levels to their corresponding month/year field names
- */
-export const TIMELINE_FIELD_CONFIG = {
-  [PROJECT_VALIDATION_LEVELS.START_OUTLINE_BUSINESS_CASE]: {
-    month: 'startOutlineBusinessCaseMonth',
-    year: 'startOutlineBusinessCaseYear',
-    name: 'Start Outline Business Case'
-  },
-  [PROJECT_VALIDATION_LEVELS.COMPLETE_OUTLINE_BUSINESS_CASE]: {
-    month: 'completeOutlineBusinessCaseMonth',
-    year: 'completeOutlineBusinessCaseYear',
-    name: 'Complete Outline Business Case'
-  },
-  [PROJECT_VALIDATION_LEVELS.AWARD_CONTRACT]: {
-    month: 'awardContractMonth',
-    year: 'awardContractYear',
-    name: 'Award Contract'
-  },
-  [PROJECT_VALIDATION_LEVELS.START_CONSTRUCTION]: {
-    month: 'startConstructionMonth',
-    year: 'startConstructionYear',
-    name: 'Start Construction'
-  },
-  [PROJECT_VALIDATION_LEVELS.READY_FOR_SERVICE]: {
-    month: 'readyForServiceMonth',
-    year: 'readyForServiceYear',
-    name: 'Ready for Service'
-  },
-  [PROJECT_VALIDATION_LEVELS.EARLIEST_WITH_GIA]: {
-    month: 'earliestWithGiaMonth',
-    year: 'earliestWithGiaYear',
-    name: 'Earliest With GIA'
-  }
 }
 
 /**

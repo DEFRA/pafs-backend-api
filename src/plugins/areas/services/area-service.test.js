@@ -1387,7 +1387,7 @@ describe('AreaService', () => {
     })
 
     describe('duplicate name validation', () => {
-      it('should reject creating an area with duplicate name within same type', async () => {
+      it('should reject creating an area with duplicate name', async () => {
         const areaData = {
           name: 'Existing Authority',
           areaType: AREA_TYPE_MAP.AUTHORITY,
@@ -1400,13 +1400,12 @@ describe('AreaService', () => {
         })
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
-          "An area with the name 'Existing Authority' already exists within type 'Authority'"
+          "An area with the name 'Existing Authority' already exists"
         )
 
         expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
           where: {
-            name: 'Existing Authority',
-            area_type: AREA_TYPE_MAP.AUTHORITY
+            name: 'Existing Authority'
           },
           select: { id: true }
         })
@@ -1414,39 +1413,33 @@ describe('AreaService', () => {
         expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
       })
 
-      it('should allow creating an area with same name in different type', async () => {
+      it('should reject creating an area with same name in different type', async () => {
         const areaData = {
           name: 'Thames',
           areaType: AREA_TYPE_MAP.AUTHORITY,
           identifier: 'AUTH011'
         }
 
-        // No duplicate name or identifier found
-        mockPrisma.pafs_core_areas.findFirst
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(null)
+        // Duplicate name found (from different type)
+        mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce({
+          id: BigInt('100')
+        })
 
-        const mockCreatedArea = {
-          id: BigInt('101'),
-          name: 'Thames',
-          area_type: AREA_TYPE_MAP.AUTHORITY,
-          parent_id: null,
-          sub_type: null,
-          identifier: 'AUTH011',
-          end_date: null,
-          created_at: new Date('2024-01-15T10:00:00Z'),
-          updated_at: new Date('2024-01-15T10:00:00Z')
-        }
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the name 'Thames' already exists"
+        )
 
-        mockPrisma.pafs_core_areas.create.mockResolvedValue(mockCreatedArea)
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            name: 'Thames'
+          },
+          select: { id: true }
+        })
 
-        const result = await areaService.upsertArea(areaData)
-
-        expect(result.name).toBe('Thames')
-        expect(mockPrisma.pafs_core_areas.create).toHaveBeenCalled()
+        expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
       })
 
-      it('should reject updating an area when another area has the same name within the type', async () => {
+      it('should reject updating an area when another area has the same name', async () => {
         const areaData = {
           id: '50',
           name: 'Duplicate Name',
@@ -1460,14 +1453,13 @@ describe('AreaService', () => {
         })
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
-          "An area with the name 'Duplicate Name' already exists within type 'Authority'"
+          "An area with the name 'Duplicate Name' already exists"
         )
 
         // Should exclude the current record's id
         expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
           where: {
             name: 'Duplicate Name',
-            area_type: AREA_TYPE_MAP.AUTHORITY,
             id: { not: BigInt('50') }
           },
           select: { id: true }
@@ -1524,7 +1516,7 @@ describe('AreaService', () => {
           .mockResolvedValueOnce({ id: BigInt('88') })
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
-          "An area with the identifier 'AUTH001' already exists within type 'Authority'"
+          "An area with the identifier 'AUTH001' already exists"
         )
 
         expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
@@ -1545,8 +1537,40 @@ describe('AreaService', () => {
           .mockResolvedValueOnce({ id: BigInt('77') })
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
-          "An area with the identifier 'RMA001' already exists within type 'RMA'"
+          "An area with the identifier 'RMA001' already exists"
         )
+
+        expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
+      })
+
+      it('should reject creating an RMA with identifier already used by an Authority', async () => {
+        const areaData = {
+          name: 'New RMA',
+          areaType: AREA_TYPE_MAP.RMA,
+          identifier: 'CODE123',
+          parentId: '20',
+          subType: 'AUTH001'
+        }
+
+        // No duplicate name, then no duplicate identifier in name check, but duplicate identifier found in Authority
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: BigInt('99') })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the identifier 'CODE123' already exists"
+        )
+
+        // Should check across both Authority and RMA types
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            identifier: 'CODE123',
+            area_type: {
+              in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.RMA]
+            }
+          },
+          select: { id: true }
+        })
 
         expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
       })
@@ -1565,14 +1589,16 @@ describe('AreaService', () => {
           .mockResolvedValueOnce({ id: BigInt('88') })
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
-          "An area with the identifier 'AUTH001' already exists within type 'Authority'"
+          "An area with the identifier 'AUTH001' already exists"
         )
 
-        // Should exclude the current record's id
+        // Should exclude the current record's id and check across both types
         expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
           where: {
             identifier: 'AUTH001',
-            area_type: AREA_TYPE_MAP.AUTHORITY,
+            area_type: {
+              in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.RMA]
+            },
             id: { not: BigInt('50') }
           },
           select: { id: true }

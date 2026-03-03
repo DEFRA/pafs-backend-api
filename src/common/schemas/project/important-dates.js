@@ -2,15 +2,29 @@ import Joi from 'joi'
 import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 import { SIZE } from '../../constants/common.js'
 
+// Financial year constants
+const FINANCIAL_YEAR_START_MONTH = SIZE.LENGTH_4 // April
+const FINANCIAL_YEAR_END_MONTH = SIZE.LENGTH_3 // March
+
 /**
- * Helper: Get current month and year
- * @returns {{month: number, year: number}} Current month (1-12) and year
+ * Helper: Get current financial month and year
+ * Financial year starts in April, so if current month is Jan-Mar, financial year is previous year
+ * @returns {{month: number, year: number}} Current month (1-12) and current financial year
  */
-const getCurrentMonthYear = () => {
+const getCurrentFinancialMonthYear = () => {
   const now = new Date()
+  const currentMonth = now.getMonth() + SIZE.LENGTH_1 // getMonth() returns 0-11
+  const currentYear = now.getFullYear()
+
+  // If we're before April (months 1-3), we're in the previous financial year
+  const currentFinancialYear =
+    currentMonth < FINANCIAL_YEAR_START_MONTH
+      ? currentYear - SIZE.LENGTH_1
+      : currentYear
+
   return {
-    month: now.getMonth() + SIZE.LENGTH_1, // getMonth() returns 0-11
-    year: now.getFullYear()
+    month: currentMonth,
+    year: currentFinancialYear
   }
 }
 
@@ -36,6 +50,45 @@ const compareMonthYear = (month1, year1, month2, year2) => {
     return 1
   }
   return 0
+}
+
+/**
+ * Helper: Check if date is within financial year range
+ * Financial year runs from April (startYear) to March (endYear + 1)
+ * @param {number} month - Month (1-12)
+ * @param {number} year - Year
+ * @param {number} financialStartYear - Financial start year
+ * @param {number} financialEndYear - Financial end year
+ * @returns {boolean} True if within range
+ */
+const isWithinFinancialYearRange = (
+  month,
+  year,
+  financialStartYear,
+  financialEndYear
+) => {
+  if (!financialStartYear || !financialEndYear) {
+    return true // If financial years not set, don't validate
+  }
+
+  if (
+    year < financialStartYear ||
+    (year === financialStartYear && month < FINANCIAL_YEAR_START_MONTH)
+  ) {
+    return false
+  }
+
+  // Financial year ends in March of the NEXT year
+  // e.g., FY 2030 = April 2030 to March 2031
+  const actualEndYear = financialEndYear + 1
+  if (
+    year > actualEndYear ||
+    (year === actualEndYear && month > FINANCIAL_YEAR_END_MONTH)
+  ) {
+    return false
+  }
+
+  return true
 }
 
 /**
@@ -69,9 +122,9 @@ const yearSchema = Joi.number()
   })
 
 /**
- * Helper: Validate month/year is not in the past and falls within financial years
+ * Validate standard timeline dates (within financial year range and sequential)
  */
-const validateTimelineDate = (
+const validateStandardTimelineDate = (
   monthField,
   yearField,
   prevMonthField,
@@ -80,38 +133,100 @@ const validateTimelineDate = (
 ) => {
   return (value, helpers) => {
     const data = helpers.state.ancestors[0]
-    const month = data[monthField]
-    const year = data[yearField]
+    const month = Number(data[monthField])
+    const year = Number(data[yearField])
+    const financialStartYear = Number(data.financialStartYear)
+    const financialEndYear = Number(data.financialEndYear)
 
-    // Both month and year must be present
-    if (month === undefined || year === undefined) {
+    // Both month and year must be present for validation
+    if (Number.isNaN(month) || Number.isNaN(year)) {
       return value
     }
 
-    const current = getCurrentMonthYear()
-
-    // Check not in past
-    if (compareMonthYear(month, year, current.month, current.year) < 0) {
-      return helpers.error('custom.date_in_past', {
-        stageName
+    // Check within financial year range
+    if (
+      !isWithinFinancialYearRange(
+        month,
+        year,
+        financialStartYear,
+        financialEndYear
+      )
+    ) {
+      return helpers.error('custom.date_outside_financial_range', {
+        stageName,
+        financialStartYear,
+        financialEndYear
       })
     }
 
     // Check sequential ordering if previous stage exists
     if (prevMonthField && prevYearField) {
-      const prevMonth = data[prevMonthField]
-      const prevYear = data[prevYearField]
-      const prevDataExists = prevMonth !== undefined && prevYear !== undefined
-      const isBeforePreviousStage =
-        compareMonthYear(month, year, prevMonth, prevYear) < 0
+      const prevMonth = Number(data[prevMonthField])
+      const prevYear = Number(data[prevYearField])
+      const prevDataExists = !Number.isNaN(prevMonth) && !Number.isNaN(prevYear)
 
-      if (prevDataExists && isBeforePreviousStage) {
-        return helpers.error('custom.date_before_previous_stage', {
-          stageName,
-          prevStage: prevMonthField.replace('Month', '')
-        })
+      if (prevDataExists) {
+        const comparison = compareMonthYear(month, year, prevMonth, prevYear)
+        // Require strictly greater than previous stage (not equal)
+        // To allow equal dates, change <= to < below
+        if (comparison <= 0) {
+          return helpers.error('custom.date_not_after_previous_stage', {
+            stageName
+          })
+        }
       }
     }
+
+    return value
+  }
+}
+
+/**
+ * Validate EARLIEST_WITH_GIA date (must be before or equal to START_OUTLINE_BUSINESS_CASE)
+ * Range: Current financial month/year to START_OUTLINE_BUSINESS_CASE month/year
+ */
+const validateEarliestWithGiaDate = (monthField, yearField) => {
+  return (value, helpers) => {
+    const data = helpers.state.ancestors[0]
+    const month = Number(data[monthField])
+    const year = Number(data[yearField])
+    const startOBCMonth = Number(data.startOutlineBusinessCaseMonth)
+    const startOBCYear = Number(data.startOutlineBusinessCaseYear)
+
+    // Both month and year must be present for validation
+    if (Number.isNaN(month) || Number.isNaN(year)) {
+      return value
+    }
+
+    // Must have START_OUTLINE_BUSINESS_CASE date to validate against
+    if (Number.isNaN(startOBCMonth) || Number.isNaN(startOBCYear)) {
+      return value
+    }
+
+    // Check date is before or equal to START_OUTLINE_BUSINESS_CASE
+    const comparison = compareMonthYear(
+      month,
+      year,
+      startOBCMonth,
+      startOBCYear
+    )
+    if (comparison > 0) {
+      return helpers.error('custom.earliest_gia_after_start_obc')
+    }
+
+    // Check within range: Current financial month/year to START_OUTLINE_BUSINESS_CASE
+    const currentFinancial = getCurrentFinancialMonthYear()
+
+    // Before current financial start (before April of current financial year)
+    if (
+      year < currentFinancial.year ||
+      (year === currentFinancial.year && month < FINANCIAL_YEAR_START_MONTH)
+    ) {
+      return helpers.error('custom.earliest_gia_before_current_financial', {
+        currentFinancialYear: currentFinancial.year
+      })
+    }
+
     return value
   }
 }
@@ -121,7 +236,7 @@ const validateTimelineDate = (
  */
 export const startOutlineBusinessCaseMonthSchema = monthSchema
   .custom(
-    validateTimelineDate(
+    validateStandardTimelineDate(
       'startOutlineBusinessCaseMonth',
       'startOutlineBusinessCaseYear',
       null,
@@ -130,7 +245,8 @@ export const startOutlineBusinessCaseMonthSchema = monthSchema
     )
   )
   .messages({
-    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST
+    'custom.date_outside_financial_range':
+      PROJECT_VALIDATION_MESSAGES.DATE_OUTSIDE_FINANCIAL_RANGE
   })
   .label('startOutlineBusinessCaseMonth')
 
@@ -143,7 +259,7 @@ export const startOutlineBusinessCaseYearSchema = yearSchema.label(
  */
 export const completeOutlineBusinessCaseMonthSchema = monthSchema
   .custom(
-    validateTimelineDate(
+    validateStandardTimelineDate(
       'completeOutlineBusinessCaseMonth',
       'completeOutlineBusinessCaseYear',
       'startOutlineBusinessCaseMonth',
@@ -152,8 +268,9 @@ export const completeOutlineBusinessCaseMonthSchema = monthSchema
     )
   )
   .messages({
-    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
-    'custom.date_before_previous_stage':
+    'custom.date_outside_financial_range':
+      PROJECT_VALIDATION_MESSAGES.DATE_OUTSIDE_FINANCIAL_RANGE,
+    'custom.date_not_after_previous_stage':
       PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
   })
   .label('completeOutlineBusinessCaseMonth')
@@ -167,7 +284,7 @@ export const completeOutlineBusinessCaseYearSchema = yearSchema.label(
  */
 export const awardContractMonthSchema = monthSchema
   .custom(
-    validateTimelineDate(
+    validateStandardTimelineDate(
       'awardContractMonth',
       'awardContractYear',
       'completeOutlineBusinessCaseMonth',
@@ -176,8 +293,9 @@ export const awardContractMonthSchema = monthSchema
     )
   )
   .messages({
-    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
-    'custom.date_before_previous_stage':
+    'custom.date_outside_financial_range':
+      PROJECT_VALIDATION_MESSAGES.DATE_OUTSIDE_FINANCIAL_RANGE,
+    'custom.date_not_after_previous_stage':
       PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
   })
   .label('awardContractMonth')
@@ -189,7 +307,7 @@ export const awardContractYearSchema = yearSchema.label('awardContractYear')
  */
 export const startConstructionMonthSchema = monthSchema
   .custom(
-    validateTimelineDate(
+    validateStandardTimelineDate(
       'startConstructionMonth',
       'startConstructionYear',
       'awardContractMonth',
@@ -198,8 +316,9 @@ export const startConstructionMonthSchema = monthSchema
     )
   )
   .messages({
-    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
-    'custom.date_before_previous_stage':
+    'custom.date_outside_financial_range':
+      PROJECT_VALIDATION_MESSAGES.DATE_OUTSIDE_FINANCIAL_RANGE,
+    'custom.date_not_after_previous_stage':
       PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
   })
   .label('startConstructionMonth')
@@ -213,7 +332,7 @@ export const startConstructionYearSchema = yearSchema.label(
  */
 export const readyForServiceMonthSchema = monthSchema
   .custom(
-    validateTimelineDate(
+    validateStandardTimelineDate(
       'readyForServiceMonth',
       'readyForServiceYear',
       'startConstructionMonth',
@@ -222,8 +341,9 @@ export const readyForServiceMonthSchema = monthSchema
     )
   )
   .messages({
-    'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST,
-    'custom.date_before_previous_stage':
+    'custom.date_outside_financial_range':
+      PROJECT_VALIDATION_MESSAGES.DATE_OUTSIDE_FINANCIAL_RANGE,
+    'custom.date_not_after_previous_stage':
       PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_PREVIOUS_STAGE
   })
   .label('readyForServiceMonth')
@@ -248,16 +368,13 @@ export const earliestWithGiaMonthSchema = Joi.when('couldStartEarly', {
   is: true,
   then: monthSchema
     .custom(
-      validateTimelineDate(
-        'earliestWithGiaMonth',
-        'earliestWithGiaYear',
-        null,
-        null,
-        'Earliest With GIA'
-      )
+      validateEarliestWithGiaDate('earliestWithGiaMonth', 'earliestWithGiaYear')
     )
     .messages({
-      'custom.date_in_past': PROJECT_VALIDATION_MESSAGES.DATE_IN_PAST
+      'custom.earliest_gia_after_start_obc':
+        PROJECT_VALIDATION_MESSAGES.DATE_AFTER_OBC_START,
+      'custom.earliest_gia_before_current_financial':
+        PROJECT_VALIDATION_MESSAGES.DATE_BEFORE_FINANCIAL_START
     })
     .label('earliestWithGiaMonth'),
   otherwise: Joi.forbidden()

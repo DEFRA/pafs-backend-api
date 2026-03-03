@@ -8,6 +8,7 @@ import {
   resolveAreaNames
 } from '../helpers/project-formatter.js'
 import { PROJECT_STATUS } from '../../../common/constants/project.js'
+import { SIZE } from '../../../common/constants/common.js'
 
 /**
  * Extract project IDs as BigInt Set from query results
@@ -177,9 +178,10 @@ export class ProjectFilterService {
 
     // Build inclusion set by intersecting area and status filters
     const inclusionSets = [resultMap.area, resultMap.status].filter(Boolean)
-    if (inclusionSets.length === 1) {
+    if (inclusionSets.length === SIZE.LENGTH_1) {
       idFilter.in = [...inclusionSets[0]]
-    } else if (inclusionSets.length === 2) {
+    }
+    if (inclusionSets.length === SIZE.LENGTH_2) {
       idFilter.in = [...inclusionSets[0]].filter((id) =>
         inclusionSets[1].has(id)
       )
