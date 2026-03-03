@@ -3,10 +3,10 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="2-002-create-core-flood-protection-2040-outcomes-legacy" author="migration-team">
-        <comment>Create pafs_core_flood_protection2040_outcomes_legacy table — exact replica of the legacy pafs_core_flood_protection2040_outcomes schema</comment>
+    <changeSet id="3-003-core-flood-protection-2040-outcomes-legacy-table" author="migration-team">
+        <comment>Create pafs_core_flood_protection2040_outcomes table - This is a legacy table, maintained for historical purposes. New system should not use this table.</comment>
 
-        <createTable tableName="pafs_core_flood_protection2040_outcomes_legacy">
+        <createTable tableName="pafs_core_flood_protection2040_outcomes">
             <column name="id" type="BIGSERIAL" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -21,10 +21,10 @@
         </createTable>
 
         <!-- Foreign key to pafs_core_projects -->
-        <addForeignKeyConstraint baseTableName="pafs_core_flood_protection2040_outcomes_legacy" baseColumnNames="project_id" constraintName="fk_legacy_fp2040_outcomes_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="pafs_core_flood_protection2040_outcomes" baseColumnNames="project_id" constraintName="fk_fp2040_outcomes_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
 
         <rollback>
-            <dropTable tableName="pafs_core_flood_protection2040_outcomes_legacy" cascadeConstraints="true"/>
+            <dropTable tableName="pafs_core_flood_protection2040_outcomes" cascadeConstraints="true"/>
         </rollback>
     </changeSet>
 

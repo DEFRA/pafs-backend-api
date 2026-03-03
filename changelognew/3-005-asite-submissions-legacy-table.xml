@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="3-005-asite-submissions-legacy-table" author="migration-team">
+    <comment>Create pafs_core_asite_submissions table - This is a legacy table, maintained for historical purposes. New system should not use this table.</comment>
+
+    <createTable tableName="pafs_core_asite_submissions">
+      <column name="id" type="BIGSERIAL" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+      <column name="project_id" type="BIGINT"/>
+      <column name="email_sent_at" type="TIMESTAMP WITHOUT TIME ZONE">
+        <constraints nullable="false"/>
+      </column>
+      <column name="confirmation_received_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+      <column name="status" type="VARCHAR(255)" defaultValue="created">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+
+    <!-- Foreign key to pafs_core_projects -->
+    <addForeignKeyConstraint baseTableName="pafs_core_asite_submissions" baseColumnNames="project_id" constraintName="fk_asite_submissions_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
+
+    <rollback>
+      <dropTable tableName="pafs_core_asite_submissions" cascadeConstraints="true"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

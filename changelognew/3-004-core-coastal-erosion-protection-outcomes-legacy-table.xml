@@ -3,10 +3,10 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="2-003-create-core-costal-erosion-protection-outcomes-legacy" author="migration-team">
-        <comment>Create pafs_core_coastal_erosion_protection_outcomes_legacy table — exact replica of the legacy pafs_core_coastal_erosion_protection_outcomes schema</comment>
+    <changeSet id="3-004-core-coastal-erosion-protection-outcomes-legacy-table" author="migration-team">
+        <comment>Create pafs_core_coastal_erosion_protection_outcomes table - This is a legacy table, maintained for historical purposes. New system should not use this table.</comment>
 
-        <createTable tableName="pafs_core_coastal_erosion_protection_outcomes_legacy">
+        <createTable tableName="pafs_core_coastal_erosion_protection_outcomes">
             <column name="id" type="SERIAL" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -20,25 +20,25 @@
             <column name="non_residential_properties" type="INTEGER"/>
         </createTable>
 
-        <!-- Indexes matching the legacy schema -->
-        <createIndex indexName="idx_legacy_cep_outcomes_on_financial_year" tableName="pafs_core_coastal_erosion_protection_outcomes_legacy">
+        <!-- Indexes matching the schema -->
+        <createIndex indexName="idx_cep_outcomes_on_financial_year" tableName="pafs_core_coastal_erosion_protection_outcomes">
             <column name="financial_year"/>
         </createIndex>
 
-        <createIndex indexName="idx_legacy_cep_outcomes_on_project_id_and_fy" tableName="pafs_core_coastal_erosion_protection_outcomes_legacy">
+        <createIndex indexName="idx_cep_outcomes_on_project_id_and_fy" tableName="pafs_core_coastal_erosion_protection_outcomes">
             <column name="project_id"/>
             <column name="financial_year"/>
         </createIndex>
 
-        <createIndex indexName="idx_legacy_cep_outcomes_on_project_id" tableName="pafs_core_coastal_erosion_protection_outcomes_legacy">
+        <createIndex indexName="idx_cep_outcomes_on_project_id" tableName="pafs_core_coastal_erosion_protection_outcomes">
             <column name="project_id"/>
         </createIndex>
 
         <!-- Foreign key to pafs_core_projects -->
-        <addForeignKeyConstraint baseTableName="pafs_core_coastal_erosion_protection_outcomes_legacy" baseColumnNames="project_id" constraintName="fk_legacy_cep_outcomes_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="pafs_core_coastal_erosion_protection_outcomes" baseColumnNames="project_id" constraintName="fk_cep_outcomes_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
 
         <rollback>
-            <dropTable tableName="pafs_core_coastal_erosion_protection_outcomes_legacy" cascadeConstraints="true"/>
+            <dropTable tableName="pafs_core_coastal_erosion_protection_outcomes" cascadeConstraints="true"/>
         </rollback>
     </changeSet>
 

@@ -15,11 +15,19 @@
   <include file="1-010-core-area-projects.xml" relativeToChangelogFile="true"/>
   <include file="1-011-core-reference-counters.xml" relativeToChangelogFile="true"/>
   <include file="1-012-core-states.xml" relativeToChangelogFile="true"/>
-  <include file="2-001-create-flood-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-002-create-flood-protection-2040-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-003-create-costal-erosion-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-004-create-nfm-measures-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-005-create-nfm-land-use-changes-table.xml" relativeToChangelogFile="true"/>
-  <include file="2-006-create-area-downloads-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-001-funding-values-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-002-funding-contributors-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-003-nfm-measures-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-004-nfm-land-use-changes-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-005-area-downloads-table.xml" relativeToChangelogFile="true"/>
+
+  <!-- Legacy tables - these are maintained for historical purposes, but new system should not use these tables. -->
+  <include file="3-001-account-requests-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-002-core-flood-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-003-core-flood-protection-2040-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-004-core-coastal-erosion-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-005-asite-submissions-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-006-asite-files-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-007-bootstraps-legacy-table.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

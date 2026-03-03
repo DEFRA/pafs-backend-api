@@ -1102,8 +1102,7 @@ describe('ProjectService', () => {
         createdAt: mockProject.created_at,
         projectState: 'draft',
         areaId: 1,
-        isOwner: true,
-        status: 'draft'
+        isOwner: true
       })
     })
 
@@ -1161,8 +1160,7 @@ describe('ProjectService', () => {
         createdAt: mockProject.created_at,
         projectState: 'draft',
         areaId: 1,
-        isOwner: true,
-        status: 'draft'
+        isOwner: true
       })
     })
 

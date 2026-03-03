@@ -329,7 +329,7 @@ export class ProjectService {
       const apiData = ProjectMapper.toApi(project)
 
       // Resolve status for legacy projects
-      apiData.status = resolveStatus(
+      apiData.projectState = resolveStatus(
         apiData.projectState,
         apiData.isLegacy ?? false,
         apiData.isRevised ?? false
