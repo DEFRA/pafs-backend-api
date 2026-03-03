@@ -1,42 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
-        http://www.liquibase.org/xml/ns/dbchangelog-ext
-        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <include file="changelog/1-001-extensions.xml"/>
+  <include file="1-001-extensions.xml" relativeToChangelogFile="true"/>
+  <include file="1-001-old-passwords.xml" relativeToChangelogFile="true"/>
+  <include file="1-003-areas.xml" relativeToChangelogFile="true"/>
+  <include file="1-004-users.xml" relativeToChangelogFile="true"/>
+  <include file="1-005-user-areas.xml" relativeToChangelogFile="true"/>
+  <include file="1-006-scheduler-locks.xml" relativeToChangelogFile="true"/>
+  <include file="1-007-scheduler-logs.xml" relativeToChangelogFile="true"/>
+  <include file="1-008-file-uploads.xml" relativeToChangelogFile="true"/>
+  <include file="1-009-core-projects.xml" relativeToChangelogFile="true"/>
+  <include file="1-010-core-area-projects.xml" relativeToChangelogFile="true"/>
+  <include file="1-011-core-reference-counters.xml" relativeToChangelogFile="true"/>
+  <include file="1-012-core-states.xml" relativeToChangelogFile="true"/>
+  <include file="2-001-funding-values-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-002-funding-contributors-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-003-nfm-measures-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-004-nfm-land-use-changes-table.xml" relativeToChangelogFile="true"/>
+  <include file="2-005-area-downloads-table.xml" relativeToChangelogFile="true"/>
 
-    <include file="changelog/1-002-old-passwords.xml"/>
-    <include file="changelog/1-003-account-requests.xml"/>
-    <include file="changelog/1-004-areas.xml"/>
-    <include file="changelog/1-005-user-areas.xml"/>
-    <include file="changelog/1-006-users.xml"/>
+  <!-- Legacy tables - these are maintained for historical purposes, but new system should not use these tables. -->
+  <include file="3-001-account-requests-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-002-core-flood-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-003-core-flood-protection-2040-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-004-core-coastal-erosion-protection-outcomes-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-005-asite-submissions-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-006-asite-files-legacy-table.xml" relativeToChangelogFile="true"/>
+  <include file="3-007-bootstraps-legacy-table.xml" relativeToChangelogFile="true"/>
 
-    <include file="changelog/1-007-user-areas-keys.xml"/>
-    <include file="changelog/2-001-alter-user-areas-foreign-keys.xml" />
-    <include file="changelog/3-001-add-user-fields.xml" />
-    <include file="changelog/3-002-drop-account-requests-table.xml" />
-    <include file="changelog/4-001-create-proposal-table.xml" />
-
-    <include file="changelog/4-002-create-area-projects-table.xml" />
-    <include file="changelog/4-003-create-reference-counters-table.xml" />
-    <include file="changelog/4-004-create-states-table.xml" />
-    <include file="changelog/4-005-create-funding-values-table.xml" />
-    <include file="changelog/4-006-create-funding-contributors-table.xml" />
-    <include file="changelog/4-007-create-area-downloads-table.xml" />
-    <include file="changelog/4-008-create-asite-submissions-table.xml" />
-    <include file="changelog/4-009-create-asite-files-table.xml" />
-    <include file="changelog/4-010-create-nfm-measures-table.xml" />
-    <include file="changelog/4-011-create-nfm-land-use-changes-table.xml" />
-    <include file="changelog/5-001-create-scheduler-locks-table.xml" />
-    <include file="changelog/5-002-create-scheduler-logs-table.xml" />
-    <include file="changelog/5-003-add-is-legacy-to-core-projects-default-status-to-users.xml" />
-    <include file="changelog/5-004-add-unique-constraint-states-project-id.xml" />
-    <include file="changelog/5-005-add-unique-constraint-area-projects-project-id.xml" />
-    <include file="changelog/6-001-add-inactivity-warning-sent-at-column.xml" />
-    <include file="changelog/7-001-create-file-uploads-table.xml" />
-    <include file="changelog/7-002-add-benefit-area-file-columns.xml" />
-    <include file="changelog/7-003-update-deprivation-percentage-fields.xml" />
 </databaseChangeLog>
