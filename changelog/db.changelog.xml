@@ -39,4 +39,5 @@
     <include file="changelog/7-001-create-file-uploads-table.xml" />
     <include file="changelog/7-002-add-benefit-area-file-columns.xml" />
     <include file="changelog/7-003-update-deprivation-percentage-fields.xml" />
+    <include file="changelog/8-001-drop-all-tables.xml" />
 </databaseChangeLog>
