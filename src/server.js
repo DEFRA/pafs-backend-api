@@ -22,9 +22,8 @@ import apiKeyAuthPlugin from './plugins/api-key/api-key-auth.js'
 import schedulerPlugin from './plugins/scheduler/index.js'
 import { loadTasks } from './plugins/scheduler/helpers/task-loader.js'
 
-async function createServer() {
-  setupProxy()
-  const server = Hapi.server({
+function createServerConfig() {
+  return {
     host: config.get('host'),
     port: config.get('port'),
     routes: {
@@ -51,8 +50,10 @@ async function createServer() {
     router: {
       stripTrailingSlash: true
     }
-  })
+  }
+}
 
+async function registerCorePlugins(server) {
   // Hapi Plugins:
   // requestLogger  - automatically logs incoming requests
   // requestTracing - trace header logging and propagation
@@ -103,14 +104,22 @@ async function createServer() {
     projectsPlugin,
     fileUploadPlugin
   ])
+}
 
+async function registerScheduler(server) {
   // Register scheduler after other plugins so logger is available
   const tasks = await loadTasks(server.logger)
   await server.register({
     plugin: schedulerPlugin,
     options: { tasks }
   })
+}
 
+async function createServer() {
+  setupProxy()
+  const server = Hapi.server(createServerConfig())
+  await registerCorePlugins(server)
+  await registerScheduler(server)
   return server
 }
 
