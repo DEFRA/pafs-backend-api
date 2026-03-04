@@ -25,7 +25,8 @@ export default defineConfig({
         '**/mongodb.js',
         '**/mongo-lock.js',
         '**/validate-mongo-uri.js',
-        '**/prisma-db-pull.js'
+        '**/prisma-db-pull.js',
+        '**/.DS_Store'
       ]
     },
     setupFiles: ['.vite/setup-files.js']

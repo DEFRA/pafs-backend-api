@@ -1,6 +1,7 @@
 import checkProjectName from './check-project-name/check-project-name.js'
 import getProject from './get-project/get-project.js'
 import upsertProject from './upsert-project/upsert-project.js'
+import updateStatus from './update-status/update-status.js'
 import downloadBenefitAreaFile from './download-benefit-area-file/download-benefit-area-file.js'
 import deleteBenefitAreaFile from './delete-benefit-area-file/delete-benefit-area-file.js'
 import listProjects from './list-projects/list-projects.js'
@@ -13,6 +14,7 @@ const projectsPlugin = {
       checkProjectName,
       getProject,
       upsertProject,
+      updateStatus,
       downloadBenefitAreaFile,
       deleteBenefitAreaFile,
       listProjects
@@ -28,3 +30,4 @@ export { default as upsertProject } from './upsert-project/upsert-project.js'
 export { default as downloadBenefitAreaFile } from './download-benefit-area-file/download-benefit-area-file.js'
 export { default as deleteBenefitAreaFile } from './delete-benefit-area-file/delete-benefit-area-file.js'
 export { default as listProjects } from './list-projects/list-projects.js'
+export { default as updateStatus } from './update-status/update-status.js'

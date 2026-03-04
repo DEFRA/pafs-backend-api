@@ -67,9 +67,51 @@ describe('project-config', () => {
           'percent_properties_20_percent_deprived',
         percentProperties40PercentDeprived:
           'percent_properties_40_percent_deprived',
-        currentFloodRisk: 'current_flood_risk',
+        currentFloodFluvialRisk: 'current_flood_fluvial_risk',
         currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
-        currentCoastalErosionRisk: 'current_coastal_erosion_risk'
+        currentCoastalErosionRisk: 'current_coastal_erosion_risk',
+        approach: 'approach',
+        urgencyReason: 'urgency_reason',
+        urgencyDetails: 'urgency_details',
+        urgencyDetailsUpdatedAt: 'urgency_details_updated_at',
+        confidenceHomesBetterProtected: 'confidence_homes_better_protected',
+        confidenceHomesByGatewayFour: 'confidence_homes_by_gateway_four',
+        confidenceSecuredPartnershipFunding:
+          'confidence_secured_partnership_funding',
+        environmentalBenefits: 'environmental_benefits',
+        intertidalHabitat: 'intertidal_habitat',
+        hectaresOfIntertidalHabitatCreatedOrEnhanced:
+          'hectares_of_intertidal_habitat_created_or_enhanced',
+        woodland: 'woodland',
+        hectaresOfWoodlandHabitatCreatedOrEnhanced:
+          'hectares_of_woodland_habitat_created_or_enhanced',
+        wetWoodland: 'wet_woodland',
+        hectaresOfWetWoodlandHabitatCreatedOrEnhanced:
+          'hectares_of_wet_woodland_habitat_created_or_enhanced',
+        wetlandOrWetGrassland: 'wetland_or_wet_grassland',
+        hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced:
+          'hectares_of_wetland_or_wet_grassland_created_or_enhanced',
+        grassland: 'grassland',
+        hectaresOfGrasslandHabitatCreatedOrEnhanced:
+          'hectares_of_grassland_habitat_created_or_enhanced',
+        heathland: 'heathland',
+        hectaresOfHeathlandCreatedOrEnhanced:
+          'hectares_of_heathland_created_or_enhanced',
+        pondsLakes: 'ponds_lakes',
+        hectaresOfPondOrLakeHabitatCreatedOrEnhanced:
+          'hectares_of_pond_or_lake_habitat_created_or_enhanced',
+        arableLand: 'arable_land',
+        hectaresOfArableLandLakeHabitatCreatedOrEnhanced:
+          'hectares_of_arable_land_lake_habitat_created_or_enhanced',
+        comprehensiveRestoration: 'comprehensive_restoration',
+        kilometresOfWatercourseEnhancedOrCreatedComprehensive:
+          'kilometres_of_watercourse_enhanced_or_created_comprehensive',
+        partialRestoration: 'partial_restoration',
+        kilometresOfWatercourseEnhancedOrCreatedPartial:
+          'kilometres_of_watercourse_enhanced_or_created_partial',
+        createHabitatWatercourse: 'create_habitat_watercourse',
+        kilometresOfWatercourseEnhancedOrCreatedSingle:
+          'kilometres_of_watercourse_enhanced_or_created_single'
       })
     })
 
@@ -130,8 +172,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 49 total fields (20 common + 6 read-only + 8 benefit area file + 15 risk/property)', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(49)
+    it('should have 80 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(80)
     })
   })
 
@@ -177,15 +219,14 @@ describe('project-config', () => {
       expect(result.earliest_start_year).toBe(true)
       expect(result.project_end_financial_year).toBe(true)
       expect(result.reference_number).toBe(true)
-      expect(result.is_legacy).toBe(true)
       expect(result.updated_at).toBe(true)
       expect(result.created_at).toBe(true)
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 49 fields', () => {
+    it('should return an object with 80 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(49)
+      expect(Object.keys(result)).toHaveLength(80)
     })
 
     it('should return a new object each time', () => {

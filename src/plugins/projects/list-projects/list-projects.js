@@ -7,6 +7,7 @@ import {
   buildErrorResponse,
   buildSuccessResponse
 } from '../../../common/helpers/response-builder.js'
+import { resolveUserAreaIds } from '../../areas/helpers/user-areas.js'
 
 const listProjects = {
   method: 'GET',
@@ -14,7 +15,7 @@ const listProjects = {
   options: {
     auth: 'jwt',
     description: 'List projects',
-    notes: 'Returns paginated list of projects',
+    notes: 'Returns paginated list of projects filtered by user role',
     tags: ['api', 'projects'],
     validate: {
       query: getProjectsQuerySchema,
@@ -24,6 +25,21 @@ const listProjects = {
   handler: async (request, h) => {
     try {
       const { search, areaId, status, page, pageSize } = request.query
+      const credentials = request.auth.credentials
+
+      // Resolve area IDs based on user role
+      const userAreaIds = await resolveUserAreaIds(
+        request.prisma,
+        request.server.logger,
+        credentials
+      )
+
+      // Admin can optionally filter by a single areaId from query params
+      // Non-admin users are restricted to their resolved area IDs
+      let areaIds = userAreaIds
+      if (credentials.isAdmin && areaId) {
+        areaIds = [areaId]
+      }
 
       const projectService = new ProjectFilterService(
         request.prisma,
@@ -32,7 +48,7 @@ const listProjects = {
 
       const result = await projectService.getProjects({
         search,
-        areaId,
+        areaIds,
         status,
         page,
         pageSize

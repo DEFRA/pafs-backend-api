@@ -52,11 +52,12 @@ describe('ProjectService', () => {
   })
 
   describe('checkDuplicateProjectName', () => {
-    test('Should return exists: true when project name exists', async () => {
+    test('Should return exists: true when project name exists in current projects', async () => {
       const payload = { name: 'Existing_Project' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
+        id: 1,
+        reference_number: 'C501E/000A/001A'
       })
 
       const result = await service.checkDuplicateProjectName(payload)
@@ -77,11 +78,12 @@ describe('ProjectService', () => {
           }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        { projectName: payload.name },
+        { referenceNumber: 'C501E/000A/001A' },
         'Duplicate project name found'
       )
     })
@@ -94,6 +96,7 @@ describe('ProjectService', () => {
       const result = await service.checkDuplicateProjectName(payload)
 
       expect(result).toEqual({ isValid: true })
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalled()
     })
 
     test('Should perform case-insensitive search', async () => {
@@ -152,17 +155,21 @@ describe('ProjectService', () => {
       )
     })
 
-    test('Should select only id field from database', async () => {
+    test('Should select id and reference_number fields from database', async () => {
       const payload = { name: 'Test_Project' }
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 123 })
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 123,
+        reference_number: 'C501E/000A/001A'
+      })
 
       await service.checkDuplicateProjectName(payload)
 
       expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           select: {
-            id: true
+            id: true,
+            reference_number: true
           }
         })
       )
@@ -217,7 +224,8 @@ describe('ProjectService', () => {
           reference_number: { not: payload.referenceNumber }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
     })
@@ -237,7 +245,8 @@ describe('ProjectService', () => {
           }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
     })
@@ -249,7 +258,8 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 2 // Different project ID
+        id: 2,
+        reference_number: 'C501E/000A/002A'
       })
 
       const result = await service.checkDuplicateProjectName(payload)
@@ -271,7 +281,8 @@ describe('ProjectService', () => {
           reference_number: { not: payload.referenceNumber }
         },
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
     })
@@ -971,8 +982,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -1018,9 +1028,38 @@ describe('ProjectService', () => {
           could_start_early: true,
           earliest_with_gia_month: true,
           earliest_with_gia_year: true,
+          approach: true,
+          urgency_reason: true,
+          urgency_details: true,
+          urgency_details_updated_at: true,
+          confidence_homes_better_protected: true,
+          confidence_homes_by_gateway_four: true,
+          confidence_secured_partnership_funding: true,
+          environmental_benefits: true,
+          intertidal_habitat: true,
+          hectares_of_intertidal_habitat_created_or_enhanced: true,
+          woodland: true,
+          hectares_of_woodland_habitat_created_or_enhanced: true,
+          wet_woodland: true,
+          hectares_of_wet_woodland_habitat_created_or_enhanced: true,
+          wetland_or_wet_grassland: true,
+          hectares_of_wetland_or_wet_grassland_created_or_enhanced: true,
+          grassland: true,
+          hectares_of_grassland_habitat_created_or_enhanced: true,
+          heathland: true,
+          hectares_of_heathland_created_or_enhanced: true,
+          ponds_lakes: true,
+          hectares_of_pond_or_lake_habitat_created_or_enhanced: true,
+          arable_land: true,
+          hectares_of_arable_land_lake_habitat_created_or_enhanced: true,
+          comprehensive_restoration: true,
+          kilometres_of_watercourse_enhanced_or_created_comprehensive: true,
+          partial_restoration: true,
+          kilometres_of_watercourse_enhanced_or_created_partial: true,
+          create_habitat_watercourse: true,
+          kilometres_of_watercourse_enhanced_or_created_single: true,
           updated_at: true,
           created_at: true,
-          is_legacy: true,
           benefit_area_file_name: true,
           benefit_area_file_size: true,
           benefit_area_content_type: true,
@@ -1029,6 +1068,8 @@ describe('ProjectService', () => {
           benefit_area_file_updated_at: true,
           benefit_area_file_download_url: true,
           benefit_area_file_download_expiry: true,
+          is_legacy: true,
+          is_revised: true,
           project_risks_protected_against: true,
           main_source_of_risk: true,
           no_properties_at_flood_risk: true,
@@ -1041,7 +1082,7 @@ describe('ProjectService', () => {
           properties_benefit_investment_coastal_erosion: true,
           percent_properties_20_percent_deprived: true,
           percent_properties_40_percent_deprived: true,
-          current_flood_risk: true,
+          current_flood_fluvial_risk: true,
           current_flood_surface_water_risk: true,
           current_coastal_erosion_risk: true
         }
@@ -1059,7 +1100,6 @@ describe('ProjectService', () => {
         financialEndYear: 2025,
         updatedAt: mockProject.updated_at,
         createdAt: mockProject.created_at,
-        isLegacy: false,
         projectState: 'draft',
         areaId: 1,
         isOwner: true
@@ -1093,8 +1133,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -1119,7 +1158,6 @@ describe('ProjectService', () => {
         financialEndYear: 2025,
         updatedAt: mockProject.updated_at,
         createdAt: mockProject.created_at,
-        isLegacy: false,
         projectState: 'draft',
         areaId: 1,
         isOwner: true
@@ -1139,8 +1177,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -1169,8 +1206,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2023',
         project_end_financial_year: '2025',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -1199,8 +1235,7 @@ describe('ProjectService', () => {
         earliest_start_year: '2026',
         project_end_financial_year: '2030',
         updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01'),
-        is_legacy: false
+        created_at: new Date('2023-01-01')
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
@@ -1249,6 +1284,45 @@ describe('ProjectService', () => {
           }
         })
       )
+    })
+
+    test('Should resolve area name when rma_name is empty', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        id: 1,
+        reference_number: 'ANC501E/000A/001A',
+        name: 'Project Without RMA',
+        rma_name: null,
+        project_type: 'Type A',
+        project_intervention_types: null,
+        main_intervention_type: null,
+        earliest_start_year: '2024',
+        project_end_financial_year: '2026',
+        updated_at: new Date('2024-01-01'),
+        created_at: new Date('2024-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+      mockPrisma.pafs_core_states = {
+        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
+      }
+      mockPrisma.pafs_core_area_projects = {
+        findFirst: vi.fn().mockResolvedValue({ area_id: 10, owner: true }),
+        findMany: vi.fn().mockResolvedValue([{ project_id: 1, area_id: 10 }])
+      }
+      mockPrisma.pafs_core_areas = {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: BigInt(10), name: 'Resolved Area Name' }])
+      }
+
+      const result = await service.getProjectByReferenceNumber(referenceNumber)
+
+      expect(result.rmaName).toBe('Resolved Area Name')
+      expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
+        where: { project_id: { in: [1] } },
+        select: { project_id: true, area_id: true }
+      })
     })
   })
 })

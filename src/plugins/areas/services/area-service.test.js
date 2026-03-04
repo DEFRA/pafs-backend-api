@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AreaService } from './area-service.js'
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
+import {
+  AREA_FIELDS,
+  AREA_FIELDS_WITH_TIMESTAMPS
+} from '../helpers/area-utils.js'
 
 describe('AreaService', () => {
   let mockPrisma
@@ -19,8 +23,7 @@ describe('AreaService', () => {
     mockPrisma = {
       pafs_core_areas: {
         findMany: vi.fn()
-      },
-      $queryRaw: vi.fn()
+      }
     }
 
     areaService = new AreaService(mockPrisma, mockLogger)
@@ -419,8 +422,10 @@ describe('AreaService', () => {
         end_date: null
       }
 
-      mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce(mockArea)
-      mockPrisma.$queryRaw.mockResolvedValueOnce([mockPSOParent])
+      mockPrisma.pafs_core_areas.findFirst
+        .mockResolvedValueOnce(mockArea) // area itself
+        .mockResolvedValueOnce(mockPSOParent) // parent lookup
+        .mockResolvedValueOnce(null) // grandparent lookup (PSO has parent_id 3n but we stop here)
 
       const result = await areaService.getAreaByIdWithParents(1n)
 
@@ -471,8 +476,10 @@ describe('AreaService', () => {
         end_date: null
       }
 
-      mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce(mockArea)
-      mockPrisma.$queryRaw.mockResolvedValueOnce([mockPSOParent, mockEAParent])
+      mockPrisma.pafs_core_areas.findFirst
+        .mockResolvedValueOnce(mockArea) // area itself
+        .mockResolvedValueOnce(mockPSOParent) // first parent (PSO)
+        .mockResolvedValueOnce(mockEAParent) // second parent (EA, parent_id null stops chain)
 
       const result = await areaService.getAreaByIdWithParents(1n)
 
@@ -681,7 +688,7 @@ describe('AreaService', () => {
             not: 'EA Area'
           }
         },
-        select: AreaService.AREA_FIELDS,
+        select: AREA_FIELDS,
         orderBy: { updated_at: 'desc' },
         skip: 0,
         take: 20
@@ -903,7 +910,7 @@ describe('AreaService', () => {
             notIn: ['Country', 'EA Area']
           }
         },
-        select: AreaService.AREA_FIELDS
+        select: AREA_FIELDS
       })
     })
 
@@ -932,7 +939,7 @@ describe('AreaService', () => {
             notIn: ['Country', 'EA Area']
           }
         },
-        select: AreaService.AREA_FIELDS
+        select: AREA_FIELDS
       })
     })
 
@@ -949,7 +956,7 @@ describe('AreaService', () => {
             notIn: ['Country', 'EA Area']
           }
         },
-        select: AreaService.AREA_FIELDS
+        select: AREA_FIELDS
       })
     })
 
@@ -1016,6 +1023,10 @@ describe('AreaService', () => {
           updated_at: new Date('2024-01-15T10:00:00Z')
         }
 
+        // No duplicate name or identifier found
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
         mockPrisma.pafs_core_areas.create.mockResolvedValue(mockCreatedArea)
 
         const result = await areaService.upsertArea(areaData)
@@ -1040,7 +1051,7 @@ describe('AreaService', () => {
             created_at: new Date('2024-01-15T10:00:00Z'),
             updated_at: new Date('2024-01-15T10:00:00Z')
           }),
-          select: AreaService.AREA_FIELDS_WITH_TIMESTAMPS
+          select: AREA_FIELDS_WITH_TIMESTAMPS
         })
 
         expect(mockLogger.info).toHaveBeenCalledWith(
@@ -1059,11 +1070,13 @@ describe('AreaService', () => {
           subType: 'RFCC-01'
         }
 
-        // Mock EA Area parent validation
-        mockPrisma.pafs_core_areas.findFirst.mockResolvedValue({
-          id: BigInt('10'),
-          area_type: 'EA Area'
-        })
+        // No duplicate name found, then mock EA Area parent validation
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            id: BigInt('10'),
+            area_type: 'EA Area'
+          })
 
         const mockCreatedArea = {
           id: BigInt('200'),
@@ -1094,11 +1107,13 @@ describe('AreaService', () => {
           subType: 'RFCC-01'
         }
 
-        // Mock parent that is not EA Area
-        mockPrisma.pafs_core_areas.findFirst.mockResolvedValue({
-          id: BigInt('999'),
-          area_type: AREA_TYPE_MAP.RMA
-        })
+        // No duplicate name found, then mock parent that is not EA Area
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            id: BigInt('999'),
+            area_type: AREA_TYPE_MAP.RMA
+          })
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
           "Parent area must be of type 'EA Area' for PSO Area, but found 'RMA'"
@@ -1113,7 +1128,10 @@ describe('AreaService', () => {
           subType: 'RFCC-01'
         }
 
-        mockPrisma.pafs_core_areas.findFirst.mockResolvedValue(null)
+        // No duplicate name found, then parent not found
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
           'Parent area with ID 999 not found for PSO Area'
@@ -1125,19 +1143,20 @@ describe('AreaService', () => {
       it('should create RMA with valid PSO parent and Authority code', async () => {
         const areaData = {
           name: 'Test RMA',
-          area_type: 'RMA',
+          areaType: AREA_TYPE_MAP.RMA,
           identifier: 'RMA001',
-          parent_id: '20',
-          sub_type: 'AUTH001'
+          parentId: '20',
+          subType: 'AUTH001'
         }
 
-        // Mock PSO parent validation (first findFirst call)
+        // No duplicate name or identifier found, then PSO parent validation, then Authority validation
         mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
           .mockResolvedValueOnce({
             id: BigInt('20'),
             area_type: 'PSO Area'
           })
-          // Mock Authority validation (second findFirst call)
           .mockResolvedValueOnce({
             id: BigInt('5'),
             identifier: 'AUTH001'
@@ -1174,11 +1193,14 @@ describe('AreaService', () => {
           subType: 'AUTH001'
         }
 
-        // Mock parent that is not PSO Area
-        mockPrisma.pafs_core_areas.findFirst.mockResolvedValue({
-          id: BigInt('999'),
-          area_type: 'EA Area'
-        })
+        // No duplicate name or identifier found, then mock parent that is not PSO Area
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            id: BigInt('999'),
+            area_type: 'EA Area'
+          })
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
           "Parent area must be of type 'PSO Area' for RMA, but found 'EA Area'"
@@ -1194,13 +1216,14 @@ describe('AreaService', () => {
           subType: 'INVALID_AUTH'
         }
 
-        // Mock valid PSO parent
+        // No duplicate name or identifier found, then valid PSO parent, then Authority not found
         mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
           .mockResolvedValueOnce({
             id: BigInt('20'),
             area_type: 'PSO Area'
           })
-          // Mock Authority not found
           .mockResolvedValueOnce(null)
 
         await expect(areaService.upsertArea(areaData)).rejects.toThrow(
@@ -1217,6 +1240,11 @@ describe('AreaService', () => {
           areaType: AREA_TYPE_MAP.AUTHORITY,
           identifier: 'AUTH002'
         }
+
+        // No duplicate name or identifier found (excludes own id)
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
 
         const mockUpdatedArea = {
           id: BigInt('50'),
@@ -1261,7 +1289,7 @@ describe('AreaService', () => {
             created_at: new Date('2024-01-15T10:00:00Z'),
             updated_at: new Date('2024-01-15T10:00:00Z')
           }),
-          select: AreaService.AREA_FIELDS_WITH_TIMESTAMPS
+          select: AREA_FIELDS_WITH_TIMESTAMPS
         })
 
         expect(mockLogger.info).toHaveBeenCalledWith(
@@ -1279,6 +1307,11 @@ describe('AreaService', () => {
           identifier: 'AUTH003',
           endDate: '2025-12-31'
         }
+
+        // No duplicate name or identifier found
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
 
         const mockCreatedArea = {
           id: BigInt('200'),
@@ -1308,6 +1341,11 @@ describe('AreaService', () => {
           identifier: 'AUTH999'
         }
 
+        // No duplicate name or identifier found
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
+
         const error = new Error('Database constraint violation')
         mockPrisma.pafs_core_areas.create.mockRejectedValue(error)
 
@@ -1329,6 +1367,11 @@ describe('AreaService', () => {
           identifier: 'AUTH888'
         }
 
+        // No duplicate name or identifier found (excludes own id)
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
+
         const error = new Error('Record not found')
         mockPrisma.pafs_core_areas.upsert.mockRejectedValue(error)
 
@@ -1341,6 +1384,387 @@ describe('AreaService', () => {
           'Error upserting area'
         )
       })
+    })
+
+    describe('duplicate name validation', () => {
+      it('should reject creating an area with duplicate name', async () => {
+        const areaData = {
+          name: 'Existing Authority',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH010'
+        }
+
+        // Duplicate found
+        mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce({
+          id: BigInt('99')
+        })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the name 'Existing Authority' already exists"
+        )
+
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            name: 'Existing Authority'
+          },
+          select: { id: true }
+        })
+
+        expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
+      })
+
+      it('should reject creating an area with same name in different type', async () => {
+        const areaData = {
+          name: 'Thames',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH011'
+        }
+
+        // Duplicate name found (from different type)
+        mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce({
+          id: BigInt('100')
+        })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the name 'Thames' already exists"
+        )
+
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            name: 'Thames'
+          },
+          select: { id: true }
+        })
+
+        expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
+      })
+
+      it('should reject updating an area when another area has the same name', async () => {
+        const areaData = {
+          id: '50',
+          name: 'Duplicate Name',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH012'
+        }
+
+        // Another area with the same name exists
+        mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce({
+          id: BigInt('99')
+        })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the name 'Duplicate Name' already exists"
+        )
+
+        // Should exclude the current record's id
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            name: 'Duplicate Name',
+            id: { not: BigInt('50') }
+          },
+          select: { id: true }
+        })
+
+        expect(mockPrisma.pafs_core_areas.upsert).not.toHaveBeenCalled()
+      })
+
+      it('should allow updating an area with its own existing name and identifier', async () => {
+        const areaData = {
+          id: '50',
+          name: 'Same Name',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH013'
+        }
+
+        // No other area with same name or identifier (current record excluded)
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
+
+        const mockUpdatedArea = {
+          id: BigInt('50'),
+          name: 'Same Name',
+          area_type: AREA_TYPE_MAP.AUTHORITY,
+          parent_id: null,
+          sub_type: null,
+          identifier: 'AUTH013',
+          end_date: null,
+          created_at: new Date('2024-01-01T10:00:00Z'),
+          updated_at: new Date('2024-01-15T10:00:00Z')
+        }
+
+        mockPrisma.pafs_core_areas.upsert.mockResolvedValue(mockUpdatedArea)
+
+        const result = await areaService.upsertArea(areaData)
+
+        expect(result.name).toBe('Same Name')
+        expect(mockPrisma.pafs_core_areas.upsert).toHaveBeenCalled()
+      })
+    })
+
+    describe('duplicate identifier validation', () => {
+      it('should reject creating an Authority with duplicate identifier', async () => {
+        const areaData = {
+          name: 'New Authority',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH001'
+        }
+
+        // No duplicate name, but duplicate identifier found
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: BigInt('88') })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the identifier 'AUTH001' already exists"
+        )
+
+        expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
+      })
+
+      it('should reject creating an RMA with duplicate identifier', async () => {
+        const areaData = {
+          name: 'New RMA',
+          areaType: AREA_TYPE_MAP.RMA,
+          identifier: 'RMA001',
+          parentId: '20',
+          subType: 'AUTH001'
+        }
+
+        // No duplicate name, but duplicate identifier found
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: BigInt('77') })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the identifier 'RMA001' already exists"
+        )
+
+        expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
+      })
+
+      it('should reject creating an RMA with identifier already used by an Authority', async () => {
+        const areaData = {
+          name: 'New RMA',
+          areaType: AREA_TYPE_MAP.RMA,
+          identifier: 'CODE123',
+          parentId: '20',
+          subType: 'AUTH001'
+        }
+
+        // No duplicate name, then no duplicate identifier in name check, but duplicate identifier found in Authority
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: BigInt('99') })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the identifier 'CODE123' already exists"
+        )
+
+        // Should check across both Authority and RMA types
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            identifier: 'CODE123',
+            area_type: {
+              in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.RMA]
+            }
+          },
+          select: { id: true }
+        })
+
+        expect(mockPrisma.pafs_core_areas.create).not.toHaveBeenCalled()
+      })
+
+      it('should reject updating an Authority when another has the same identifier', async () => {
+        const areaData = {
+          id: '50',
+          name: 'Updated Authority',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH001'
+        }
+
+        // No duplicate name, but duplicate identifier found (excluding own id)
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: BigInt('88') })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the identifier 'AUTH001' already exists"
+        )
+
+        // Should exclude the current record's id and check across both types
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            identifier: 'AUTH001',
+            area_type: {
+              in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.RMA]
+            },
+            id: { not: BigInt('50') }
+          },
+          select: { id: true }
+        })
+
+        expect(mockPrisma.pafs_core_areas.upsert).not.toHaveBeenCalled()
+      })
+
+      it('should skip identifier validation for PSO Area', async () => {
+        const areaData = {
+          name: 'Test PSO',
+          areaType: AREA_TYPE_MAP.PSO,
+          parentId: '10',
+          subType: 'RFCC-01'
+        }
+
+        // No duplicate name, then parent validation (no identifier check for PSO)
+        mockPrisma.pafs_core_areas.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            id: BigInt('10'),
+            area_type: 'EA Area'
+          })
+
+        const mockCreatedArea = {
+          id: BigInt('201'),
+          name: 'Test PSO',
+          area_type: AREA_TYPE_MAP.PSO,
+          parent_id: 10,
+          sub_type: 'RFCC-01',
+          identifier: null,
+          end_date: null,
+          created_at: new Date('2024-01-15T10:00:00Z'),
+          updated_at: new Date('2024-01-15T10:00:00Z')
+        }
+
+        mockPrisma.pafs_core_areas.create.mockResolvedValue(mockCreatedArea)
+
+        const result = await areaService.upsertArea(areaData)
+
+        // findFirst called only twice: name check + parent validation (no identifier check)
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(2)
+        expect(result.area_type).toBe('PSO Area')
+      })
+    })
+  })
+
+  describe('getDescendantRmaAreaIds', () => {
+    it('should return empty array when parentAreaIds is empty', async () => {
+      const result = await areaService.getDescendantRmaAreaIds(
+        [],
+        AREA_TYPE_MAP.PSO
+      )
+      expect(result).toEqual([])
+      expect(mockPrisma.pafs_core_areas.findMany).not.toHaveBeenCalled()
+    })
+
+    it('should return empty array when parentAreaIds is null', async () => {
+      const result = await areaService.getDescendantRmaAreaIds(
+        null,
+        AREA_TYPE_MAP.PSO
+      )
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array when parentAreaIds is undefined', async () => {
+      const result = await areaService.getDescendantRmaAreaIds(
+        undefined,
+        AREA_TYPE_MAP.PSO
+      )
+      expect(result).toEqual([])
+    })
+
+    it('should return RMA area IDs for PSO parent type (direct children)', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(100) },
+        { id: BigInt(101) },
+        { id: BigInt(102) }
+      ])
+
+      const result = await areaService.getDescendantRmaAreaIds(
+        [20, 21],
+        AREA_TYPE_MAP.PSO
+      )
+
+      expect(result).toEqual([100, 101, 102])
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        where: {
+          parent_id: { in: [20, 21] },
+          area_type: AREA_TYPE_MAP.RMA
+        },
+        select: { id: true }
+      })
+    })
+
+    it('should return RMA area IDs for EA parent type (grandchildren via PSO)', async () => {
+      // First call: get PSO children of EA areas
+      mockPrisma.pafs_core_areas.findMany
+        .mockResolvedValueOnce([{ id: BigInt(20) }, { id: BigInt(21) }])
+        // Second call: get RMA children of those PSOs
+        .mockResolvedValueOnce([{ id: BigInt(100) }, { id: BigInt(101) }])
+
+      const result = await areaService.getDescendantRmaAreaIds(
+        [5],
+        AREA_TYPE_MAP.EA
+      )
+
+      expect(result).toEqual([100, 101])
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledTimes(2)
+
+      // First call: EA → PSO
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          parent_id: { in: [5] },
+          area_type: AREA_TYPE_MAP.PSO
+        },
+        select: { id: true }
+      })
+
+      // Second call: PSO → RMA
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          parent_id: { in: [20, 21] },
+          area_type: AREA_TYPE_MAP.RMA
+        },
+        select: { id: true }
+      })
+    })
+
+    it('should return empty array when EA has no PSO children', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
+
+      const result = await areaService.getDescendantRmaAreaIds(
+        [5],
+        AREA_TYPE_MAP.EA
+      )
+
+      expect(result).toEqual([])
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledTimes(1)
+    })
+
+    it('should return empty array and log warning for unsupported parent type', async () => {
+      const result = await areaService.getDescendantRmaAreaIds(
+        [1],
+        AREA_TYPE_MAP.RMA
+      )
+
+      expect(result).toEqual([])
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { parentType: AREA_TYPE_MAP.RMA, parentAreaIds: [1] },
+        'Unsupported parent type for descendant RMA lookup'
+      )
+    })
+
+    it('should convert BigInt IDs to numbers in result', async () => {
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(999999) }
+      ])
+
+      const result = await areaService.getDescendantRmaAreaIds(
+        [1],
+        AREA_TYPE_MAP.PSO
+      )
+
+      expect(result).toEqual([999999])
+      expect(typeof result[0]).toBe('number')
     })
   })
 })

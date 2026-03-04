@@ -709,7 +709,7 @@ describe('getUploadStatus', () => {
 
       mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
         isValid: false,
-        message: 'The uploaded shapefile is missing required files: .shp, .dbf'
+        message: 'The uploaded zip file is missing required files: .shp, .dbf'
       })
 
       mockPrisma.file_uploads.update.mockResolvedValue({
@@ -723,7 +723,7 @@ describe('getUploadStatus', () => {
         {
           uploadId: 'test-upload-123',
           validationMessage:
-            'The uploaded shapefile is missing required files: .shp, .dbf'
+            'The uploaded zip file is missing required files: .shp, .dbf'
         },
         'Host application ZIP validation failed - setting status to failed'
       )
@@ -733,7 +733,7 @@ describe('getUploadStatus', () => {
         data: expect.objectContaining({
           upload_status: 'failed',
           rejection_reason:
-            'The uploaded shapefile is missing required files: .shp, .dbf'
+            'The uploaded zip file is missing required files: .shp, .dbf'
         })
       })
     })

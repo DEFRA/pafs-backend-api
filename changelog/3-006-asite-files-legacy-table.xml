@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="3-006-asite-files-legacy-table" author="migration-team">
+    <comment>Create pafs_core_asite_files table - This is a legacy table, maintained for historical purposes. New system should not use this table.</comment>
+
+    <createTable tableName="pafs_core_asite_files">
+      <column name="id" type="BIGSERIAL" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+      <column name="asite_submission_id" type="BIGINT"/>
+      <column name="filename" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="checksum" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+
+    <!-- Foreign key to pafs_core_asite_submissions -->
+    <addForeignKeyConstraint baseTableName="pafs_core_asite_files" baseColumnNames="asite_submission_id" constraintName="fk_asite_files_asite_submission" referencedTableName="pafs_core_asite_submissions" referencedColumnNames="id" onDelete="CASCADE"/>
+
+    <rollback>
+      <dropTable tableName="pafs_core_asite_files" cascadeConstraints="true"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

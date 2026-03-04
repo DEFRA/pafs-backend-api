@@ -6,6 +6,14 @@ import {
 } from './project-config.js'
 import { convertArray, convertNumber } from './conversions.js'
 
+// Field type constants for different conversion strategies
+const ARRAY_FIELDS = new Set(['projectInterventionTypes', 'risks'])
+const NUMBER_FIELDS = new Set(['financialStartYear', 'financialEndYear', 'id'])
+const PERCENTAGE_FIELDS = new Set([
+  'percentProperties20PercentDeprived',
+  'percentProperties40PercentDeprived'
+])
+
 export class ProjectMapper {
   /**
    * Maps API data to database format (for create/upsert operations)
@@ -84,45 +92,15 @@ export class ProjectMapper {
    * @returns {any} - The transformed value
    */
   static transformValue(field, value) {
-    if (field === 'projectInterventionTypes') {
+    if (ARRAY_FIELDS.has(field)) {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
 
-    if (field === 'risks') {
-      return this._transformRisksToDatabase(value)
-    }
-
-    if (field === 'financialStartYear' || field === 'financialEndYear') {
+    if (NUMBER_FIELDS.has(field) || PERCENTAGE_FIELDS.has(field)) {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
 
-    if (
-      field === 'percentProperties20PercentDeprived' ||
-      field === 'percentProperties40PercentDeprived'
-    ) {
-      return this._transformPercentageToDatabase(value)
-    }
-
     return value
-  }
-
-  /**
-   * Transforms risks array to database format
-   * @private
-   */
-  static _transformRisksToDatabase(value) {
-    return Array.isArray(value) ? value.join(',') : value
-  }
-
-  /**
-   * Transforms percentage string to database format
-   * @private
-   */
-  static _transformPercentageToDatabase(value) {
-    if (value === '' || value === null || value === undefined) {
-      return null
-    }
-    return typeof value === 'string' ? Number.parseFloat(value) : value
   }
 
   /**
@@ -134,50 +112,14 @@ export class ProjectMapper {
    * @returns {any} - The reversed transformed value
    */
   static reverseTransformValue(field, value) {
-    if (field === 'projectInterventionTypes') {
+    if (ARRAY_FIELDS.has(field)) {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_API)
     }
 
-    if (field === 'risks') {
-      return this._transformRisksToApi(value)
-    }
-
-    if (
-      field === 'financialStartYear' ||
-      field === 'financialEndYear' ||
-      field === 'id'
-    ) {
+    if (NUMBER_FIELDS.has(field) || PERCENTAGE_FIELDS.has(field)) {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_API)
     }
 
-    if (
-      field === 'percentProperties20PercentDeprived' ||
-      field === 'percentProperties40PercentDeprived'
-    ) {
-      return this._transformPercentageToApi(value)
-    }
-
     return value
-  }
-
-  /**
-   * Transforms risks string to API format
-   * @private
-   */
-  static _transformRisksToApi(value) {
-    return value && typeof value === 'string'
-      ? value.split(',').map((r) => r.trim())
-      : value
-  }
-
-  /**
-   * Transforms percentage float to API format
-   * @private
-   */
-  static _transformPercentageToApi(value) {
-    if (value === null || value === undefined) {
-      return null
-    }
-    return typeof value === 'number' ? value.toString() : value
   }
 }

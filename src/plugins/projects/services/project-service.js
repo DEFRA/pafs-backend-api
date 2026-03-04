@@ -8,6 +8,10 @@ import {
   getProjectSelectFields,
   getJoinedTableConfig
 } from '../helpers/project-config.js'
+import {
+  resolveAreaNames,
+  resolveStatus
+} from '../helpers/project-formatter.js'
 
 const COUNTER_SUFFIX = 'A'
 const REFERENCE_NUMBER_TEMPLATE = 'C501E'
@@ -19,9 +23,43 @@ export class ProjectService {
   }
 
   /**
+   * Build where clause for project name search
+   * @private
+   */
+  _buildNameWhereClause(projectName, excludeReferenceNumber = null) {
+    const where = {
+      name: {
+        equals: projectName,
+        mode: 'insensitive'
+      }
+    }
+
+    if (excludeReferenceNumber) {
+      where.reference_number = { not: excludeReferenceNumber }
+    }
+
+    return where
+  }
+
+  /**
+   * Build validation error response
+   * @private
+   */
+  _buildValidationError(message) {
+    return {
+      isValid: false,
+      errors: {
+        errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
+        message,
+        field: 'name'
+      }
+    }
+  }
+
+  /**
    * Check if a project name already exists in the database
-   * @param {string} name - Project name to check
-   * @returns {Promise<{exists: boolean}>}
+   * @param {Object} payload - Contains name and optional referenceNumber
+   * @returns {Promise<{isValid: boolean, errors?: Object}>}
    */
   async checkDuplicateProjectName(payload) {
     this.logger.info(
@@ -29,38 +67,28 @@ export class ProjectService {
       'Checking if project name exists'
     )
 
-    const where = {
-      name: {
-        equals: payload.name,
-        mode: 'insensitive' // Case-insensitive comparison
-      }
-    }
-
-    if (payload.referenceNumber) {
-      where.reference_number = { not: payload.referenceNumber }
-    }
-
     try {
+      const where = this._buildNameWhereClause(
+        payload.name,
+        payload.referenceNumber
+      )
+
       const existingProject = await this.prisma.pafs_core_projects.findFirst({
         where,
         select: {
-          id: true
+          id: true,
+          reference_number: true
         }
       })
 
       if (existingProject) {
         this.logger.warn(
-          { projectName: payload.name },
+          { referenceNumber: existingProject.reference_number },
           'Duplicate project name found'
         )
-        return {
-          isValid: false,
-          errors: {
-            errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
-            message: 'A project with this name already exists',
-            field: 'name'
-          }
-        }
+        return this._buildValidationError(
+          'A project with this name already exists'
+        )
       }
 
       return { isValid: true }
@@ -69,15 +97,9 @@ export class ProjectService {
         { projectName: payload.name, error: error.message },
         'Error checking duplicate project name'
       )
-      // On error, fail closed (reject the project name)
-      return {
-        isValid: false,
-        errors: {
-          errorCode: PROJECT_VALIDATION_MESSAGES.NAME_DUPLICATE,
-          message: 'Unable to verify project name uniqueness',
-          field: 'name'
-        }
-      }
+      return this._buildValidationError(
+        'Unable to verify project name uniqueness'
+      )
     }
   }
 
@@ -209,8 +231,8 @@ export class ProjectService {
           reference_number: referenceNumber,
           slug,
           version: 1,
-          is_legacy: false,
           creator_id: userId,
+          is_legacy: false,
           created_at: new Date()
         }
       })
@@ -293,7 +315,27 @@ export class ProjectService {
         }
       }
 
-      return ProjectMapper.toApi(project)
+      // Resolve area name when rma_name is empty
+      if (!project.rma_name) {
+        const areaNames = await resolveAreaNames(this.prisma, [
+          Number(project.id)
+        ])
+        const areaName = areaNames.get(Number(project.id))
+        if (areaName) {
+          project.rma_name = areaName
+        }
+      }
+
+      const apiData = ProjectMapper.toApi(project)
+
+      // Resolve status for legacy projects
+      apiData.projectState = resolveStatus(
+        apiData.projectState,
+        apiData.isLegacy ?? false,
+        apiData.isRevised ?? false
+      )
+
+      return apiData
     } catch (error) {
       this.logger.error(
         { error: error.message, referenceNumber },
