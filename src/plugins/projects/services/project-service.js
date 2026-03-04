@@ -280,16 +280,32 @@ export class ProjectService {
       // Manually fetch joined table data
       const joinedTables = getJoinedTableConfig()
       for (const [tableKey, config] of Object.entries(joinedTables)) {
-        const joinData = await this.prisma[config.tableName].findFirst({
-          where: {
-            [config.joinField]: Number(project.id)
-          },
-          select: Object.fromEntries(
-            Object.values(config.fields).map((field) => [field, true])
-          )
-        })
-        if (joinData) {
-          project[tableKey] = joinData
+        if (config.isArray) {
+          // Handle one-to-many relationships (like NFM measures)
+          const joinData = await this.prisma[config.tableName].findMany({
+            where: {
+              [config.joinField]: Number(project.id)
+            },
+            select: Object.fromEntries(
+              Object.values(config.fields).map((field) => [field, true])
+            )
+          })
+          if (joinData && joinData.length > 0) {
+            project[tableKey] = joinData
+          }
+        } else {
+          // Handle one-to-one relationships
+          const joinData = await this.prisma[config.tableName].findFirst({
+            where: {
+              [config.joinField]: Number(project.id)
+            },
+            select: Object.fromEntries(
+              Object.values(config.fields).map((field) => [field, true])
+            )
+          })
+          if (joinData) {
+            project[tableKey] = joinData
+          }
         }
       }
 
@@ -375,5 +391,90 @@ export class ProjectService {
       { areaId },
       'Error upserting project area'
     )
+  }
+
+  /**
+   * Upsert NFM measure data to pafs_core_nfm_measures table
+   * @param {Object} data - NFM measure data
+   * @param {string} data.referenceNumber - Project reference number
+   * @param {string} data.measureType - Type of NFM measure (e.g., 'river_floodplain_restoration')
+   * @param {number} data.areaHectares - Area in hectares
+   * @param {number|null} data.storageVolumeM3 - Storage volume in cubic meters (optional)
+   * @returns {Promise<Object>} Created or updated NFM measure record
+   */
+  async upsertNfmMeasure({
+    referenceNumber,
+    measureType,
+    areaHectares,
+    storageVolumeM3,
+    lengthKm,
+    widthM
+  }) {
+    try {
+      // First get the project ID from reference number
+      const project = await this.prisma.pafs_core_projects.findFirst({
+        where: { reference_number: referenceNumber },
+        select: { id: true }
+      })
+
+      if (!project) {
+        throw new Error(
+          `Project not found with reference number: ${referenceNumber}`
+        )
+      }
+
+      const projectId = Number(project.id)
+
+      // Check if NFM measure already exists
+      const existingMeasure =
+        await this.prisma.pafs_core_nfm_measures.findFirst({
+          where: {
+            project_id: projectId,
+            measure_type: measureType
+          }
+        })
+
+      let nfmMeasure
+      if (existingMeasure) {
+        // Update existing record
+        nfmMeasure = await this.prisma.pafs_core_nfm_measures.update({
+          where: { id: existingMeasure.id },
+          data: {
+            area_hectares: areaHectares,
+            storage_volume_m3: storageVolumeM3,
+            length_km: lengthKm,
+            width_m: widthM,
+            updated_at: new Date()
+          }
+        })
+      } else {
+        // Create new record
+        nfmMeasure = await this.prisma.pafs_core_nfm_measures.create({
+          data: {
+            project_id: projectId,
+            measure_type: measureType,
+            area_hectares: areaHectares,
+            storage_volume_m3: storageVolumeM3,
+            length_km: lengthKm,
+            width_m: widthM,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        })
+      }
+
+      this.logger.info(
+        { projectId, measureType, referenceNumber },
+        'NFM measure upserted successfully'
+      )
+
+      return nfmMeasure
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, measureType },
+        'Error upserting NFM measure'
+      )
+      throw error
+    }
   }
 }

@@ -26,6 +26,18 @@ export const PROJECT_JOIN_TABLES = {
       areaId: 'area_id',
       isOwner: 'owner'
     }
+  },
+  pafs_core_nfm_measures: {
+    tableName: 'pafs_core_nfm_measures',
+    joinField: 'project_id',
+    isArray: true, // Indicates this is a one-to-many relationship
+    fields: {
+      measureType: 'measure_type',
+      areaHectares: 'area_hectares',
+      storageVolumeM3: 'storage_volume_m3',
+      lengthKm: 'length_km',
+      widthM: 'width_m'
+    }
   }
 }
 
@@ -71,7 +83,8 @@ export const PROJECT_FIELDS_MAP = {
   percentProperties40PercentDeprived: 'percent_properties_40_percent_deprived',
   currentFloodRisk: 'current_flood_risk',
   currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
-  currentCoastalErosionRisk: 'current_coastal_erosion_risk'
+  currentCoastalErosionRisk: 'current_coastal_erosion_risk',
+  nfmSelectedMeasures: 'nfm_selected_measures'
 }
 
 /**

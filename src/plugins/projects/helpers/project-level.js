@@ -35,8 +35,16 @@ import {
   percentProperties40PercentDeprivedSchema,
   currentFloodRiskSchema,
   currentFloodSurfaceWaterRiskSchema,
-  currentCoastalErosionRiskSchema
+  currentCoastalErosionRiskSchema,
+  nfmSelectedMeasuresSchema
 } from '../../../common/schemas/project.js'
+import {
+  nfmRiverRestorationAreaSchema,
+  nfmRiverRestorationVolumeSchema,
+  nfmLeakyBarriersVolumeSchema,
+  nfmLeakyBarriersLengthSchema,
+  nfmLeakyBarriersWidthSchema
+} from '../../../common/schemas/project-nfm.js'
 import {
   PROJECT_VALIDATION_MESSAGES,
   PROJECT_VALIDATION_LEVELS
@@ -265,6 +273,33 @@ export const VALIDATION_LEVELS = {
     fields: {
       referenceNumber,
       currentCoastalErosionRisk: currentCoastalErosionRiskSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES]: {
+    name: PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
+    fields: {
+      referenceNumber,
+      nfmSelectedMeasures: nfmSelectedMeasuresSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION]: {
+    name: PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION,
+    fields: {
+      referenceNumber,
+      nfmRiverRestorationArea: nfmRiverRestorationAreaSchema,
+      nfmRiverRestorationVolume: nfmRiverRestorationVolumeSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.NFM_LEAKY_BARRIERS]: {
+    name: PROJECT_VALIDATION_LEVELS.NFM_LEAKY_BARRIERS,
+    fields: {
+      referenceNumber,
+      nfmLeakyBarriersVolume: nfmLeakyBarriersVolumeSchema,
+      nfmLeakyBarriersLength: nfmLeakyBarriersLengthSchema,
+      nfmLeakyBarriersWidth: nfmLeakyBarriersWidthSchema
     }
   }
 

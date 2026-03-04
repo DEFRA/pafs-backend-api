@@ -69,7 +69,8 @@ describe('project-config', () => {
           'percent_properties_40_percent_deprived',
         currentFloodRisk: 'current_flood_risk',
         currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
-        currentCoastalErosionRisk: 'current_coastal_erosion_risk'
+        currentCoastalErosionRisk: 'current_coastal_erosion_risk',
+        nfmSelectedMeasures: 'nfm_selected_measures'
       })
     })
 
@@ -130,8 +131,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 49 total fields (20 common + 6 read-only + 8 benefit area file + 15 risk/property)', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(49)
+    it('should have 50 total fields (20 common + 6 read-only + 8 benefit area file + 15 risk/property + 1 NFM)', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(50)
     })
   })
 
@@ -159,8 +160,24 @@ describe('project-config', () => {
       })
     })
 
-    it('should have exactly 2 joined tables', () => {
-      expect(Object.keys(PROJECT_JOIN_TABLES)).toHaveLength(2)
+    it('should have pafs_core_nfm_measures table mapping', () => {
+      expect(PROJECT_JOIN_TABLES).toHaveProperty('pafs_core_nfm_measures')
+      expect(PROJECT_JOIN_TABLES.pafs_core_nfm_measures).toEqual({
+        tableName: 'pafs_core_nfm_measures',
+        joinField: 'project_id',
+        isArray: true,
+        fields: {
+          measureType: 'measure_type',
+          areaHectares: 'area_hectares',
+          storageVolumeM3: 'storage_volume_m3',
+          lengthKm: 'length_km',
+          widthM: 'width_m'
+        }
+      })
+    })
+
+    it('should have exactly 3 joined tables', () => {
+      expect(Object.keys(PROJECT_JOIN_TABLES)).toHaveLength(3)
     })
   })
 
@@ -183,9 +200,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 49 fields', () => {
+    it('should return an object with 50 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(49)
+      expect(Object.keys(result)).toHaveLength(50)
     })
 
     it('should return a new object each time', () => {
@@ -238,9 +255,9 @@ describe('project-config', () => {
       })
     })
 
-    it('should return exactly 2 joined tables', () => {
+    it('should return exactly 3 joined tables', () => {
       const result = getJoinedTableConfig()
-      expect(Object.keys(result)).toHaveLength(2)
+      expect(Object.keys(result)).toHaveLength(3)
     })
 
     it('should have valid table configuration structure', () => {
@@ -270,6 +287,7 @@ describe('project-config', () => {
 
       expect(result).toHaveProperty('pafs_core_states')
       expect(result).toHaveProperty('pafs_core_area_projects')
+      expect(result).toHaveProperty('pafs_core_nfm_measures')
     })
 
     it('should have correct structure for pafs_core_states', () => {
@@ -291,9 +309,9 @@ describe('project-config', () => {
       })
     })
 
-    it('should return exactly 2 joined tables', () => {
+    it('should return exactly 3 joined tables', () => {
       const result = getJoinedSelectFields()
-      expect(Object.keys(result)).toHaveLength(2)
+      expect(Object.keys(result)).toHaveLength(3)
     })
 
     it('should have all select values as true', () => {
@@ -412,12 +430,12 @@ describe('project-config', () => {
     it('should have snake_case database column names in joined tables', () => {
       Object.values(PROJECT_JOIN_TABLES).forEach((tableConfig) => {
         // Check tableName is snake_case
-        expect(tableConfig.tableName).toMatch(/^[a-z_]+$/)
+        expect(tableConfig.tableName).toMatch(/^[a-z0-9_]+$/)
         // Check joinField is snake_case
-        expect(tableConfig.joinField).toMatch(/^[a-z_]+$/)
+        expect(tableConfig.joinField).toMatch(/^[a-z0-9_]+$/)
         // Check field values (db columns) are snake_case
         Object.values(tableConfig.fields).forEach((dbColumn) => {
-          expect(dbColumn).toMatch(/^[a-z_]+$/)
+          expect(dbColumn).toMatch(/^[a-z0-9_]+$/)
         })
       })
     })

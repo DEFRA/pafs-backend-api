@@ -102,6 +102,58 @@ const resetCurrentRiskFields = (enrichedPayload, validationLevel) => {
   }
 }
 
+/**
+ * Handle NFM measure data - save to separate pafs_core_nfm_measures table
+ */
+const handleNfmMeasureData = async (
+  enrichedPayload,
+  validationLevel,
+  projectService
+) => {
+  if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION) {
+    const {
+      referenceNumber,
+      nfmRiverRestorationArea,
+      nfmRiverRestorationVolume
+    } = enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'river_floodplain_restoration',
+      areaHectares: nfmRiverRestorationArea,
+      storageVolumeM3: nfmRiverRestorationVolume
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmRiverRestorationArea
+    delete enrichedPayload.nfmRiverRestorationVolume
+  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_LEAKY_BARRIERS) {
+    const {
+      referenceNumber,
+      nfmLeakyBarriersVolume,
+      nfmLeakyBarriersLength,
+      nfmLeakyBarriersWidth
+    } = enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'leaky_barriers_in_channel_storage',
+      storageVolumeM3: nfmLeakyBarriersVolume,
+      lengthKm: nfmLeakyBarriersLength,
+      widthM: nfmLeakyBarriersWidth
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmLeakyBarriersVolume
+    delete enrichedPayload.nfmLeakyBarriersLength
+    delete enrichedPayload.nfmLeakyBarriersWidth
+  } else {
+    // No NFM measure data to handle for other validation levels
+  }
+}
+
 const upsertProject = {
   method: 'POST',
   path: '/api/v1/project/upsert',
@@ -162,6 +214,13 @@ const upsertProject = {
 
         // Reset current risk fields when their corresponding risk types are not selected
         resetCurrentRiskFields(enrichedPayload, validationLevel)
+
+        // Handle NFM measure data - save to separate table if applicable
+        await handleNfmMeasureData(
+          enrichedPayload,
+          validationLevel,
+          projectService
+        )
 
         if (areaId) {
           const area = await areaService.getAreaByIdWithParents(areaId)

@@ -42,13 +42,22 @@ export class ProjectMapper {
     // Map joined fields from manually fetched tables
     Object.entries(PROJECT_JOIN_TABLES).forEach(([tableName, config]) => {
       if (dbData[tableName]) {
-        // Handle both object (from manual fetch) and array (from Prisma relations)
-        const tableData = Array.isArray(dbData[tableName])
-          ? dbData[tableName][0]
-          : dbData[tableName]
+        if (config.isArray) {
+          // Handle one-to-many relationships (e.g., NFM measures)
+          apiData[tableName] = dbData[tableName].map((item) => {
+            const mappedItem = {}
+            this._mapFields(item, mappedItem, config.fields)
+            return mappedItem
+          })
+        } else {
+          // Handle one-to-one relationships
+          const tableData = Array.isArray(dbData[tableName])
+            ? dbData[tableName][0]
+            : dbData[tableName]
 
-        if (tableData) {
-          this._mapFields(tableData, apiData, config.fields)
+          if (tableData) {
+            this._mapFields(tableData, apiData, config.fields)
+          }
         }
       }
     })

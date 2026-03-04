@@ -22,10 +22,18 @@ describe('ProjectService', () => {
       },
       pafs_core_states: {
         create: vi.fn(),
-        upsert: vi.fn()
+        upsert: vi.fn(),
+        findFirst: vi.fn()
       },
       pafs_core_area_projects: {
-        upsert: vi.fn()
+        upsert: vi.fn(),
+        findFirst: vi.fn()
+      },
+      pafs_core_nfm_measures: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn()
       },
       pafs_core_reference_counters: {
         findUnique: vi.fn(),
@@ -976,12 +984,14 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states = {
-        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
-      }
-      mockPrisma.pafs_core_area_projects = {
-        findFirst: vi.fn().mockResolvedValue({ area_id: 1, owner: true })
-      }
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1043,7 +1053,8 @@ describe('ProjectService', () => {
           percent_properties_40_percent_deprived: true,
           current_flood_risk: true,
           current_flood_surface_water_risk: true,
-          current_coastal_erosion_risk: true
+          current_coastal_erosion_risk: true,
+          nfm_selected_measures: true
         }
       })
 
@@ -1098,12 +1109,14 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states = {
-        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
-      }
-      mockPrisma.pafs_core_area_projects = {
-        findFirst: vi.fn().mockResolvedValue({ area_id: 1, owner: true })
-      }
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1144,12 +1157,14 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states = {
-        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
-      }
-      mockPrisma.pafs_core_area_projects = {
-        findFirst: vi.fn().mockResolvedValue({ area_id: 1, owner: true })
-      }
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1174,12 +1189,14 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states = {
-        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
-      }
-      mockPrisma.pafs_core_area_projects = {
-        findFirst: vi.fn().mockResolvedValue({ area_id: 1, owner: true })
-      }
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1204,12 +1221,14 @@ describe('ProjectService', () => {
       }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states = {
-        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
-      }
-      mockPrisma.pafs_core_area_projects = {
-        findFirst: vi.fn().mockResolvedValue({ area_id: 1, owner: true })
-      }
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1249,6 +1268,278 @@ describe('ProjectService', () => {
           }
         })
       )
+    })
+  })
+
+  describe('upsertNfmMeasure', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_nfm_measures = {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn()
+      }
+    })
+
+    test('Should create new NFM measure when it does not exist', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'river_floodplain_restoration',
+        areaHectares: 10.5,
+        storageVolumeM3: 500.25
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1
+      })
+
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
+
+      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
+        id: 1,
+        project_id: 1,
+        measure_type: 'river_floodplain_restoration',
+        area_hectares: 10.5,
+        storage_volume_m3: 500.25,
+        length_km: null,
+        width_m: null,
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+
+      const result = await service.upsertNfmMeasure(payload)
+
+      expect(result).toBeDefined()
+      expect(result.measure_type).toBe('river_floodplain_restoration')
+      expect(result.area_hectares).toBe(10.5)
+      expect(result.storage_volume_m3).toBe(500.25)
+
+      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          project_id: 1,
+          measure_type: 'river_floodplain_restoration',
+          area_hectares: 10.5,
+          storage_volume_m3: 500.25,
+          length_km: undefined,
+          width_m: undefined
+        })
+      })
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: 1,
+          measureType: 'river_floodplain_restoration',
+          referenceNumber: 'ANC501E/000A/001A'
+        }),
+        'NFM measure upserted successfully'
+      )
+    })
+
+    test('Should update existing NFM measure', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'river_floodplain_restoration',
+        areaHectares: 15.75,
+        storageVolumeM3: 600.5
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1
+      })
+
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue({
+        id: 10,
+        project_id: 1,
+        measure_type: 'river_floodplain_restoration'
+      })
+
+      mockPrisma.pafs_core_nfm_measures.update.mockResolvedValue({
+        id: 10,
+        project_id: 1,
+        measure_type: 'river_floodplain_restoration',
+        area_hectares: 15.75,
+        storage_volume_m3: 600.5,
+        length_km: null,
+        width_m: null,
+        updated_at: new Date()
+      })
+
+      const result = await service.upsertNfmMeasure(payload)
+
+      expect(result).toBeDefined()
+      expect(result.area_hectares).toBe(15.75)
+      expect(result.storage_volume_m3).toBe(600.5)
+
+      expect(mockPrisma.pafs_core_nfm_measures.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: expect.objectContaining({
+          area_hectares: 15.75,
+          storage_volume_m3: 600.5,
+          length_km: undefined,
+          width_m: undefined
+        })
+      })
+    })
+
+    test('Should create NFM measure with length and width for leaky barriers', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'leaky_barriers_in_channel_storage',
+        storageVolumeM3: 100.5,
+        lengthKm: 5.25,
+        widthM: 2.75
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1
+      })
+
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
+
+      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
+        id: 2,
+        project_id: 1,
+        measure_type: 'leaky_barriers_in_channel_storage',
+        area_hectares: null,
+        storage_volume_m3: 100.5,
+        length_km: 5.25,
+        width_m: 2.75,
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+
+      const result = await service.upsertNfmMeasure(payload)
+
+      expect(result).toBeDefined()
+      expect(result.measure_type).toBe('leaky_barriers_in_channel_storage')
+      expect(result.storage_volume_m3).toBe(100.5)
+      expect(result.length_km).toBe(5.25)
+      expect(result.width_m).toBe(2.75)
+
+      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          project_id: 1,
+          measure_type: 'leaky_barriers_in_channel_storage',
+          storage_volume_m3: 100.5,
+          length_km: 5.25,
+          width_m: 2.75
+        })
+      })
+    })
+
+    test('Should handle null optional values', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'river_floodplain_restoration',
+        areaHectares: 10.5,
+        storageVolumeM3: null
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1
+      })
+
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
+
+      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
+        id: 1,
+        project_id: 1,
+        measure_type: 'river_floodplain_restoration',
+        area_hectares: 10.5,
+        storage_volume_m3: null,
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+
+      const result = await service.upsertNfmMeasure(payload)
+
+      expect(result.storage_volume_m3).toBe(null)
+    })
+
+    test('Should throw error when project not found', async () => {
+      const payload = {
+        referenceNumber: 'NONEXISTENT',
+        measureType: 'river_floodplain_restoration',
+        areaHectares: 10.5
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(service.upsertNfmMeasure(payload)).rejects.toThrow(
+        'Project not found with reference number: NONEXISTENT'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceNumber: 'NONEXISTENT',
+          measureType: 'river_floodplain_restoration'
+        }),
+        'Error upserting NFM measure'
+      )
+    })
+
+    test('Should throw error when database operation fails', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'river_floodplain_restoration',
+        areaHectares: 10.5
+      }
+
+      const dbError = new Error('Database error')
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1
+      })
+
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockRejectedValue(dbError)
+
+      await expect(service.upsertNfmMeasure(payload)).rejects.toThrow(
+        'Database error'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'Database error',
+          referenceNumber: 'ANC501E/000A/001A'
+        }),
+        'Error upserting NFM measure'
+      )
+    })
+
+    test('Should handle undefined optional fields', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'leaky_barriers_in_channel_storage',
+        lengthKm: 5.25,
+        widthM: 2.75
+        // storageVolumeM3, areaHectares undefined
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1
+      })
+
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
+
+      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
+        id: 2,
+        project_id: 1,
+        measure_type: 'leaky_barriers_in_channel_storage',
+        length_km: 5.25,
+        width_m: 2.75,
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+
+      await service.upsertNfmMeasure(payload)
+
+      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          area_hectares: undefined,
+          storage_volume_m3: undefined,
+          length_km: 5.25,
+          width_m: 2.75
+        })
+      })
     })
   })
 })

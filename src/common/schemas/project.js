@@ -14,3 +14,6 @@ export * from './project-important-dates.js'
 
 // Re-export risk and properties schemas
 export * from './project-risk-properties.js'
+
+// Re-export NFM schemas
+export * from './project-nfm.js'
