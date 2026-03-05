@@ -104,13 +104,77 @@ const resetCurrentRiskFields = (enrichedPayload, validationLevel) => {
 
 /**
  * Handle NFM measure data - save to separate pafs_core_nfm_measures table
+ * or delete measures when they are unselected
  */
 const handleNfmMeasureData = async (
   enrichedPayload,
   validationLevel,
   projectService
 ) => {
-  if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION) {
+  // Handle NFM_SELECTED_MEASURES validation level - delete/update measures when unselected
+  if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES) {
+    const { referenceNumber } = enrichedPayload
+
+    // Define measure type mappings
+    const measureMappings = [
+      {
+        type: 'river_floodplain_restoration',
+        areaField: 'nfmRiverRestorationArea',
+        volumeField: 'nfmRiverRestorationVolume'
+      },
+      {
+        type: 'leaky_barriers_in_channel_storage',
+        volumeField: 'nfmLeakyBarriersVolume',
+        lengthField: 'nfmLeakyBarriersLength',
+        widthField: 'nfmLeakyBarriersWidth'
+      },
+      {
+        type: 'offline_storage',
+        areaField: 'nfmOfflineStorageArea',
+        volumeField: 'nfmOfflineStorageVolume'
+      },
+      {
+        type: 'woodland',
+        areaField: 'nfmWoodlandArea'
+      },
+      {
+        type: 'headwater_drainage_management',
+        areaField: 'nfmHeadwaterDrainageArea'
+      }
+    ]
+
+    // Process each measure type
+    for (const mapping of measureMappings) {
+      const fields = []
+      if (mapping.areaField) fields.push(mapping.areaField)
+      if (mapping.volumeField) fields.push(mapping.volumeField)
+      if (mapping.lengthField) fields.push(mapping.lengthField)
+      if (mapping.widthField) fields.push(mapping.widthField)
+
+      // Check if all fields for this measure are null
+      const allFieldsNull = fields.every(
+        (field) => enrichedPayload[field] === null
+      )
+
+      // Check if at least one field is present in payload
+      const hasAnyField = fields.some(
+        (field) => field in enrichedPayload
+      )
+
+      if (hasAnyField && allFieldsNull) {
+        // Delete the measure from the database
+        await projectService.deleteNfmMeasure({
+          referenceNumber,
+          measureType: mapping.type
+        })
+      }
+
+      // Remove all measure fields from main project payload
+      fields.forEach((field) => {
+        delete enrichedPayload[field]
+      })
+    }
+  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION) {
     const {
       referenceNumber,
       nfmRiverRestorationArea,
@@ -149,6 +213,52 @@ const handleNfmMeasureData = async (
     delete enrichedPayload.nfmLeakyBarriersVolume
     delete enrichedPayload.nfmLeakyBarriersLength
     delete enrichedPayload.nfmLeakyBarriersWidth
+  } else if (
+    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_OFFLINE_STORAGE
+  ) {
+    const {
+      referenceNumber,
+      nfmOfflineStorageArea,
+      nfmOfflineStorageVolume
+    } = enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'offline_storage',
+      areaHectares: nfmOfflineStorageArea,
+      storageVolumeM3: nfmOfflineStorageVolume
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmOfflineStorageArea
+    delete enrichedPayload.nfmOfflineStorageVolume
+  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_WOODLAND) {
+    const { referenceNumber, nfmWoodlandArea } = enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'woodland',
+      areaHectares: nfmWoodlandArea
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmWoodlandArea
+  } else if (
+    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_HEADWATER_DRAINAGE
+  ) {
+    const { referenceNumber, nfmHeadwaterDrainageArea } = enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'headwater_drainage_management',
+      areaHectares: nfmHeadwaterDrainageArea
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmHeadwaterDrainageArea
   } else {
     // No NFM measure data to handle for other validation levels
   }

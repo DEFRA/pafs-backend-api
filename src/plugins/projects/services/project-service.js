@@ -477,4 +477,67 @@ export class ProjectService {
       throw error
     }
   }
+
+  /**
+   * Delete NFM measure data from pafs_core_nfm_measures table
+   * @param {Object} data - NFM measure identification data
+   * @param {string} data.referenceNumber - Project reference number
+   * @param {string} data.measureType - Type of NFM measure to delete
+   * @returns {Promise<Object>} Deleted NFM measure record or null if not found
+   */
+  async deleteNfmMeasure({ referenceNumber, measureType }) {
+    try {
+      // First get the project ID from reference number
+      const project = await this.prisma.pafs_core_projects.findFirst({
+        where: { reference_number: referenceNumber },
+        select: { id: true }
+      })
+
+      if (!project) {
+        throw new Error(
+          `Project not found with reference number: ${referenceNumber}`
+        )
+      }
+
+      const projectId = Number(project.id)
+
+      // Check if NFM measure exists
+      const existingMeasure =
+        await this.prisma.pafs_core_nfm_measures.findFirst({
+          where: {
+            project_id: projectId,
+            measure_type: measureType
+          }
+        })
+
+      if (existingMeasure) {
+        // Delete the record
+        const deletedMeasure = await this.prisma.pafs_core_nfm_measures.delete(
+          {
+            where: { id: existingMeasure.id }
+          }
+        )
+
+        this.logger.info(
+          { projectId, measureType, referenceNumber },
+          'NFM measure deleted successfully'
+        )
+
+        return deletedMeasure
+      }
+
+      this.logger.info(
+        { projectId, measureType, referenceNumber },
+        'NFM measure not found, nothing to delete'
+      )
+
+      return null
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, measureType },
+        'Error deleting NFM measure'
+      )
+      throw error
+    }
+  }
 }

@@ -4,7 +4,9 @@ import {
   nfmRiverRestorationVolumeSchema,
   nfmLeakyBarriersVolumeSchema,
   nfmLeakyBarriersLengthSchema,
-  nfmLeakyBarriersWidthSchema
+  nfmLeakyBarriersWidthSchema,
+  nfmOfflineStorageAreaSchema,
+  nfmOfflineStorageVolumeSchema
 } from './project-nfm.js'
 
 describe('NFM Schemas - Backend', () => {
@@ -155,4 +157,70 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
   })
-})
+
+  describe('Offline Storage Area Schema', () => {
+    test('should validate valid area value', () => {
+      const result = nfmOfflineStorageAreaSchema.validate(1.5)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe(1.5)
+    })
+
+    test('should validate area with 2 decimal places', () => {
+      const result = nfmOfflineStorageAreaSchema.validate(1.25)
+      expect(result.error).toBeUndefined()
+    })
+
+    test('should reject negative area', () => {
+      const result = nfmOfflineStorageAreaSchema.validate(-1)
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject zero area', () => {
+      const result = nfmOfflineStorageAreaSchema.validate(0)
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject missing area', () => {
+      const result = nfmOfflineStorageAreaSchema.validate(undefined)
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject non-numeric value', () => {
+      const result = nfmOfflineStorageAreaSchema.validate('not a number')
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('Offline Storage Volume Schema', () => {
+    test('should allow null value', () => {
+      const result = nfmOfflineStorageVolumeSchema.validate(null)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe(null)
+    })
+
+    test('should validate valid volume value', () => {
+      const result = nfmOfflineStorageVolumeSchema.validate(100)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe(100)
+    })
+
+    test('should validate volume with 2 decimal places', () => {
+      const result = nfmOfflineStorageVolumeSchema.validate(50.25)
+      expect(result.error).toBeUndefined()
+    })
+
+    test('should reject negative volume', () => {
+      const result = nfmOfflineStorageVolumeSchema.validate(-50)
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject zero volume', () => {
+      const result = nfmOfflineStorageVolumeSchema.validate(0)
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject non-numeric value', () => {
+      const result = nfmOfflineStorageVolumeSchema.validate('invalid')
+      expect(result.error).toBeDefined()
+    })
+  })})
