@@ -12,19 +12,13 @@ import { PROJECT_VALIDATION_MESSAGES } from '../constants/project.js'
  * @returns {Joi.NumberSchema}
  */
 const createAreaSchema = (label, errorMessage) =>
-  Joi.number()
-    .positive()
-    .precision(2)
-    .required()
-    .label(label)
-    .messages({
-      'number.base':
-        'Area must be a positive number with up to 2 decimal places',
-      'number.positive':
-        'Area must be a positive number with up to 2 decimal places',
-      'number.precision': 'Area must have up to 2 decimal places',
-      'any.required': errorMessage
-    })
+  Joi.number().positive().precision(2).required().label(label).messages({
+    'number.base': 'Area must be a positive number with up to 2 decimal places',
+    'number.positive':
+      'Area must be a positive number with up to 2 decimal places',
+    'number.precision': 'Area must have up to 2 decimal places',
+    'any.required': errorMessage
+  })
 
 /**
  * Creates an optional volume schema (cubic metres)
@@ -52,19 +46,14 @@ const createVolumeSchema = (label, fieldDescription = 'Volume') =>
  * @returns {Joi.NumberSchema}
  */
 const createLengthSchema = (label, errorMessage) =>
-  Joi.number()
-    .positive()
-    .precision(2)
-    .required()
-    .label(label)
-    .messages({
-      'number.base':
-        'Length must be a positive number with up to 2 decimal places',
-      'number.positive':
-        'Length must be a positive number with up to 2 decimal places',
-      'number.precision': 'Length must have up to 2 decimal places',
-      'any.required': errorMessage
-    })
+  Joi.number().positive().precision(2).required().label(label).messages({
+    'number.base':
+      'Length must be a positive number with up to 2 decimal places',
+    'number.positive':
+      'Length must be a positive number with up to 2 decimal places',
+    'number.precision': 'Length must have up to 2 decimal places',
+    'any.required': errorMessage
+  })
 
 /**
  * Creates a required width schema (metres)

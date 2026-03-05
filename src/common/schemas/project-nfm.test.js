@@ -223,4 +223,5 @@ describe('NFM Schemas - Backend', () => {
       const result = nfmOfflineStorageVolumeSchema.validate('invalid')
       expect(result.error).toBeDefined()
     })
-  })})
+  })
+})

@@ -512,11 +512,9 @@ export class ProjectService {
 
       if (existingMeasure) {
         // Delete the record
-        const deletedMeasure = await this.prisma.pafs_core_nfm_measures.delete(
-          {
-            where: { id: existingMeasure.id }
-          }
-        )
+        const deletedMeasure = await this.prisma.pafs_core_nfm_measures.delete({
+          where: { id: existingMeasure.id }
+        })
 
         this.logger.info(
           { projectId, measureType, referenceNumber },

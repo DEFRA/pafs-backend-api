@@ -304,7 +304,9 @@ export const VALIDATION_LEVELS = {
         .optional()
         .allow(null),
       nfmWoodlandArea: nfmWoodlandAreaSchema.optional().allow(null),
-      nfmHeadwaterDrainageArea: nfmHeadwaterDrainageAreaSchema.optional().allow(null)
+      nfmHeadwaterDrainageArea: nfmHeadwaterDrainageAreaSchema
+        .optional()
+        .allow(null)
     }
   },
 

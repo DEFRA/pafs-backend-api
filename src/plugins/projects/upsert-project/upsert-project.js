@@ -157,9 +157,7 @@ const handleNfmMeasureData = async (
       )
 
       // Check if at least one field is present in payload
-      const hasAnyField = fields.some(
-        (field) => field in enrichedPayload
-      )
+      const hasAnyField = fields.some((field) => field in enrichedPayload)
 
       if (hasAnyField && allFieldsNull) {
         // Delete the measure from the database
@@ -174,7 +172,9 @@ const handleNfmMeasureData = async (
         delete enrichedPayload[field]
       })
     }
-  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION) {
+  } else if (
+    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION
+  ) {
     const {
       referenceNumber,
       nfmRiverRestorationArea,
@@ -216,11 +216,8 @@ const handleNfmMeasureData = async (
   } else if (
     validationLevel === PROJECT_VALIDATION_LEVELS.NFM_OFFLINE_STORAGE
   ) {
-    const {
-      referenceNumber,
-      nfmOfflineStorageArea,
-      nfmOfflineStorageVolume
-    } = enrichedPayload
+    const { referenceNumber, nfmOfflineStorageArea, nfmOfflineStorageVolume } =
+      enrichedPayload
 
     // Save NFM measure to separate table
     await projectService.upsertNfmMeasure({
