@@ -13,7 +13,7 @@ export * from './project/financial-years.js'
 export * from './project/important-dates.js'
 
 // Re-export risk and properties schemas
-export * from './project-risk-properties.js'
+export * from './project/risk-properties.js'
 
 // Re-export goal, urgency & confidence assessment schema
 export * from './project/goal-urgency-confidence.js'

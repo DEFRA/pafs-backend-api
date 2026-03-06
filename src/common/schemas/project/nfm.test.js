@@ -7,7 +7,7 @@ import {
   nfmLeakyBarriersWidthSchema,
   nfmOfflineStorageAreaSchema,
   nfmOfflineStorageVolumeSchema
-} from './project-nfm.js'
+} from './nfm.js'
 
 describe('NFM Schemas - Backend', () => {
   describe('River Restoration Area Schema', () => {
