@@ -1,29 +1,20 @@
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
+import { ConflictError } from '../../../common/errors/index.js'
 import {
   buildPaginationMeta,
   normalizePaginationParams
 } from '../../../common/helpers/pagination.js'
+import {
+  AREA_FIELDS,
+  AREA_FIELDS_WITH_TIMESTAMPS,
+  serializeArea,
+  isAreaType,
+  isPsoArea,
+  buildAreasListWhereClause,
+  prepareAreaData
+} from '../helpers/area-utils.js'
 
 export class AreaService {
-  // Common field selections for area queries
-  static MODE = 'insensitive'
-
-  static AREA_FIELDS = {
-    id: true,
-    name: true,
-    parent_id: true,
-    area_type: true,
-    sub_type: true,
-    identifier: true,
-    end_date: true
-  }
-
-  static AREA_FIELDS_WITH_TIMESTAMPS = {
-    ...AreaService.AREA_FIELDS,
-    created_at: true,
-    updated_at: true
-  }
-
   constructor(prisma, logger) {
     this.prisma = prisma
     this.logger = logger
@@ -33,26 +24,13 @@ export class AreaService {
     this.logger.info('Fetching all areas from pafs_core_areas table')
 
     const areas = await this.prisma.pafs_core_areas.findMany({
-      select: {
-        id: true,
-        name: true,
-        area_type: true,
-        parent_id: true,
-        sub_type: true,
-        identifier: true,
-        end_date: true
-      },
+      select: AREA_FIELDS,
       orderBy: {
         name: 'asc'
       }
     })
 
-    // Convert BigInt values to strings for JSON serialization
-    const serializedAreas = areas.map((area) => ({
-      ...area,
-      id: area.id.toString(),
-      parent_id: area.parent_id ? area.parent_id.toString() : null
-    }))
+    const serializedAreas = areas.map((area) => serializeArea(area))
 
     // Group areas by area_type
     const groupedAreas = serializedAreas.reduce((acc, area) => {
@@ -120,13 +98,13 @@ export class AreaService {
     )
 
     // Build where clause
-    const where = this._buildAreasListWhereClause(search, type)
+    const where = buildAreasListWhereClause(search, type)
 
     // Execute queries in parallel
     const [areas, total] = await Promise.all([
       this.prisma.pafs_core_areas.findMany({
         where,
-        select: AreaService.AREA_FIELDS,
+        select: AREA_FIELDS,
         orderBy: { updated_at: 'desc' },
         skip: pagination.skip,
         take: pagination.take
@@ -135,7 +113,7 @@ export class AreaService {
     ])
 
     // Serialize areas
-    const serializedAreas = areas.map((area) => this._serializeArea(area))
+    const serializedAreas = areas.map((area) => serializeArea(area))
 
     return {
       areas: serializedAreas,
@@ -171,7 +149,7 @@ export class AreaService {
         return null
       }
 
-      return this._serializeArea(area)
+      return serializeArea(area)
     } catch (error) {
       this.logger.error({ error, areaId: id }, 'Error fetching area by ID')
       return null
@@ -200,7 +178,7 @@ export class AreaService {
     this.logger.info({ areaData }, 'Upserting area')
 
     await this._validateAreaReferences(areaData)
-    const preparedData = this._prepareAreaData(areaData)
+    const preparedData = prepareAreaData(areaData)
 
     try {
       const area = await this._performAreaUpsert(areaData.id, preparedData)
@@ -208,30 +186,10 @@ export class AreaService {
         { areaId: area.id, isUpdate: !!areaData.id },
         `Area ${areaData.id ? 'updated' : 'created'} successfully`
       )
-      return this._serializeArea(area)
+      return serializeArea(area)
     } catch (error) {
       this.logger.error({ error, areaData }, 'Error upserting area')
       throw error
-    }
-  }
-
-  /**
-   * Prepare area data for database upsert
-   * @param {Object} areaData - Area data from request
-   * @returns {Object} Prepared data for database
-   * @private
-   */
-  _prepareAreaData(areaData) {
-    return {
-      name: areaData.name,
-      area_type: areaData.areaType,
-      parent_id: areaData.parentId
-        ? Number.parseInt(areaData.parentId, 10)
-        : null,
-      sub_type: areaData.subType || null,
-      identifier: areaData.identifier || null,
-      end_date: areaData.endDate ? new Date(areaData.endDate) : null,
-      updated_at: new Date()
     }
   }
 
@@ -251,7 +209,7 @@ export class AreaService {
           ...data,
           created_at: new Date()
         },
-        select: AreaService.AREA_FIELDS_WITH_TIMESTAMPS
+        select: AREA_FIELDS_WITH_TIMESTAMPS
       })
     }
 
@@ -260,17 +218,19 @@ export class AreaService {
         ...data,
         created_at: new Date()
       },
-      select: AreaService.AREA_FIELDS_WITH_TIMESTAMPS
+      select: AREA_FIELDS_WITH_TIMESTAMPS
     })
   }
 
   /**
-   * Validate PSO Area parent reference (must be EA Area)
+   * Validate parent area reference matches expected type
    * @param {string} parentId - Parent area ID
-   * @throws {Error} If parent is not EA Area
+   * @param {string} expectedType - Expected area_type from AREA_TYPE_MAP
+   * @param {string} childTypeName - Name of the child type for error messages
+   * @throws {Error} If parent not found or type mismatch
    * @private
    */
-  async _validatePsoParent(parentId) {
+  async _validateParentType(parentId, expectedType, childTypeName) {
     const parent = await this._findAreaByIdWithConditions(
       parentId,
       {},
@@ -278,36 +238,14 @@ export class AreaService {
     )
 
     if (!parent) {
-      throw new Error(`Parent area with ID ${parentId} not found for PSO Area`)
-    }
-
-    if (parent.area_type !== AREA_TYPE_MAP.EA) {
       throw new Error(
-        `Parent area must be of type 'EA Area' for PSO Area, but found '${parent.area_type}'`
+        `Parent area with ID ${parentId} not found for ${childTypeName}`
       )
     }
-  }
 
-  /**
-   * Validate RMA parent reference (must be PSO Area)
-   * @param {string} parentId - Parent area ID
-   * @throws {Error} If parent is not PSO Area
-   * @private
-   */
-  async _validateRmaParent(parentId) {
-    const parent = await this._findAreaByIdWithConditions(
-      parentId,
-      {},
-      { id: true, area_type: true }
-    )
-
-    if (!parent) {
-      throw new Error(`Parent area with ID ${parentId} not found for RMA`)
-    }
-
-    if (parent.area_type !== AREA_TYPE_MAP.PSO) {
+    if (parent.area_type !== expectedType) {
       throw new Error(
-        `Parent area must be of type 'PSO Area' for RMA, but found '${parent.area_type}'`
+        `Parent area must be of type '${expectedType}' for ${childTypeName}, but found '${parent.area_type}'`
       )
     }
   }
@@ -347,19 +285,99 @@ export class AreaService {
   async _validateAreaReferences(areaData) {
     const { areaType, parentId, subType } = areaData
 
-    // PSO Area: validate parent is EA Area
+    await this._validateUniqueNameWithinType(areaData)
+    await this._validateUniqueIdentifierWithinType(areaData)
+
     if (areaType === AREA_TYPE_MAP.PSO && parentId) {
-      await this._validatePsoParent(parentId)
+      await this._validateParentType(parentId, AREA_TYPE_MAP.EA, 'PSO Area')
     }
 
-    // RMA: validate parent is PSO Area
     if (areaType === AREA_TYPE_MAP.RMA && parentId) {
-      await this._validateRmaParent(parentId)
+      await this._validateParentType(parentId, AREA_TYPE_MAP.PSO, 'RMA')
     }
 
-    // RMA: validate Authority Code exists
     if (areaType === AREA_TYPE_MAP.RMA && subType) {
       await this._validateRmaAuthorityCode(subType)
+    }
+  }
+
+  /**
+   * Validate that the area name is unique across all organization records.
+   * On create: no other area with the same name should exist.
+   * On update: no other area (excluding the one being updated) with the same name should exist.
+   * @param {Object} areaData - Area data containing name and optionally id
+   * @throws {ConflictError} If a duplicate name exists
+   * @private
+   */
+  async _validateUniqueNameWithinType(areaData) {
+    const { id, name } = areaData
+
+    const where = {
+      name
+    }
+
+    // When updating, exclude the current record
+    if (id) {
+      where.id = { not: BigInt(id) }
+    }
+
+    const existing = await this.prisma.pafs_core_areas.findFirst({
+      where,
+      select: { id: true }
+    })
+
+    if (existing) {
+      throw new ConflictError(
+        `An area with the name '${name}' already exists`,
+        'DUPLICATE_AREA_NAME',
+        'name'
+      )
+    }
+  }
+
+  /**
+   * Validate that the area identifier is unique across Authority and RMA types.
+   * Only applies to Authority and RMA types which have identifiers.
+   * On create: no other Authority or RMA area with the same identifier should exist.
+   * On update: no other Authority or RMA area (excluding the one being updated) with the same identifier should exist.
+   * @param {Object} areaData - Area data containing identifier, areaType, and optionally id
+   * @throws {ConflictError} If a duplicate identifier exists across Authority and RMA types
+   * @private
+   */
+  async _validateUniqueIdentifierWithinType(areaData) {
+    const { id, identifier, areaType } = areaData
+
+    // Only Authority and RMA have identifiers
+    if (
+      !identifier ||
+      (areaType !== AREA_TYPE_MAP.AUTHORITY && areaType !== AREA_TYPE_MAP.RMA)
+    ) {
+      return
+    }
+
+    const where = {
+      identifier,
+      area_type: {
+        in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.RMA]
+      }
+    }
+
+    // When updating, exclude the current record
+    if (id) {
+      where.id = { not: BigInt(id) }
+    }
+
+    const existing = await this.prisma.pafs_core_areas.findFirst({
+      where,
+      select: { id: true }
+    })
+
+    if (existing) {
+      throw new ConflictError(
+        `An area with the identifier '${identifier}' already exists`,
+        'DUPLICATE_AREA_IDENTIFIER',
+        'identifier'
+      )
     }
   }
 
@@ -379,47 +397,8 @@ export class AreaService {
 
     return this.prisma.pafs_core_areas.findFirst({
       where,
-      select: select || AreaService.AREA_FIELDS
+      select: select || AREA_FIELDS
     })
-  }
-
-  /**
-   * Build where clause for areas list filtering
-   * Excludes EA Area type from results
-   * @param {string} search - Search term
-   * @param {string} type - Area type filter
-   * @returns {Object} Prisma where clause
-   * @private
-   */
-  _buildAreasListWhereClause(search, type) {
-    const where = {
-      // Exclude EA Area type from results
-      area_type: {
-        not: AREA_TYPE_MAP.EA
-      }
-    }
-
-    // Add search filter
-    if (search?.trim()) {
-      where.name = {
-        contains: search.trim(),
-        mode: AreaService.MODE
-      }
-    }
-
-    // Add type filter (in addition to EA exclusion)
-    if (type?.trim()) {
-      where.AND = [
-        {
-          area_type: {
-            equals: type.trim(),
-            mode: AreaService.MODE
-          }
-        }
-      ]
-    }
-
-    return where
   }
 
   /**
@@ -440,7 +419,6 @@ export class AreaService {
       'Fetching RFCC code from area identifier'
     )
 
-    // Find area by identifier
     const area = await this.prisma.pafs_core_areas.findFirst({
       where: {
         id: areaIdentifier
@@ -459,19 +437,17 @@ export class AreaService {
       return null
     }
 
-    // If PSO area, return sub_type directly (contains RFCC code)
-    if (this._isPsoArea(area.area_type)) {
+    if (isPsoArea(area.area_type)) {
       return area.sub_type || null
     }
 
-    // If RMA area with parent, find parent PSO and return its sub_type
-    if (this._isAreaType(area.area_type, AREA_TYPE_MAP.RMA) && area.parent_id) {
+    if (isAreaType(area.area_type, AREA_TYPE_MAP.RMA) && area.parent_id) {
       const parentArea = await this.prisma.pafs_core_areas.findFirst({
         where: { id: area.parent_id },
         select: { area_type: true, sub_type: true }
       })
 
-      if (parentArea && this._isPsoArea(parentArea.area_type)) {
+      if (parentArea && isPsoArea(parentArea.area_type)) {
         return parentArea.sub_type || null
       }
     }
@@ -485,7 +461,7 @@ export class AreaService {
 
   /**
    * Get area by ID with its parent and grandparent relationships
-   * Performs a single optimized query to fetch the area and all its parent hierarchy
+   * Fetches the area and iteratively walks up the parent hierarchy
    * @param {string|number|BigInt} areaId - The area ID
    * @returns {Promise<Object|null>} Area with EA and PSO parent relationships
    */
@@ -496,11 +472,10 @@ export class AreaService {
 
     this.logger.info({ areaId }, 'Fetching area by ID with parent hierarchy')
 
-    // Fetch the area
     const area = await this._findAreaByIdWithConditions(
       areaId,
       {},
-      AreaService.AREA_FIELDS_WITH_TIMESTAMPS
+      AREA_FIELDS_WITH_TIMESTAMPS
     )
 
     if (!area) {
@@ -508,26 +483,23 @@ export class AreaService {
       return null
     }
 
-    // Build response object with serialized area data
     const response = {
-      ...this._serializeAreaWithTimestamps(area),
+      ...serializeArea(area, { rawTimestamps: true }),
       PSO: null,
       EA: null
     }
 
-    // If area has a parent, fetch parent chain
     if (area.parent_id) {
       const parents = await this._fetchParentChain(area.parent_id)
 
-      // Organize parents by type
       for (const parent of parents) {
-        const parentData = this._serializeArea(parent)
+        const parentData = serializeArea(parent)
 
-        if (this._isAreaType(parent.area_type, AREA_TYPE_MAP.PSO)) {
+        if (isAreaType(parent.area_type, AREA_TYPE_MAP.PSO)) {
           response.PSO = parentData
         }
 
-        if (this._isAreaType(parent.area_type, AREA_TYPE_MAP.EA)) {
+        if (isAreaType(parent.area_type, AREA_TYPE_MAP.EA)) {
           response.EA = parentData
         }
       }
@@ -542,116 +514,90 @@ export class AreaService {
   }
 
   /**
-   * Private helper to fetch parent chain efficiently
-   * Uses a single query with recursive logic to build the parent chain
-   * @param {number} parentId - The parent ID to start from
-   * @returns {Promise<Array>} Array of parent areas
+   * Fetch parent chain by iteratively walking up parent_id links.
+   * Hierarchy is at most 3 levels deep (RMA → PSO → EA).
+   * @param {number|BigInt} parentId - The parent ID to start from
+   * @returns {Promise<Array>} Array of parent areas in ascending order
    * @private
    */
   async _fetchParentChain(parentId) {
-    // Use raw SQL with recursive CTE for optimal performance
-    const parents = await this.prisma.$queryRaw`
-      WITH RECURSIVE parent_chain AS (
-        -- Base case: get the immediate parent
-        SELECT id, name, parent_id, area_type, sub_type, identifier, end_date, 1 as level
-        FROM pafs_core_areas
-        WHERE id = ${BigInt(parentId)}
-        
-        UNION ALL
-        
-        -- Recursive case: get parent of parent
-        SELECT a.id, a.name, a.parent_id, a.area_type, a.sub_type, a.identifier, a.end_date, pc.level + 1
-        FROM pafs_core_areas a
-        INNER JOIN parent_chain pc ON a.id = pc.parent_id
-        WHERE pc.level < 3  -- Limit to 3 levels (RMA -> PSO -> EA)
+    const parents = []
+    let currentId = parentId
+    const maxDepth = 3
+
+    for (let i = 0; i < maxDepth && currentId; i++) {
+      const parent = await this._findAreaByIdWithConditions(
+        currentId,
+        {},
+        AREA_FIELDS
       )
-      SELECT id, name, parent_id, area_type, sub_type, identifier, end_date
-      FROM parent_chain
-      ORDER BY level ASC
-    `
+
+      if (!parent) {
+        break
+      }
+
+      parents.push(parent)
+      currentId = parent.parent_id
+    }
 
     return parents
   }
 
   /**
-   * Serialize area data for API response
-   * Converts BigInt to string and structures the data
-   * @param {Object} area - Raw area object from database
-   * @param {boolean} includeTimestamps - Whether to include created_at and updated_at
-   * @returns {Object} Serialized area object
-   * @private
+   * Get all descendant RMA area IDs for given parent area IDs.
+   *
+   * Area hierarchy: EA Area → PSO Area → RMA
+   * - For PSO area IDs: returns RMA areas whose parent_id matches
+   * - For EA area IDs: returns RMA areas whose grandparent (via PSO) matches
+   *
+   * @param {number[]} parentAreaIds - Array of parent area IDs (PSO or EA)
+   * @param {string} parentType - Area type of the parents ('PSO Area' or 'EA Area')
+   * @returns {Promise<number[]>} Array of descendant RMA area IDs
    */
-  /**
-   * Serialize area object, converting BigInt to string
-   * Includes timestamps if available in the area object
-   * @param {Object} area - Area object from database
-   * @param {boolean} includeTimestamps - Force include timestamps (deprecated, auto-detected)
-   * @returns {Object} Serialized area object
-   * @private
-   */
-  _serializeArea(area, _includeTimestamps = false) {
-    const serialized = {
-      id: area.id.toString(),
-      name: area.name,
-      parent_id: area.parent_id ? area.parent_id.toString() : null,
-      area_type: area.area_type,
-      sub_type: area.sub_type,
-      identifier: area.identifier,
-      end_date: area.end_date
+  async getDescendantRmaAreaIds(parentAreaIds, parentType) {
+    if (!parentAreaIds?.length) {
+      return []
     }
 
-    // Include timestamps if they exist in the area object
-    if (area.created_at) {
-      serialized.created_at = area.created_at.toISOString()
+    if (isPsoArea(parentType)) {
+      const rmaAreas = await this.prisma.pafs_core_areas.findMany({
+        where: {
+          parent_id: { in: parentAreaIds.map(Number) },
+          area_type: AREA_TYPE_MAP.RMA
+        },
+        select: { id: true }
+      })
+      return rmaAreas.map((a) => Number(a.id))
     }
-    if (area.updated_at) {
-      serialized.updated_at = area.updated_at.toISOString()
+
+    if (isAreaType(parentType, AREA_TYPE_MAP.EA)) {
+      const psoAreas = await this.prisma.pafs_core_areas.findMany({
+        where: {
+          parent_id: { in: parentAreaIds.map(Number) },
+          area_type: AREA_TYPE_MAP.PSO
+        },
+        select: { id: true }
+      })
+
+      if (psoAreas.length === 0) {
+        return []
+      }
+
+      const psoIds = psoAreas.map((a) => Number(a.id))
+      const rmaAreas = await this.prisma.pafs_core_areas.findMany({
+        where: {
+          parent_id: { in: psoIds },
+          area_type: AREA_TYPE_MAP.RMA
+        },
+        select: { id: true }
+      })
+      return rmaAreas.map((a) => Number(a.id))
     }
 
-    return serialized
-  }
-
-  /**
-   * Serialize area with timestamps as Date objects (for getAreaByIdWithParents)
-   * @param {Object} area - Area object from database
-   * @returns {Object} Serialized area object with Date timestamps
-   * @private
-   */
-  _serializeAreaWithTimestamps(area) {
-    return {
-      id: area.id.toString(),
-      name: area.name,
-      parent_id: area.parent_id ? area.parent_id.toString() : null,
-      area_type: area.area_type,
-      sub_type: area.sub_type,
-      identifier: area.identifier,
-      end_date: area.end_date,
-      created_at: area.created_at,
-      updated_at: area.updated_at
-    }
-  }
-
-  /**
-   * Check if an area type matches the expected type (case-insensitive)
-   * @param {string} areaType - The area type to check
-   * @param {string} expectedType - The expected type from AREA_TYPE_MAP
-   * @returns {boolean} True if types match
-   * @private
-   */
-  _isAreaType(areaType, expectedType) {
-    return areaType?.toUpperCase() === expectedType?.toUpperCase()
-  }
-
-  /**
-   * Check if area type represents PSO, including legacy label 'PSO Area'
-   * @param {string} areaType
-   * @returns {boolean}
-   * @private
-   */
-  _isPsoArea(areaType) {
-    const normalized = areaType?.toUpperCase()
-    return (
-      normalized === 'PSO' || normalized === AREA_TYPE_MAP.PSO?.toUpperCase()
+    this.logger.warn(
+      { parentType, parentAreaIds },
+      'Unsupported parent type for descendant RMA lookup'
     )
+    return []
   }
 }

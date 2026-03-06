@@ -1,5 +1,9 @@
-import { describe, test, expect } from 'vitest'
-import { formatProject, PROJECT_SELECT_FIELDS } from './project-formatter.js'
+import { describe, test, expect, vi } from 'vitest'
+import {
+  formatProject,
+  resolveAreaNames,
+  PROJECT_SELECT_FIELDS
+} from './project-formatter.js'
 
 describe('project-formatter', () => {
   describe('PROJECT_SELECT_FIELDS', () => {
@@ -7,8 +11,11 @@ describe('project-formatter', () => {
       expect(PROJECT_SELECT_FIELDS).toEqual({
         id: true,
         reference_number: true,
+        slug: true,
         name: true,
         rma_name: true,
+        is_legacy: true,
+        is_revised: true,
         created_at: true,
         updated_at: true,
         submitted_at: true
@@ -24,7 +31,8 @@ describe('project-formatter', () => {
         slug: 'RMS12345/ABC001',
         name: 'Test Project',
         rma_name: 'Environment Agency',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-01-01T10:00:00Z'),
         updated_at: new Date('2024-01-02T15:30:00Z'),
         submitted_at: new Date('2024-01-03T12:00:00Z')
@@ -38,7 +46,8 @@ describe('project-formatter', () => {
         referenceNumberFormatted: 'RMS12345/ABC001',
         name: 'Test Project',
         rmaName: 'Environment Agency',
-        areaId: null,
+        isLegacy: false,
+        isRevised: false,
         status: 'draft',
         createdAt: new Date('2024-01-01T10:00:00Z'),
         updatedAt: new Date('2024-01-02T15:30:00Z'),
@@ -53,7 +62,8 @@ describe('project-formatter', () => {
         slug: 'RMS67890/XYZ002',
         name: 'Submitted Project',
         rma_name: 'Natural England',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-02-01T10:00:00Z'),
         updated_at: new Date('2024-02-02T15:30:00Z'),
         submitted_at: new Date('2024-02-03T12:00:00Z')
@@ -67,7 +77,8 @@ describe('project-formatter', () => {
         referenceNumberFormatted: 'RMS67890/XYZ002',
         name: 'Submitted Project',
         rmaName: 'Natural England',
-        areaId: null,
+        isLegacy: false,
+        isRevised: false,
         status: 'submitted',
         createdAt: new Date('2024-02-01T10:00:00Z'),
         updatedAt: new Date('2024-02-02T15:30:00Z'),
@@ -82,7 +93,8 @@ describe('project-formatter', () => {
         slug: 'RMS11111/OLD003',
         name: 'Archived Project',
         rma_name: 'Historic England',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2023-01-01T10:00:00Z'),
         updated_at: new Date('2023-12-31T15:30:00Z'),
         submitted_at: null
@@ -96,7 +108,8 @@ describe('project-formatter', () => {
         referenceNumberFormatted: 'RMS11111/OLD003',
         name: 'Archived Project',
         rmaName: 'Historic England',
-        areaId: null,
+        isLegacy: false,
+        isRevised: false,
         status: 'archived',
         createdAt: new Date('2023-01-01T10:00:00Z'),
         updatedAt: new Date('2023-12-31T15:30:00Z'),
@@ -111,7 +124,8 @@ describe('project-formatter', () => {
         slug: 'RMS99999/DRAFT004',
         name: 'Draft Project',
         rma_name: 'Environment Agency',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-03-01T10:00:00Z'),
         updated_at: new Date('2024-03-02T15:30:00Z'),
         submitted_at: null
@@ -120,7 +134,6 @@ describe('project-formatter', () => {
       const result = formatProject(mockProject)
 
       expect(result.submittedAt).toBeNull()
-      expect(result.areaId).toBeNull()
       expect(result.status).toBe('draft')
     })
 
@@ -131,7 +144,8 @@ describe('project-formatter', () => {
         slug: 'RMS00001/BIG005',
         name: 'Big ID Project',
         rma_name: 'Test Authority',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-04-01T10:00:00Z'),
         updated_at: new Date('2024-04-02T15:30:00Z'),
         submitted_at: null
@@ -150,7 +164,8 @@ describe('project-formatter', () => {
         slug: 'RMS00002/NUM006',
         name: 'Number ID Project',
         rma_name: 'Test Authority',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-05-01T10:00:00Z'),
         updated_at: new Date('2024-05-02T15:30:00Z'),
         submitted_at: null
@@ -169,7 +184,8 @@ describe('project-formatter', () => {
         slug: 'RMS00003/STR007',
         name: 'String ID Project',
         rma_name: 'Test Authority',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-06-01T10:00:00Z'),
         updated_at: new Date('2024-06-02T15:30:00Z'),
         submitted_at: null
@@ -188,7 +204,8 @@ describe('project-formatter', () => {
         slug: 'RMS00004/NULL008',
         name: 'Null State Project',
         rma_name: 'Test Authority',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-07-01T10:00:00Z'),
         updated_at: new Date('2024-07-02T15:30:00Z'),
         submitted_at: null
@@ -206,7 +223,8 @@ describe('project-formatter', () => {
         slug: 'RMS00005/CASE009',
         name: 'CamelCase Test',
         rma_name: 'Test Authority',
-        area_id: null,
+        is_legacy: false,
+        is_revised: false,
         created_at: new Date('2024-08-01T10:00:00Z'),
         updated_at: new Date('2024-08-02T15:30:00Z'),
         submitted_at: new Date('2024-08-03T12:00:00Z')
@@ -217,24 +235,27 @@ describe('project-formatter', () => {
       expect(result).toHaveProperty('referenceNumber')
       expect(result).toHaveProperty('referenceNumberFormatted')
       expect(result).toHaveProperty('rmaName')
-      expect(result).toHaveProperty('areaId')
+      expect(result).toHaveProperty('isLegacy')
+      expect(result).toHaveProperty('isRevised')
       expect(result).toHaveProperty('createdAt')
       expect(result).toHaveProperty('updatedAt')
       expect(result).toHaveProperty('submittedAt')
       expect(result).not.toHaveProperty('reference_number')
       expect(result).not.toHaveProperty('rma_name')
-      expect(result).not.toHaveProperty('area_id')
+      expect(result).not.toHaveProperty('is_legacy')
+      expect(result).not.toHaveProperty('is_revised')
       expect(result).not.toHaveProperty('created_at')
     })
 
-    test('Should format areaId from area_id field', () => {
+    test('Should return status revise when draft, legacy, and not migrated', () => {
       const mockProject = {
-        id: BigInt(7),
-        reference_number: 'RMS00006',
-        slug: 'RMS00006/AREA010',
-        name: 'Project with Area',
+        id: BigInt(10),
+        reference_number: 'RMS10001',
+        slug: 'RMS10001/LEG010',
+        name: 'Legacy Draft Project',
         rma_name: 'Test Authority',
-        area_id: BigInt(5),
+        is_legacy: true,
+        is_revised: false,
         created_at: new Date('2024-09-01T10:00:00Z'),
         updated_at: new Date('2024-09-02T15:30:00Z'),
         submitted_at: null
@@ -242,81 +263,245 @@ describe('project-formatter', () => {
 
       const result = formatProject(mockProject)
 
-      expect(result.areaId).toBe(5)
-      expect(typeof result.areaId).toBe('number')
+      expect(result.status).toBe('revise')
+      expect(result.isLegacy).toBe(true)
+      expect(result.isRevised).toBe(false)
     })
 
-    test('Should handle null area_id', () => {
-      const mockProject = {
-        id: BigInt(8),
-        reference_number: 'RMS00007',
-        slug: 'RMS00007/NOAREA011',
-        name: 'Project without Area',
-        rma_name: 'Test Authority',
-        area_id: null,
-        created_at: new Date('2024-09-03T10:00:00Z'),
-        updated_at: new Date('2024-09-04T15:30:00Z'),
-        submitted_at: null
-      }
-
-      const result = formatProject(mockProject)
-
-      expect(result.areaId).toBeNull()
-    })
-
-    test('Should handle undefined area_id', () => {
-      const mockProject = {
-        id: BigInt(9),
-        reference_number: 'RMS00008',
-        slug: 'RMS00008/UNDEF012',
-        name: 'Project with undefined area',
-        rma_name: 'Test Authority',
-        created_at: new Date('2024-09-05T10:00:00Z'),
-        updated_at: new Date('2024-09-06T15:30:00Z'),
-        submitted_at: null
-      }
-
-      const result = formatProject(mockProject)
-
-      expect(result.areaId).toBeNull()
-    })
-
-    test('Should convert BigInt area_id to Number', () => {
-      const mockProject = {
-        id: BigInt(10),
-        reference_number: 'RMS00009',
-        slug: 'RMS00009/BIGAREA013',
-        name: 'Project with BigInt area',
-        rma_name: 'Test Authority',
-        area_id: BigInt(999999),
-        created_at: new Date('2024-09-07T10:00:00Z'),
-        updated_at: new Date('2024-09-08T15:30:00Z'),
-        submitted_at: null
-      }
-
-      const result = formatProject(mockProject)
-
-      expect(result.areaId).toBe(999999)
-      expect(typeof result.areaId).toBe('number')
-    })
-
-    test('Should convert string area_id to Number', () => {
+    test('Should return status revise when state is draft, legacy, and not migrated', () => {
       const mockProject = {
         id: BigInt(11),
-        reference_number: 'RMS00010',
-        slug: 'RMS00010/STRAREA014',
-        name: 'Project with string area',
+        reference_number: 'RMS10002',
+        slug: 'RMS10002/LEG011',
+        name: 'Legacy Draft With State',
         rma_name: 'Test Authority',
-        area_id: '42',
-        created_at: new Date('2024-09-09T10:00:00Z'),
-        updated_at: new Date('2024-09-10T15:30:00Z'),
+        is_legacy: true,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject, 'draft')
+
+      expect(result.status).toBe('revise')
+    })
+
+    test('Should return status draft when legacy and migrated', () => {
+      const mockProject = {
+        id: BigInt(12),
+        reference_number: 'RMS10003',
+        slug: 'RMS10003/MIG012',
+        name: 'Migrated Legacy Project',
+        rma_name: 'Test Authority',
+        is_legacy: true,
+        is_revised: true,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
         submitted_at: null
       }
 
       const result = formatProject(mockProject)
 
-      expect(result.areaId).toBe(42)
-      expect(typeof result.areaId).toBe('number')
+      expect(result.status).toBe('draft')
+      expect(result.isLegacy).toBe(true)
+      expect(result.isRevised).toBe(true)
+    })
+
+    test('Should return submitted status even when legacy and not migrated', () => {
+      const mockProject = {
+        id: BigInt(13),
+        reference_number: 'RMS10004',
+        slug: 'RMS10004/SUB013',
+        name: 'Legacy Submitted Project',
+        rma_name: 'Test Authority',
+        is_legacy: true,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: new Date('2024-09-03T12:00:00Z')
+      }
+
+      const result = formatProject(mockProject, 'submitted')
+
+      expect(result.status).toBe('submitted')
+    })
+
+    test('Should default is_legacy and is_revised to false when null', () => {
+      const mockProject = {
+        id: BigInt(14),
+        reference_number: 'RMS10005',
+        slug: 'RMS10005/NUL014',
+        name: 'Null Flags Project',
+        rma_name: 'Test Authority',
+        is_legacy: null,
+        is_revised: null,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.isLegacy).toBe(false)
+      expect(result.isRevised).toBe(false)
+      expect(result.status).toBe('draft')
+    })
+
+    test('Should default is_legacy and is_revised to false when undefined', () => {
+      const mockProject = {
+        id: BigInt(15),
+        reference_number: 'RMS10006',
+        slug: 'RMS10006/UND015',
+        name: 'Undefined Flags Project',
+        rma_name: 'Test Authority',
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.isLegacy).toBe(false)
+      expect(result.isRevised).toBe(false)
+      expect(result.status).toBe('draft')
+    })
+
+    test('Should use areaName as fallback when rma_name is empty', () => {
+      const mockProject = {
+        id: BigInt(16),
+        reference_number: 'RMS10007',
+        slug: 'RMS10007/AREA016',
+        name: 'No RMA Name Project',
+        rma_name: null,
+        is_legacy: false,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject, null, 'Area From Lookup')
+
+      expect(result.rmaName).toBe('Area From Lookup')
+    })
+
+    test('Should prefer rma_name over areaName when both present', () => {
+      const mockProject = {
+        id: BigInt(17),
+        reference_number: 'RMS10008',
+        slug: 'RMS10008/BOTH017',
+        name: 'Both Names Project',
+        rma_name: 'Original RMA',
+        is_legacy: false,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject, null, 'Area From Lookup')
+
+      expect(result.rmaName).toBe('Original RMA')
+    })
+
+    test('Should return null rmaName when both rma_name and areaName are null', () => {
+      const mockProject = {
+        id: BigInt(18),
+        reference_number: 'RMS10009',
+        slug: 'RMS10009/NONE018',
+        name: 'No Name Project',
+        rma_name: null,
+        is_legacy: false,
+        is_revised: false,
+        created_at: new Date('2024-09-01T10:00:00Z'),
+        updated_at: new Date('2024-09-02T15:30:00Z'),
+        submitted_at: null
+      }
+
+      const result = formatProject(mockProject)
+
+      expect(result.rmaName).toBeNull()
+    })
+  })
+
+  describe('resolveAreaNames', () => {
+    test('Should return empty map when no project IDs provided', async () => {
+      const mockPrisma = {}
+      const result = await resolveAreaNames(mockPrisma, [])
+      expect(result).toEqual(new Map())
+    })
+
+    test('Should return empty map when projectIds is null', async () => {
+      const mockPrisma = {}
+      const result = await resolveAreaNames(mockPrisma, null)
+      expect(result).toEqual(new Map())
+    })
+
+    test('Should return empty map when no area_projects found', async () => {
+      const mockPrisma = {
+        pafs_core_area_projects: {
+          findMany: vi.fn().mockResolvedValue([])
+        }
+      }
+      const result = await resolveAreaNames(mockPrisma, [1, 2])
+      expect(result).toEqual(new Map())
+    })
+
+    test('Should resolve area names for project IDs', async () => {
+      const mockPrisma = {
+        pafs_core_area_projects: {
+          findMany: vi.fn().mockResolvedValue([
+            { project_id: 1, area_id: 10 },
+            { project_id: 2, area_id: 20 }
+          ])
+        },
+        pafs_core_areas: {
+          findMany: vi.fn().mockResolvedValue([
+            { id: BigInt(10), name: 'Environment Agency' },
+            { id: BigInt(20), name: 'Natural England' }
+          ])
+        }
+      }
+
+      const result = await resolveAreaNames(mockPrisma, [1, 2])
+
+      expect(result.get(1)).toBe('Environment Agency')
+      expect(result.get(2)).toBe('Natural England')
+      expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
+        where: { project_id: { in: [1, 2] } },
+        select: { project_id: true, area_id: true }
+      })
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [BigInt(10), BigInt(20)] } },
+        select: { id: true, name: true }
+      })
+    })
+
+    test('Should handle multiple projects sharing the same area', async () => {
+      const mockPrisma = {
+        pafs_core_area_projects: {
+          findMany: vi.fn().mockResolvedValue([
+            { project_id: 1, area_id: 10 },
+            { project_id: 2, area_id: 10 }
+          ])
+        },
+        pafs_core_areas: {
+          findMany: vi
+            .fn()
+            .mockResolvedValue([{ id: BigInt(10), name: 'Shared Area' }])
+        }
+      }
+
+      const result = await resolveAreaNames(mockPrisma, [1, 2])
+
+      expect(result.get(1)).toBe('Shared Area')
+      expect(result.get(2)).toBe('Shared Area')
+      // Should deduplicate area IDs
+      expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [BigInt(10)] } },
+        select: { id: true, name: true }
+      })
     })
   })
 })

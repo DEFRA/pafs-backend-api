@@ -460,20 +460,23 @@ describe('project schemas', () => {
         expect(error).toBeUndefined()
       })
 
-      it('should reject date in the past', () => {
+      it('should allow date in the past if within financial year range', () => {
         const schema = Joi.object({
           startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
-          startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema
+          startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+          financialStartYear: Joi.number().optional(),
+          financialEndYear: Joi.number().optional()
         })
 
         const pastMonth = currentMonth === 1 ? 12 : currentMonth - 1
         const pastYear = currentMonth === 1 ? currentYear - 1 : currentYear
 
+        // Without financial years, past dates are allowed
         const { error } = schema.validate({
           startOutlineBusinessCaseMonth: pastMonth,
           startOutlineBusinessCaseYear: pastYear
         })
-        expect(error).toBeDefined()
+        expect(error).toBeUndefined()
       })
 
       it('should accept missing both month and year', () => {
@@ -551,7 +554,7 @@ describe('project schemas', () => {
         expect(error).toBeDefined()
       })
 
-      it('should accept same month/year as start OBC', () => {
+      it('should reject same month/year as start OBC (must be strictly greater)', () => {
         const schema = Joi.object({
           startOutlineBusinessCaseMonth:
             startOutlineBusinessCaseMonthSchema.optional(),
@@ -568,7 +571,8 @@ describe('project schemas', () => {
           completeOutlineBusinessCaseMonth: 6,
           completeOutlineBusinessCaseYear: futureYear
         })
-        expect(error).toBeUndefined()
+        expect(error).toBeDefined()
+        expect(error.message).toContain('DATE_BEFORE_PREVIOUS_STAGE')
       })
     })
 

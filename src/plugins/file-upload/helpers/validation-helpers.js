@@ -24,7 +24,7 @@ export function validateZipContents(filenames) {
   if (!Array.isArray(filenames) || filenames.length === 0) {
     return {
       isValid: false,
-      message: 'The uploaded shapefile is empty or invalid'
+      message: 'The uploaded zip file is empty or invalid'
     }
   }
 
@@ -50,7 +50,7 @@ export function validateZipContents(filenames) {
   if (missingExtensions.length > 0) {
     return {
       isValid: false,
-      message: `The uploaded shapefile is missing required files: ${missingExtensions.join(', ')}`
+      message: `The uploaded zip file is missing required files: ${missingExtensions.join(', ')}`
     }
   }
 

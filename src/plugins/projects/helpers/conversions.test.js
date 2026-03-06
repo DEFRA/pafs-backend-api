@@ -139,5 +139,92 @@ describe('conversions', () => {
         expect(backToApi).toBe(2024)
       })
     })
+
+    describe('float/decimal number handling', () => {
+      describe('toDatabase direction', () => {
+        it('should convert float string to float number', () => {
+          const result = convertNumber('3.14', 'toDatabase')
+          expect(result).toBe(3.14)
+          expect(typeof result).toBe('number')
+        })
+
+        it('should pass through float number unchanged', () => {
+          const result = convertNumber(3.14159, 'toDatabase')
+          expect(result).toBe(3.14159)
+          expect(typeof result).toBe('number')
+        })
+
+        it('should handle decimal strings correctly', () => {
+          expect(convertNumber('1.5', 'toDatabase')).toBe(1.5)
+          expect(convertNumber('0.5', 'toDatabase')).toBe(0.5)
+          expect(convertNumber('10.25', 'toDatabase')).toBe(10.25)
+          expect(convertNumber('100.999', 'toDatabase')).toBe(100.999)
+        })
+
+        it('should handle zero decimal correctly', () => {
+          expect(convertNumber('1.0', 'toDatabase')).toBe(1)
+          expect(convertNumber('5.0', 'toDatabase')).toBe(5)
+        })
+      })
+
+      describe('toApi direction', () => {
+        it('should convert float string to float number', () => {
+          const result = convertNumber('2.718', 'toApi')
+          expect(result).toBe(2.718)
+          expect(typeof result).toBe('number')
+        })
+
+        it('should pass through float number unchanged', () => {
+          const result = convertNumber(2.718, 'toApi')
+          expect(result).toBe(2.718)
+          expect(typeof result).toBe('number')
+        })
+
+        it('should handle decimal strings correctly', () => {
+          expect(convertNumber('1.5', 'toApi')).toBe(1.5)
+          expect(convertNumber('0.75', 'toApi')).toBe(0.75)
+          expect(convertNumber('99.99', 'toApi')).toBe(99.99)
+        })
+      })
+
+      describe('bidirectional float conversions', () => {
+        it('should maintain float value through database and back to API', () => {
+          const original = 3.14159
+          const toDb = convertNumber(original, 'toDatabase')
+          const backToApi = convertNumber(toDb, 'toApi')
+          expect(backToApi).toBe(original)
+        })
+
+        it('should handle float string input through both directions', () => {
+          const original = '2.718'
+          const toDb = convertNumber(original, 'toDatabase')
+          expect(toDb).toBe(2.718)
+          const backToApi = convertNumber(toDb, 'toApi')
+          expect(backToApi).toBe(2.718)
+        })
+      })
+    })
+
+    describe('edge cases and invalid inputs', () => {
+      it('should handle invalid numeric strings by returning them unchanged', () => {
+        expect(convertNumber('not-a-number', 'toDatabase')).toBe('not-a-number')
+        expect(convertNumber('abc', 'toApi')).toBe('abc')
+      })
+
+      it('should handle empty string', () => {
+        const result = convertNumber('', 'toDatabase')
+        expect(result).toBe(null)
+      })
+
+      it('should handle scientific notation', () => {
+        expect(convertNumber('1e3', 'toDatabase')).toBe(1000)
+        expect(convertNumber('2.5e2', 'toApi')).toBe(250)
+      })
+
+      it('should handle negative floats', () => {
+        expect(convertNumber('-3.14', 'toDatabase')).toBe(-3.14)
+        expect(convertNumber(-2.718, 'toApi')).toBe(-2.718)
+      })
+    })
   })
 })

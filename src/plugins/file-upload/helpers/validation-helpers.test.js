@@ -85,21 +85,21 @@ describe('validation-helpers', () => {
       const result = validateZipContents([])
 
       expect(result.isValid).toBe(false)
-      expect(result.message).toBe('The uploaded shapefile is empty or invalid')
+      expect(result.message).toBe('The uploaded zip file is empty or invalid')
     })
 
     test('should return invalid when filenames is not an array', () => {
       const result = validateZipContents(null)
 
       expect(result.isValid).toBe(false)
-      expect(result.message).toBe('The uploaded shapefile is empty or invalid')
+      expect(result.message).toBe('The uploaded zip file is empty or invalid')
     })
 
     test('should return invalid when filenames is undefined', () => {
       const result = validateZipContents(undefined)
 
       expect(result.isValid).toBe(false)
-      expect(result.message).toBe('The uploaded shapefile is empty or invalid')
+      expect(result.message).toBe('The uploaded zip file is empty or invalid')
     })
 
     test('should return invalid when .dbf file is missing', () => {
@@ -313,7 +313,7 @@ describe('validation-helpers', () => {
       const result = await validateZipFileFromS3(bucket, key, mockLogger)
 
       expect(result.isValid).toBe(false)
-      expect(result.message).toBe('The uploaded shapefile is empty or invalid')
+      expect(result.message).toBe('The uploaded zip file is empty or invalid')
       expect(mockS3Service.deleteObject).toHaveBeenCalledWith(bucket, key)
     })
 

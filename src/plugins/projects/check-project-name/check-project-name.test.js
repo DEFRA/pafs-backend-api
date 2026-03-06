@@ -83,7 +83,10 @@ describe('checkProjectName', () => {
     })
 
     test('Should return exists: true when project name exists', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 1,
+        reference_number: 'C501E/000A/001A'
+      })
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
 
@@ -167,7 +170,10 @@ describe('checkProjectName', () => {
     })
 
     test('Should handle case-insensitive project names', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 5 })
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        id: 5,
+        reference_number: 'C501E/000A/005A'
+      })
       mockRequest.payload.name = 'TEST_project_NAME'
 
       const result = await checkProjectName.options.handler(mockRequest, mockH)
