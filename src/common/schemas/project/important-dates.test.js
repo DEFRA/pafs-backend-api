@@ -517,7 +517,7 @@ describe('important-dates schemas', () => {
       expect(error).toBeUndefined()
     })
 
-    it('should allow earliest GIA equal to START_OUTLINE_BUSINESS_CASE', () => {
+    it('should not allow earliest GIA equal to START_OUTLINE_BUSINESS_CASE', () => {
       const schema = Joi.object({
         couldStartEarly: couldStartEarlySchema,
         earliestWithGiaMonth: earliestWithGiaMonthSchema,
@@ -533,7 +533,8 @@ describe('important-dates schemas', () => {
         startOutlineBusinessCaseMonth: 6,
         startOutlineBusinessCaseYear: 2025
       })
-      expect(error).toBeUndefined()
+      expect(error).toBeDefined()
+      expect(error.message).toContain('DATE_AFTER_OBC_START')
     })
   })
 
