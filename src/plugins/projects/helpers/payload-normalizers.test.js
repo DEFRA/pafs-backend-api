@@ -5,7 +5,8 @@ import {
   resetEarliestWithGiaFields,
   normalizeUrgencyData,
   normalizeEnvironmentalBenefits,
-  normalizeRiskFields
+  normalizeRiskFields,
+  handleNfmMeasureData
 } from './payload-normalizers.js'
 
 describe('normalizeInterventionTypes', () => {
@@ -602,5 +603,286 @@ describe('normalizeRiskFields', () => {
       // Should not throw error when fields are not present
       expect(payload.risks).toEqual(['fluvial_flooding'])
     })
+  })
+})
+
+describe('handleNfmMeasureData', () => {
+  let projectService
+
+  beforeEach(() => {
+    projectService = {
+      upsertNfmMeasure: vi.fn().mockResolvedValue(undefined),
+      deleteNfmMeasure: vi.fn().mockResolvedValue(undefined)
+    }
+  })
+
+  it('deletes unselected NFM measures and strips measure fields at NFM_SELECTED_MEASURES level', async () => {
+    const payload = {
+      referenceNumber: 'REF-001',
+      nfmRiverRestorationArea: null,
+      nfmRiverRestorationVolume: null,
+      nfmLeakyBarriersVolume: null,
+      nfmLeakyBarriersLength: null,
+      nfmLeakyBarriersWidth: null,
+      nfmOfflineStorageArea: null,
+      nfmOfflineStorageVolume: null,
+      nfmWoodlandArea: null,
+      nfmHeadwaterDrainageArea: null,
+      nfmRunoffManagementArea: null,
+      nfmRunoffManagementVolume: null,
+      nfmSaltmarshArea: null,
+      nfmSaltmarshLength: null,
+      nfmSandDuneArea: null,
+      nfmSandDuneLength: null,
+      untouchedField: 'keep-me'
+    }
+
+    await handleNfmMeasureData(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
+      projectService
+    )
+
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledTimes(8)
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'river_floodplain_restoration'
+    })
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'leaky_barriers_in_channel_storage'
+    })
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'offline_storage'
+    })
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'woodland'
+    })
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'headwater_drainage_management'
+    })
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'runoff_attenuation_management'
+    })
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'saltmarsh_management'
+    })
+    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+      referenceNumber: 'REF-001',
+      measureType: 'sand_dune_management'
+    })
+
+    expect(payload.nfmRiverRestorationArea).toBeUndefined()
+    expect(payload.nfmRiverRestorationVolume).toBeUndefined()
+    expect(payload.nfmLeakyBarriersVolume).toBeUndefined()
+    expect(payload.nfmLeakyBarriersLength).toBeUndefined()
+    expect(payload.nfmLeakyBarriersWidth).toBeUndefined()
+    expect(payload.nfmOfflineStorageArea).toBeUndefined()
+    expect(payload.nfmOfflineStorageVolume).toBeUndefined()
+    expect(payload.nfmWoodlandArea).toBeUndefined()
+    expect(payload.nfmHeadwaterDrainageArea).toBeUndefined()
+    expect(payload.nfmRunoffManagementArea).toBeUndefined()
+    expect(payload.nfmRunoffManagementVolume).toBeUndefined()
+    expect(payload.nfmSaltmarshArea).toBeUndefined()
+    expect(payload.nfmSaltmarshLength).toBeUndefined()
+    expect(payload.nfmSandDuneArea).toBeUndefined()
+    expect(payload.nfmSandDuneLength).toBeUndefined()
+    expect(payload.untouchedField).toBe('keep-me')
+  })
+
+  it('does not delete when selected measure has non-null data at NFM_SELECTED_MEASURES level', async () => {
+    const payload = {
+      referenceNumber: 'REF-002',
+      nfmRunoffManagementArea: 10.25,
+      nfmRunoffManagementVolume: null
+    }
+
+    await handleNfmMeasureData(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
+      projectService
+    )
+
+    expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+    expect(payload.nfmRunoffManagementArea).toBeUndefined()
+    expect(payload.nfmRunoffManagementVolume).toBeUndefined()
+  })
+
+  it('does not delete when no measure fields are present at NFM_SELECTED_MEASURES level', async () => {
+    const payload = {
+      referenceNumber: 'REF-003',
+      otherField: 'value'
+    }
+
+    await handleNfmMeasureData(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
+      projectService
+    )
+
+    expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+    expect(payload.otherField).toBe('value')
+  })
+
+  it.each([
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION,
+      payload: {
+        referenceNumber: 'REF-101',
+        nfmRiverRestorationArea: 12.34,
+        nfmRiverRestorationVolume: 56.78
+      },
+      expected: {
+        referenceNumber: 'REF-101',
+        measureType: 'river_floodplain_restoration',
+        areaHectares: 12.34,
+        storageVolumeM3: 56.78
+      },
+      removedFields: ['nfmRiverRestorationArea', 'nfmRiverRestorationVolume']
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_LEAKY_BARRIERS,
+      payload: {
+        referenceNumber: 'REF-102',
+        nfmLeakyBarriersVolume: 5.5,
+        nfmLeakyBarriersLength: 1.2,
+        nfmLeakyBarriersWidth: 3.4
+      },
+      expected: {
+        referenceNumber: 'REF-102',
+        measureType: 'leaky_barriers_in_channel_storage',
+        storageVolumeM3: 5.5,
+        lengthKm: 1.2,
+        widthM: 3.4
+      },
+      removedFields: [
+        'nfmLeakyBarriersVolume',
+        'nfmLeakyBarriersLength',
+        'nfmLeakyBarriersWidth'
+      ]
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_OFFLINE_STORAGE,
+      payload: {
+        referenceNumber: 'REF-103',
+        nfmOfflineStorageArea: 9.1,
+        nfmOfflineStorageVolume: 2.3
+      },
+      expected: {
+        referenceNumber: 'REF-103',
+        measureType: 'offline_storage',
+        areaHectares: 9.1,
+        storageVolumeM3: 2.3
+      },
+      removedFields: ['nfmOfflineStorageArea', 'nfmOfflineStorageVolume']
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_WOODLAND,
+      payload: {
+        referenceNumber: 'REF-104',
+        nfmWoodlandArea: 7.7
+      },
+      expected: {
+        referenceNumber: 'REF-104',
+        measureType: 'woodland',
+        areaHectares: 7.7
+      },
+      removedFields: ['nfmWoodlandArea']
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_HEADWATER_DRAINAGE,
+      payload: {
+        referenceNumber: 'REF-105',
+        nfmHeadwaterDrainageArea: 4.4
+      },
+      expected: {
+        referenceNumber: 'REF-105',
+        measureType: 'headwater_drainage_management',
+        areaHectares: 4.4
+      },
+      removedFields: ['nfmHeadwaterDrainageArea']
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_RUNOFF_MANAGEMENT,
+      payload: {
+        referenceNumber: 'REF-106',
+        nfmRunoffManagementArea: 8.8,
+        nfmRunoffManagementVolume: 1.1
+      },
+      expected: {
+        referenceNumber: 'REF-106',
+        measureType: 'runoff_attenuation_management',
+        areaHectares: 8.8,
+        storageVolumeM3: 1.1
+      },
+      removedFields: ['nfmRunoffManagementArea', 'nfmRunoffManagementVolume']
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH,
+      payload: {
+        referenceNumber: 'REF-107',
+        nfmSaltmarshArea: 6.6,
+        nfmSaltmarshLength: 0.9
+      },
+      expected: {
+        referenceNumber: 'REF-107',
+        measureType: 'saltmarsh_management',
+        areaHectares: 6.6,
+        lengthKm: 0.9
+      },
+      removedFields: ['nfmSaltmarshArea', 'nfmSaltmarshLength']
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_SAND_DUNE,
+      payload: {
+        referenceNumber: 'REF-108',
+        nfmSandDuneArea: 3.3,
+        nfmSandDuneLength: 0.4
+      },
+      expected: {
+        referenceNumber: 'REF-108',
+        measureType: 'sand_dune_management',
+        areaHectares: 3.3,
+        lengthKm: 0.4
+      },
+      removedFields: ['nfmSandDuneArea', 'nfmSandDuneLength']
+    }
+  ])(
+    'upserts measure and removes fields for $level',
+    async ({ level, payload, expected, removedFields }) => {
+      await handleNfmMeasureData(payload, level, projectService)
+
+      expect(projectService.upsertNfmMeasure).toHaveBeenCalledTimes(1)
+      expect(projectService.upsertNfmMeasure).toHaveBeenCalledWith(expected)
+      expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+
+      removedFields.forEach((field) => {
+        expect(payload[field]).toBeUndefined()
+      })
+    }
+  )
+
+  it('does nothing for unrelated validation level', async () => {
+    const payload = {
+      referenceNumber: 'REF-200',
+      nfmRiverRestorationArea: 1.23,
+      nfmRiverRestorationVolume: 4.56
+    }
+
+    await handleNfmMeasureData(
+      payload,
+      PROJECT_VALIDATION_LEVELS.APPROACH,
+      projectService
+    )
+
+    expect(projectService.upsertNfmMeasure).not.toHaveBeenCalled()
+    expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+    expect(payload.nfmRiverRestorationArea).toBe(1.23)
+    expect(payload.nfmRiverRestorationVolume).toBe(4.56)
   })
 })

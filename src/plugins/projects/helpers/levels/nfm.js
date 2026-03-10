@@ -8,7 +8,13 @@ import {
   nfmOfflineStorageAreaSchema,
   nfmOfflineStorageVolumeSchema,
   nfmWoodlandAreaSchema,
-  nfmHeadwaterDrainageAreaSchema
+  nfmHeadwaterDrainageAreaSchema,
+  nfmRunoffManagementAreaSchema,
+  nfmRunoffManagementVolumeSchema,
+  nfmSaltmarshAreaSchema,
+  nfmSaltmarshLengthSchema,
+  nfmSandDuneAreaSchema,
+  nfmSandDuneLengthSchema
 } from '../../../../common/schemas/project.js'
 import { PROJECT_VALIDATION_LEVELS } from '../../../../common/constants/project.js'
 
@@ -39,7 +45,17 @@ export const nfmLevels = (referenceNumber) => ({
       nfmWoodlandArea: nfmWoodlandAreaSchema.optional().allow(null),
       nfmHeadwaterDrainageArea: nfmHeadwaterDrainageAreaSchema
         .optional()
-        .allow(null)
+        .allow(null),
+      nfmRunoffManagementArea: nfmRunoffManagementAreaSchema
+        .optional()
+        .allow(null),
+      nfmRunoffManagementVolume: nfmRunoffManagementVolumeSchema
+        .optional()
+        .allow(null),
+      nfmSaltmarshArea: nfmSaltmarshAreaSchema.optional().allow(null),
+      nfmSaltmarshLength: nfmSaltmarshLengthSchema.optional().allow(null),
+      nfmSandDuneArea: nfmSandDuneAreaSchema.optional().allow(null),
+      nfmSandDuneLength: nfmSandDuneLengthSchema.optional().allow(null)
     }
   },
 
@@ -84,6 +100,33 @@ export const nfmLevels = (referenceNumber) => ({
     fields: {
       referenceNumber,
       nfmHeadwaterDrainageArea: nfmHeadwaterDrainageAreaSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.NFM_RUNOFF_MANAGEMENT]: {
+    name: PROJECT_VALIDATION_LEVELS.NFM_RUNOFF_MANAGEMENT,
+    fields: {
+      referenceNumber,
+      nfmRunoffManagementArea: nfmRunoffManagementAreaSchema,
+      nfmRunoffManagementVolume: nfmRunoffManagementVolumeSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH]: {
+    name: PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH,
+    fields: {
+      referenceNumber,
+      nfmSaltmarshArea: nfmSaltmarshAreaSchema,
+      nfmSaltmarshLength: nfmSaltmarshLengthSchema
+    }
+  },
+
+  [PROJECT_VALIDATION_LEVELS.NFM_SAND_DUNE]: {
+    name: PROJECT_VALIDATION_LEVELS.NFM_SAND_DUNE,
+    fields: {
+      referenceNumber,
+      nfmSandDuneArea: nfmSandDuneAreaSchema,
+      nfmSandDuneLength: nfmSandDuneLengthSchema
     }
   }
 })

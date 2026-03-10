@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { buildDatabaseUrl } from './database-url.js'
+import { DB_DEFAULTS } from '../../../common/constants/index.js'
 
 describe('buildDatabaseUrl', () => {
   let originalEnv
@@ -36,7 +37,7 @@ describe('buildDatabaseUrl', () => {
     const url = buildDatabaseUrl({ password: 'test_password' })
 
     expect(url).toBe(
-      'postgresql://postgres:test_password@127.0.0.1:5432/pafs_backend_api?schema=public'
+      `postgresql://${DB_DEFAULTS.USERNAME}:test_password@${DB_DEFAULTS.HOST}:${DB_DEFAULTS.PORT}/${DB_DEFAULTS.DATABASE}?schema=${DB_DEFAULTS.SCHEMA}`
     )
   })
 

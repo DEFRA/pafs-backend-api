@@ -173,6 +173,21 @@ export const handleNfmMeasureData = async (
       {
         type: 'headwater_drainage_management',
         areaField: 'nfmHeadwaterDrainageArea'
+      },
+      {
+        type: 'runoff_attenuation_management',
+        areaField: 'nfmRunoffManagementArea',
+        volumeField: 'nfmRunoffManagementVolume'
+      },
+      {
+        type: 'saltmarsh_management',
+        areaField: 'nfmSaltmarshArea',
+        lengthField: 'nfmSaltmarshLength'
+      },
+      {
+        type: 'sand_dune_management',
+        areaField: 'nfmSandDuneArea',
+        lengthField: 'nfmSandDuneLength'
       }
     ]
 
@@ -289,6 +304,56 @@ export const handleNfmMeasureData = async (
 
     // Remove NFM measure fields from main project payload
     delete enrichedPayload.nfmHeadwaterDrainageArea
+  } else if (
+    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RUNOFF_MANAGEMENT
+  ) {
+    const {
+      referenceNumber,
+      nfmRunoffManagementArea,
+      nfmRunoffManagementVolume
+    } = enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'runoff_attenuation_management',
+      areaHectares: nfmRunoffManagementArea,
+      storageVolumeM3: nfmRunoffManagementVolume
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmRunoffManagementArea
+    delete enrichedPayload.nfmRunoffManagementVolume
+  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH) {
+    const { referenceNumber, nfmSaltmarshArea, nfmSaltmarshLength } =
+      enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'saltmarsh_management',
+      areaHectares: nfmSaltmarshArea,
+      lengthKm: nfmSaltmarshLength
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmSaltmarshArea
+    delete enrichedPayload.nfmSaltmarshLength
+  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_SAND_DUNE) {
+    const { referenceNumber, nfmSandDuneArea, nfmSandDuneLength } =
+      enrichedPayload
+
+    // Save NFM measure to separate table
+    await projectService.upsertNfmMeasure({
+      referenceNumber,
+      measureType: 'sand_dune_management',
+      areaHectares: nfmSandDuneArea,
+      lengthKm: nfmSandDuneLength
+    })
+
+    // Remove NFM measure fields from main project payload
+    delete enrichedPayload.nfmSandDuneArea
+    delete enrichedPayload.nfmSandDuneLength
   } else {
     // No NFM measure data to handle for other validation levels
   }

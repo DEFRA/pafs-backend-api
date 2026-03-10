@@ -1,6 +1,17 @@
 import Joi from 'joi'
 import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
+const maxTwoDecimalPlaces = (value, helpers) => {
+  if (value === null || value === undefined) {
+    return value
+  }
+
+  const scaled = value * 100
+  const hasMaxTwoDecimals = Math.abs(scaled - Math.trunc(scaled)) < 1e-8
+
+  return hasMaxTwoDecimals ? value : helpers.error('number.precision')
+}
+
 /**
  * Reusable schema builders for common NFM field types
  */
@@ -12,13 +23,19 @@ import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
  * @returns {Joi.NumberSchema}
  */
 const createAreaSchema = (label, errorMessage) =>
-  Joi.number().positive().precision(2).required().label(label).messages({
-    'number.base': 'Area must be a positive number with up to 2 decimal places',
-    'number.positive':
-      'Area must be a positive number with up to 2 decimal places',
-    'number.precision': 'Area must have up to 2 decimal places',
-    'any.required': errorMessage
-  })
+  Joi.number()
+    .positive()
+    .custom(maxTwoDecimalPlaces)
+    .required()
+    .label(label)
+    .messages({
+      'number.base':
+        'Area must be a positive number with up to 2 decimal places',
+      'number.positive':
+        'Area must be a positive number with up to 2 decimal places',
+      'number.precision': 'Area must have up to 2 decimal places',
+      'any.required': errorMessage
+    })
 
 /**
  * Creates an optional volume schema (cubic metres)
@@ -29,7 +46,7 @@ const createAreaSchema = (label, errorMessage) =>
 const createVolumeSchema = (label, fieldDescription = 'Volume') =>
   Joi.number()
     .positive()
-    .precision(2)
+    .custom(maxTwoDecimalPlaces)
     .allow(null)
     .optional()
     .label(label)
@@ -46,14 +63,19 @@ const createVolumeSchema = (label, fieldDescription = 'Volume') =>
  * @returns {Joi.NumberSchema}
  */
 const createLengthSchema = (label, errorMessage) =>
-  Joi.number().positive().precision(2).required().label(label).messages({
-    'number.base':
-      'Length must be a positive number with up to 2 decimal places',
-    'number.positive':
-      'Length must be a positive number with up to 2 decimal places',
-    'number.precision': 'Length must have up to 2 decimal places',
-    'any.required': errorMessage
-  })
+  Joi.number()
+    .positive()
+    .custom(maxTwoDecimalPlaces)
+    .required()
+    .label(label)
+    .messages({
+      'number.base':
+        'Length must be a positive number with up to 2 decimal places',
+      'number.positive':
+        'Length must be a positive number with up to 2 decimal places',
+      'number.precision': 'Length must have up to 2 decimal places',
+      'any.required': errorMessage
+    })
 
 /**
  * Creates a required width schema (metres)
@@ -65,7 +87,7 @@ const createLengthSchema = (label, errorMessage) =>
 const createWidthSchema = (label, fieldDescription, errorMessage) =>
   Joi.number()
     .positive()
-    .precision(2)
+    .custom(maxTwoDecimalPlaces)
     .required()
     .label(label)
     .messages({
@@ -173,6 +195,78 @@ export const nfmHeadwaterDrainageAreaSchema = createAreaSchema(
 )
 
 /**
+ * NFM Runoff Management - Area field schema
+ * Database field: area_hectares (NUMERIC)
+ */
+export const nfmRunoffManagementAreaSchema = createAreaSchema(
+  'nfmRunoffManagementArea',
+  'Enter the area in hectares'
+)
+
+/**
+ * NFM Runoff Management - Volume field schema
+ * Database field: storage_volume_m3 (NUMERIC)
+ */
+export const nfmRunoffManagementVolumeSchema = createVolumeSchema(
+  'nfmRunoffManagementVolume',
+  'Design storage volume'
+)
+
+/**
+ * NFM Saltmarsh - Area field schema
+ * Database field: area_hectares (NUMERIC)
+ */
+export const nfmSaltmarshAreaSchema = createAreaSchema(
+  'nfmSaltmarshArea',
+  'Enter the area in hectares'
+)
+
+/**
+ * NFM Saltmarsh - Length field schema (optional)
+ * Database field: length_km (NUMERIC)
+ */
+export const nfmSaltmarshLengthSchema = Joi.number()
+  .positive()
+  .custom(maxTwoDecimalPlaces)
+  .allow(null)
+  .optional()
+  .label('nfmSaltmarshLength')
+  .messages({
+    'number.base':
+      'Length must be a positive number with up to 2 decimal places',
+    'number.positive':
+      'Length must be a positive number with up to 2 decimal places',
+    'number.precision': 'Length must have up to 2 decimal places'
+  })
+
+/**
+ * NFM Sand Dune - Area field schema
+ * Database field: area_hectares (NUMERIC)
+ */
+export const nfmSandDuneAreaSchema = createAreaSchema(
+  'nfmSandDuneArea',
+  'Enter the area in hectares'
+)
+
+/**
+ * NFM Sand Dune - Length field schema (optional)
+ * Database field: length_km (NUMERIC)
+ */
+export const nfmSandDuneLengthSchema = Joi.number()
+  .positive()
+  .custom(maxTwoDecimalPlaces)
+  .allow(null)
+  .optional()
+  .label('nfmSandDuneLength')
+  .messages({
+    'number.base':
+      'Length must be a positive number with up to 2 decimal places',
+    'number.positive':
+      'Length must be a positive number with up to 2 decimal places',
+    'number.precision': 'Length must have up to 2 decimal places'
+  })
+
+/**
  * NFM River Restoration schema
  * Validates area and volume for river restoration measures
  * This data will be stored in pafs_core_nfm_measures table
@@ -219,4 +313,34 @@ export const nfmWoodlandSchema = Joi.object({
  */
 export const nfmHeadwaterDrainageSchema = Joi.object({
   nfmHeadwaterDrainageArea: nfmHeadwaterDrainageAreaSchema
+})
+
+/**
+ * NFM Runoff Management schema
+ * Validates area and volume for runoff attenuation or management measures
+ * This data will be stored in pafs_core_nfm_measures table
+ */
+export const nfmRunoffManagementSchema = Joi.object({
+  nfmRunoffManagementArea: nfmRunoffManagementAreaSchema,
+  nfmRunoffManagementVolume: nfmRunoffManagementVolumeSchema
+})
+
+/**
+ * NFM Saltmarsh schema
+ * Validates area and length for saltmarsh or mudflat management measures
+ * This data will be stored in pafs_core_nfm_measures table
+ */
+export const nfmSaltmarshSchema = Joi.object({
+  nfmSaltmarshArea: nfmSaltmarshAreaSchema,
+  nfmSaltmarshLength: nfmSaltmarshLengthSchema
+})
+
+/**
+ * NFM Sand Dune schema
+ * Validates area and length for sand dune management measures
+ * This data will be stored in pafs_core_nfm_measures table
+ */
+export const nfmSandDuneSchema = Joi.object({
+  nfmSandDuneArea: nfmSandDuneAreaSchema,
+  nfmSandDuneLength: nfmSandDuneLengthSchema
 })
