@@ -276,6 +276,58 @@ export class ProjectService {
     return this._getProjectDetails(referenceNumber, { includeVersion: true })
   }
 
+  _buildJoinSelect(config) {
+    return Object.fromEntries(
+      Object.values(config.fields).map((field) => [field, true])
+    )
+  }
+
+  async _fetchJoinedDataByConfig(projectId, config) {
+    const query = {
+      where: {
+        [config.joinField]: Number(projectId)
+      },
+      select: this._buildJoinSelect(config)
+    }
+
+    return config.isArray
+      ? this.prisma[config.tableName].findMany(query)
+      : this.prisma[config.tableName].findFirst(query)
+  }
+
+  _attachJoinedTableData(project, tableKey, joinData, isArray) {
+    if (isArray && joinData?.length > 0) {
+      project[tableKey] = joinData
+      return
+    }
+
+    if (!isArray && joinData) {
+      project[tableKey] = joinData
+    }
+  }
+
+  async _populateJoinedTables(project) {
+    const joinedTables = getJoinedTableConfig()
+    for (const [tableKey, config] of Object.entries(joinedTables)) {
+      const joinData = await this._fetchJoinedDataByConfig(project.id, config)
+      this._attachJoinedTableData(project, tableKey, joinData, config.isArray)
+    }
+  }
+
+  async _resolveProjectAreaName(project) {
+    if (project.rma_name) {
+      return
+    }
+
+    const projectId = Number(project.id)
+    const areaNames = await resolveAreaNames(this.prisma, [projectId])
+    const areaName = areaNames.get(projectId)
+
+    if (areaName) {
+      project.rma_name = areaName
+    }
+  }
+
   /**
    * Get Project Overview data using reference number
    * Fetches project with joined tables and returns mapped API format
@@ -299,48 +351,8 @@ export class ProjectService {
         return null
       }
 
-      // Manually fetch joined table data
-      const joinedTables = getJoinedTableConfig()
-      for (const [tableKey, config] of Object.entries(joinedTables)) {
-        if (config.isArray) {
-          // Handle one-to-many relationships (like NFM measures)
-          const joinData = await this.prisma[config.tableName].findMany({
-            where: {
-              [config.joinField]: Number(project.id)
-            },
-            select: Object.fromEntries(
-              Object.values(config.fields).map((field) => [field, true])
-            )
-          })
-          if (joinData && joinData.length > 0) {
-            project[tableKey] = joinData
-          }
-        } else {
-          // Handle one-to-one relationships
-          const joinData = await this.prisma[config.tableName].findFirst({
-            where: {
-              [config.joinField]: Number(project.id)
-            },
-            select: Object.fromEntries(
-              Object.values(config.fields).map((field) => [field, true])
-            )
-          })
-          if (joinData) {
-            project[tableKey] = joinData
-          }
-        }
-      }
-
-      // Resolve area name when rma_name is empty
-      if (!project.rma_name) {
-        const areaNames = await resolveAreaNames(this.prisma, [
-          Number(project.id)
-        ])
-        const areaName = areaNames.get(Number(project.id))
-        if (areaName) {
-          project.rma_name = areaName
-        }
-      }
+      await this._populateJoinedTables(project)
+      await this._resolveProjectAreaName(project)
 
       const apiData = ProjectMapper.toApi(project)
 

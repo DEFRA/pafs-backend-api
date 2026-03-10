@@ -1,6 +1,15 @@
 import Joi from 'joi'
 import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
+const AREA_REQUIRED_HECTARES_MESSAGE = 'Enter the area in hectares'
+const VOLUME_FIELD_DESCRIPTION = 'Volume'
+const DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION = 'Design storage volume'
+const NFM_SELECTED_MEASURES_REQUIRED_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_REQUIRED
+const LENGTH_POSITIVE_2DP_MESSAGE =
+  'Length must be a positive number with up to 2 decimal places'
+const LENGTH_PRECISION_2DP_MESSAGE = 'Length must have up to 2 decimal places'
+
 const maxTwoDecimalPlaces = (value, helpers) => {
   if (value === null || value === undefined) {
     return value
@@ -19,7 +28,7 @@ const maxTwoDecimalPlaces = (value, helpers) => {
 /**
  * Creates a required area schema (hectares)
  * @param {string} label - Field label for error messages
- * @param {string} errorMessage - Custom required error message
+ * @param {string} errorMessage - Required-field message
  * @returns {Joi.NumberSchema}
  */
 const createAreaSchema = (label, errorMessage) =>
@@ -59,7 +68,7 @@ const createVolumeSchema = (label, fieldDescription = 'Volume') =>
 /**
  * Creates a required length schema (kilometres)
  * @param {string} label - Field label for error messages
- * @param {string} errorMessage - Custom required error message
+ * @param {string} errorMessage - Required error text
  * @returns {Joi.NumberSchema}
  */
 const createLengthSchema = (label, errorMessage) =>
@@ -69,11 +78,9 @@ const createLengthSchema = (label, errorMessage) =>
     .required()
     .label(label)
     .messages({
-      'number.base':
-        'Length must be a positive number with up to 2 decimal places',
-      'number.positive':
-        'Length must be a positive number with up to 2 decimal places',
-      'number.precision': 'Length must have up to 2 decimal places',
+      'number.base': LENGTH_POSITIVE_2DP_MESSAGE,
+      'number.positive': LENGTH_POSITIVE_2DP_MESSAGE,
+      'number.precision': LENGTH_PRECISION_2DP_MESSAGE,
       'any.required': errorMessage
     })
 
@@ -81,7 +88,7 @@ const createLengthSchema = (label, errorMessage) =>
  * Creates a required width schema (metres)
  * @param {string} label - Field label for error messages
  * @param {string} fieldDescription - Description for error messages (e.g., 'Width', 'Typical width')
- * @param {string} errorMessage - Custom required error message
+ * @param {string} errorMessage - Message used when value is missing
  * @returns {Joi.NumberSchema}
  */
 const createWidthSchema = (label, fieldDescription, errorMessage) =>
@@ -108,8 +115,8 @@ export const nfmSelectedMeasuresSchema = Joi.string()
   .label('nfmSelectedMeasures')
   .messages({
     'string.base': PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_INVALID,
-    'string.empty': PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_REQUIRED,
-    'any.required': PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_REQUIRED
+    'string.empty': NFM_SELECTED_MEASURES_REQUIRED_MESSAGE,
+    'any.required': NFM_SELECTED_MEASURES_REQUIRED_MESSAGE
   })
 
 /**
@@ -118,7 +125,7 @@ export const nfmSelectedMeasuresSchema = Joi.string()
  */
 export const nfmRiverRestorationAreaSchema = createAreaSchema(
   'nfmRiverRestorationArea',
-  'Enter the area in hectares'
+  AREA_REQUIRED_HECTARES_MESSAGE
 )
 
 /**
@@ -127,7 +134,7 @@ export const nfmRiverRestorationAreaSchema = createAreaSchema(
  */
 export const nfmRiverRestorationVolumeSchema = createVolumeSchema(
   'nfmRiverRestorationVolume',
-  'Volume'
+  VOLUME_FIELD_DESCRIPTION
 )
 
 /**
@@ -136,7 +143,7 @@ export const nfmRiverRestorationVolumeSchema = createVolumeSchema(
  */
 export const nfmLeakyBarriersVolumeSchema = createVolumeSchema(
   'nfmLeakyBarriersVolume',
-  'Design storage volume'
+  DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION
 )
 
 /**
@@ -164,7 +171,7 @@ export const nfmLeakyBarriersWidthSchema = createWidthSchema(
  */
 export const nfmOfflineStorageAreaSchema = createAreaSchema(
   'nfmOfflineStorageArea',
-  'Enter the area in hectares'
+  AREA_REQUIRED_HECTARES_MESSAGE
 )
 
 /**
@@ -173,7 +180,7 @@ export const nfmOfflineStorageAreaSchema = createAreaSchema(
  */
 export const nfmOfflineStorageVolumeSchema = createVolumeSchema(
   'nfmOfflineStorageVolume',
-  'Design storage volume'
+  DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION
 )
 
 /**
@@ -182,7 +189,7 @@ export const nfmOfflineStorageVolumeSchema = createVolumeSchema(
  */
 export const nfmWoodlandAreaSchema = createAreaSchema(
   'nfmWoodlandArea',
-  'Enter the area in hectares'
+  AREA_REQUIRED_HECTARES_MESSAGE
 )
 
 /**
@@ -191,7 +198,7 @@ export const nfmWoodlandAreaSchema = createAreaSchema(
  */
 export const nfmHeadwaterDrainageAreaSchema = createAreaSchema(
   'nfmHeadwaterDrainageArea',
-  'Enter the area in hectares'
+  AREA_REQUIRED_HECTARES_MESSAGE
 )
 
 /**
@@ -200,7 +207,7 @@ export const nfmHeadwaterDrainageAreaSchema = createAreaSchema(
  */
 export const nfmRunoffManagementAreaSchema = createAreaSchema(
   'nfmRunoffManagementArea',
-  'Enter the area in hectares'
+  AREA_REQUIRED_HECTARES_MESSAGE
 )
 
 /**
@@ -209,7 +216,7 @@ export const nfmRunoffManagementAreaSchema = createAreaSchema(
  */
 export const nfmRunoffManagementVolumeSchema = createVolumeSchema(
   'nfmRunoffManagementVolume',
-  'Design storage volume'
+  DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION
 )
 
 /**
@@ -218,7 +225,7 @@ export const nfmRunoffManagementVolumeSchema = createVolumeSchema(
  */
 export const nfmSaltmarshAreaSchema = createAreaSchema(
   'nfmSaltmarshArea',
-  'Enter the area in hectares'
+  AREA_REQUIRED_HECTARES_MESSAGE
 )
 
 /**
@@ -232,11 +239,9 @@ export const nfmSaltmarshLengthSchema = Joi.number()
   .optional()
   .label('nfmSaltmarshLength')
   .messages({
-    'number.base':
-      'Length must be a positive number with up to 2 decimal places',
-    'number.positive':
-      'Length must be a positive number with up to 2 decimal places',
-    'number.precision': 'Length must have up to 2 decimal places'
+    'number.base': LENGTH_POSITIVE_2DP_MESSAGE,
+    'number.positive': LENGTH_POSITIVE_2DP_MESSAGE,
+    'number.precision': LENGTH_PRECISION_2DP_MESSAGE
   })
 
 /**
@@ -245,7 +250,7 @@ export const nfmSaltmarshLengthSchema = Joi.number()
  */
 export const nfmSandDuneAreaSchema = createAreaSchema(
   'nfmSandDuneArea',
-  'Enter the area in hectares'
+  AREA_REQUIRED_HECTARES_MESSAGE
 )
 
 /**
@@ -259,11 +264,9 @@ export const nfmSandDuneLengthSchema = Joi.number()
   .optional()
   .label('nfmSandDuneLength')
   .messages({
-    'number.base':
-      'Length must be a positive number with up to 2 decimal places',
-    'number.positive':
-      'Length must be a positive number with up to 2 decimal places',
-    'number.precision': 'Length must have up to 2 decimal places'
+    'number.base': LENGTH_POSITIVE_2DP_MESSAGE,
+    'number.positive': LENGTH_POSITIVE_2DP_MESSAGE,
+    'number.precision': LENGTH_PRECISION_2DP_MESSAGE
   })
 
 /**

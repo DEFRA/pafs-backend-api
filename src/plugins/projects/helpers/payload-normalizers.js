@@ -4,6 +4,166 @@ import {
 } from '../../../common/constants/project.js'
 import { ENVIRONMENTAL_BENEFITS_FIELDS } from '../../../common/schemas/project.js'
 
+const NFM_SELECTED_MEASURE_MAPPINGS = [
+  {
+    type: 'river_floodplain_restoration',
+    fields: ['nfmRiverRestorationArea', 'nfmRiverRestorationVolume']
+  },
+  {
+    type: 'leaky_barriers_in_channel_storage',
+    fields: [
+      'nfmLeakyBarriersVolume',
+      'nfmLeakyBarriersLength',
+      'nfmLeakyBarriersWidth'
+    ]
+  },
+  {
+    type: 'offline_storage',
+    fields: ['nfmOfflineStorageArea', 'nfmOfflineStorageVolume']
+  },
+  {
+    type: 'woodland',
+    fields: ['nfmWoodlandArea']
+  },
+  {
+    type: 'headwater_drainage_management',
+    fields: ['nfmHeadwaterDrainageArea']
+  },
+  {
+    type: 'runoff_attenuation_management',
+    fields: ['nfmRunoffManagementArea', 'nfmRunoffManagementVolume']
+  },
+  {
+    type: 'saltmarsh_management',
+    fields: ['nfmSaltmarshArea', 'nfmSaltmarshLength']
+  },
+  {
+    type: 'sand_dune_management',
+    fields: ['nfmSandDuneArea', 'nfmSandDuneLength']
+  }
+]
+
+const NFM_UPSERT_CONFIG = {
+  [PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION]: {
+    measureType: 'river_floodplain_restoration',
+    fieldMap: {
+      areaHectares: 'nfmRiverRestorationArea',
+      storageVolumeM3: 'nfmRiverRestorationVolume'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LEAKY_BARRIERS]: {
+    measureType: 'leaky_barriers_in_channel_storage',
+    fieldMap: {
+      storageVolumeM3: 'nfmLeakyBarriersVolume',
+      lengthKm: 'nfmLeakyBarriersLength',
+      widthM: 'nfmLeakyBarriersWidth'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_OFFLINE_STORAGE]: {
+    measureType: 'offline_storage',
+    fieldMap: {
+      areaHectares: 'nfmOfflineStorageArea',
+      storageVolumeM3: 'nfmOfflineStorageVolume'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_WOODLAND]: {
+    measureType: 'woodland',
+    fieldMap: {
+      areaHectares: 'nfmWoodlandArea'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_HEADWATER_DRAINAGE]: {
+    measureType: 'headwater_drainage_management',
+    fieldMap: {
+      areaHectares: 'nfmHeadwaterDrainageArea'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_RUNOFF_MANAGEMENT]: {
+    measureType: 'runoff_attenuation_management',
+    fieldMap: {
+      areaHectares: 'nfmRunoffManagementArea',
+      storageVolumeM3: 'nfmRunoffManagementVolume'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH]: {
+    measureType: 'saltmarsh_management',
+    fieldMap: {
+      areaHectares: 'nfmSaltmarshArea',
+      lengthKm: 'nfmSaltmarshLength'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_SAND_DUNE]: {
+    measureType: 'sand_dune_management',
+    fieldMap: {
+      areaHectares: 'nfmSandDuneArea',
+      lengthKm: 'nfmSandDuneLength'
+    }
+  }
+}
+
+const deleteFieldsFromPayload = (payload, fields) => {
+  fields.forEach((field) => {
+    delete payload[field]
+  })
+}
+
+const createUpsertPayload = (enrichedPayload, config) => {
+  const upsertPayload = {
+    referenceNumber: enrichedPayload.referenceNumber,
+    measureType: config.measureType
+  }
+
+  Object.entries(config.fieldMap).forEach(([targetKey, sourceKey]) => {
+    upsertPayload[targetKey] = enrichedPayload[sourceKey]
+  })
+
+  return upsertPayload
+}
+
+const getConfigFieldList = (config) => Object.values(config.fieldMap)
+
+const handleSelectedMeasureCleanup = async (
+  enrichedPayload,
+  projectService
+) => {
+  const { referenceNumber } = enrichedPayload
+
+  for (const mapping of NFM_SELECTED_MEASURE_MAPPINGS) {
+    const allFieldsNull = mapping.fields.every(
+      (field) => enrichedPayload[field] === null
+    )
+
+    const hasAnyField = mapping.fields.some((field) => field in enrichedPayload)
+
+    if (hasAnyField && allFieldsNull) {
+      await projectService.deleteNfmMeasure({
+        referenceNumber,
+        measureType: mapping.type
+      })
+    }
+
+    deleteFieldsFromPayload(enrichedPayload, mapping.fields)
+  }
+}
+
+const handleMeasureUpsert = async (
+  enrichedPayload,
+  validationLevel,
+  projectService
+) => {
+  const config = NFM_UPSERT_CONFIG[validationLevel]
+
+  if (!config) {
+    return
+  }
+
+  await projectService.upsertNfmMeasure(
+    createUpsertPayload(enrichedPayload, config)
+  )
+
+  deleteFieldsFromPayload(enrichedPayload, getConfigFieldList(config))
+}
+
 /**
  * Normalizes intervention types for INITIAL_SAVE and PROJECT_TYPE levels
  */
@@ -144,217 +304,10 @@ export const handleNfmMeasureData = async (
   validationLevel,
   projectService
 ) => {
-  // Handle NFM_SELECTED_MEASURES validation level - delete/update measures when unselected
   if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES) {
-    const { referenceNumber } = enrichedPayload
-
-    // Define measure type mappings
-    const measureMappings = [
-      {
-        type: 'river_floodplain_restoration',
-        areaField: 'nfmRiverRestorationArea',
-        volumeField: 'nfmRiverRestorationVolume'
-      },
-      {
-        type: 'leaky_barriers_in_channel_storage',
-        volumeField: 'nfmLeakyBarriersVolume',
-        lengthField: 'nfmLeakyBarriersLength',
-        widthField: 'nfmLeakyBarriersWidth'
-      },
-      {
-        type: 'offline_storage',
-        areaField: 'nfmOfflineStorageArea',
-        volumeField: 'nfmOfflineStorageVolume'
-      },
-      {
-        type: 'woodland',
-        areaField: 'nfmWoodlandArea'
-      },
-      {
-        type: 'headwater_drainage_management',
-        areaField: 'nfmHeadwaterDrainageArea'
-      },
-      {
-        type: 'runoff_attenuation_management',
-        areaField: 'nfmRunoffManagementArea',
-        volumeField: 'nfmRunoffManagementVolume'
-      },
-      {
-        type: 'saltmarsh_management',
-        areaField: 'nfmSaltmarshArea',
-        lengthField: 'nfmSaltmarshLength'
-      },
-      {
-        type: 'sand_dune_management',
-        areaField: 'nfmSandDuneArea',
-        lengthField: 'nfmSandDuneLength'
-      }
-    ]
-
-    // Process each measure type
-    for (const mapping of measureMappings) {
-      const fields = []
-      if (mapping.areaField) fields.push(mapping.areaField)
-      if (mapping.volumeField) fields.push(mapping.volumeField)
-      if (mapping.lengthField) fields.push(mapping.lengthField)
-      if (mapping.widthField) fields.push(mapping.widthField)
-
-      // Check if all fields for this measure are null
-      const allFieldsNull = fields.every(
-        (field) => enrichedPayload[field] === null
-      )
-
-      // Check if at least one field is present in payload
-      const hasAnyField = fields.some((field) => field in enrichedPayload)
-
-      if (hasAnyField && allFieldsNull) {
-        // Delete the measure from the database
-        await projectService.deleteNfmMeasure({
-          referenceNumber,
-          measureType: mapping.type
-        })
-      }
-
-      // Remove all measure fields from main project payload
-      fields.forEach((field) => {
-        delete enrichedPayload[field]
-      })
-    }
-  } else if (
-    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION
-  ) {
-    const {
-      referenceNumber,
-      nfmRiverRestorationArea,
-      nfmRiverRestorationVolume
-    } = enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'river_floodplain_restoration',
-      areaHectares: nfmRiverRestorationArea,
-      storageVolumeM3: nfmRiverRestorationVolume
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmRiverRestorationArea
-    delete enrichedPayload.nfmRiverRestorationVolume
-  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_LEAKY_BARRIERS) {
-    const {
-      referenceNumber,
-      nfmLeakyBarriersVolume,
-      nfmLeakyBarriersLength,
-      nfmLeakyBarriersWidth
-    } = enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'leaky_barriers_in_channel_storage',
-      storageVolumeM3: nfmLeakyBarriersVolume,
-      lengthKm: nfmLeakyBarriersLength,
-      widthM: nfmLeakyBarriersWidth
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmLeakyBarriersVolume
-    delete enrichedPayload.nfmLeakyBarriersLength
-    delete enrichedPayload.nfmLeakyBarriersWidth
-  } else if (
-    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_OFFLINE_STORAGE
-  ) {
-    const { referenceNumber, nfmOfflineStorageArea, nfmOfflineStorageVolume } =
-      enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'offline_storage',
-      areaHectares: nfmOfflineStorageArea,
-      storageVolumeM3: nfmOfflineStorageVolume
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmOfflineStorageArea
-    delete enrichedPayload.nfmOfflineStorageVolume
-  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_WOODLAND) {
-    const { referenceNumber, nfmWoodlandArea } = enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'woodland',
-      areaHectares: nfmWoodlandArea
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmWoodlandArea
-  } else if (
-    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_HEADWATER_DRAINAGE
-  ) {
-    const { referenceNumber, nfmHeadwaterDrainageArea } = enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'headwater_drainage_management',
-      areaHectares: nfmHeadwaterDrainageArea
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmHeadwaterDrainageArea
-  } else if (
-    validationLevel === PROJECT_VALIDATION_LEVELS.NFM_RUNOFF_MANAGEMENT
-  ) {
-    const {
-      referenceNumber,
-      nfmRunoffManagementArea,
-      nfmRunoffManagementVolume
-    } = enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'runoff_attenuation_management',
-      areaHectares: nfmRunoffManagementArea,
-      storageVolumeM3: nfmRunoffManagementVolume
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmRunoffManagementArea
-    delete enrichedPayload.nfmRunoffManagementVolume
-  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH) {
-    const { referenceNumber, nfmSaltmarshArea, nfmSaltmarshLength } =
-      enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'saltmarsh_management',
-      areaHectares: nfmSaltmarshArea,
-      lengthKm: nfmSaltmarshLength
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmSaltmarshArea
-    delete enrichedPayload.nfmSaltmarshLength
-  } else if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_SAND_DUNE) {
-    const { referenceNumber, nfmSandDuneArea, nfmSandDuneLength } =
-      enrichedPayload
-
-    // Save NFM measure to separate table
-    await projectService.upsertNfmMeasure({
-      referenceNumber,
-      measureType: 'sand_dune_management',
-      areaHectares: nfmSandDuneArea,
-      lengthKm: nfmSandDuneLength
-    })
-
-    // Remove NFM measure fields from main project payload
-    delete enrichedPayload.nfmSandDuneArea
-    delete enrichedPayload.nfmSandDuneLength
-  } else {
-    // No NFM measure data to handle for other validation levels
+    await handleSelectedMeasureCleanup(enrichedPayload, projectService)
+    return
   }
+
+  await handleMeasureUpsert(enrichedPayload, validationLevel, projectService)
 }
