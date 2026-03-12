@@ -35,6 +35,13 @@ describe('ProjectService', () => {
         create: vi.fn(),
         update: vi.fn()
       },
+      pafs_core_nfm_land_use_changes: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+      },
       pafs_core_reference_counters: {
         findUnique: vi.fn(),
         create: vi.fn(),
@@ -1095,7 +1102,8 @@ describe('ProjectService', () => {
           current_flood_fluvial_risk: true,
           current_flood_surface_water_risk: true,
           current_coastal_erosion_risk: true,
-          nfm_selected_measures: true
+          nfm_selected_measures: true,
+          nfm_land_use_change: true
         }
       })
 

@@ -112,7 +112,8 @@ describe('project-config', () => {
         createHabitatWatercourse: 'create_habitat_watercourse',
         kilometresOfWatercourseEnhancedOrCreatedSingle:
           'kilometres_of_watercourse_enhanced_or_created_single',
-        nfmSelectedMeasures: 'nfm_selected_measures'
+        nfmSelectedMeasures: 'nfm_selected_measures',
+        nfmLandUseChange: 'nfm_land_use_change'
       })
     })
 
@@ -173,8 +174,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 81 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(81)
+    it('should have 82 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(82)
     })
   })
 
@@ -218,8 +219,8 @@ describe('project-config', () => {
       })
     })
 
-    it('should have exactly 3 joined tables', () => {
-      expect(Object.keys(PROJECT_JOIN_TABLES)).toHaveLength(3)
+    it('should have exactly 4 joined tables', () => {
+      expect(Object.keys(PROJECT_JOIN_TABLES)).toHaveLength(4)
     })
   })
 
@@ -241,9 +242,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 81 fields', () => {
+    it('should return an object with 82 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(81)
+      expect(Object.keys(result)).toHaveLength(82)
     })
 
     it('should return a new object each time', () => {
@@ -296,9 +297,9 @@ describe('project-config', () => {
       })
     })
 
-    it('should return exactly 3 joined tables', () => {
+    it('should return exactly 4 joined tables', () => {
       const result = getJoinedTableConfig()
-      expect(Object.keys(result)).toHaveLength(3)
+      expect(Object.keys(result)).toHaveLength(4)
     })
 
     it('should have valid table configuration structure', () => {
@@ -329,6 +330,7 @@ describe('project-config', () => {
       expect(result).toHaveProperty('pafs_core_states')
       expect(result).toHaveProperty('pafs_core_area_projects')
       expect(result).toHaveProperty('pafs_core_nfm_measures')
+      expect(result).toHaveProperty('pafs_core_nfm_land_use_changes')
     })
 
     it('should have correct structure for pafs_core_states', () => {
@@ -350,9 +352,9 @@ describe('project-config', () => {
       })
     })
 
-    it('should return exactly 3 joined tables', () => {
+    it('should return exactly 4 joined tables', () => {
       const result = getJoinedSelectFields()
-      expect(Object.keys(result)).toHaveLength(3)
+      expect(Object.keys(result)).toHaveLength(4)
     })
 
     it('should have all select values as true', () => {

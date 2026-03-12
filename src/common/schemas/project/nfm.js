@@ -6,9 +6,32 @@ const VOLUME_FIELD_DESCRIPTION = 'Volume'
 const DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION = 'Design storage volume'
 const NFM_SELECTED_MEASURES_REQUIRED_MESSAGE =
   PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_REQUIRED
+const NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_REQUIRED
+const NFM_LAND_USE_CHANGE_INVALID_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_INVALID
+const AREA_POSITIVE_2DP_MESSAGE =
+  'Area must be a positive number with up to 2 decimal places'
+const AREA_PRECISION_2DP_MESSAGE = 'Area must have up to 2 decimal places'
+const AREA_NON_NEGATIVE_MESSAGE = 'Area must be a number 0 or greater'
+const AREA_BEFORE_REQUIRED_MESSAGE =
+  'Enter the area before natural flood measures'
+const AREA_AFTER_REQUIRED_MESSAGE =
+  'Enter the area after natural flood measures'
 const LENGTH_POSITIVE_2DP_MESSAGE =
   'Length must be a positive number with up to 2 decimal places'
 const LENGTH_PRECISION_2DP_MESSAGE = 'Length must have up to 2 decimal places'
+const NFM_LAND_USE_TYPES = new Set([
+  'enclosed_arable_farmland',
+  'enclosed_livestock_farmland',
+  'enclosed_dairying_farmland',
+  'semi_natural_grassland',
+  'woodland',
+  'mountain_moors_and_heath',
+  'peatland_restoration',
+  'rivers_wetlands_and_freshwater_habitats',
+  'coastal_margins'
+])
 
 const maxTwoDecimalPlaces = (value, helpers) => {
   if (value === null || value === undefined) {
@@ -38,12 +61,23 @@ const createAreaSchema = (label, errorMessage) =>
     .required()
     .label(label)
     .messages({
-      'number.base':
-        'Area must be a positive number with up to 2 decimal places',
-      'number.positive':
-        'Area must be a positive number with up to 2 decimal places',
-      'number.precision': 'Area must have up to 2 decimal places',
+      'number.base': AREA_POSITIVE_2DP_MESSAGE,
+      'number.positive': AREA_POSITIVE_2DP_MESSAGE,
+      'number.precision': AREA_PRECISION_2DP_MESSAGE,
       'any.required': errorMessage
+    })
+
+const createLandUseAreaSchema = (label, requiredMessage) =>
+  Joi.number()
+    .positive()
+    .custom(maxTwoDecimalPlaces)
+    .required()
+    .label(label)
+    .messages({
+      'number.base': AREA_NON_NEGATIVE_MESSAGE,
+      'number.positive': AREA_NON_NEGATIVE_MESSAGE,
+      'number.precision': AREA_PRECISION_2DP_MESSAGE,
+      'any.required': requiredMessage
     })
 
 /**
@@ -117,6 +151,38 @@ export const nfmSelectedMeasuresSchema = Joi.string()
     'string.base': PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_INVALID,
     'string.empty': NFM_SELECTED_MEASURES_REQUIRED_MESSAGE,
     'any.required': NFM_SELECTED_MEASURES_REQUIRED_MESSAGE
+  })
+
+/**
+ * NFM land use change schema
+ * Database field: nfm_land_use_change (TEXT)
+ * Comma-separated string of selected land use types
+ */
+export const nfmLandUseChangeSchema = Joi.string()
+  .trim()
+  .required()
+  .custom((value, helpers) => {
+    const selected = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
+    if (selected.length === 0) {
+      return helpers.error('string.empty')
+    }
+
+    if (selected.some((item) => !NFM_LAND_USE_TYPES.has(item))) {
+      return helpers.error('any.invalid')
+    }
+
+    return value
+  })
+  .label('nfmLandUseChange')
+  .messages({
+    'string.base': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
+    'string.empty': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
+    'any.required': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
+    'any.invalid': NFM_LAND_USE_CHANGE_INVALID_MESSAGE
   })
 
 /**
@@ -269,6 +335,100 @@ export const nfmSandDuneLengthSchema = Joi.number()
     'number.precision': LENGTH_PRECISION_2DP_MESSAGE
   })
 
+export const nfmEnclosedArableFarmlandBeforeSchema = Joi.number().concat(
+  createLandUseAreaSchema(
+    'nfmEnclosedArableFarmlandBefore',
+    AREA_BEFORE_REQUIRED_MESSAGE
+  )
+)
+
+export const nfmEnclosedArableFarmlandAfterSchema = Joi.number().concat(
+  createLandUseAreaSchema(
+    'nfmEnclosedArableFarmlandAfter',
+    AREA_AFTER_REQUIRED_MESSAGE
+  )
+)
+
+export const nfmEnclosedLivestockFarmlandBeforeSchema = createLandUseAreaSchema(
+  'nfmEnclosedLivestockFarmlandBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmEnclosedLivestockFarmlandAfterSchema = createLandUseAreaSchema(
+  'nfmEnclosedLivestockFarmlandAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
+export const nfmEnclosedDairyingFarmlandBeforeSchema = createLandUseAreaSchema(
+  'nfmEnclosedDairyingFarmlandBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmEnclosedDairyingFarmlandAfterSchema = createLandUseAreaSchema(
+  'nfmEnclosedDairyingFarmlandAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
+export const nfmSemiNaturalGrasslandBeforeSchema = createLandUseAreaSchema(
+  'nfmSemiNaturalGrasslandBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmSemiNaturalGrasslandAfterSchema = createLandUseAreaSchema(
+  'nfmSemiNaturalGrasslandAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
+export const nfmWoodlandLandUseBeforeSchema = createLandUseAreaSchema(
+  'nfmWoodlandLandUseBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmWoodlandLandUseAfterSchema = createLandUseAreaSchema(
+  'nfmWoodlandLandUseAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
+export const nfmMountainMoorsAndHeathBeforeSchema = createLandUseAreaSchema(
+  'nfmMountainMoorsAndHeathBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmMountainMoorsAndHeathAfterSchema = createLandUseAreaSchema(
+  'nfmMountainMoorsAndHeathAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
+export const nfmPeatlandRestorationBeforeSchema = createLandUseAreaSchema(
+  'nfmPeatlandRestorationBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmPeatlandRestorationAfterSchema = createLandUseAreaSchema(
+  'nfmPeatlandRestorationAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
+export const nfmRiversWetlandsFreshwaterBeforeSchema = createLandUseAreaSchema(
+  'nfmRiversWetlandsFreshwaterBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmRiversWetlandsFreshwaterAfterSchema = createLandUseAreaSchema(
+  'nfmRiversWetlandsFreshwaterAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
+export const nfmCoastalMarginsBeforeSchema = createLandUseAreaSchema(
+  'nfmCoastalMarginsBefore',
+  AREA_BEFORE_REQUIRED_MESSAGE
+)
+
+export const nfmCoastalMarginsAfterSchema = createLandUseAreaSchema(
+  'nfmCoastalMarginsAfter',
+  AREA_AFTER_REQUIRED_MESSAGE
+)
+
 /**
  * NFM River Restoration schema
  * Validates area and volume for river restoration measures
@@ -346,4 +506,49 @@ export const nfmSaltmarshSchema = Joi.object({
 export const nfmSandDuneSchema = Joi.object({
   nfmSandDuneArea: nfmSandDuneAreaSchema,
   nfmSandDuneLength: nfmSandDuneLengthSchema
+})
+
+export const nfmLandUseEnclosedArableFarmlandSchema = Joi.object({
+  nfmEnclosedArableFarmlandBefore: nfmEnclosedArableFarmlandBeforeSchema,
+  nfmEnclosedArableFarmlandAfter: nfmEnclosedArableFarmlandAfterSchema
+})
+
+export const nfmLandUseEnclosedLivestockFarmlandSchema = Joi.object({
+  nfmEnclosedLivestockFarmlandBefore: nfmEnclosedLivestockFarmlandBeforeSchema,
+  nfmEnclosedLivestockFarmlandAfter: nfmEnclosedLivestockFarmlandAfterSchema
+})
+
+export const nfmLandUseEnclosedDairyingFarmlandSchema = Joi.object({
+  nfmEnclosedDairyingFarmlandBefore: nfmEnclosedDairyingFarmlandBeforeSchema,
+  nfmEnclosedDairyingFarmlandAfter: nfmEnclosedDairyingFarmlandAfterSchema
+})
+
+export const nfmLandUseSemiNaturalGrasslandSchema = Joi.object({
+  nfmSemiNaturalGrasslandBefore: nfmSemiNaturalGrasslandBeforeSchema,
+  nfmSemiNaturalGrasslandAfter: nfmSemiNaturalGrasslandAfterSchema
+})
+
+export const nfmLandUseWoodlandSchema = Joi.object({
+  nfmWoodlandLandUseBefore: nfmWoodlandLandUseBeforeSchema,
+  nfmWoodlandLandUseAfter: nfmWoodlandLandUseAfterSchema
+})
+
+export const nfmLandUseMountainMoorsAndHeathSchema = Joi.object({
+  nfmMountainMoorsAndHeathBefore: nfmMountainMoorsAndHeathBeforeSchema,
+  nfmMountainMoorsAndHeathAfter: nfmMountainMoorsAndHeathAfterSchema
+})
+
+export const nfmLandUsePeatlandRestorationSchema = Joi.object({
+  nfmPeatlandRestorationBefore: nfmPeatlandRestorationBeforeSchema,
+  nfmPeatlandRestorationAfter: nfmPeatlandRestorationAfterSchema
+})
+
+export const nfmLandUseRiversWetlandsFreshwaterSchema = Joi.object({
+  nfmRiversWetlandsFreshwaterBefore: nfmRiversWetlandsFreshwaterBeforeSchema,
+  nfmRiversWetlandsFreshwaterAfter: nfmRiversWetlandsFreshwaterAfterSchema
+})
+
+export const nfmLandUseCoastalMarginsSchema = Joi.object({
+  nfmCoastalMarginsBefore: nfmCoastalMarginsBeforeSchema,
+  nfmCoastalMarginsAfter: nfmCoastalMarginsAfterSchema
 })

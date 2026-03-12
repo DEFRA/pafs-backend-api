@@ -57,6 +57,25 @@ export class ProjectService {
   }
 
   /**
+   * Resolve project ID from reference number
+   * @private
+   */
+  async _getProjectIdByReference(referenceNumber) {
+    const project = await this.prisma.pafs_core_projects.findFirst({
+      where: { reference_number: referenceNumber },
+      select: { id: true }
+    })
+
+    if (!project) {
+      throw new Error(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+    }
+
+    return Number(project.id)
+  }
+
+  /**
    * Check if a project name already exists in the database
    * @param {Object} payload - Contains name and optional referenceNumber
    * @returns {Promise<{isValid: boolean, errors?: Object}>}
@@ -465,19 +484,7 @@ export class ProjectService {
     widthM
   }) {
     try {
-      // First get the project ID from reference number
-      const project = await this.prisma.pafs_core_projects.findFirst({
-        where: { reference_number: referenceNumber },
-        select: { id: true }
-      })
-
-      if (!project) {
-        throw new Error(
-          `Project not found with reference number: ${referenceNumber}`
-        )
-      }
-
-      const projectId = Number(project.id)
+      const projectId = await this._getProjectIdByReference(referenceNumber)
 
       // Check if NFM measure already exists
       const existingMeasure =
@@ -541,19 +548,7 @@ export class ProjectService {
    */
   async deleteNfmMeasure({ referenceNumber, measureType }) {
     try {
-      // First get the project ID from reference number
-      const project = await this.prisma.pafs_core_projects.findFirst({
-        where: { reference_number: referenceNumber },
-        select: { id: true }
-      })
-
-      if (!project) {
-        throw new Error(
-          `Project not found with reference number: ${referenceNumber}`
-        )
-      }
-
-      const projectId = Number(project.id)
+      const projectId = await this._getProjectIdByReference(referenceNumber)
 
       // Check if NFM measure exists
       const existingMeasure =
@@ -588,6 +583,87 @@ export class ProjectService {
       this.logger.error(
         { error: error.message, referenceNumber, measureType },
         'Error deleting NFM measure'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Upsert NFM land use change detail record
+   */
+  async upsertNfmLandUseChange({
+    referenceNumber,
+    landUseType,
+    areaBeforeHectares,
+    areaAfterHectares
+  }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const existingRecord =
+        await this.prisma.pafs_core_nfm_land_use_changes.findFirst({
+          where: {
+            project_id: projectId,
+            land_use_type: landUseType
+          }
+        })
+
+      if (existingRecord) {
+        return this.prisma.pafs_core_nfm_land_use_changes.update({
+          where: { id: existingRecord.id },
+          data: {
+            area_before_hectares: areaBeforeHectares,
+            area_after_hectares: areaAfterHectares,
+            updated_at: new Date()
+          }
+        })
+      }
+
+      return this.prisma.pafs_core_nfm_land_use_changes.create({
+        data: {
+          project_id: projectId,
+          land_use_type: landUseType,
+          area_before_hectares: areaBeforeHectares,
+          area_after_hectares: areaAfterHectares,
+          created_at: new Date(),
+          updated_at: new Date()
+        }
+      })
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, landUseType },
+        'Error upserting NFM land use change'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Delete NFM land use change detail record
+   */
+  async deleteNfmLandUseChange({ referenceNumber, landUseType }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const existingRecord =
+        await this.prisma.pafs_core_nfm_land_use_changes.findFirst({
+          where: {
+            project_id: projectId,
+            land_use_type: landUseType
+          }
+        })
+
+      if (!existingRecord) {
+        return null
+      }
+
+      return this.prisma.pafs_core_nfm_land_use_changes.delete({
+        where: { id: existingRecord.id }
+      })
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, landUseType },
+        'Error deleting NFM land use change'
       )
       throw error
     }

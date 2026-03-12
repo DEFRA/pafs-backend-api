@@ -38,6 +38,16 @@ export const PROJECT_JOIN_TABLES = {
       lengthKm: 'length_km',
       widthM: 'width_m'
     }
+  },
+  pafs_core_nfm_land_use_changes: {
+    tableName: 'pafs_core_nfm_land_use_changes',
+    joinField: 'project_id',
+    isArray: true,
+    fields: {
+      landUseType: 'land_use_type',
+      areaBeforeHectares: 'area_before_hectares',
+      areaAfterHectares: 'area_after_hectares'
+    }
   }
 }
 
@@ -125,7 +135,8 @@ export const PROJECT_FIELDS_MAP = {
   createHabitatWatercourse: 'create_habitat_watercourse',
   kilometresOfWatercourseEnhancedOrCreatedSingle:
     'kilometres_of_watercourse_enhanced_or_created_single',
-  nfmSelectedMeasures: 'nfm_selected_measures'
+  nfmSelectedMeasures: 'nfm_selected_measures',
+  nfmLandUseChange: 'nfm_land_use_change'
 }
 
 /**

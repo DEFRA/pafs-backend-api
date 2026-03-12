@@ -43,6 +43,109 @@ const NFM_SELECTED_MEASURE_MAPPINGS = [
   }
 ]
 
+const NFM_LAND_USE_DETAIL_MAPPINGS = [
+  {
+    landUseType: 'enclosed_arable_farmland',
+    fields: [
+      'nfmEnclosedArableFarmlandBefore',
+      'nfmEnclosedArableFarmlandAfter'
+    ]
+  },
+  {
+    landUseType: 'enclosed_livestock_farmland',
+    fields: [
+      'nfmEnclosedLivestockFarmlandBefore',
+      'nfmEnclosedLivestockFarmlandAfter'
+    ]
+  },
+  {
+    landUseType: 'enclosed_dairying_farmland',
+    fields: [
+      'nfmEnclosedDairyingFarmlandBefore',
+      'nfmEnclosedDairyingFarmlandAfter'
+    ]
+  },
+  {
+    landUseType: 'semi_natural_grassland',
+    fields: ['nfmSemiNaturalGrasslandBefore', 'nfmSemiNaturalGrasslandAfter']
+  },
+  {
+    landUseType: 'woodland',
+    fields: ['nfmWoodlandLandUseBefore', 'nfmWoodlandLandUseAfter']
+  },
+  {
+    landUseType: 'mountain_moors_and_heath',
+    fields: ['nfmMountainMoorsAndHeathBefore', 'nfmMountainMoorsAndHeathAfter']
+  },
+  {
+    landUseType: 'peatland_restoration',
+    fields: ['nfmPeatlandRestorationBefore', 'nfmPeatlandRestorationAfter']
+  },
+  {
+    landUseType: 'rivers_wetlands_and_freshwater_habitats',
+    fields: [
+      'nfmRiversWetlandsFreshwaterBefore',
+      'nfmRiversWetlandsFreshwaterAfter'
+    ]
+  },
+  {
+    landUseType: 'coastal_margins',
+    fields: ['nfmCoastalMarginsBefore', 'nfmCoastalMarginsAfter']
+  }
+]
+
+const NFM_LAND_USE_UPSERT_CONFIG = {
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_ENCLOSED_ARABLE_FARMLAND]: {
+    landUseType: 'enclosed_arable_farmland',
+    beforeField: 'nfmEnclosedArableFarmlandBefore',
+    afterField: 'nfmEnclosedArableFarmlandAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_ENCLOSED_LIVESTOCK_FARMLAND]: {
+    landUseType: 'enclosed_livestock_farmland',
+    beforeField: 'nfmEnclosedLivestockFarmlandBefore',
+    afterField: 'nfmEnclosedLivestockFarmlandAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_ENCLOSED_DAIRYING_FARMLAND]: {
+    landUseType: 'enclosed_dairying_farmland',
+    beforeField: 'nfmEnclosedDairyingFarmlandBefore',
+    afterField: 'nfmEnclosedDairyingFarmlandAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_SEMI_NATURAL_GRASSLAND]: {
+    landUseType: 'semi_natural_grassland',
+    beforeField: 'nfmSemiNaturalGrasslandBefore',
+    afterField: 'nfmSemiNaturalGrasslandAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_WOODLAND]: {
+    landUseType: 'woodland',
+    beforeField: 'nfmWoodlandLandUseBefore',
+    afterField: 'nfmWoodlandLandUseAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_MOUNTAIN_MOORS_AND_HEATH]: {
+    landUseType: 'mountain_moors_and_heath',
+    beforeField: 'nfmMountainMoorsAndHeathBefore',
+    afterField: 'nfmMountainMoorsAndHeathAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_RESTORATION]: {
+    landUseType: 'peatland_restoration',
+    beforeField: 'nfmPeatlandRestorationBefore',
+    afterField: 'nfmPeatlandRestorationAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_RIVERS_WETLANDS_FRESHWATER]: {
+    landUseType: 'rivers_wetlands_and_freshwater_habitats',
+    beforeField: 'nfmRiversWetlandsFreshwaterBefore',
+    afterField: 'nfmRiversWetlandsFreshwaterAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_COASTAL_MARGINS]: {
+    landUseType: 'coastal_margins',
+    beforeField: 'nfmCoastalMarginsBefore',
+    afterField: 'nfmCoastalMarginsAfter'
+  }
+}
+
+const NFM_LAND_USE_DETAIL_LEVELS = new Set(
+  Object.keys(NFM_LAND_USE_UPSERT_CONFIG)
+)
+
 const NFM_UPSERT_CONFIG = {
   [PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION]: {
     measureType: 'river_floodplain_restoration',
@@ -146,6 +249,26 @@ const handleSelectedMeasureCleanup = async (
   }
 }
 
+const handleLandUseCleanup = async (enrichedPayload, projectService) => {
+  const { referenceNumber } = enrichedPayload
+
+  for (const mapping of NFM_LAND_USE_DETAIL_MAPPINGS) {
+    const allFieldsNull = mapping.fields.every(
+      (field) => enrichedPayload[field] === null
+    )
+    const hasAnyField = mapping.fields.some((field) => field in enrichedPayload)
+
+    if (hasAnyField && allFieldsNull) {
+      await projectService.deleteNfmLandUseChange({
+        referenceNumber,
+        landUseType: mapping.landUseType
+      })
+    }
+
+    deleteFieldsFromPayload(enrichedPayload, mapping.fields)
+  }
+}
+
 const handleMeasureUpsert = async (
   enrichedPayload,
   validationLevel,
@@ -162,6 +285,30 @@ const handleMeasureUpsert = async (
   )
 
   deleteFieldsFromPayload(enrichedPayload, getConfigFieldList(config))
+}
+
+const handleLandUseUpsert = async (
+  enrichedPayload,
+  validationLevel,
+  projectService
+) => {
+  const config = NFM_LAND_USE_UPSERT_CONFIG[validationLevel]
+
+  if (!config) {
+    return
+  }
+
+  await projectService.upsertNfmLandUseChange({
+    referenceNumber: enrichedPayload.referenceNumber,
+    landUseType: config.landUseType,
+    areaBeforeHectares: enrichedPayload[config.beforeField],
+    areaAfterHectares: enrichedPayload[config.afterField]
+  })
+
+  deleteFieldsFromPayload(enrichedPayload, [
+    config.beforeField,
+    config.afterField
+  ])
 }
 
 /**
@@ -306,6 +453,16 @@ export const handleNfmMeasureData = async (
 ) => {
   if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES) {
     await handleSelectedMeasureCleanup(enrichedPayload, projectService)
+    return
+  }
+
+  if (validationLevel === PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_CHANGE) {
+    await handleLandUseCleanup(enrichedPayload, projectService)
+    return
+  }
+
+  if (NFM_LAND_USE_DETAIL_LEVELS.has(validationLevel)) {
+    await handleLandUseUpsert(enrichedPayload, validationLevel, projectService)
     return
   }
 
