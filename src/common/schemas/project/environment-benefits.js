@@ -139,7 +139,7 @@ export const environmentalBenefitsConditionalQuantitySchema = (
         'number.min':
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
         'number.precision':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
       }),
     otherwise: Joi.any().strip()
   })
