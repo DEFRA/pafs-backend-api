@@ -57,6 +57,25 @@ export class ProjectService {
   }
 
   /**
+   * Resolve project ID from reference number
+   * @private
+   */
+  async _getProjectIdByReference(referenceNumber) {
+    const project = await this.prisma.pafs_core_projects.findFirst({
+      where: { reference_number: referenceNumber },
+      select: { id: true }
+    })
+
+    if (!project) {
+      throw new Error(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+    }
+
+    return Number(project.id)
+  }
+
+  /**
    * Check if a project name already exists in the database
    * @param {Object} payload - Contains name and optional referenceNumber
    * @returns {Promise<{isValid: boolean, errors?: Object}>}
@@ -276,6 +295,58 @@ export class ProjectService {
     return this._getProjectDetails(referenceNumber, { includeVersion: true })
   }
 
+  _buildJoinSelect(config) {
+    return Object.fromEntries(
+      Object.values(config.fields).map((field) => [field, true])
+    )
+  }
+
+  async _fetchJoinedDataByConfig(projectId, config) {
+    const query = {
+      where: {
+        [config.joinField]: Number(projectId)
+      },
+      select: this._buildJoinSelect(config)
+    }
+
+    return config.isArray
+      ? this.prisma[config.tableName].findMany(query)
+      : this.prisma[config.tableName].findFirst(query)
+  }
+
+  _attachJoinedTableData(project, tableKey, joinData, isArray) {
+    if (isArray && joinData?.length > 0) {
+      project[tableKey] = joinData
+      return
+    }
+
+    if (!isArray && joinData) {
+      project[tableKey] = joinData
+    }
+  }
+
+  async _populateJoinedTables(project) {
+    const joinedTables = getJoinedTableConfig()
+    for (const [tableKey, config] of Object.entries(joinedTables)) {
+      const joinData = await this._fetchJoinedDataByConfig(project.id, config)
+      this._attachJoinedTableData(project, tableKey, joinData, config.isArray)
+    }
+  }
+
+  async _resolveProjectAreaName(project) {
+    if (project.rma_name) {
+      return
+    }
+
+    const projectId = Number(project.id)
+    const areaNames = await resolveAreaNames(this.prisma, [projectId])
+    const areaName = areaNames.get(projectId)
+
+    if (areaName) {
+      project.rma_name = areaName
+    }
+  }
+
   /**
    * Get Project Overview data using reference number
    * Fetches project with joined tables and returns mapped API format
@@ -299,32 +370,8 @@ export class ProjectService {
         return null
       }
 
-      // Manually fetch joined table data
-      const joinedTables = getJoinedTableConfig()
-      for (const [tableKey, config] of Object.entries(joinedTables)) {
-        const joinData = await this.prisma[config.tableName].findFirst({
-          where: {
-            [config.joinField]: Number(project.id)
-          },
-          select: Object.fromEntries(
-            Object.values(config.fields).map((field) => [field, true])
-          )
-        })
-        if (joinData) {
-          project[tableKey] = joinData
-        }
-      }
-
-      // Resolve area name when rma_name is empty
-      if (!project.rma_name) {
-        const areaNames = await resolveAreaNames(this.prisma, [
-          Number(project.id)
-        ])
-        const areaName = areaNames.get(Number(project.id))
-        if (areaName) {
-          project.rma_name = areaName
-        }
-      }
+      await this._populateJoinedTables(project)
+      await this._resolveProjectAreaName(project)
 
       const apiData = ProjectMapper.toApi(project)
 
@@ -417,5 +464,208 @@ export class ProjectService {
       { areaId },
       'Error upserting project area'
     )
+  }
+
+  /**
+   * Upsert NFM measure data to pafs_core_nfm_measures table
+   * @param {Object} data - NFM measure data
+   * @param {string} data.referenceNumber - Project reference number
+   * @param {string} data.measureType - Type of NFM measure (e.g., 'river_floodplain_restoration')
+   * @param {number} data.areaHectares - Area in hectares
+   * @param {number|null} data.storageVolumeM3 - Storage volume in cubic meters (optional)
+   * @returns {Promise<Object>} Created or updated NFM measure record
+   */
+  async upsertNfmMeasure({
+    referenceNumber,
+    measureType,
+    areaHectares,
+    storageVolumeM3,
+    lengthKm,
+    widthM
+  }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      // Check if NFM measure already exists
+      const existingMeasure =
+        await this.prisma.pafs_core_nfm_measures.findFirst({
+          where: {
+            project_id: projectId,
+            measure_type: measureType
+          }
+        })
+
+      let nfmMeasure
+      if (existingMeasure) {
+        // Update existing record
+        nfmMeasure = await this.prisma.pafs_core_nfm_measures.update({
+          where: { id: existingMeasure.id },
+          data: {
+            area_hectares: areaHectares,
+            storage_volume_m3: storageVolumeM3,
+            length_km: lengthKm,
+            width_m: widthM,
+            updated_at: new Date()
+          }
+        })
+      } else {
+        // Create new record
+        nfmMeasure = await this.prisma.pafs_core_nfm_measures.create({
+          data: {
+            project_id: projectId,
+            measure_type: measureType,
+            area_hectares: areaHectares,
+            storage_volume_m3: storageVolumeM3,
+            length_km: lengthKm,
+            width_m: widthM,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        })
+      }
+
+      this.logger.info(
+        { projectId, measureType, referenceNumber },
+        'NFM measure upserted successfully'
+      )
+
+      return nfmMeasure
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, measureType },
+        'Error upserting NFM measure'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Delete NFM measure data from pafs_core_nfm_measures table
+   * @param {Object} data - NFM measure identification data
+   * @param {string} data.referenceNumber - Project reference number
+   * @param {string} data.measureType - Type of NFM measure to delete
+   * @returns {Promise<Object>} Deleted NFM measure record or null if not found
+   */
+  async deleteNfmMeasure({ referenceNumber, measureType }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      // Check if NFM measure exists
+      const existingMeasure =
+        await this.prisma.pafs_core_nfm_measures.findFirst({
+          where: {
+            project_id: projectId,
+            measure_type: measureType
+          }
+        })
+
+      if (existingMeasure) {
+        // Delete the record
+        const deletedMeasure = await this.prisma.pafs_core_nfm_measures.delete({
+          where: { id: existingMeasure.id }
+        })
+
+        this.logger.info(
+          { projectId, measureType, referenceNumber },
+          'NFM measure deleted successfully'
+        )
+
+        return deletedMeasure
+      }
+
+      this.logger.info(
+        { projectId, measureType, referenceNumber },
+        'NFM measure not found, nothing to delete'
+      )
+
+      return null
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, measureType },
+        'Error deleting NFM measure'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Upsert NFM land use change detail record
+   */
+  async upsertNfmLandUseChange({
+    referenceNumber,
+    landUseType,
+    areaBeforeHectares,
+    areaAfterHectares
+  }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const existingRecord =
+        await this.prisma.pafs_core_nfm_land_use_changes.findFirst({
+          where: {
+            project_id: projectId,
+            land_use_type: landUseType
+          }
+        })
+
+      if (existingRecord) {
+        return this.prisma.pafs_core_nfm_land_use_changes.update({
+          where: { id: existingRecord.id },
+          data: {
+            area_before_hectares: areaBeforeHectares,
+            area_after_hectares: areaAfterHectares,
+            updated_at: new Date()
+          }
+        })
+      }
+
+      return this.prisma.pafs_core_nfm_land_use_changes.create({
+        data: {
+          project_id: projectId,
+          land_use_type: landUseType,
+          area_before_hectares: areaBeforeHectares,
+          area_after_hectares: areaAfterHectares,
+          created_at: new Date(),
+          updated_at: new Date()
+        }
+      })
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, landUseType },
+        'Error upserting NFM land use change'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Delete NFM land use change detail record
+   */
+  async deleteNfmLandUseChange({ referenceNumber, landUseType }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const existingRecord =
+        await this.prisma.pafs_core_nfm_land_use_changes.findFirst({
+          where: {
+            project_id: projectId,
+            land_use_type: landUseType
+          }
+        })
+
+      if (!existingRecord) {
+        return null
+      }
+
+      return this.prisma.pafs_core_nfm_land_use_changes.delete({
+        where: { id: existingRecord.id }
+      })
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, landUseType },
+        'Error deleting NFM land use change'
+      )
+      throw error
+    }
   }
 }

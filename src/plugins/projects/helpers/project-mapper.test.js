@@ -774,5 +774,88 @@ describe('ProjectMapper', () => {
         name: 'Test Project'
       })
     })
+
+    it('should map one-to-many pafs_core_nfm_measures array', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        pafs_core_nfm_measures: [
+          {
+            measure_type: 'river_floodplain_restoration',
+            area_hectares: 10.5,
+            storage_volume_m3: 500.25,
+            length_km: null,
+            width_m: null
+          },
+          {
+            measure_type: 'woodland',
+            area_hectares: 3.2,
+            storage_volume_m3: null,
+            length_km: null,
+            width_m: null
+          }
+        ]
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toHaveProperty('name', 'Test Project')
+      expect(result).toHaveProperty('pafs_core_nfm_measures')
+      expect(Array.isArray(result.pafs_core_nfm_measures)).toBe(true)
+      expect(result.pafs_core_nfm_measures).toHaveLength(2)
+      expect(result.pafs_core_nfm_measures[0]).toEqual({
+        measureType: 'river_floodplain_restoration',
+        areaHectares: 10.5,
+        storageVolumeM3: 500.25,
+        lengthKm: null,
+        widthM: null
+      })
+      expect(result.pafs_core_nfm_measures[1]).toEqual({
+        measureType: 'woodland',
+        areaHectares: 3.2,
+        storageVolumeM3: null,
+        lengthKm: null,
+        widthM: null
+      })
+    })
+
+    it('should map one-to-many pafs_core_nfm_land_use_changes array', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        pafs_core_nfm_land_use_changes: [
+          {
+            land_use_type: 'enclosed_arable_farmland',
+            area_before_hectares: 5.5,
+            area_after_hectares: 4
+          }
+        ]
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toHaveProperty('pafs_core_nfm_land_use_changes')
+      expect(Array.isArray(result.pafs_core_nfm_land_use_changes)).toBe(true)
+      expect(result.pafs_core_nfm_land_use_changes[0]).toEqual({
+        landUseType: 'enclosed_arable_farmland',
+        areaBeforeHectares: 5.5,
+        areaAfterHectares: 4
+      })
+    })
+
+    it('should handle empty pafs_core_nfm_measures array', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        name: 'Test Project',
+        pafs_core_nfm_measures: []
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      // Empty array joinData has length 0, so it should not be attached to result
+      expect(result).toHaveProperty('referenceNumber', 'REF123')
+      expect(result).toHaveProperty('pafs_core_nfm_measures')
+      expect(result.pafs_core_nfm_measures).toEqual([])
+    })
   })
 })
