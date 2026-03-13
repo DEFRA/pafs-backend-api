@@ -47,74 +47,6 @@ const createNfmLevel = (name, referenceNumber, fields) => ({
   }
 })
 
-const getSelectedMeasuresFields = () => ({
-  nfmSelectedMeasures: nfmSelectedMeasuresSchema,
-  // Optional measure data fields to allow clearing when measures are unselected
-  nfmRiverRestorationArea: optionalNullable(nfmRiverRestorationAreaSchema),
-  nfmRiverRestorationVolume: optionalNullable(nfmRiverRestorationVolumeSchema),
-  nfmLeakyBarriersVolume: optionalNullable(nfmLeakyBarriersVolumeSchema),
-  nfmLeakyBarriersLength: optionalNullable(nfmLeakyBarriersLengthSchema),
-  nfmLeakyBarriersWidth: optionalNullable(nfmLeakyBarriersWidthSchema),
-  nfmOfflineStorageArea: optionalNullable(nfmOfflineStorageAreaSchema),
-  nfmOfflineStorageVolume: optionalNullable(nfmOfflineStorageVolumeSchema),
-  nfmWoodlandArea: optionalNullable(nfmWoodlandAreaSchema),
-  nfmHeadwaterDrainageArea: optionalNullable(nfmHeadwaterDrainageAreaSchema),
-  nfmRunoffManagementArea: optionalNullable(nfmRunoffManagementAreaSchema),
-  nfmRunoffManagementVolume: optionalNullable(nfmRunoffManagementVolumeSchema),
-  nfmSaltmarshArea: optionalNullable(nfmSaltmarshAreaSchema),
-  nfmSaltmarshLength: optionalNullable(nfmSaltmarshLengthSchema),
-  nfmSandDuneArea: optionalNullable(nfmSandDuneAreaSchema),
-  nfmSandDuneLength: optionalNullable(nfmSandDuneLengthSchema),
-  // Optional land-use fields may be present in session-backed submissions
-  nfmLandUseChange: optionalNullable(nfmLandUseChangeSchema),
-  nfmEnclosedArableFarmlandBefore: optionalNullable(
-    nfmEnclosedArableFarmlandBeforeSchema
-  ),
-  nfmEnclosedArableFarmlandAfter: optionalNullable(
-    nfmEnclosedArableFarmlandAfterSchema
-  ),
-  nfmEnclosedLivestockFarmlandBefore: optionalNullable(
-    nfmEnclosedLivestockFarmlandBeforeSchema
-  ),
-  nfmEnclosedLivestockFarmlandAfter: optionalNullable(
-    nfmEnclosedLivestockFarmlandAfterSchema
-  ),
-  nfmEnclosedDairyingFarmlandBefore: optionalNullable(
-    nfmEnclosedDairyingFarmlandBeforeSchema
-  ),
-  nfmEnclosedDairyingFarmlandAfter: optionalNullable(
-    nfmEnclosedDairyingFarmlandAfterSchema
-  ),
-  nfmSemiNaturalGrasslandBefore: optionalNullable(
-    nfmSemiNaturalGrasslandBeforeSchema
-  ),
-  nfmSemiNaturalGrasslandAfter: optionalNullable(
-    nfmSemiNaturalGrasslandAfterSchema
-  ),
-  nfmWoodlandLandUseBefore: optionalNullable(nfmWoodlandLandUseBeforeSchema),
-  nfmWoodlandLandUseAfter: optionalNullable(nfmWoodlandLandUseAfterSchema),
-  nfmMountainMoorsAndHeathBefore: optionalNullable(
-    nfmMountainMoorsAndHeathBeforeSchema
-  ),
-  nfmMountainMoorsAndHeathAfter: optionalNullable(
-    nfmMountainMoorsAndHeathAfterSchema
-  ),
-  nfmPeatlandRestorationBefore: optionalNullable(
-    nfmPeatlandRestorationBeforeSchema
-  ),
-  nfmPeatlandRestorationAfter: optionalNullable(
-    nfmPeatlandRestorationAfterSchema
-  ),
-  nfmRiversWetlandsFreshwaterBefore: optionalNullable(
-    nfmRiversWetlandsFreshwaterBeforeSchema
-  ),
-  nfmRiversWetlandsFreshwaterAfter: optionalNullable(
-    nfmRiversWetlandsFreshwaterAfterSchema
-  ),
-  nfmCoastalMarginsBefore: optionalNullable(nfmCoastalMarginsBeforeSchema),
-  nfmCoastalMarginsAfter: optionalNullable(nfmCoastalMarginsAfterSchema)
-})
-
 const OPTIONAL_NFM_LAND_USE_FIELDS = {
   nfmEnclosedArableFarmlandBefore: optionalNullable(
     nfmEnclosedArableFarmlandBeforeSchema
@@ -163,6 +95,33 @@ const OPTIONAL_NFM_LAND_USE_FIELDS = {
   nfmCoastalMarginsBefore: optionalNullable(nfmCoastalMarginsBeforeSchema),
   nfmCoastalMarginsAfter: optionalNullable(nfmCoastalMarginsAfterSchema)
 }
+
+const OPTIONAL_NFM_MEASURE_FIELDS = {
+  nfmRiverRestorationArea: optionalNullable(nfmRiverRestorationAreaSchema),
+  nfmRiverRestorationVolume: optionalNullable(nfmRiverRestorationVolumeSchema),
+  nfmLeakyBarriersVolume: optionalNullable(nfmLeakyBarriersVolumeSchema),
+  nfmLeakyBarriersLength: optionalNullable(nfmLeakyBarriersLengthSchema),
+  nfmLeakyBarriersWidth: optionalNullable(nfmLeakyBarriersWidthSchema),
+  nfmOfflineStorageArea: optionalNullable(nfmOfflineStorageAreaSchema),
+  nfmOfflineStorageVolume: optionalNullable(nfmOfflineStorageVolumeSchema),
+  nfmWoodlandArea: optionalNullable(nfmWoodlandAreaSchema),
+  nfmHeadwaterDrainageArea: optionalNullable(nfmHeadwaterDrainageAreaSchema),
+  nfmRunoffManagementArea: optionalNullable(nfmRunoffManagementAreaSchema),
+  nfmRunoffManagementVolume: optionalNullable(nfmRunoffManagementVolumeSchema),
+  nfmSaltmarshArea: optionalNullable(nfmSaltmarshAreaSchema),
+  nfmSaltmarshLength: optionalNullable(nfmSaltmarshLengthSchema),
+  nfmSandDuneArea: optionalNullable(nfmSandDuneAreaSchema),
+  nfmSandDuneLength: optionalNullable(nfmSandDuneLengthSchema)
+}
+
+const getSelectedMeasuresFields = () => ({
+  nfmSelectedMeasures: nfmSelectedMeasuresSchema,
+  // Optional measure data fields to allow clearing when measures are unselected
+  ...OPTIONAL_NFM_MEASURE_FIELDS,
+  // Optional land-use fields may be present in session-backed submissions
+  nfmLandUseChange: optionalNullable(nfmLandUseChangeSchema),
+  ...OPTIONAL_NFM_LAND_USE_FIELDS
+})
 
 const NFM_LEVEL_FIELD_SCHEMAS = {
   [PROJECT_VALIDATION_LEVELS.NFM_RIVER_RESTORATION]: {

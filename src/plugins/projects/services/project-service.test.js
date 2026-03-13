@@ -1624,4 +1624,425 @@ describe('ProjectService', () => {
       })
     })
   })
+
+  describe('deleteNfmMeasure', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_nfm_measures = {
+        findFirst: vi.fn(),
+        delete: vi.fn()
+      }
+    })
+
+    test('Should delete existing NFM measure and return deleted record', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'river_floodplain_restoration'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue({
+        id: 10,
+        project_id: 1,
+        measure_type: 'river_floodplain_restoration'
+      })
+      mockPrisma.pafs_core_nfm_measures.delete.mockResolvedValue({
+        id: 10,
+        project_id: 1,
+        measure_type: 'river_floodplain_restoration'
+      })
+
+      const result = await service.deleteNfmMeasure(payload)
+
+      expect(result).toBeDefined()
+      expect(result.measure_type).toBe('river_floodplain_restoration')
+      expect(mockPrisma.pafs_core_nfm_measures.delete).toHaveBeenCalledWith({
+        where: { id: 10 }
+      })
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: 1,
+          measureType: 'river_floodplain_restoration',
+          referenceNumber: 'ANC501E/000A/001A'
+        }),
+        'NFM measure deleted successfully'
+      )
+    })
+
+    test('Should return null when NFM measure does not exist', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'woodland'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
+
+      const result = await service.deleteNfmMeasure(payload)
+
+      expect(result).toBeNull()
+      expect(mockPrisma.pafs_core_nfm_measures.delete).not.toHaveBeenCalled()
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: 1,
+          measureType: 'woodland',
+          referenceNumber: 'ANC501E/000A/001A'
+        }),
+        'NFM measure not found, nothing to delete'
+      )
+    })
+
+    test('Should throw error when project not found for deleteNfmMeasure', async () => {
+      const payload = {
+        referenceNumber: 'NONEXISTENT',
+        measureType: 'woodland'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(service.deleteNfmMeasure(payload)).rejects.toThrow(
+        'Project not found with reference number: NONEXISTENT'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceNumber: 'NONEXISTENT',
+          measureType: 'woodland'
+        }),
+        'Error deleting NFM measure'
+      )
+    })
+
+    test('Should throw error when database delete fails', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        measureType: 'woodland'
+      }
+      const dbError = new Error('Delete failed')
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue({
+        id: 5,
+        project_id: 1,
+        measure_type: 'woodland'
+      })
+      mockPrisma.pafs_core_nfm_measures.delete.mockRejectedValue(dbError)
+
+      await expect(service.deleteNfmMeasure(payload)).rejects.toThrow(
+        'Delete failed'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'Delete failed' }),
+        'Error deleting NFM measure'
+      )
+    })
+  })
+
+  describe('upsertNfmLandUseChange', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_nfm_land_use_changes = {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn()
+      }
+    })
+
+    test('Should create new NFM land use change when it does not exist', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        landUseType: 'enclosed_arable_farmland',
+        areaBeforeHectares: 10.5,
+        areaAfterHectares: 8.25
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
+        null
+      )
+      mockPrisma.pafs_core_nfm_land_use_changes.create.mockResolvedValue({
+        id: 1,
+        project_id: 1,
+        land_use_type: 'enclosed_arable_farmland',
+        area_before_hectares: 10.5,
+        area_after_hectares: 8.25
+      })
+
+      const result = await service.upsertNfmLandUseChange(payload)
+
+      expect(result).toBeDefined()
+      expect(result.land_use_type).toBe('enclosed_arable_farmland')
+      expect(result.area_before_hectares).toBe(10.5)
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.create
+      ).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          project_id: 1,
+          land_use_type: 'enclosed_arable_farmland',
+          area_before_hectares: 10.5,
+          area_after_hectares: 8.25
+        })
+      })
+    })
+
+    test('Should update existing NFM land use change', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        landUseType: 'woodland',
+        areaBeforeHectares: 5,
+        areaAfterHectares: 6.5
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue({
+        id: 20,
+        project_id: 1,
+        land_use_type: 'woodland'
+      })
+      mockPrisma.pafs_core_nfm_land_use_changes.update.mockResolvedValue({
+        id: 20,
+        project_id: 1,
+        land_use_type: 'woodland',
+        area_before_hectares: 5,
+        area_after_hectares: 6.5
+      })
+
+      const result = await service.upsertNfmLandUseChange(payload)
+
+      expect(result).toBeDefined()
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.update
+      ).toHaveBeenCalledWith({
+        where: { id: 20 },
+        data: expect.objectContaining({
+          area_before_hectares: 5,
+          area_after_hectares: 6.5
+        })
+      })
+    })
+
+    test('Should throw error when project not found for upsertNfmLandUseChange', async () => {
+      const payload = {
+        referenceNumber: 'NONEXISTENT',
+        landUseType: 'woodland',
+        areaBeforeHectares: 5,
+        areaAfterHectares: 6.5
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(service.upsertNfmLandUseChange(payload)).rejects.toThrow(
+        'Project not found with reference number: NONEXISTENT'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceNumber: 'NONEXISTENT',
+          landUseType: 'woodland'
+        }),
+        'Error upserting NFM land use change'
+      )
+    })
+
+    test('Should throw error when upsertNfmLandUseChange database fails', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        landUseType: 'woodland',
+        areaBeforeHectares: 5,
+        areaAfterHectares: 6.5
+      }
+      const dbError = new Error('DB error')
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockRejectedValue(
+        dbError
+      )
+
+      await expect(service.upsertNfmLandUseChange(payload)).rejects.toThrow(
+        'DB error'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'DB error' }),
+        'Error upserting NFM land use change'
+      )
+    })
+  })
+
+  describe('deleteNfmLandUseChange', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_nfm_land_use_changes = {
+        findFirst: vi.fn(),
+        delete: vi.fn()
+      }
+    })
+
+    test('Should delete existing NFM land use change and return deleted record', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        landUseType: 'enclosed_arable_farmland'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue({
+        id: 30,
+        project_id: 1,
+        land_use_type: 'enclosed_arable_farmland'
+      })
+      mockPrisma.pafs_core_nfm_land_use_changes.delete.mockResolvedValue({
+        id: 30,
+        project_id: 1,
+        land_use_type: 'enclosed_arable_farmland'
+      })
+
+      const result = await service.deleteNfmLandUseChange(payload)
+
+      expect(result).toBeDefined()
+      expect(result.land_use_type).toBe('enclosed_arable_farmland')
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.delete
+      ).toHaveBeenCalledWith({
+        where: { id: 30 }
+      })
+    })
+
+    test('Should return null when NFM land use change does not exist', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        landUseType: 'woodland'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
+        null
+      )
+
+      const result = await service.deleteNfmLandUseChange(payload)
+
+      expect(result).toBeNull()
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.delete
+      ).not.toHaveBeenCalled()
+    })
+
+    test('Should throw error when project not found for deleteNfmLandUseChange', async () => {
+      const payload = {
+        referenceNumber: 'NONEXISTENT',
+        landUseType: 'woodland'
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(service.deleteNfmLandUseChange(payload)).rejects.toThrow(
+        'Project not found with reference number: NONEXISTENT'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceNumber: 'NONEXISTENT',
+          landUseType: 'woodland'
+        }),
+        'Error deleting NFM land use change'
+      )
+    })
+
+    test('Should throw error when deleteNfmLandUseChange database fails', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        landUseType: 'woodland'
+      }
+      const dbError = new Error('Delete DB error')
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockRejectedValue(
+        dbError
+      )
+
+      await expect(service.deleteNfmLandUseChange(payload)).rejects.toThrow(
+        'Delete DB error'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'Delete DB error' }),
+        'Error deleting NFM land use change'
+      )
+    })
+  })
+
+  describe('upsertProject - edge cases', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.upsert = vi.fn()
+      mockPrisma.pafs_core_states = { upsert: vi.fn() }
+      mockPrisma.pafs_core_area_projects = { upsert: vi.fn() }
+    })
+
+    test('Should generate empty slug when no reference number and no rfccCode', async () => {
+      const proposalPayload = {
+        name: 'Test Project',
+        rmaName: '1'
+      }
+      const userId = 123n
+
+      mockPrisma.pafs_core_projects.upsert.mockResolvedValue({
+        id: 1n,
+        reference_number: null
+      })
+      mockPrisma.pafs_core_states.upsert.mockResolvedValue({ id: 1n })
+      mockPrisma.pafs_core_area_projects.upsert.mockResolvedValue({ id: 1n })
+
+      await service.upsertProject(proposalPayload, userId, null)
+
+      expect(mockPrisma.pafs_core_projects.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            slug: ''
+          })
+        })
+      )
+    })
+  })
+
+  describe('_attachJoinedTableData', () => {
+    test('Should attach array data when isArray is true and data is non-empty', () => {
+      const project = {}
+      const joinData = [{ state: 'draft' }, { state: 'submitted' }]
+
+      service._attachJoinedTableData(project, 'states', joinData, true)
+
+      expect(project.states).toEqual(joinData)
+    })
+
+    test('Should not attach array data when isArray is true but data is empty', () => {
+      const project = {}
+      const joinData = []
+
+      service._attachJoinedTableData(project, 'states', joinData, true)
+
+      expect(project).not.toHaveProperty('states')
+    })
+
+    test('Should not attach array data when isArray is true but data is null', () => {
+      const project = {}
+
+      service._attachJoinedTableData(project, 'states', null, true)
+
+      expect(project).not.toHaveProperty('states')
+    })
+
+    test('Should attach object data when isArray is false and data exists', () => {
+      const project = {}
+      const joinData = { state: 'draft' }
+
+      service._attachJoinedTableData(project, 'state', joinData, false)
+
+      expect(project.state).toEqual(joinData)
+    })
+
+    test('Should not attach object data when isArray is false and data is null', () => {
+      const project = {}
+
+      service._attachJoinedTableData(project, 'state', null, false)
+
+      expect(project).not.toHaveProperty('state')
+    })
+  })
 })

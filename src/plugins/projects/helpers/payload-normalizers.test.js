@@ -885,4 +885,237 @@ describe('handleNfmMeasureData', () => {
     expect(payload.nfmRiverRestorationArea).toBe(1.23)
     expect(payload.nfmRiverRestorationVolume).toBe(4.56)
   })
+
+  describe('NFM_LAND_USE_CHANGE level', () => {
+    beforeEach(() => {
+      projectService.deleteNfmLandUseChange = vi.fn().mockResolvedValue(null)
+    })
+
+    it('deletes unselected land use changes and strips land use fields at NFM_LAND_USE_CHANGE level', async () => {
+      const payload = {
+        referenceNumber: 'REF-LU-001',
+        nfmEnclosedArableFarmlandBefore: null,
+        nfmEnclosedArableFarmlandAfter: null,
+        nfmEnclosedLivestockFarmlandBefore: null,
+        nfmEnclosedLivestockFarmlandAfter: null,
+        nfmEnclosedDairyingFarmlandBefore: null,
+        nfmEnclosedDairyingFarmlandAfter: null,
+        nfmSemiNaturalGrasslandBefore: null,
+        nfmSemiNaturalGrasslandAfter: null,
+        nfmWoodlandLandUseBefore: null,
+        nfmWoodlandLandUseAfter: null,
+        nfmMountainMoorsAndHeathBefore: null,
+        nfmMountainMoorsAndHeathAfter: null,
+        nfmPeatlandRestorationBefore: null,
+        nfmPeatlandRestorationAfter: null,
+        nfmRiversWetlandsFreshwaterBefore: null,
+        nfmRiversWetlandsFreshwaterAfter: null,
+        nfmCoastalMarginsBefore: null,
+        nfmCoastalMarginsAfter: null,
+        untouchedField: 'keep-me'
+      }
+
+      await handleNfmMeasureData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_CHANGE,
+        projectService
+      )
+
+      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledTimes(9)
+      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledWith({
+        referenceNumber: 'REF-LU-001',
+        landUseType: 'enclosed_arable_farmland'
+      })
+      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledWith({
+        referenceNumber: 'REF-LU-001',
+        landUseType: 'woodland'
+      })
+      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledWith({
+        referenceNumber: 'REF-LU-001',
+        landUseType: 'coastal_margins'
+      })
+
+      expect(payload.nfmEnclosedArableFarmlandBefore).toBeUndefined()
+      expect(payload.nfmEnclosedArableFarmlandAfter).toBeUndefined()
+      expect(payload.nfmCoastalMarginsBefore).toBeUndefined()
+      expect(payload.nfmCoastalMarginsAfter).toBeUndefined()
+      expect(payload.untouchedField).toBe('keep-me')
+    })
+
+    it('does not delete land use change when fields have non-null values', async () => {
+      const payload = {
+        referenceNumber: 'REF-LU-002',
+        nfmEnclosedArableFarmlandBefore: 5.5,
+        nfmEnclosedArableFarmlandAfter: null
+      }
+
+      await handleNfmMeasureData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_CHANGE,
+        projectService
+      )
+
+      expect(projectService.deleteNfmLandUseChange).not.toHaveBeenCalled()
+      expect(payload.nfmEnclosedArableFarmlandBefore).toBeUndefined()
+      expect(payload.nfmEnclosedArableFarmlandAfter).toBeUndefined()
+    })
+
+    it('does not delete when no land use fields are present', async () => {
+      const payload = {
+        referenceNumber: 'REF-LU-003',
+        otherField: 'value'
+      }
+
+      await handleNfmMeasureData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_CHANGE,
+        projectService
+      )
+
+      expect(projectService.deleteNfmLandUseChange).not.toHaveBeenCalled()
+      expect(payload.otherField).toBe('value')
+    })
+  })
+
+  describe('NFM land use detail levels', () => {
+    beforeEach(() => {
+      projectService.upsertNfmLandUseChange = vi
+        .fn()
+        .mockResolvedValue(undefined)
+    })
+
+    it.each([
+      {
+        level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_ENCLOSED_ARABLE_FARMLAND,
+        payload: {
+          referenceNumber: 'REF-201',
+          nfmEnclosedArableFarmlandBefore: 10.5,
+          nfmEnclosedArableFarmlandAfter: 8.25
+        },
+        expectedLandUseType: 'enclosed_arable_farmland',
+        removedFields: [
+          'nfmEnclosedArableFarmlandBefore',
+          'nfmEnclosedArableFarmlandAfter'
+        ]
+      },
+      {
+        level:
+          PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_ENCLOSED_LIVESTOCK_FARMLAND,
+        payload: {
+          referenceNumber: 'REF-202',
+          nfmEnclosedLivestockFarmlandBefore: 3,
+          nfmEnclosedLivestockFarmlandAfter: 4
+        },
+        expectedLandUseType: 'enclosed_livestock_farmland',
+        removedFields: [
+          'nfmEnclosedLivestockFarmlandBefore',
+          'nfmEnclosedLivestockFarmlandAfter'
+        ]
+      },
+      {
+        level:
+          PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_ENCLOSED_DAIRYING_FARMLAND,
+        payload: {
+          referenceNumber: 'REF-203',
+          nfmEnclosedDairyingFarmlandBefore: 2.5,
+          nfmEnclosedDairyingFarmlandAfter: 3.5
+        },
+        expectedLandUseType: 'enclosed_dairying_farmland',
+        removedFields: [
+          'nfmEnclosedDairyingFarmlandBefore',
+          'nfmEnclosedDairyingFarmlandAfter'
+        ]
+      },
+      {
+        level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_SEMI_NATURAL_GRASSLAND,
+        payload: {
+          referenceNumber: 'REF-204',
+          nfmSemiNaturalGrasslandBefore: 7,
+          nfmSemiNaturalGrasslandAfter: 9
+        },
+        expectedLandUseType: 'semi_natural_grassland',
+        removedFields: [
+          'nfmSemiNaturalGrasslandBefore',
+          'nfmSemiNaturalGrasslandAfter'
+        ]
+      },
+      {
+        level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_WOODLAND,
+        payload: {
+          referenceNumber: 'REF-205',
+          nfmWoodlandLandUseBefore: 1.5,
+          nfmWoodlandLandUseAfter: 2.5
+        },
+        expectedLandUseType: 'woodland',
+        removedFields: ['nfmWoodlandLandUseBefore', 'nfmWoodlandLandUseAfter']
+      },
+      {
+        level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_MOUNTAIN_MOORS_AND_HEATH,
+        payload: {
+          referenceNumber: 'REF-206',
+          nfmMountainMoorsAndHeathBefore: 4.2,
+          nfmMountainMoorsAndHeathAfter: 5.8
+        },
+        expectedLandUseType: 'mountain_moors_and_heath',
+        removedFields: [
+          'nfmMountainMoorsAndHeathBefore',
+          'nfmMountainMoorsAndHeathAfter'
+        ]
+      },
+      {
+        level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_RESTORATION,
+        payload: {
+          referenceNumber: 'REF-207',
+          nfmPeatlandRestorationBefore: 6.1,
+          nfmPeatlandRestorationAfter: 7.3
+        },
+        expectedLandUseType: 'peatland_restoration',
+        removedFields: [
+          'nfmPeatlandRestorationBefore',
+          'nfmPeatlandRestorationAfter'
+        ]
+      },
+      {
+        level:
+          PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_RIVERS_WETLANDS_FRESHWATER,
+        payload: {
+          referenceNumber: 'REF-208',
+          nfmRiversWetlandsFreshwaterBefore: 3.3,
+          nfmRiversWetlandsFreshwaterAfter: 4.4
+        },
+        expectedLandUseType: 'rivers_wetlands_and_freshwater_habitats',
+        removedFields: [
+          'nfmRiversWetlandsFreshwaterBefore',
+          'nfmRiversWetlandsFreshwaterAfter'
+        ]
+      },
+      {
+        level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_COASTAL_MARGINS,
+        payload: {
+          referenceNumber: 'REF-209',
+          nfmCoastalMarginsBefore: 2.2,
+          nfmCoastalMarginsAfter: 3.3
+        },
+        expectedLandUseType: 'coastal_margins',
+        removedFields: ['nfmCoastalMarginsBefore', 'nfmCoastalMarginsAfter']
+      }
+    ])(
+      'upserts land use change and removes fields for $level',
+      async ({ level, payload, expectedLandUseType, removedFields }) => {
+        await handleNfmMeasureData(payload, level, projectService)
+
+        expect(projectService.upsertNfmLandUseChange).toHaveBeenCalledTimes(1)
+        expect(projectService.upsertNfmLandUseChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            referenceNumber: payload.referenceNumber,
+            landUseType: expectedLandUseType
+          })
+        )
+
+        removedFields.forEach((field) => {
+          expect(payload[field]).toBeUndefined()
+        })
+      }
+    )
+  })
 })
