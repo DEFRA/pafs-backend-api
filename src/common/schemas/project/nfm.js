@@ -1,5 +1,10 @@
 import Joi from 'joi'
-import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
+import {
+  NFM_EXPERIENCE_LEVEL_OPTIONS,
+  NFM_PROJECT_READINESS_OPTIONS,
+  NFM_LANDOWNER_CONSENT_OPTIONS,
+  PROJECT_VALIDATION_MESSAGES
+} from '../../constants/project.js'
 
 const AREA_REQUIRED_HECTARES_MESSAGE = 'Enter the area in hectares'
 const VOLUME_FIELD_DESCRIPTION = 'Volume'
@@ -10,6 +15,18 @@ const NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE =
   PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_REQUIRED
 const NFM_LAND_USE_CHANGE_INVALID_MESSAGE =
   PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_INVALID
+const NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_REQUIRED
+const NFM_LANDOWNER_CONSENT_INVALID_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_INVALID
+const NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_REQUIRED
+const NFM_EXPERIENCE_LEVEL_INVALID_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_INVALID
+const NFM_PROJECT_READINESS_REQUIRED_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_REQUIRED
+const NFM_PROJECT_READINESS_INVALID_MESSAGE =
+  PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_INVALID
 const AREA_POSITIVE_2DP_MESSAGE =
   'Area must be a positive number with up to 2 decimal places'
 const AREA_PRECISION_2DP_MESSAGE = 'Area must have up to 2 decimal places'
@@ -183,6 +200,54 @@ export const nfmLandUseChangeSchema = Joi.string()
     'string.empty': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
     'any.required': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
     'any.invalid': NFM_LAND_USE_CHANGE_INVALID_MESSAGE
+  })
+
+/**
+ * NFM landowner consent schema
+ * Database field: nfm_landowner_consent (VARCHAR)
+ */
+export const nfmLandownerConsentSchema = Joi.string()
+  .trim()
+  .valid(...Object.values(NFM_LANDOWNER_CONSENT_OPTIONS))
+  .required()
+  .label('nfmLandownerConsent')
+  .messages({
+    'string.base': NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE,
+    'string.empty': NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE,
+    'any.required': NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE,
+    'any.only': NFM_LANDOWNER_CONSENT_INVALID_MESSAGE
+  })
+
+/**
+ * NFM experience level schema
+ * Database field: nfm_experience_level (VARCHAR)
+ */
+export const nfmExperienceLevelSchema = Joi.string()
+  .trim()
+  .valid(...Object.values(NFM_EXPERIENCE_LEVEL_OPTIONS))
+  .required()
+  .label('nfmExperienceLevel')
+  .messages({
+    'string.base': NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE,
+    'string.empty': NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE,
+    'any.required': NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE,
+    'any.only': NFM_EXPERIENCE_LEVEL_INVALID_MESSAGE
+  })
+
+/**
+ * NFM project readiness schema
+ * Database field: nfm_project_readiness (VARCHAR)
+ */
+export const nfmProjectReadinessSchema = Joi.string()
+  .trim()
+  .valid(...Object.values(NFM_PROJECT_READINESS_OPTIONS))
+  .required()
+  .label('nfmProjectReadiness')
+  .messages({
+    'string.base': NFM_PROJECT_READINESS_REQUIRED_MESSAGE,
+    'string.empty': NFM_PROJECT_READINESS_REQUIRED_MESSAGE,
+    'any.required': NFM_PROJECT_READINESS_REQUIRED_MESSAGE,
+    'any.only': NFM_PROJECT_READINESS_INVALID_MESSAGE
   })
 
 /**

@@ -136,7 +136,10 @@ export const PROJECT_FIELDS_MAP = {
   kilometresOfWatercourseEnhancedOrCreatedSingle:
     'kilometres_of_watercourse_enhanced_or_created_single',
   nfmSelectedMeasures: 'nfm_selected_measures',
-  nfmLandUseChange: 'nfm_land_use_change'
+  nfmLandUseChange: 'nfm_land_use_change',
+  nfmLandownerConsent: 'nfm_landowner_consent',
+  nfmExperienceLevel: 'nfm_experience_level',
+  nfmProjectReadiness: 'nfm_project_readiness'
 }
 
 /**

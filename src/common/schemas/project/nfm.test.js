@@ -1,5 +1,10 @@
 import { describe, test, expect } from 'vitest'
 import {
+  NFM_EXPERIENCE_LEVEL_OPTIONS,
+  NFM_PROJECT_READINESS_OPTIONS,
+  NFM_LANDOWNER_CONSENT_OPTIONS
+} from '../../constants/project.js'
+import {
   nfmRiverRestorationAreaSchema,
   nfmRiverRestorationVolumeSchema,
   nfmLeakyBarriersVolumeSchema,
@@ -51,7 +56,10 @@ import {
   nfmLandUseMountainMoorsAndHeathSchema,
   nfmLandUsePeatlandRestorationSchema,
   nfmLandUseRiversWetlandsFreshwaterSchema,
-  nfmLandUseCoastalMarginsSchema
+  nfmLandUseCoastalMarginsSchema,
+  nfmLandownerConsentSchema,
+  nfmExperienceLevelSchema,
+  nfmProjectReadinessSchema
 } from './nfm.js'
 
 describe('NFM Schemas - Backend', () => {
@@ -465,6 +473,63 @@ describe('NFM Schemas - Backend', () => {
 
     test('should reject missing value', () => {
       const result = nfmLandUseChangeSchema.validate(undefined)
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('NFM Landowner Consent Schema', () => {
+    test('should validate a valid consent option', () => {
+      const result = nfmLandownerConsentSchema.validate(
+        NFM_LANDOWNER_CONSENT_OPTIONS.CONSENT_FULLY_SECURED
+      )
+      expect(result.error).toBeUndefined()
+    })
+
+    test('should reject empty value', () => {
+      const result = nfmLandownerConsentSchema.validate('')
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject invalid option', () => {
+      const result = nfmLandownerConsentSchema.validate('unknown_option')
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('NFM Experience Level Schema', () => {
+    test('should validate a valid experience option', () => {
+      const result = nfmExperienceLevelSchema.validate(
+        NFM_EXPERIENCE_LEVEL_OPTIONS.NO_EXPERIENCE
+      )
+      expect(result.error).toBeUndefined()
+    })
+
+    test('should reject empty value', () => {
+      const result = nfmExperienceLevelSchema.validate('')
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject invalid option', () => {
+      const result = nfmExperienceLevelSchema.validate('unknown_option')
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('NFM Project Readiness Schema', () => {
+    test('should validate a valid readiness option', () => {
+      const result = nfmProjectReadinessSchema.validate(
+        NFM_PROJECT_READINESS_OPTIONS.EARLY_CONCEPT
+      )
+      expect(result.error).toBeUndefined()
+    })
+
+    test('should reject empty value', () => {
+      const result = nfmProjectReadinessSchema.validate('')
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject invalid option', () => {
+      const result = nfmProjectReadinessSchema.validate('unknown_option')
       expect(result.error).toBeDefined()
     })
   })

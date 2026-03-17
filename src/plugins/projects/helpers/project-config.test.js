@@ -113,7 +113,10 @@ describe('project-config', () => {
         kilometresOfWatercourseEnhancedOrCreatedSingle:
           'kilometres_of_watercourse_enhanced_or_created_single',
         nfmSelectedMeasures: 'nfm_selected_measures',
-        nfmLandUseChange: 'nfm_land_use_change'
+        nfmLandUseChange: 'nfm_land_use_change',
+        nfmLandownerConsent: 'nfm_landowner_consent',
+        nfmExperienceLevel: 'nfm_experience_level',
+        nfmProjectReadiness: 'nfm_project_readiness'
       })
     })
 
@@ -174,8 +177,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 82 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(82)
+    it('should have 85 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(85)
     })
   })
 
@@ -242,9 +245,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 82 fields', () => {
+    it('should return an object with 85 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(82)
+      expect(Object.keys(result)).toHaveLength(85)
     })
 
     it('should return a new object each time', () => {

@@ -1122,7 +1122,10 @@ describe('ProjectService', () => {
           current_flood_surface_water_risk: true,
           current_coastal_erosion_risk: true,
           nfm_selected_measures: true,
-          nfm_land_use_change: true
+          nfm_land_use_change: true,
+          nfm_landowner_consent: true,
+          nfm_experience_level: true,
+          nfm_project_readiness: true
         }
       })
 
@@ -1314,6 +1317,106 @@ describe('ProjectService', () => {
         { error: dbError.message, referenceNumber },
         'Error fetching project details by reference number'
       )
+    })
+
+    test('Should retry without optional NFM fields when nfm_landowner_consent is unavailable', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const unknownFieldError = new Error(
+        'Unknown field `nfm_landowner_consent` for select statement on model `pafs_core_projects`'
+      )
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01'),
+        created_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst
+        .mockRejectedValueOnce(unknownFieldError)
+        .mockResolvedValueOnce(mockProject)
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+
+      const result = await service.getProjectByReferenceNumber(referenceNumber)
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledTimes(2)
+      const fallbackSelect =
+        mockPrisma.pafs_core_projects.findFirst.mock.calls[1][0].select
+      expect(fallbackSelect.nfm_landowner_consent).toBeUndefined()
+      expect(fallbackSelect.nfm_experience_level).toBeUndefined()
+      expect(fallbackSelect.nfm_project_readiness).toBeUndefined()
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        {
+          referenceNumber,
+          error: unknownFieldError.message,
+          missingOptionalField: 'nfm_landowner_consent'
+        },
+        'Falling back to overview select without optional NFM fields'
+      )
+      expect(result.referenceNumber).toBe(referenceNumber)
+    })
+
+    test('Should retry without optional NFM fields when nfm_project_readiness is unavailable', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const unknownFieldError = new Error(
+        'Unknown field `nfm_project_readiness` for select statement on model `pafs_core_projects`'
+      )
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01'),
+        created_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst
+        .mockRejectedValueOnce(unknownFieldError)
+        .mockResolvedValueOnce(mockProject)
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+
+      const result = await service.getProjectByReferenceNumber(referenceNumber)
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledTimes(2)
+      const fallbackSelect =
+        mockPrisma.pafs_core_projects.findFirst.mock.calls[1][0].select
+      expect(fallbackSelect.nfm_landowner_consent).toBeUndefined()
+      expect(fallbackSelect.nfm_experience_level).toBeUndefined()
+      expect(fallbackSelect.nfm_project_readiness).toBeUndefined()
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        {
+          referenceNumber,
+          error: unknownFieldError.message,
+          missingOptionalField: 'nfm_project_readiness'
+        },
+        'Falling back to overview select without optional NFM fields'
+      )
+      expect(result.referenceNumber).toBe(referenceNumber)
     })
 
     test('Should use correct where clause with reference number', async () => {

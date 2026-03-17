@@ -16,12 +16,64 @@ import { ProjectNfmService } from './project-nfm-service.js'
 
 const COUNTER_SUFFIX = 'A'
 const REFERENCE_NUMBER_TEMPLATE = 'C501E'
+const OPTIONAL_OVERVIEW_NFM_FIELDS = [
+  'nfm_landowner_consent',
+  'nfm_experience_level',
+  'nfm_project_readiness'
+]
 
 export class ProjectService extends ProjectNfmService {
   constructor(prisma, logger) {
     super(prisma, logger)
     this.prisma = prisma
     this.logger = logger
+  }
+
+  _getOverviewSelectFields() {
+    return { id: true, ...getProjectSelectFields() }
+  }
+
+  _isMissingOptionalFieldError(error, fieldName) {
+    const message = String(error?.message || '')
+    const lowerMessage = message.toLowerCase()
+    const lowerField = fieldName.toLowerCase()
+
+    return (
+      lowerMessage.includes(lowerField) &&
+      (lowerMessage.includes('unknown field') ||
+        lowerMessage.includes('does not exist') ||
+        lowerMessage.includes('p2022'))
+    )
+  }
+
+  async _getProjectDetailsForOverview(referenceNumber) {
+    const selectFields = this._getOverviewSelectFields()
+
+    try {
+      return await this._getProjectDetails(referenceNumber, { selectFields })
+    } catch (error) {
+      const missingOptionalField = OPTIONAL_OVERVIEW_NFM_FIELDS.find((field) =>
+        this._isMissingOptionalFieldError(error, field)
+      )
+
+      if (!missingOptionalField) {
+        throw error
+      }
+
+      this.logger.warn(
+        { referenceNumber, error: error.message, missingOptionalField },
+        'Falling back to overview select without optional NFM fields'
+      )
+
+      const fallbackSelectFields = { ...selectFields }
+      OPTIONAL_OVERVIEW_NFM_FIELDS.forEach((field) => {
+        delete fallbackSelectFields[field]
+      })
+
+      return this._getProjectDetails(referenceNumber, {
+        selectFields: fallbackSelectFields
+      })
+    }
   }
 
   /**
@@ -346,9 +398,7 @@ export class ProjectService extends ProjectNfmService {
         'Fetching project details by reference number'
       )
 
-      const project = await this._getProjectDetails(referenceNumber, {
-        selectFields: { id: true, ...getProjectSelectFields() }
-      })
+      const project = await this._getProjectDetailsForOverview(referenceNumber)
 
       if (!project) {
         return null

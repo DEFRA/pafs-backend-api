@@ -16,6 +16,9 @@ import {
   nfmSandDuneAreaSchema,
   nfmSandDuneLengthSchema,
   nfmLandUseChangeSchema,
+  nfmLandownerConsentSchema,
+  nfmExperienceLevelSchema,
+  nfmProjectReadinessSchema,
   nfmEnclosedArableFarmlandBeforeSchema,
   nfmEnclosedArableFarmlandAfterSchema,
   nfmEnclosedLivestockFarmlandBeforeSchema,
@@ -195,6 +198,15 @@ const NFM_LEVEL_FIELD_SCHEMAS = {
   [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_COASTAL_MARGINS]: {
     nfmCoastalMarginsBefore: nfmCoastalMarginsBeforeSchema,
     nfmCoastalMarginsAfter: nfmCoastalMarginsAfterSchema
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LANDOWNER_CONSENT]: {
+    nfmLandownerConsent: nfmLandownerConsentSchema
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_EXPERIENCE_LEVEL]: {
+    nfmExperienceLevel: nfmExperienceLevelSchema
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_PROJECT_READINESS]: {
+    nfmProjectReadiness: nfmProjectReadinessSchema
   }
 }
 
