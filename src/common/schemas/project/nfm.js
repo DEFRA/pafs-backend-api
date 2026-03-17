@@ -6,38 +6,9 @@ import {
   PROJECT_VALIDATION_MESSAGES
 } from '../../constants/project.js'
 
-const AREA_REQUIRED_HECTARES_MESSAGE = 'Enter the area in hectares'
-const VOLUME_FIELD_DESCRIPTION = 'Volume'
-const DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION = 'Design storage volume'
-const NFM_SELECTED_MEASURES_REQUIRED_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_REQUIRED
-const NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_REQUIRED
-const NFM_LAND_USE_CHANGE_INVALID_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_INVALID
-const NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_REQUIRED
-const NFM_LANDOWNER_CONSENT_INVALID_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_INVALID
-const NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_REQUIRED
-const NFM_EXPERIENCE_LEVEL_INVALID_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_INVALID
-const NFM_PROJECT_READINESS_REQUIRED_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_REQUIRED
-const NFM_PROJECT_READINESS_INVALID_MESSAGE =
-  PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_INVALID
-const AREA_POSITIVE_2DP_MESSAGE =
-  'Area must be a positive number with up to 2 decimal places'
-const AREA_PRECISION_2DP_MESSAGE = 'Area must have up to 2 decimal places'
-const AREA_NON_NEGATIVE_MESSAGE = 'Area must be a number 0 or greater'
-const AREA_BEFORE_REQUIRED_MESSAGE =
-  'Enter the area before natural flood measures'
-const AREA_AFTER_REQUIRED_MESSAGE =
-  'Enter the area after natural flood measures'
-const LENGTH_POSITIVE_2DP_MESSAGE =
-  'Length must be a positive number with up to 2 decimal places'
-const LENGTH_PRECISION_2DP_MESSAGE = 'Length must have up to 2 decimal places'
+/**
+ * Valid land use types for NFM land use change
+ */
 const NFM_LAND_USE_TYPES = new Set([
   'enclosed_arable_farmland',
   'enclosed_livestock_farmland',
@@ -62,48 +33,68 @@ const maxTwoDecimalPlaces = (value, helpers) => {
 }
 
 /**
- * Reusable schema builders for common NFM field types
+ * Shared message bundles.
+ * All values are error codes — frontend is responsible for mapping each code
+ * to a human-readable display message.
  */
+const AREA_MESSAGES = {
+  required: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_AREA_REQUIRED,
+  invalid: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_AREA_INVALID,
+  precision: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_AREA_PRECISION
+}
+
+const VOLUME_MESSAGES = {
+  invalid: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_INVALID,
+  precision: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_PRECISION
+}
+
+const LENGTH_MESSAGES = {
+  required: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_LENGTH_REQUIRED,
+  invalid: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_LENGTH_INVALID,
+  precision: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_LENGTH_PRECISION
+}
+
+const WIDTH_MESSAGES = {
+  required: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_WIDTH_REQUIRED,
+  invalid: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_WIDTH_INVALID,
+  precision: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_WIDTH_PRECISION
+}
+
+const LAND_USE_BEFORE_MESSAGES = {
+  required: PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_BEFORE_REQUIRED,
+  invalid: PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_INVALID,
+  precision: PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_PRECISION
+}
+
+const LAND_USE_AFTER_MESSAGES = {
+  required: PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_AFTER_REQUIRED,
+  invalid: PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_INVALID,
+  precision: PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_PRECISION
+}
 
 /**
- * Creates a required area schema (hectares)
- * @param {string} label - Field label for error messages
- * @param {string} errorMessage - Required-field message
- * @returns {Joi.NumberSchema}
+ * Factory: required positive numeric field (area in ha, length in km, width in m).
  */
-const createAreaSchema = (label, errorMessage) =>
+const createRequiredPositiveSchema = (
+  label,
+  { required, invalid, precision }
+) =>
   Joi.number()
     .positive()
     .custom(maxTwoDecimalPlaces)
     .required()
     .label(label)
     .messages({
-      'number.base': AREA_POSITIVE_2DP_MESSAGE,
-      'number.positive': AREA_POSITIVE_2DP_MESSAGE,
-      'number.precision': AREA_PRECISION_2DP_MESSAGE,
-      'any.required': errorMessage
-    })
-
-const createLandUseAreaSchema = (label, requiredMessage) =>
-  Joi.number()
-    .positive()
-    .custom(maxTwoDecimalPlaces)
-    .required()
-    .label(label)
-    .messages({
-      'number.base': AREA_NON_NEGATIVE_MESSAGE,
-      'number.positive': AREA_NON_NEGATIVE_MESSAGE,
-      'number.precision': AREA_PRECISION_2DP_MESSAGE,
-      'any.required': requiredMessage
+      'number.base': invalid,
+      'number.positive': invalid,
+      'number.precision': precision,
+      'any.required': required
     })
 
 /**
- * Creates an optional volume schema (cubic metres)
- * @param {string} label - Field label for error messages
- * @param {string} fieldDescription - Description for error messages (e.g., 'Volume', 'Design storage volume')
- * @returns {Joi.NumberSchema}
+ * Factory: optional positive numeric field (volume in m³, optional length in km).
  */
-const createVolumeSchema = (label, fieldDescription = 'Volume') =>
+const createOptionalPositiveSchema = (label, { invalid, precision }) =>
   Joi.number()
     .positive()
     .custom(maxTwoDecimalPlaces)
@@ -111,48 +102,9 @@ const createVolumeSchema = (label, fieldDescription = 'Volume') =>
     .optional()
     .label(label)
     .messages({
-      'number.base': `${fieldDescription} must be a positive number with up to 2 decimal places`,
-      'number.positive': `${fieldDescription} must be a positive number with up to 2 decimal places`,
-      'number.precision': `${fieldDescription} must have up to 2 decimal places`
-    })
-
-/**
- * Creates a required length schema (kilometres)
- * @param {string} label - Field label for error messages
- * @param {string} errorMessage - Required error text
- * @returns {Joi.NumberSchema}
- */
-const createLengthSchema = (label, errorMessage) =>
-  Joi.number()
-    .positive()
-    .custom(maxTwoDecimalPlaces)
-    .required()
-    .label(label)
-    .messages({
-      'number.base': LENGTH_POSITIVE_2DP_MESSAGE,
-      'number.positive': LENGTH_POSITIVE_2DP_MESSAGE,
-      'number.precision': LENGTH_PRECISION_2DP_MESSAGE,
-      'any.required': errorMessage
-    })
-
-/**
- * Creates a required width schema (metres)
- * @param {string} label - Field label for error messages
- * @param {string} fieldDescription - Description for error messages (e.g., 'Width', 'Typical width')
- * @param {string} errorMessage - Message used when value is missing
- * @returns {Joi.NumberSchema}
- */
-const createWidthSchema = (label, fieldDescription, errorMessage) =>
-  Joi.number()
-    .positive()
-    .custom(maxTwoDecimalPlaces)
-    .required()
-    .label(label)
-    .messages({
-      'number.base': `${fieldDescription} must be a positive number with up to 2 decimal places`,
-      'number.positive': `${fieldDescription} must be a positive number with up to 2 decimal places`,
-      'number.precision': `${fieldDescription} must have up to 2 decimal places`,
-      'any.required': errorMessage
+      'number.base': invalid,
+      'number.positive': invalid,
+      'number.precision': precision
     })
 
 /**
@@ -166,8 +118,8 @@ export const nfmSelectedMeasuresSchema = Joi.string()
   .label('nfmSelectedMeasures')
   .messages({
     'string.base': PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_INVALID,
-    'string.empty': NFM_SELECTED_MEASURES_REQUIRED_MESSAGE,
-    'any.required': NFM_SELECTED_MEASURES_REQUIRED_MESSAGE
+    'string.empty': PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.NFM_SELECTED_MEASURES_REQUIRED
   })
 
 /**
@@ -196,10 +148,10 @@ export const nfmLandUseChangeSchema = Joi.string()
   })
   .label('nfmLandUseChange')
   .messages({
-    'string.base': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
-    'string.empty': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
-    'any.required': NFM_LAND_USE_CHANGE_REQUIRED_MESSAGE,
-    'any.invalid': NFM_LAND_USE_CHANGE_INVALID_MESSAGE
+    'string.base': PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_REQUIRED,
+    'string.empty': PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_REQUIRED,
+    'any.invalid': PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_CHANGE_INVALID
   })
 
 /**
@@ -212,10 +164,10 @@ export const nfmLandownerConsentSchema = Joi.string()
   .required()
   .label('nfmLandownerConsent')
   .messages({
-    'string.base': NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE,
-    'string.empty': NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE,
-    'any.required': NFM_LANDOWNER_CONSENT_REQUIRED_MESSAGE,
-    'any.only': NFM_LANDOWNER_CONSENT_INVALID_MESSAGE
+    'string.base': PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_REQUIRED,
+    'string.empty': PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_REQUIRED,
+    'any.only': PROJECT_VALIDATION_MESSAGES.NFM_LANDOWNER_CONSENT_INVALID
   })
 
 /**
@@ -228,10 +180,10 @@ export const nfmExperienceLevelSchema = Joi.string()
   .required()
   .label('nfmExperienceLevel')
   .messages({
-    'string.base': NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE,
-    'string.empty': NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE,
-    'any.required': NFM_EXPERIENCE_LEVEL_REQUIRED_MESSAGE,
-    'any.only': NFM_EXPERIENCE_LEVEL_INVALID_MESSAGE
+    'string.base': PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_REQUIRED,
+    'string.empty': PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_REQUIRED,
+    'any.only': PROJECT_VALIDATION_MESSAGES.NFM_EXPERIENCE_LEVEL_INVALID
   })
 
 /**
@@ -244,254 +196,262 @@ export const nfmProjectReadinessSchema = Joi.string()
   .required()
   .label('nfmProjectReadiness')
   .messages({
-    'string.base': NFM_PROJECT_READINESS_REQUIRED_MESSAGE,
-    'string.empty': NFM_PROJECT_READINESS_REQUIRED_MESSAGE,
-    'any.required': NFM_PROJECT_READINESS_REQUIRED_MESSAGE,
-    'any.only': NFM_PROJECT_READINESS_INVALID_MESSAGE
+    'string.base': PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_REQUIRED,
+    'string.empty': PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_REQUIRED,
+    'any.required': PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_REQUIRED,
+    'any.only': PROJECT_VALIDATION_MESSAGES.NFM_PROJECT_READINESS_INVALID
   })
+
+// --- River Restoration ---
 
 /**
  * NFM River Restoration - Area field schema
  * Database field: area_hectares (NUMERIC)
  */
-export const nfmRiverRestorationAreaSchema = createAreaSchema(
+export const nfmRiverRestorationAreaSchema = createRequiredPositiveSchema(
   'nfmRiverRestorationArea',
-  AREA_REQUIRED_HECTARES_MESSAGE
+  AREA_MESSAGES
 )
 
 /**
  * NFM River Restoration - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmRiverRestorationVolumeSchema = createVolumeSchema(
+export const nfmRiverRestorationVolumeSchema = createOptionalPositiveSchema(
   'nfmRiverRestorationVolume',
-  VOLUME_FIELD_DESCRIPTION
+  VOLUME_MESSAGES
 )
+
+// --- Leaky Barriers ---
 
 /**
  * NFM Leaky Barriers - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmLeakyBarriersVolumeSchema = createVolumeSchema(
+export const nfmLeakyBarriersVolumeSchema = createOptionalPositiveSchema(
   'nfmLeakyBarriersVolume',
-  DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION
+  VOLUME_MESSAGES
 )
 
 /**
  * NFM Leaky Barriers - Length field schema
  * Database field: length_km (NUMERIC)
  */
-export const nfmLeakyBarriersLengthSchema = createLengthSchema(
+export const nfmLeakyBarriersLengthSchema = createRequiredPositiveSchema(
   'nfmLeakyBarriersLength',
-  'Enter the length in kilometres'
+  LENGTH_MESSAGES
 )
 
 /**
  * NFM Leaky Barriers - Width field schema
  * Database field: width_m (NUMERIC)
  */
-export const nfmLeakyBarriersWidthSchema = createWidthSchema(
+export const nfmLeakyBarriersWidthSchema = createRequiredPositiveSchema(
   'nfmLeakyBarriersWidth',
-  'Typical width',
-  'Enter the typical width in metres'
+  WIDTH_MESSAGES
 )
+
+// --- Offline Storage ---
 
 /**
  * NFM Offline Storage - Area field schema
  * Database field: area_hectares (NUMERIC)
  */
-export const nfmOfflineStorageAreaSchema = createAreaSchema(
+export const nfmOfflineStorageAreaSchema = createRequiredPositiveSchema(
   'nfmOfflineStorageArea',
-  AREA_REQUIRED_HECTARES_MESSAGE
+  AREA_MESSAGES
 )
 
 /**
  * NFM Offline Storage - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmOfflineStorageVolumeSchema = createVolumeSchema(
+export const nfmOfflineStorageVolumeSchema = createOptionalPositiveSchema(
   'nfmOfflineStorageVolume',
-  DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION
+  VOLUME_MESSAGES
 )
+
+// --- Woodland ---
 
 /**
  * NFM Woodland - Area field schema
  * Database field: area_hectares (NUMERIC)
  */
-export const nfmWoodlandAreaSchema = createAreaSchema(
+export const nfmWoodlandAreaSchema = createRequiredPositiveSchema(
   'nfmWoodlandArea',
-  AREA_REQUIRED_HECTARES_MESSAGE
+  AREA_MESSAGES
 )
+
+// --- Headwater Drainage ---
 
 /**
  * NFM Headwater Drainage - Area field schema
  * Database field: area_hectares (NUMERIC)
  */
-export const nfmHeadwaterDrainageAreaSchema = createAreaSchema(
+export const nfmHeadwaterDrainageAreaSchema = createRequiredPositiveSchema(
   'nfmHeadwaterDrainageArea',
-  AREA_REQUIRED_HECTARES_MESSAGE
+  AREA_MESSAGES
 )
+
+// --- Runoff Management ---
 
 /**
  * NFM Runoff Management - Area field schema
  * Database field: area_hectares (NUMERIC)
  */
-export const nfmRunoffManagementAreaSchema = createAreaSchema(
+export const nfmRunoffManagementAreaSchema = createRequiredPositiveSchema(
   'nfmRunoffManagementArea',
-  AREA_REQUIRED_HECTARES_MESSAGE
+  AREA_MESSAGES
 )
 
 /**
  * NFM Runoff Management - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmRunoffManagementVolumeSchema = createVolumeSchema(
+export const nfmRunoffManagementVolumeSchema = createOptionalPositiveSchema(
   'nfmRunoffManagementVolume',
-  DESIGN_STORAGE_VOLUME_FIELD_DESCRIPTION
+  VOLUME_MESSAGES
 )
+
+// --- Saltmarsh ---
 
 /**
  * NFM Saltmarsh - Area field schema
  * Database field: area_hectares (NUMERIC)
  */
-export const nfmSaltmarshAreaSchema = createAreaSchema(
+export const nfmSaltmarshAreaSchema = createRequiredPositiveSchema(
   'nfmSaltmarshArea',
-  AREA_REQUIRED_HECTARES_MESSAGE
+  AREA_MESSAGES
 )
 
 /**
  * NFM Saltmarsh - Length field schema (optional)
  * Database field: length_km (NUMERIC)
  */
-export const nfmSaltmarshLengthSchema = Joi.number()
-  .positive()
-  .custom(maxTwoDecimalPlaces)
-  .allow(null)
-  .optional()
-  .label('nfmSaltmarshLength')
-  .messages({
-    'number.base': LENGTH_POSITIVE_2DP_MESSAGE,
-    'number.positive': LENGTH_POSITIVE_2DP_MESSAGE,
-    'number.precision': LENGTH_PRECISION_2DP_MESSAGE
-  })
+export const nfmSaltmarshLengthSchema = createOptionalPositiveSchema(
+  'nfmSaltmarshLength',
+  LENGTH_MESSAGES
+)
+
+// --- Sand Dune ---
 
 /**
  * NFM Sand Dune - Area field schema
  * Database field: area_hectares (NUMERIC)
  */
-export const nfmSandDuneAreaSchema = createAreaSchema(
+export const nfmSandDuneAreaSchema = createRequiredPositiveSchema(
   'nfmSandDuneArea',
-  AREA_REQUIRED_HECTARES_MESSAGE
+  AREA_MESSAGES
 )
 
 /**
  * NFM Sand Dune - Length field schema (optional)
  * Database field: length_km (NUMERIC)
  */
-export const nfmSandDuneLengthSchema = Joi.number()
-  .positive()
-  .custom(maxTwoDecimalPlaces)
-  .allow(null)
-  .optional()
-  .label('nfmSandDuneLength')
-  .messages({
-    'number.base': LENGTH_POSITIVE_2DP_MESSAGE,
-    'number.positive': LENGTH_POSITIVE_2DP_MESSAGE,
-    'number.precision': LENGTH_PRECISION_2DP_MESSAGE
-  })
+export const nfmSandDuneLengthSchema = createOptionalPositiveSchema(
+  'nfmSandDuneLength',
+  LENGTH_MESSAGES
+)
 
-export const nfmEnclosedArableFarmlandBeforeSchema = Joi.number().concat(
-  createLandUseAreaSchema(
+// --- Land Use Change (before/after per land use type) ---
+
+export const nfmEnclosedArableFarmlandBeforeSchema =
+  createRequiredPositiveSchema(
     'nfmEnclosedArableFarmlandBefore',
-    AREA_BEFORE_REQUIRED_MESSAGE
+    LAND_USE_BEFORE_MESSAGES
   )
-)
 
-export const nfmEnclosedArableFarmlandAfterSchema = Joi.number().concat(
-  createLandUseAreaSchema(
+export const nfmEnclosedArableFarmlandAfterSchema =
+  createRequiredPositiveSchema(
     'nfmEnclosedArableFarmlandAfter',
-    AREA_AFTER_REQUIRED_MESSAGE
+    LAND_USE_AFTER_MESSAGES
   )
-)
 
-export const nfmEnclosedLivestockFarmlandBeforeSchema = createLandUseAreaSchema(
-  'nfmEnclosedLivestockFarmlandBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
-)
+export const nfmEnclosedLivestockFarmlandBeforeSchema =
+  createRequiredPositiveSchema(
+    'nfmEnclosedLivestockFarmlandBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
 
-export const nfmEnclosedLivestockFarmlandAfterSchema = createLandUseAreaSchema(
-  'nfmEnclosedLivestockFarmlandAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
-)
+export const nfmEnclosedLivestockFarmlandAfterSchema =
+  createRequiredPositiveSchema(
+    'nfmEnclosedLivestockFarmlandAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
 
-export const nfmEnclosedDairyingFarmlandBeforeSchema = createLandUseAreaSchema(
-  'nfmEnclosedDairyingFarmlandBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
-)
+export const nfmEnclosedDairyingFarmlandBeforeSchema =
+  createRequiredPositiveSchema(
+    'nfmEnclosedDairyingFarmlandBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
 
-export const nfmEnclosedDairyingFarmlandAfterSchema = createLandUseAreaSchema(
-  'nfmEnclosedDairyingFarmlandAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
-)
+export const nfmEnclosedDairyingFarmlandAfterSchema =
+  createRequiredPositiveSchema(
+    'nfmEnclosedDairyingFarmlandAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
 
-export const nfmSemiNaturalGrasslandBeforeSchema = createLandUseAreaSchema(
+export const nfmSemiNaturalGrasslandBeforeSchema = createRequiredPositiveSchema(
   'nfmSemiNaturalGrasslandBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
+  LAND_USE_BEFORE_MESSAGES
 )
 
-export const nfmSemiNaturalGrasslandAfterSchema = createLandUseAreaSchema(
+export const nfmSemiNaturalGrasslandAfterSchema = createRequiredPositiveSchema(
   'nfmSemiNaturalGrasslandAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
+  LAND_USE_AFTER_MESSAGES
 )
 
-export const nfmWoodlandLandUseBeforeSchema = createLandUseAreaSchema(
+export const nfmWoodlandLandUseBeforeSchema = createRequiredPositiveSchema(
   'nfmWoodlandLandUseBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
+  LAND_USE_BEFORE_MESSAGES
 )
 
-export const nfmWoodlandLandUseAfterSchema = createLandUseAreaSchema(
+export const nfmWoodlandLandUseAfterSchema = createRequiredPositiveSchema(
   'nfmWoodlandLandUseAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
+  LAND_USE_AFTER_MESSAGES
 )
 
-export const nfmMountainMoorsAndHeathBeforeSchema = createLandUseAreaSchema(
-  'nfmMountainMoorsAndHeathBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
-)
+export const nfmMountainMoorsAndHeathBeforeSchema =
+  createRequiredPositiveSchema(
+    'nfmMountainMoorsAndHeathBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
 
-export const nfmMountainMoorsAndHeathAfterSchema = createLandUseAreaSchema(
+export const nfmMountainMoorsAndHeathAfterSchema = createRequiredPositiveSchema(
   'nfmMountainMoorsAndHeathAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
+  LAND_USE_AFTER_MESSAGES
 )
 
-export const nfmPeatlandRestorationBeforeSchema = createLandUseAreaSchema(
+export const nfmPeatlandRestorationBeforeSchema = createRequiredPositiveSchema(
   'nfmPeatlandRestorationBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
+  LAND_USE_BEFORE_MESSAGES
 )
 
-export const nfmPeatlandRestorationAfterSchema = createLandUseAreaSchema(
+export const nfmPeatlandRestorationAfterSchema = createRequiredPositiveSchema(
   'nfmPeatlandRestorationAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
+  LAND_USE_AFTER_MESSAGES
 )
 
-export const nfmRiversWetlandsFreshwaterBeforeSchema = createLandUseAreaSchema(
-  'nfmRiversWetlandsFreshwaterBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
-)
+export const nfmRiversWetlandsFreshwaterBeforeSchema =
+  createRequiredPositiveSchema(
+    'nfmRiversWetlandsFreshwaterBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
 
-export const nfmRiversWetlandsFreshwaterAfterSchema = createLandUseAreaSchema(
-  'nfmRiversWetlandsFreshwaterAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
-)
+export const nfmRiversWetlandsFreshwaterAfterSchema =
+  createRequiredPositiveSchema(
+    'nfmRiversWetlandsFreshwaterAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
 
-export const nfmCoastalMarginsBeforeSchema = createLandUseAreaSchema(
+export const nfmCoastalMarginsBeforeSchema = createRequiredPositiveSchema(
   'nfmCoastalMarginsBefore',
-  AREA_BEFORE_REQUIRED_MESSAGE
+  LAND_USE_BEFORE_MESSAGES
 )
 
-export const nfmCoastalMarginsAfterSchema = createLandUseAreaSchema(
+export const nfmCoastalMarginsAfterSchema = createRequiredPositiveSchema(
   'nfmCoastalMarginsAfter',
-  AREA_AFTER_REQUIRED_MESSAGE
+  LAND_USE_AFTER_MESSAGES
 )
 
 /**

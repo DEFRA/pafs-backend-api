@@ -2,7 +2,8 @@ import { describe, test, expect } from 'vitest'
 import {
   NFM_EXPERIENCE_LEVEL_OPTIONS,
   NFM_PROJECT_READINESS_OPTIONS,
-  NFM_LANDOWNER_CONSENT_OPTIONS
+  NFM_LANDOWNER_CONSENT_OPTIONS,
+  PROJECT_VALIDATION_MESSAGES
 } from '../../constants/project.js'
 import {
   nfmRiverRestorationAreaSchema,
@@ -536,8 +537,10 @@ describe('NFM Schemas - Backend', () => {
 })
 
 describe('NFM Land Use Area Schemas', () => {
-  const BEFORE_REQUIRED_MESSAGE = 'Enter the area before natural flood measures'
-  const AFTER_REQUIRED_MESSAGE = 'Enter the area after natural flood measures'
+  const BEFORE_REQUIRED_MESSAGE =
+    PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_BEFORE_REQUIRED
+  const AFTER_REQUIRED_MESSAGE =
+    PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_AFTER_REQUIRED
 
   describe.each([
     {
@@ -649,7 +652,9 @@ describe('NFM Land Use Area Schemas', () => {
     test('should reject negative value', () => {
       const result = schema.validate(-1)
       expect(result.error).toBeDefined()
-      expect(result.error.message).toBe('Area must be a number 0 or greater')
+      expect(result.error.message).toBe(
+        PROJECT_VALIDATION_MESSAGES.NFM_LAND_USE_AREA_INVALID
+      )
     })
 
     test('should reject missing value', () => {

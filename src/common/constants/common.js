@@ -71,8 +71,8 @@ export const PASSWORD = {
 export const DB_DEFAULTS = {
   HOST: '127.0.0.1',
   PORT: '5432',
-  DATABASE: 'pafs_backend_local',
-  USERNAME: 'pafs_user',
+  DATABASE: 'pafs_backend_api',
+  USERNAME: 'postgres',
   PASSWORD: '',
   SCHEMA: 'public'
 }
