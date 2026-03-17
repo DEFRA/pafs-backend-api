@@ -1405,7 +1405,7 @@ describe('AreaService', () => {
 
         expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
           where: {
-            name: 'Existing Authority'
+            name: { equals: 'Existing Authority', mode: 'insensitive' }
           },
           select: { id: true }
         })
@@ -1431,7 +1431,7 @@ describe('AreaService', () => {
 
         expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
           where: {
-            name: 'Thames'
+            name: { equals: 'Thames', mode: 'insensitive' }
           },
           select: { id: true }
         })
@@ -1459,7 +1459,7 @@ describe('AreaService', () => {
         // Should exclude the current record's id
         expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
           where: {
-            name: 'Duplicate Name',
+            name: { equals: 'Duplicate Name', mode: 'insensitive' },
             id: { not: BigInt('50') }
           },
           select: { id: true }
@@ -1499,6 +1499,54 @@ describe('AreaService', () => {
 
         expect(result.name).toBe('Same Name')
         expect(mockPrisma.pafs_core_areas.upsert).toHaveBeenCalled()
+      })
+
+      it('should treat names with multiple internal spaces as duplicates', async () => {
+        const areaData = {
+          name: 'South  Yorkshire',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH099'
+        }
+
+        // Duplicate found — normalised name 'South Yorkshire' matches existing
+        mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce({
+          id: BigInt('99')
+        })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          "An area with the name 'South  Yorkshire' already exists"
+        )
+
+        // Service normalises before querying — double space collapsed to single
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            name: { equals: 'South Yorkshire', mode: 'insensitive' }
+          },
+          select: { id: true }
+        })
+      })
+
+      it('should treat names differing only in case as duplicates', async () => {
+        const areaData = {
+          name: 'south yorkshire',
+          areaType: AREA_TYPE_MAP.AUTHORITY,
+          identifier: 'AUTH098'
+        }
+
+        mockPrisma.pafs_core_areas.findFirst.mockResolvedValueOnce({
+          id: BigInt('99')
+        })
+
+        await expect(areaService.upsertArea(areaData)).rejects.toThrow(
+          'already exists'
+        )
+
+        expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
+          where: {
+            name: { equals: 'south yorkshire', mode: 'insensitive' }
+          },
+          select: { id: true }
+        })
       })
     })
 
