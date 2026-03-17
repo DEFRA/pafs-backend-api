@@ -220,6 +220,25 @@ describe('ProjectService', () => {
       expect(result).toEqual({ isValid: true })
     })
 
+    test('Should normalize multiple internal spaces to single space before comparing', async () => {
+      const payload = { name: 'South  Yorkshire Flood' }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await service.checkDuplicateProjectName(payload)
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            name: {
+              equals: 'South Yorkshire Flood',
+              mode: 'insensitive'
+            }
+          }
+        })
+      )
+    })
+
     test('Should exclude current project when referenceNumber is provided', async () => {
       const payload = {
         name: 'Test_Project',
