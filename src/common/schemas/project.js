@@ -20,3 +20,6 @@ export * from './project/goal-urgency-confidence.js'
 
 // Re-export environment benefits schema
 export * from './project/environment-benefits.js'
+
+// Re-export NFM schemas
+export * from './project/nfm.js'

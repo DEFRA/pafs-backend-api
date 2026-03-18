@@ -14,7 +14,8 @@ import {
   resetEarliestWithGiaFields,
   normalizeUrgencyData,
   normalizeEnvironmentalBenefits,
-  normalizeRiskFields
+  normalizeRiskFields,
+  handleNfmMeasureData
 } from '../helpers/payload-normalizers.js'
 
 /**
@@ -102,6 +103,13 @@ const upsertProject = {
 
         //Normalize Risk & Property benefiting fields
         normalizeRiskFields(enrichedPayload, validationLevel)
+
+        // Handle NFM measure data - save to separate table if applicable
+        await handleNfmMeasureData(
+          enrichedPayload,
+          validationLevel,
+          projectService
+        )
 
         if (areaId) {
           const area = await areaService.getAreaByIdWithParents(areaId)

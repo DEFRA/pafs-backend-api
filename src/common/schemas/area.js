@@ -20,6 +20,7 @@ export const areaTypeSchema = Joi.string()
 
 export const areaNameSchema = Joi.string()
   .trim()
+  .custom((value) => value.split(/\s+/).join(' '))
   .min(1)
   .max(SIZE.LENGTH_255)
   .required()

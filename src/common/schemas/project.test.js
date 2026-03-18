@@ -91,6 +91,22 @@ describe('project schemas', () => {
       const { value } = projectNameSchema.validate('  Test_Project  ')
       expect(value).toBe('Test_Project')
     })
+
+    it('should collapse multiple internal spaces to a single space', () => {
+      const { value, error } = projectNameSchema.validate(
+        'South  Yorkshire Flood'
+      )
+      expect(error).toBeUndefined()
+      expect(value).toBe('South Yorkshire Flood')
+    })
+
+    it('should collapse tabs and mixed whitespace to a single space', () => {
+      const { value, error } = projectNameSchema.validate(
+        'South   Yorkshire   Flood'
+      )
+      expect(error).toBeUndefined()
+      expect(value).toBe('South Yorkshire Flood')
+    })
   })
 
   describe('projectAreaIdSchema', () => {

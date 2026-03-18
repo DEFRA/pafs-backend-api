@@ -12,14 +12,68 @@ import {
   resolveAreaNames,
   resolveStatus
 } from '../helpers/project-formatter.js'
+import { ProjectNfmService } from './project-nfm-service.js'
 
 const COUNTER_SUFFIX = 'A'
 const REFERENCE_NUMBER_TEMPLATE = 'C501E'
+const OPTIONAL_OVERVIEW_NFM_FIELDS = [
+  'nfm_landowner_consent',
+  'nfm_experience_level',
+  'nfm_project_readiness'
+]
 
-export class ProjectService {
+export class ProjectService extends ProjectNfmService {
   constructor(prisma, logger) {
+    super(prisma, logger)
     this.prisma = prisma
     this.logger = logger
+  }
+
+  _getOverviewSelectFields() {
+    return { id: true, ...getProjectSelectFields() }
+  }
+
+  _isMissingOptionalFieldError(error, fieldName) {
+    const message = String(error?.message || '')
+    const lowerMessage = message.toLowerCase()
+    const lowerField = fieldName.toLowerCase()
+
+    return (
+      lowerMessage.includes(lowerField) &&
+      (lowerMessage.includes('unknown field') ||
+        lowerMessage.includes('does not exist') ||
+        lowerMessage.includes('p2022'))
+    )
+  }
+
+  async _getProjectDetailsForOverview(referenceNumber) {
+    const selectFields = this._getOverviewSelectFields()
+
+    try {
+      return await this._getProjectDetails(referenceNumber, { selectFields })
+    } catch (error) {
+      const missingOptionalField = OPTIONAL_OVERVIEW_NFM_FIELDS.find((field) =>
+        this._isMissingOptionalFieldError(error, field)
+      )
+
+      if (!missingOptionalField) {
+        throw error
+      }
+
+      this.logger.warn(
+        { referenceNumber, error: error.message, missingOptionalField },
+        'Falling back to overview select without optional NFM fields'
+      )
+
+      const fallbackSelectFields = { ...selectFields }
+      OPTIONAL_OVERVIEW_NFM_FIELDS.forEach((field) => {
+        delete fallbackSelectFields[field]
+      })
+
+      return this._getProjectDetails(referenceNumber, {
+        selectFields: fallbackSelectFields
+      })
+    }
   }
 
   /**
@@ -27,9 +81,10 @@ export class ProjectService {
    * @private
    */
   _buildNameWhereClause(projectName, excludeReferenceNumber = null) {
+    const normalizedName = projectName.trim().replaceAll(/\s+/g, ' ')
     const where = {
       name: {
-        equals: projectName,
+        equals: normalizedName,
         mode: 'insensitive'
       }
     }
@@ -276,6 +331,58 @@ export class ProjectService {
     return this._getProjectDetails(referenceNumber, { includeVersion: true })
   }
 
+  _buildJoinSelect(config) {
+    return Object.fromEntries(
+      Object.values(config.fields).map((field) => [field, true])
+    )
+  }
+
+  async _fetchJoinedDataByConfig(projectId, config) {
+    const query = {
+      where: {
+        [config.joinField]: Number(projectId)
+      },
+      select: this._buildJoinSelect(config)
+    }
+
+    return config.isArray
+      ? this.prisma[config.tableName].findMany(query)
+      : this.prisma[config.tableName].findFirst(query)
+  }
+
+  _attachJoinedTableData(project, tableKey, joinData, isArray) {
+    if (isArray && joinData?.length > 0) {
+      project[tableKey] = joinData
+      return
+    }
+
+    if (!isArray && joinData) {
+      project[tableKey] = joinData
+    }
+  }
+
+  async _populateJoinedTables(project) {
+    const joinedTables = getJoinedTableConfig()
+    for (const [tableKey, config] of Object.entries(joinedTables)) {
+      const joinData = await this._fetchJoinedDataByConfig(project.id, config)
+      this._attachJoinedTableData(project, tableKey, joinData, config.isArray)
+    }
+  }
+
+  async _resolveProjectAreaName(project) {
+    if (project.rma_name) {
+      return
+    }
+
+    const projectId = Number(project.id)
+    const areaNames = await resolveAreaNames(this.prisma, [projectId])
+    const areaName = areaNames.get(projectId)
+
+    if (areaName) {
+      project.rma_name = areaName
+    }
+  }
+
   /**
    * Get Project Overview data using reference number
    * Fetches project with joined tables and returns mapped API format
@@ -291,40 +398,14 @@ export class ProjectService {
         'Fetching project details by reference number'
       )
 
-      const project = await this._getProjectDetails(referenceNumber, {
-        selectFields: { id: true, ...getProjectSelectFields() }
-      })
+      const project = await this._getProjectDetailsForOverview(referenceNumber)
 
       if (!project) {
         return null
       }
 
-      // Manually fetch joined table data
-      const joinedTables = getJoinedTableConfig()
-      for (const [tableKey, config] of Object.entries(joinedTables)) {
-        const joinData = await this.prisma[config.tableName].findFirst({
-          where: {
-            [config.joinField]: Number(project.id)
-          },
-          select: Object.fromEntries(
-            Object.values(config.fields).map((field) => [field, true])
-          )
-        })
-        if (joinData) {
-          project[tableKey] = joinData
-        }
-      }
-
-      // Resolve area name when rma_name is empty
-      if (!project.rma_name) {
-        const areaNames = await resolveAreaNames(this.prisma, [
-          Number(project.id)
-        ])
-        const areaName = areaNames.get(Number(project.id))
-        if (areaName) {
-          project.rma_name = areaName
-        }
-      }
+      await this._populateJoinedTables(project)
+      await this._resolveProjectAreaName(project)
 
       const apiData = ProjectMapper.toApi(project)
 
