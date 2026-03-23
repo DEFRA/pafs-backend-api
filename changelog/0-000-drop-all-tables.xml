@@ -7,35 +7,35 @@
   <changeSet id="0-000-drop-all-tables" author="migration-team">
     <!-- ── Legacy tables (series 3) ───────────────────────────────────── -->
     <!-- Drop asite_files before asite_submissions (FK dependency)        -->
-    <dropTable tableName="pafs_core_asite_files" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_asite_submissions" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_bootstraps" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_account_requests" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_flood_protection_outcomes" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_flood_protection2040_outcomes" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_coastal_erosion_protection_outcomes" cascadeConstraints="true" ifExists="true"/>
+    <dropTable tableName="pafs_core_asite_files" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_asite_submissions" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_bootstraps" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_account_requests" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_flood_protection_outcomes" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_flood_protection2040_outcomes" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_coastal_erosion_protection_outcomes" cascadeConstraints="true" />
 
     <!-- ── Secondary tables (series 2) ────────────────────────────────── -->
-    <dropTable tableName="pafs_core_area_downloads" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_nfm_land_use_changes" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_nfm_measures" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_funding_contributors" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_funding_values" cascadeConstraints="true" ifExists="true"/>
+    <dropTable tableName="pafs_core_area_downloads" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_nfm_land_use_changes" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_nfm_measures" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_funding_contributors" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_funding_values" cascadeConstraints="true" />
 
     <!-- ── Core child / junction tables (series 1) ────────────────────── -->
-    <dropTable tableName="pafs_core_states" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="file_uploads" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_area_projects" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_user_areas" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_reference_counters" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="scheduler_logs" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="scheduler_locks" cascadeConstraints="true" ifExists="true"/>
+    <dropTable tableName="pafs_core_states" cascadeConstraints="true" />
+    <dropTable tableName="file_uploads" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_area_projects" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_user_areas" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_reference_counters" cascadeConstraints="true" />
+    <dropTable tableName="scheduler_logs" cascadeConstraints="true" />
+    <dropTable tableName="scheduler_locks" cascadeConstraints="true" />
 
     <!-- ── Core parent tables (series 1) ──────────────────────────────── -->
-    <dropTable tableName="pafs_core_projects" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_areas" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="pafs_core_users" cascadeConstraints="true" ifExists="true"/>
-    <dropTable tableName="old_passwords" cascadeConstraints="true" ifExists="true"/>
+    <dropTable tableName="pafs_core_projects" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_areas" cascadeConstraints="true" />
+    <dropTable tableName="pafs_core_users" cascadeConstraints="true" />
+    <dropTable tableName="old_passwords" cascadeConstraints="true" />
   </changeSet>
 
 </databaseChangeLog>
