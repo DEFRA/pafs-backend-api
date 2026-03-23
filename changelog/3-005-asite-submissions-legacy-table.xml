@@ -20,9 +20,6 @@
       </column>
     </createTable>
 
-    <!-- Foreign key to pafs_core_projects -->
-    <addForeignKeyConstraint baseTableName="pafs_core_asite_submissions" baseColumnNames="project_id" constraintName="fk_asite_submissions_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
-
     <rollback>
       <dropTable tableName="pafs_core_asite_submissions" cascadeConstraints="true"/>
     </rollback>

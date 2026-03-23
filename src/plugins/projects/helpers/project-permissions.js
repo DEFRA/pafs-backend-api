@@ -35,7 +35,7 @@ export function hasAccessToParentPso(userAreas, areaWithParents) {
 /**
  * Check if user can create a project
  * Rules:
- * - User must be RMA
+ * - User must be RMA or Admin
  * - User must have access to the specified area
  *
  * @param {Object} credentials - User credentials with isRma, isAdmin, and areas
@@ -43,13 +43,18 @@ export function hasAccessToParentPso(userAreas, areaWithParents) {
  * @returns {Object} { allowed: boolean, reason: string }
  */
 export function canCreateProject(credentials, areaId) {
-  const { isRma, areas } = credentials
+  const { isRma, areas, isAdmin } = credentials
 
-  if (!isRma) {
+  if (!isRma && !isAdmin) {
     return {
       allowed: false,
-      reason: 'Only RMA users can create projects'
+      reason: 'Only RMA or Admin users can create projects'
     }
+  }
+
+  // Admin can create any project
+  if (isAdmin) {
+    return { allowed: true }
   }
 
   if (!hasAccessToArea(areas, areaId)) {

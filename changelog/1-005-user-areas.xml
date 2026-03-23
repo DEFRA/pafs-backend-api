@@ -34,11 +34,6 @@
             <column name="user_id"/>
         </createIndex>
 
-        <!-- Foreign key constraints -->
-        <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="user_id" constraintName="fk_user_areas_user_id" referencedTableName="pafs_core_users" referencedColumnNames="id" onDelete="CASCADE"/>
-
-        <addForeignKeyConstraint baseTableName="pafs_core_user_areas" baseColumnNames="area_id" constraintName="fk_user_areas_area_id" referencedTableName="pafs_core_areas" referencedColumnNames="id" onDelete="CASCADE"/>
-
         <rollback>
             <dropTable tableName="pafs_core_user_areas" cascadeConstraints="true"/>
         </rollback>

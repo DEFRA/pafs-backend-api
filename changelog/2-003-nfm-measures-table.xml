@@ -38,9 +38,6 @@
       </column>
     </createTable>
 
-    <!-- Foreign key constraint -->
-    <addForeignKeyConstraint baseTableName="pafs_core_nfm_measures" baseColumnNames="project_id" constraintName="fk_nfm_measures_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
-
     <!-- Indexes -->
     <createIndex indexName="idx_nfm_measures_project_id" tableName="pafs_core_nfm_measures">
       <column name="project_id"/>

@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { PROJECT_VALIDATION_LEVELS } from '../../../common/constants/project.js'
+import {
+  PROJECT_VALIDATION_LEVELS,
+  PROJECT_TYPES
+} from '../../../common/constants/project.js'
 import {
   normalizeInterventionTypes,
   resetEarliestWithGiaFields,
   normalizeUrgencyData,
   normalizeEnvironmentalBenefits,
   normalizeRiskFields,
+  normalizeConfidenceFields,
   handleNfmMeasureData
 } from './payload-normalizers.js'
 
@@ -1117,5 +1121,195 @@ describe('handleNfmMeasureData', () => {
         })
       }
     )
+  })
+})
+
+describe('normalizeConfidenceFields', () => {
+  describe('when project type changes to restricted types at PROJECT_TYPE level', () => {
+    it('should reset confidence fields for ELO project type', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.ELO,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBeNull()
+      expect(payload.confidenceHomesByGatewayFour).toBeNull()
+      expect(payload.confidenceSecuredPartnershipFunding).toBeNull()
+    })
+
+    it('should reset confidence fields for HCR project type', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.HCR,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBeNull()
+      expect(payload.confidenceHomesByGatewayFour).toBeNull()
+      expect(payload.confidenceSecuredPartnershipFunding).toBeNull()
+    })
+
+    it('should reset confidence fields for STR project type', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.STR,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBeNull()
+      expect(payload.confidenceHomesByGatewayFour).toBeNull()
+      expect(payload.confidenceSecuredPartnershipFunding).toBeNull()
+    })
+
+    it('should reset confidence fields for STU project type', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.STU,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBeNull()
+      expect(payload.confidenceHomesByGatewayFour).toBeNull()
+      expect(payload.confidenceSecuredPartnershipFunding).toBeNull()
+    })
+  })
+
+  describe('when project type is not restricted', () => {
+    it('should not reset confidence fields for DEF project type', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.DEF,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBe('high')
+      expect(payload.confidenceHomesByGatewayFour).toBe('medium')
+      expect(payload.confidenceSecuredPartnershipFunding).toBe('low')
+    })
+
+    it('should not reset confidence fields for REP project type', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.REP,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBe('high')
+      expect(payload.confidenceHomesByGatewayFour).toBe('medium')
+      expect(payload.confidenceSecuredPartnershipFunding).toBe('low')
+    })
+
+    it('should not reset confidence fields for REF project type', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.REF,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBe('high')
+      expect(payload.confidenceHomesByGatewayFour).toBe('medium')
+      expect(payload.confidenceSecuredPartnershipFunding).toBe('low')
+    })
+  })
+
+  describe('when validation level is not PROJECT_TYPE', () => {
+    it('should not reset confidence fields at CONFIDENCE_HOMES_BETTER_PROTECTED level', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.ELO,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BETTER_PROTECTED
+      )
+
+      expect(payload.confidenceHomesBetterProtected).toBe('high')
+      expect(payload.confidenceHomesByGatewayFour).toBe('medium')
+      expect(payload.confidenceSecuredPartnershipFunding).toBe('low')
+    })
+
+    it('should not reset confidence fields at INITIAL_SAVE level', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.HCR,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.INITIAL_SAVE)
+
+      expect(payload.confidenceHomesBetterProtected).toBe('high')
+      expect(payload.confidenceHomesByGatewayFour).toBe('medium')
+      expect(payload.confidenceSecuredPartnershipFunding).toBe('low')
+    })
+
+    it('should not reset confidence fields at RISK level', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.STR,
+        confidenceHomesBetterProtected: 'high',
+        confidenceHomesByGatewayFour: 'medium',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
+
+      expect(payload.confidenceHomesBetterProtected).toBe('high')
+      expect(payload.confidenceHomesByGatewayFour).toBe('medium')
+      expect(payload.confidenceSecuredPartnershipFunding).toBe('low')
+    })
+  })
+
+  describe('edge cases', () => {
+    it('should handle payload with null confidence fields', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.ELO,
+        confidenceHomesBetterProtected: null,
+        confidenceHomesByGatewayFour: null,
+        confidenceSecuredPartnershipFunding: null
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBeNull()
+      expect(payload.confidenceHomesByGatewayFour).toBeNull()
+      expect(payload.confidenceSecuredPartnershipFunding).toBeNull()
+    })
+
+    it('should handle payload with missing confidence fields', () => {
+      const payload = {
+        projectType: PROJECT_TYPES.HCR
+      }
+
+      normalizeConfidenceFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+      expect(payload.confidenceHomesBetterProtected).toBeNull()
+      expect(payload.confidenceHomesByGatewayFour).toBeNull()
+      expect(payload.confidenceSecuredPartnershipFunding).toBeNull()
+    })
   })
 })

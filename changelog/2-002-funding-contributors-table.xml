@@ -42,9 +42,6 @@
       <column name="contributor_type"/>
     </createIndex>
 
-    <!-- Foreign key to pafs_core_funding_values -->
-    <addForeignKeyConstraint baseTableName="pafs_core_funding_contributors" baseColumnNames="funding_value_id" constraintName="fk_funding_contributors_funding_value" referencedTableName="pafs_core_funding_values" referencedColumnNames="id" onDelete="CASCADE"/>
-
     <rollback>
       <dropTable tableName="pafs_core_funding_contributors" cascadeConstraints="true"/>
     </rollback>

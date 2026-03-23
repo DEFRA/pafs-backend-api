@@ -15,6 +15,7 @@ import {
   normalizeUrgencyData,
   normalizeEnvironmentalBenefits,
   normalizeRiskFields,
+  normalizeConfidenceFields,
   handleNfmMeasureData
 } from '../helpers/payload-normalizers.js'
 
@@ -103,6 +104,9 @@ const upsertProject = {
 
         //Normalize Risk & Property benefiting fields
         normalizeRiskFields(enrichedPayload, validationLevel)
+
+        // Normalize confidence fields: reset for restricted project types (ELO, HCR, STR, STU)
+        normalizeConfidenceFields(enrichedPayload, validationLevel)
 
         // Handle NFM measure data - save to separate table if applicable
         await handleNfmMeasureData(
