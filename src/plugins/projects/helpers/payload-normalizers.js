@@ -4,7 +4,6 @@ import {
   PROJECT_TYPES
 } from '../../../common/constants/project.js'
 import { ENVIRONMENTAL_BENEFITS_FIELDS } from '../../../common/schemas/project.js'
-import { handleNfmMeasureData as handleNfmMeasureDataImpl } from './nfm-normalizers.js'
 
 /**
  * Normalizes intervention types for INITIAL_SAVE and PROJECT_TYPE levels
@@ -167,4 +166,4 @@ export const normalizeConfidenceFields = (enrichedPayload, validationLevel) => {
  * or delete measures when they are unselected
  * Re-exported from nfm-normalizers.js for backward compatibility
  */
-export const handleNfmMeasureData = handleNfmMeasureDataImpl
+export { handleNfmMeasureData } from './nfm-normalizers.js'

@@ -8,34 +8,34 @@ import { HTTP_STATUS } from '../../../../common/constants/common.js'
 /**
  * Project types that don't support confidence fields
  */
-const RESTRICTED_PROJECT_TYPES = [
+const RESTRICTED_PROJECT_TYPES = new Set([
   PROJECT_TYPES.ELO,
   PROJECT_TYPES.HCR,
   PROJECT_TYPES.STR,
   PROJECT_TYPES.STU
-]
+])
 
 /**
  * Confidence field validation levels
  */
-const CONFIDENCE_VALIDATION_LEVELS = [
+const CONFIDENCE_VALIDATION_LEVELS = new Set([
   PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BETTER_PROTECTED,
   PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BY_GATEWAY_FOUR,
   PROJECT_VALIDATION_LEVELS.CONFIDENCE_SECURED_PARTNERSHIP_FUNDING
-]
+])
 
 /**
  * Check if a project type is restricted from having confidence fields
  */
 const isRestrictedProjectType = (projectType) => {
-  return RESTRICTED_PROJECT_TYPES.includes(projectType)
+  return RESTRICTED_PROJECT_TYPES.has(projectType)
 }
 
 /**
  * Check if the validation level is for a confidence field
  */
 const isConfidenceValidationLevel = (validationLevel) => {
-  return CONFIDENCE_VALIDATION_LEVELS.includes(validationLevel)
+  return CONFIDENCE_VALIDATION_LEVELS.has(validationLevel)
 }
 
 /**
