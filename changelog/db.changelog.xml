@@ -3,8 +3,6 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-  <include file="0-000-drop-all-tables.xml" relativeToChangelogFile="true"/>
-
   <include file="1-001-extensions.xml" relativeToChangelogFile="true"/>
   <include file="1-001-old-passwords.xml" relativeToChangelogFile="true"/>
   <include file="1-003-areas.xml" relativeToChangelogFile="true"/>
@@ -31,5 +29,7 @@
   <include file="3-005-asite-submissions-legacy-table.xml" relativeToChangelogFile="true"/>
   <include file="3-006-asite-files-legacy-table.xml" relativeToChangelogFile="true"/>
   <include file="3-007-bootstraps-legacy-table.xml" relativeToChangelogFile="true"/>
+
+  <include file="0-000-drop-all-tables.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
