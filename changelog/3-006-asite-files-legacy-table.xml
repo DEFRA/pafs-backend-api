@@ -19,9 +19,6 @@
       </column>
     </createTable>
 
-    <!-- Foreign key to pafs_core_asite_submissions -->
-    <addForeignKeyConstraint baseTableName="pafs_core_asite_files" baseColumnNames="asite_submission_id" constraintName="fk_asite_files_asite_submission" referencedTableName="pafs_core_asite_submissions" referencedColumnNames="id" onDelete="CASCADE"/>
-
     <rollback>
       <dropTable tableName="pafs_core_asite_files" cascadeConstraints="true"/>
     </rollback>

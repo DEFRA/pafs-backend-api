@@ -4,6 +4,7 @@ on:
   pull_request:
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   LIQUIBASE_VERSION: 4.25.0
   POSTGRES_USER: pafs_user
   POSTGRES_PASSWORD: pafs_test_password
@@ -13,7 +14,7 @@ env:
 jobs:
   validate-migration:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:16-alpine

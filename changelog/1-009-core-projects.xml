@@ -129,10 +129,12 @@
       <column name="reservoir_flooding" type="BOOLEAN"/>
       <column name="coastal_erosion" type="BOOLEAN"/>
       <column name="main_risk" type="VARCHAR(255)"/>
+      <!--START: before policy reform 2025 they are under Standard Protection-->
       <column name="flood_protection_before" type="INTEGER"/>
       <column name="flood_protection_after" type="INTEGER"/>
       <column name="coastal_protection_before" type="INTEGER"/>
       <column name="coastal_protection_after" type="INTEGER"/>
+      <!--END: before policy reform 2025 they are under Standard Protection-->
       <column name="reduced_risk_of_households_for_floods" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="false"/>
       </column>
@@ -245,16 +247,16 @@
       <!-- END: Funding calculator - 2025 policy reform these are only for backward compatibility for legacy projects download -->
 
       <!-- START: Whole Life Costs and Benefits Section - 2025 policy reform new changes -->
-      <column name="wlc_estimated_whole_life_pv_costs" type="FLOAT"/>
-      <column name="wlc_estimated_design_construction_costs" type="FLOAT"/>
-      <column name="wlc_estimated_risk_contingency_costs" type="FLOAT"/>
-      <column name="wlc_estimated_future_costs" type="FLOAT"/>
+      <column name="wlc_estimated_whole_life_pv_costs" type="BIGINT"/>
+      <column name="wlc_estimated_design_construction_costs" type="BIGINT"/>
+      <column name="wlc_estimated_risk_contingency_costs" type="BIGINT"/>
+      <column name="wlc_estimated_future_costs" type="BIGINT"/>
 
-      <column name="wlc_estimated_whole_life_pv_benefits" type="FLOAT"/>
-      <column name="wlc_estimated_property_damages_avoided" type="FLOAT"/>
-      <column name="wlc_estimated_environmental_benefits" type="FLOAT"/>
-      <column name="wlc_estimated_recreation_tourism_benefits" type="FLOAT"/>
-      <column name="wlc_estimated_land_value_uplift_benefits" type="FLOAT"/>
+      <column name="wlc_estimated_whole_life_pv_benefits" type="BIGINT"/>
+      <column name="wlc_estimated_property_damages_avoided" type="BIGINT"/>
+      <column name="wlc_estimated_environmental_benefits" type="BIGINT"/>
+      <column name="wlc_estimated_recreation_tourism_benefits" type="BIGINT"/>
+      <column name="wlc_estimated_land_value_uplift_benefits" type="BIGINT"/>
       <!-- END: Whole Life Costs and Benefits Section - 2025 policy reform new changes -->
 
       <!-- START: Urgency fields -->

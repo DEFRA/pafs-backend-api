@@ -4,6 +4,7 @@ import { validateUpdatePermissions } from './validate-update-permissions.js'
 import { validateCommonFields } from './validate-common-fields.js'
 import { validateCreateSpecificFields } from './validate-create-specific-fields.js'
 import { validateUpdateAreaChange } from './validate-update-area-change.js'
+import { validateConfidenceFields } from './validate-confidence-fields.js'
 import { PROJECT_VALIDATION_MESSAGES } from '../../../../common/constants/project.js'
 import { HTTP_STATUS } from '../../../../common/constants/common.js'
 
@@ -219,6 +220,16 @@ const validateUpdateSpecificFields = async (
 ) => {
   const { areaId } = proposalPayload
   const userId = credentials.userId
+
+  // Validate confidence fields for restricted project types
+  const confidenceError = validateConfidenceFields(
+    validationLevel,
+    existingProject,
+    h
+  )
+  if (confidenceError) {
+    return { error: confidenceError }
+  }
 
   // Validate area if it's changing
   const areaResult = await validateUpdateAreaChange(

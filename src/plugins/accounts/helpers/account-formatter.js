@@ -11,22 +11,7 @@ export const ACCOUNT_SELECT_FIELDS = {
   disabled: true,
   created_at: true,
   updated_at: true,
-  last_sign_in_at: true,
-  invitation_sent_at: true,
-  invitation_accepted_at: true,
-  pafs_core_user_areas: {
-    select: {
-      primary: true,
-      pafs_core_areas: {
-        select: {
-          id: true,
-          name: true,
-          area_type: true,
-          parent_id: true
-        }
-      }
-    }
-  }
+  last_sign_in_at: true
 }
 
 export const ACCOUNT_DETAIL_SELECT_FIELDS = {
@@ -35,23 +20,31 @@ export const ACCOUNT_DETAIL_SELECT_FIELDS = {
   invitation_accepted_at: true
 }
 
-export function formatArea(userArea) {
+/**
+ * Format a raw area row (joined from pafs_core_user_areas + pafs_core_areas) into
+ * the shape expected by the accounts API response.
+ * @param {{ id: BigInt, name: string, area_type: string, parent_id: BigInt|null, primary: boolean }} area
+ */
+export function formatArea({
+  id,
+  name,
+  area_type: areaType,
+  parent_id: parentIdRaw,
+  primary
+}) {
+  const idNum = Number(id)
   return {
-    id: Number(userArea.pafs_core_areas.id),
-    areaId: String(userArea.pafs_core_areas.id),
-    name: userArea.pafs_core_areas.name,
-    type: userArea.pafs_core_areas.area_type,
-    parentId: userArea.pafs_core_areas.parent_id
-      ? Number(userArea.pafs_core_areas.parent_id)
-      : null,
-    primary: userArea.primary
+    id: idNum,
+    areaId: String(idNum),
+    name,
+    type: areaType,
+    parentId: parentIdRaw ? Number(parentIdRaw) : null,
+    primary: Boolean(primary)
   }
 }
 
-export function formatAccount(account, options = {}) {
+export function formatAccount(account, areas = [], options = {}) {
   const { includeInvitationFields = false } = options
-
-  const areas = account.pafs_core_user_areas.map(formatArea)
 
   const formatted = {
     id: Number(account.id),
@@ -64,7 +57,7 @@ export function formatAccount(account, options = {}) {
     status: account.status,
     admin: account.admin,
     disabled: account.disabled,
-    areas,
+    areas: areas.map(formatArea),
     createdAt: account.created_at,
     updatedAt: account.updated_at,
     lastSignIn: account.last_sign_in_at

@@ -19,6 +19,12 @@ describe('AccountService', () => {
         findUnique: vi.fn(),
         findMany: vi.fn(),
         updateMany: vi.fn()
+      },
+      pafs_core_user_areas: {
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      pafs_core_areas: {
+        findMany: vi.fn().mockResolvedValue([])
       }
     }
 
@@ -41,22 +47,17 @@ describe('AccountService', () => {
       updated_at: new Date('2024-01-02T10:00:00Z'),
       invitation_sent_at: new Date('2024-01-01T12:00:00Z'),
       invitation_accepted_at: new Date('2024-01-02T12:00:00Z'),
-      last_sign_in_at: new Date('2024-01-03T10:00:00Z'),
-      pafs_core_user_areas: [
-        {
-          primary: true,
-          pafs_core_areas: {
-            id: BigInt(1),
-            name: 'Test Area',
-            area_type: 'EA',
-            parent_id: null
-          }
-        }
-      ]
+      last_sign_in_at: new Date('2024-01-03T10:00:00Z')
     }
 
     it('retrieves and formats account successfully', async () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockRawAccount)
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt(1), primary: true }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(1), name: 'Test Area', area_type: 'EA', parent_id: null }
+      ])
 
       const result = await accountService.getAccountById(123)
 
@@ -77,20 +78,7 @@ describe('AccountService', () => {
           updated_at: true,
           invitation_sent_at: true,
           invitation_accepted_at: true,
-          last_sign_in_at: true,
-          pafs_core_user_areas: {
-            select: {
-              primary: true,
-              pafs_core_areas: {
-                select: {
-                  id: true,
-                  name: true,
-                  area_type: true,
-                  parent_id: true
-                }
-              }
-            }
-          }
+          last_sign_in_at: true
         }
       })
 
@@ -153,42 +141,32 @@ describe('AccountService', () => {
     })
 
     it('handles account with multiple areas', async () => {
-      const accountWithMultipleAreas = {
-        ...mockRawAccount,
-        pafs_core_user_areas: [
-          {
-            primary: true,
-            pafs_core_areas: {
-              id: BigInt(1),
-              name: 'Primary Area',
-              area_type: 'RMA',
-              parent_id: BigInt(10)
-            }
-          },
-          {
-            primary: false,
-            pafs_core_areas: {
-              id: BigInt(2),
-              name: 'Secondary Area',
-              area_type: 'RMA',
-              parent_id: BigInt(10)
-            }
-          },
-          {
-            primary: false,
-            pafs_core_areas: {
-              id: BigInt(3),
-              name: 'Tertiary Area',
-              area_type: 'RMA',
-              parent_id: BigInt(10)
-            }
-          }
-        ]
-      }
-
-      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(
-        accountWithMultipleAreas
-      )
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(mockRawAccount)
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt(1), primary: true },
+        { area_id: BigInt(2), primary: false },
+        { area_id: BigInt(3), primary: false }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        {
+          id: BigInt(1),
+          name: 'Primary Area',
+          area_type: 'RMA',
+          parent_id: BigInt(10)
+        },
+        {
+          id: BigInt(2),
+          name: 'Secondary Area',
+          area_type: 'RMA',
+          parent_id: BigInt(10)
+        },
+        {
+          id: BigInt(3),
+          name: 'Tertiary Area',
+          area_type: 'RMA',
+          parent_id: BigInt(10)
+        }
+      ])
 
       const result = await accountService.getAccountById(123)
 
@@ -225,11 +203,11 @@ describe('AccountService', () => {
         admin: true,
         job_title: null,
         organisation: null,
-        telephone_number: null,
-        pafs_core_user_areas: []
+        telephone_number: null
       }
 
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(adminAccount)
+      // user_areas returns [] by default from beforeEach — no override needed
 
       const result = await accountService.getAccountById(123)
 
@@ -307,23 +285,23 @@ describe('AccountService', () => {
     it('handles BigInt conversion edge cases', async () => {
       const accountWithLargeIds = {
         ...mockRawAccount,
-        id: BigInt('9007199254740991'), // Max safe integer
-        pafs_core_user_areas: [
-          {
-            primary: true,
-            pafs_core_areas: {
-              id: BigInt('9007199254740992'),
-              name: 'Large ID Area',
-              area_type: 'EA',
-              parent_id: BigInt('9007199254740990')
-            }
-          }
-        ]
+        id: BigInt('9007199254740991') // Max safe integer
       }
 
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(
         accountWithLargeIds
       )
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt('9007199254740992'), primary: true }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        {
+          id: BigInt('9007199254740992'),
+          name: 'Large ID Area',
+          area_type: 'EA',
+          parent_id: BigInt('9007199254740990')
+        }
+      ])
 
       const result = await accountService.getAccountById(9007199254740991)
 

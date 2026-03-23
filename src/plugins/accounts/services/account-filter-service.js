@@ -26,7 +26,18 @@ export class AccountFilterService {
    */
   async getAccounts({ status, search, areaId, page, pageSize }) {
     const pagination = normalizePaginationParams(page, pageSize)
-    const where = this.buildWhereClause(status, search, areaId)
+    const where = this.buildWhereClause(status, search)
+
+    // Area filter: pre-query user_areas (no Prisma relation on pafs_core_users)
+    if (areaId) {
+      const matchingUserAreas = await this.prisma.pafs_core_user_areas.findMany(
+        {
+          where: { area_id: BigInt(areaId), primary: true },
+          select: { user_id: true }
+        }
+      )
+      where.id = { in: matchingUserAreas.map((ua) => ua.user_id) }
+    }
 
     const [accounts, total] = await Promise.all([
       this.prisma.pafs_core_users.findMany({
@@ -39,8 +50,10 @@ export class AccountFilterService {
       this.prisma.pafs_core_users.count({ where })
     ])
 
+    const areasMap = await this._fetchAreasForUsers(accounts.map((a) => a.id))
+
     const formattedAccounts = accounts.map((account) =>
-      formatAccount(account, { includeInvitationFields: true })
+      formatAccount(account, areasMap.get(account.id.toString()) || [])
     )
 
     this.logger.info(
@@ -59,9 +72,58 @@ export class AccountFilterService {
   }
 
   /**
+   * Batch-fetch and group area details for a list of user IDs.
+   * @param {BigInt[]} userIds
+   * @returns {Promise<Map<string, Array>>} userId string → array of raw area rows
+   * @private
+   */
+  async _fetchAreasForUsers(userIds) {
+    if (!userIds.length) {
+      return new Map()
+    }
+
+    const userAreas = await this.prisma.pafs_core_user_areas.findMany({
+      where: { user_id: { in: userIds } },
+      select: { user_id: true, area_id: true, primary: true }
+    })
+
+    if (!userAreas.length) {
+      return new Map()
+    }
+
+    const uniqueAreaIds = [
+      ...new Map(
+        userAreas.map((ua) => [ua.area_id.toString(), ua.area_id])
+      ).values()
+    ]
+
+    const areas = await this.prisma.pafs_core_areas.findMany({
+      where: { id: { in: uniqueAreaIds } },
+      select: { id: true, name: true, area_type: true, parent_id: true }
+    })
+
+    const areasById = new Map(areas.map((a) => [a.id.toString(), a]))
+    const result = new Map()
+
+    for (const ua of userAreas) {
+      const area = areasById.get(ua.area_id.toString())
+      if (!area) {
+        continue
+      }
+      const key = ua.user_id.toString()
+      if (!result.has(key)) {
+        result.set(key, [])
+      }
+      result.get(key).push({ ...area, primary: ua.primary })
+    }
+
+    return result
+  }
+
+  /**
    * Build Prisma where clause from filters
    */
-  buildWhereClause(status, search, areaId) {
+  buildWhereClause(status, search) {
     const where = {}
 
     if (status === ACCOUNT_STATUS.PENDING) {
@@ -81,15 +143,6 @@ export class AccountFilterService {
         { last_name: { contains: searchTerm, mode: 'insensitive' } },
         { email: { contains: searchTerm, mode: 'insensitive' } }
       ]
-    }
-
-    if (areaId) {
-      where.pafs_core_user_areas = {
-        some: {
-          area_id: BigInt(areaId),
-          primary: true
-        }
-      }
     }
 
     return where

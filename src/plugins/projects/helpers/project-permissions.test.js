@@ -116,9 +116,22 @@ describe('project-permissions', () => {
       expect(result.allowed).toBe(true)
     })
 
+    it('should allow Admin user with area access to create project', () => {
+      const credentials = {
+        isRma: false,
+        isAdmin: true,
+        areas: [{ areaId: '5', primary: true }]
+      }
+
+      const result = canCreateProject(credentials, '5')
+
+      expect(result.allowed).toBe(true)
+    })
+
     it('should deny non-RMA user from creating project', () => {
       const credentials = {
         isRma: false,
+        isAdmin: false,
         isPso: true,
         areas: [{ areaId: '5', primary: true }]
       }
@@ -126,12 +139,15 @@ describe('project-permissions', () => {
       const result = canCreateProject(credentials, '5')
 
       expect(result.allowed).toBe(false)
-      expect(result.reason).toContain('Only RMA users')
+      expect(result.reason).toContain(
+        'Only RMA or Admin users can create projects'
+      )
     })
 
     it('should deny RMA user without area access from creating project', () => {
       const credentials = {
         isRma: true,
+        isAdmin: false,
         areas: [{ areaId: '3', primary: true }]
       }
 

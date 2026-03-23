@@ -30,6 +30,12 @@ describe('AccountFilterService', () => {
       pafs_core_users: {
         findMany: vi.fn(),
         count: vi.fn()
+      },
+      pafs_core_user_areas: {
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      pafs_core_areas: {
+        findMany: vi.fn().mockResolvedValue([])
       }
     }
 
@@ -55,17 +61,7 @@ describe('AccountFilterService', () => {
       disabled: false,
       created_at: new Date('2024-01-15'),
       updated_at: new Date('2024-06-20'),
-      last_sign_in_at: new Date('2024-04-20'),
-      pafs_core_user_areas: [
-        {
-          primary: true,
-          pafs_core_areas: {
-            id: BigInt(10),
-            name: 'Thames',
-            area_type: 'RMA'
-          }
-        }
-      ]
+      last_sign_in_at: new Date('2024-04-20')
     }
 
     it('returns active accounts with pagination', async () => {
@@ -126,6 +122,9 @@ describe('AccountFilterService', () => {
     })
 
     it('filters by area ID', async () => {
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValueOnce([
+        { user_id: BigInt(1) }
+      ])
       mockPrisma.pafs_core_users.findMany.mockResolvedValue([mockUser])
       mockPrisma.pafs_core_users.count.mockResolvedValue(1)
 
@@ -134,18 +133,21 @@ describe('AccountFilterService', () => {
         areaId: 10
       })
 
+      expect(mockPrisma.pafs_core_user_areas.findMany).toHaveBeenCalledWith({
+        where: { area_id: BigInt(10), primary: true },
+        select: { user_id: true }
+      })
       expect(mockPrisma.pafs_core_users.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            pafs_core_user_areas: {
-              some: { area_id: BigInt(10), primary: true }
-            }
+            id: { in: [BigInt(1)] }
           })
         })
       )
     })
 
     it('applies both search and area filters', async () => {
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValueOnce([])
       mockPrisma.pafs_core_users.findMany.mockResolvedValue([])
       mockPrisma.pafs_core_users.count.mockResolvedValue(0)
 
@@ -160,7 +162,7 @@ describe('AccountFilterService', () => {
           where: expect.objectContaining({
             status: { in: ['active', 'approved'] },
             OR: expect.any(Array),
-            pafs_core_user_areas: expect.any(Object)
+            id: expect.any(Object)
           })
         })
       )
@@ -177,24 +179,16 @@ describe('AccountFilterService', () => {
     })
 
     it('formats account areas correctly', async () => {
-      const userWithMultipleAreas = {
-        ...mockUser,
-        pafs_core_user_areas: [
-          {
-            primary: true,
-            pafs_core_areas: { id: BigInt(1), name: 'Thames', area_type: 'RMA' }
-          },
-          {
-            primary: false,
-            pafs_core_areas: { id: BigInt(2), name: 'Severn', area_type: 'RMA' }
-          }
-        ]
-      }
-
-      mockPrisma.pafs_core_users.findMany.mockResolvedValue([
-        userWithMultipleAreas
-      ])
+      mockPrisma.pafs_core_users.findMany.mockResolvedValue([mockUser])
       mockPrisma.pafs_core_users.count.mockResolvedValue(1)
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { user_id: BigInt(1), area_id: BigInt(1), primary: true },
+        { user_id: BigInt(1), area_id: BigInt(2), primary: false }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(1), name: 'Thames', area_type: 'RMA', parent_id: null },
+        { id: BigInt(2), name: 'Severn', area_type: 'RMA', parent_id: null }
+      ])
 
       const result = await accountService.getAccounts({ status: 'active' })
 
@@ -207,6 +201,20 @@ describe('AccountFilterService', () => {
         parentId: null,
         primary: true
       })
+    })
+
+    it('skips areas with no matching area record in _fetchAreasForUsers', async () => {
+      mockPrisma.pafs_core_users.findMany.mockResolvedValue([mockUser])
+      mockPrisma.pafs_core_users.count.mockResolvedValue(1)
+      // user has a user_area row pointing to area_id 99, but areas query returns nothing
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { user_id: BigInt(1), area_id: BigInt(99), primary: true }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
+
+      const result = await accountService.getAccounts({ status: 'active' })
+
+      expect(result.data[0].areas).toHaveLength(0)
     })
 
     it('logs retrieval info', async () => {
@@ -275,19 +283,17 @@ describe('AccountFilterService', () => {
     })
 
     it('builds clause with all filters', () => {
-      const where = accountService.buildWhereClause('active', 'test', 5)
+      const where = accountService.buildWhereClause('active', 'test')
 
       expect(where.status).toEqual({ in: ['active', 'approved'] })
       expect(where.OR).toBeDefined()
-      expect(where.pafs_core_user_areas).toBeDefined()
     })
 
     it('builds clause for active status when status is not provided', () => {
-      const where = accountService.buildWhereClause('', 'test', 5)
+      const where = accountService.buildWhereClause('', 'test')
 
       expect(where.status).toBe('pending')
       expect(where.OR).toBeDefined()
-      expect(where.pafs_core_user_areas).toBeDefined()
     })
   })
 })

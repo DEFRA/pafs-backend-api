@@ -47,6 +47,10 @@ describe('AuthService', () => {
       findMany: vi.fn().mockResolvedValue([])
     }
 
+    mockPrisma.pafs_core_areas = {
+      findMany: vi.fn().mockResolvedValue([])
+    }
+
     mockLogger = {
       info: vi.fn(),
       warn: vi.fn()
@@ -311,16 +315,15 @@ describe('AuthService', () => {
           current_sign_in_ip: null
         })
 
-      // Return two user area records with nested area details
+      // Return flat user area records, then area details in a second query
       mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        {
-          primary: true,
-          pafs_core_areas: { id: 10, name: 'Area A', area_type: 'RMA' }
-        },
-        {
-          primary: false,
-          pafs_core_areas: { id: 20, name: 'Area B', area_type: 'PSO' }
-        }
+        { area_id: 10n, primary: true },
+        { area_id: 20n, primary: false }
+      ])
+
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: 10n, name: 'Area A', area_type: 'RMA' },
+        { id: 20n, name: 'Area B', area_type: 'PSO' }
       ])
 
       mockPrisma.pafs_core_users.update.mockResolvedValue({})

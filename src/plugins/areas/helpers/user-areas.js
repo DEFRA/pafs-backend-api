@@ -10,24 +10,74 @@ import { AreaService } from '../services/area-service.js'
 export async function fetchUserAreas(prisma, userId) {
   const userAreas = await prisma.pafs_core_user_areas.findMany({
     where: { user_id: BigInt(userId) },
-    select: {
-      primary: true,
-      pafs_core_areas: {
-        select: {
-          id: true,
-          name: true,
-          area_type: true
-        }
-      }
-    }
+    select: { area_id: true, primary: true }
   })
 
-  return (userAreas || []).map((ua) => ({
-    areaId: Number(ua.pafs_core_areas.id),
-    primary: Boolean(ua.primary),
-    name: ua.pafs_core_areas.name,
-    areaType: ua.pafs_core_areas.area_type
-  }))
+  if (!userAreas?.length) {
+    return []
+  }
+
+  const areaIds = userAreas.map((ua) => ua.area_id)
+
+  const areas = await prisma.pafs_core_areas.findMany({
+    where: { id: { in: areaIds } },
+    select: { id: true, name: true, area_type: true }
+  })
+
+  const areasById = new Map(areas.map((a) => [a.id.toString(), a]))
+
+  return userAreas
+    .map((ua) => {
+      const area = areasById.get(ua.area_id.toString())
+      if (!area) {
+        return null
+      }
+      return {
+        areaId: Number(area.id),
+        primary: Boolean(ua.primary),
+        name: area.name,
+        areaType: area.area_type
+      }
+    })
+    .filter(Boolean)
+}
+
+/**
+ * Fetch user areas with full area details for account API responses.
+ * Returns raw DB-shaped rows (id, name, area_type, parent_id, primary) suitable
+ * for use with formatArea() in account-formatter.js.
+ * @param {Object} prisma - Prisma client instance
+ * @param {BigInt|number} userId - User ID
+ * @returns {Promise<Array>} Array of { id, name, area_type, parent_id, primary }
+ */
+export async function fetchAccountAreas(prisma, userId) {
+  const userAreas = await prisma.pafs_core_user_areas.findMany({
+    where: { user_id: BigInt(userId) },
+    select: { area_id: true, primary: true }
+  })
+
+  if (!userAreas?.length) {
+    return []
+  }
+
+  const areaIds = userAreas.map((ua) => ua.area_id)
+
+  const areas = await prisma.pafs_core_areas.findMany({
+    where: { id: { in: areaIds } },
+    select: { id: true, name: true, area_type: true, parent_id: true }
+  })
+
+  const areasById = new Map(areas.map((a) => [a.id.toString(), a]))
+
+  return userAreas
+    .map((ua) => {
+      const area = areasById.get(ua.area_id.toString())
+      if (!area) {
+        return null
+      }
+      return { ...area, primary: ua.primary }
+    })
+    .filter(Boolean)
 }
 
 /**

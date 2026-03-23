@@ -121,6 +121,7 @@ describe('upsertProject handler', () => {
 
   describe('RMA user validation', () => {
     it('should reject non-RMA users creating new projects', async () => {
+      mockRequest.auth.credentials.is = false
       mockRequest.auth.credentials.isRma = false
       mockRequest.auth.credentials.primaryAreaType = 'PSO Area'
       mockRequest.auth.credentials.areas = [{ areaId: '1', primary: true }]
@@ -132,7 +133,7 @@ describe('upsertProject handler', () => {
         errors: [
           {
             errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_CREATE,
-            message: 'Only RMA users can create projects'
+            message: 'Only RMA or Admin users can create projects'
           }
         ]
       })
@@ -1033,6 +1034,217 @@ describe('upsertProject handler', () => {
           statusCode: HTTP_STATUS.BAD_REQUEST
         })
       )
+    })
+  })
+
+  describe('Confidence field validation for restricted project types', () => {
+    beforeEach(() => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.auth.credentials.isRma = true
+    })
+
+    it('should reject confidence field update for ELO project type', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'ELO Project',
+        areaId: 1n,
+        projectType: 'ELO'
+      })
+
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        confidenceHomesBetterProtected: 'high'
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BETTER_PROTECTED
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'projectType',
+            message:
+              'Confidence fields cannot be updated for project types: ELO, HCR, STR, STU',
+            errorCode: expect.any(String)
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should reject confidence field update for HCR project type', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'HCR Project',
+        areaId: 1n,
+        projectType: 'HCR'
+      })
+
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        confidenceHomesByGatewayFour: 'medium'
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BY_GATEWAY_FOUR
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'projectType',
+            message:
+              'Confidence fields cannot be updated for project types: ELO, HCR, STR, STU',
+            errorCode: expect.any(String)
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should reject confidence field update for STR project type', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'STR Project',
+        areaId: 1n,
+        projectType: 'STR'
+      })
+
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_SECURED_PARTNERSHIP_FUNDING
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'projectType',
+            message:
+              'Confidence fields cannot be updated for project types: ELO, HCR, STR, STU',
+            errorCode: expect.any(String)
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should reject confidence field update for STU project type', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'STU Project',
+        areaId: 1n,
+        projectType: 'STU'
+      })
+
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        confidenceHomesBetterProtected: 'high'
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BETTER_PROTECTED
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'projectType',
+            message:
+              'Confidence fields cannot be updated for project types: ELO, HCR, STR, STU',
+            errorCode: expect.any(String)
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should allow confidence field update for DEF project type', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'DEF Project',
+        areaId: 1n,
+        projectType: 'DEF'
+      })
+
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        confidenceHomesBetterProtected: 'high'
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BETTER_PROTECTED
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(ProjectService.prototype.upsertProject).toHaveBeenCalled()
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('should allow confidence field update for REP project type', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'REP Project',
+        areaId: 1n,
+        projectType: 'REP'
+      })
+
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        confidenceHomesByGatewayFour: 'medium'
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_HOMES_BY_GATEWAY_FOUR
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(ProjectService.prototype.upsertProject).toHaveBeenCalled()
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('should allow confidence field update for REF project type', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'REF Project',
+        areaId: 1n,
+        projectType: 'REF'
+      })
+
+      mockRequest.payload.payload = {
+        referenceNumber: 'REF123',
+        confidenceSecuredPartnershipFunding: 'low'
+      }
+      mockRequest.payload.level =
+        PROJECT_VALIDATION_LEVELS.CONFIDENCE_SECURED_PARTNERSHIP_FUNDING
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(ProjectService.prototype.upsertProject).toHaveBeenCalled()
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })
   })
 

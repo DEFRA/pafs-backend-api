@@ -34,9 +34,6 @@
             <column name="project_id"/>
         </createIndex>
 
-        <!-- Foreign key to pafs_core_projects -->
-        <addForeignKeyConstraint baseTableName="pafs_core_coastal_erosion_protection_outcomes" baseColumnNames="project_id" constraintName="fk_cep_outcomes_project" referencedTableName="pafs_core_projects" referencedColumnNames="id" onDelete="CASCADE"/>
-
         <rollback>
             <dropTable tableName="pafs_core_coastal_erosion_protection_outcomes" cascadeConstraints="true"/>
         </rollback>
