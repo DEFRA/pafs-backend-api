@@ -24,24 +24,8 @@ describe('Account Formatter', () => {
       expect(ACCOUNT_SELECT_FIELDS).toHaveProperty('last_sign_in_at', true)
     })
 
-    it('includes user areas with nested selection', () => {
-      expect(ACCOUNT_SELECT_FIELDS).toHaveProperty('pafs_core_user_areas')
-      expect(ACCOUNT_SELECT_FIELDS.pafs_core_user_areas.select).toHaveProperty(
-        'primary',
-        true
-      )
-      expect(
-        ACCOUNT_SELECT_FIELDS.pafs_core_user_areas.select.pafs_core_areas.select
-      ).toHaveProperty('id', true)
-      expect(
-        ACCOUNT_SELECT_FIELDS.pafs_core_user_areas.select.pafs_core_areas.select
-      ).toHaveProperty('name', true)
-      expect(
-        ACCOUNT_SELECT_FIELDS.pafs_core_user_areas.select.pafs_core_areas.select
-      ).toHaveProperty('area_type', true)
-      expect(
-        ACCOUNT_SELECT_FIELDS.pafs_core_user_areas.select.pafs_core_areas.select
-      ).toHaveProperty('parent_id', true)
+    it('does not include user areas in select (fetched separately)', () => {
+      expect(ACCOUNT_SELECT_FIELDS).not.toHaveProperty('pafs_core_user_areas')
     })
   })
 
@@ -66,17 +50,15 @@ describe('Account Formatter', () => {
 
   describe('formatArea', () => {
     it('formats area with all fields', () => {
-      const userArea = {
-        primary: true,
-        pafs_core_areas: {
-          id: BigInt(123),
-          name: 'Test Area',
-          area_type: 'EA',
-          parent_id: BigInt(456)
-        }
+      const area = {
+        id: BigInt(123),
+        name: 'Test Area',
+        area_type: 'EA',
+        parent_id: BigInt(456),
+        primary: true
       }
 
-      const result = formatArea(userArea)
+      const result = formatArea(area)
 
       expect(result).toEqual({
         id: 123,
@@ -89,17 +71,15 @@ describe('Account Formatter', () => {
     })
 
     it('formats area with null parent_id', () => {
-      const userArea = {
-        primary: false,
-        pafs_core_areas: {
-          id: BigInt(789),
-          name: 'Top Level Area',
-          area_type: 'PSO',
-          parent_id: null
-        }
+      const area = {
+        id: BigInt(789),
+        name: 'Top Level Area',
+        area_type: 'PSO',
+        parent_id: null,
+        primary: false
       }
 
-      const result = formatArea(userArea)
+      const result = formatArea(area)
 
       expect(result).toEqual({
         id: 789,
@@ -112,17 +92,15 @@ describe('Account Formatter', () => {
     })
 
     it('converts BigInt IDs to numbers', () => {
-      const userArea = {
-        primary: true,
-        pafs_core_areas: {
-          id: BigInt(9007199254740991),
-          name: 'Large ID Area',
-          area_type: 'RMA',
-          parent_id: BigInt(9007199254740990)
-        }
+      const area = {
+        id: BigInt(9007199254740991),
+        name: 'Large ID Area',
+        area_type: 'RMA',
+        parent_id: BigInt(9007199254740990),
+        primary: true
       }
 
-      const result = formatArea(userArea)
+      const result = formatArea(area)
 
       expect(result.id).toBe(9007199254740991)
       expect(result.areaId).toBe('9007199254740991')
@@ -148,22 +126,21 @@ describe('Account Formatter', () => {
       updated_at: new Date('2024-01-02'),
       last_sign_in_at: new Date('2024-01-03'),
       invitation_sent_at: new Date('2024-01-01T12:00:00Z'),
-      invitation_accepted_at: new Date('2024-01-02T12:00:00Z'),
-      pafs_core_user_areas: [
-        {
-          primary: true,
-          pafs_core_areas: {
-            id: BigInt(1),
-            name: 'Test Area',
-            area_type: 'EA',
-            parent_id: null
-          }
-        }
-      ]
+      invitation_accepted_at: new Date('2024-01-02T12:00:00Z')
     }
 
+    const mockAreas = [
+      {
+        id: BigInt(1),
+        name: 'Test Area',
+        area_type: 'EA',
+        parent_id: null,
+        primary: true
+      }
+    ]
+
     it('formats account without invitation fields by default', () => {
-      const result = formatAccount(mockAccount)
+      const result = formatAccount(mockAccount, mockAreas)
 
       expect(result).toEqual({
         id: 123,
@@ -196,7 +173,7 @@ describe('Account Formatter', () => {
     })
 
     it('includes invitation fields when requested', () => {
-      const result = formatAccount(mockAccount, {
+      const result = formatAccount(mockAccount, mockAreas, {
         includeInvitationFields: true
       })
 
@@ -211,31 +188,24 @@ describe('Account Formatter', () => {
     })
 
     it('formats account with multiple areas', () => {
-      const accountWithMultipleAreas = {
-        ...mockAccount,
-        pafs_core_user_areas: [
-          {
-            primary: true,
-            pafs_core_areas: {
-              id: BigInt(1),
-              name: 'Primary Area',
-              area_type: 'RMA',
-              parent_id: BigInt(10)
-            }
-          },
-          {
-            primary: false,
-            pafs_core_areas: {
-              id: BigInt(2),
-              name: 'Secondary Area',
-              area_type: 'RMA',
-              parent_id: BigInt(10)
-            }
-          }
-        ]
-      }
+      const multipleAreas = [
+        {
+          id: BigInt(1),
+          name: 'Primary Area',
+          area_type: 'RMA',
+          parent_id: BigInt(10),
+          primary: true
+        },
+        {
+          id: BigInt(2),
+          name: 'Secondary Area',
+          area_type: 'RMA',
+          parent_id: BigInt(10),
+          primary: false
+        }
+      ]
 
-      const result = formatAccount(accountWithMultipleAreas)
+      const result = formatAccount(mockAccount, multipleAreas)
 
       expect(result.areas).toHaveLength(2)
       expect(result.areas[0]).toEqual({
@@ -262,11 +232,10 @@ describe('Account Formatter', () => {
         admin: true,
         job_title: null,
         organisation: null,
-        telephone_number: null,
-        pafs_core_user_areas: []
+        telephone_number: null
       }
 
-      const result = formatAccount(adminAccount)
+      const result = formatAccount(adminAccount, [])
 
       expect(result.admin).toBe(true)
       expect(result.areas).toEqual([])
@@ -286,7 +255,7 @@ describe('Account Formatter', () => {
         invitation_accepted_at: null
       }
 
-      const result = formatAccount(accountWithNulls, {
+      const result = formatAccount(accountWithNulls, mockAreas, {
         includeInvitationFields: true
       })
 
@@ -299,19 +268,16 @@ describe('Account Formatter', () => {
     })
 
     it('converts BigInt ID to number', () => {
-      const result = formatAccount(mockAccount)
+      const result = formatAccount(mockAccount, [])
 
       expect(result.id).toBe(123)
       expect(typeof result.id).toBe('number')
     })
 
     it('handles disabled account', () => {
-      const disabledAccount = {
-        ...mockAccount,
-        disabled: true
-      }
+      const disabledAccount = { ...mockAccount, disabled: true }
 
-      const result = formatAccount(disabledAccount)
+      const result = formatAccount(disabledAccount, [])
 
       expect(result.disabled).toBe(true)
     })
@@ -323,14 +289,14 @@ describe('Account Formatter', () => {
         last_sign_in_at: null
       }
 
-      const result = formatAccount(pendingAccount)
+      const result = formatAccount(pendingAccount, [])
 
       expect(result.status).toBe('pending')
       expect(result.lastSignIn).toBeNull()
     })
 
     it('preserves date objects', () => {
-      const result = formatAccount(mockAccount)
+      const result = formatAccount(mockAccount, [])
 
       expect(result.createdAt).toBeInstanceOf(Date)
       expect(result.updatedAt).toBeInstanceOf(Date)
@@ -338,7 +304,7 @@ describe('Account Formatter', () => {
     })
 
     it('handles empty options object', () => {
-      const result = formatAccount(mockAccount, {})
+      const result = formatAccount(mockAccount, [], {})
 
       expect(result).not.toHaveProperty('invitationSentAt')
       expect(result).not.toHaveProperty('invitationAcceptedAt')

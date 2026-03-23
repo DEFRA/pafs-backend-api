@@ -2,6 +2,7 @@ import {
   ACCOUNT_DETAIL_SELECT_FIELDS,
   formatAccount
 } from '../helpers/account-formatter.js'
+import { fetchAccountAreas } from '../../areas/helpers/user-areas.js'
 import { ACCOUNT_STATUS } from '../../../common/constants/index.js'
 import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 import { NotFoundError } from '../../../common/errors/http-errors.js'
@@ -44,8 +45,10 @@ export class AccountService {
       return null
     }
 
+    const areas = await fetchAccountAreas(this.prisma, id)
+
     this.logger.info({ accountId: id }, 'Account retrieved successfully')
-    return formatAccount(account, { includeInvitationFields: true })
+    return formatAccount(account, areas, { includeInvitationFields: true })
   }
 
   /**
