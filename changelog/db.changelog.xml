@@ -30,6 +30,4 @@
   <include file="3-006-asite-files-legacy-table.xml" relativeToChangelogFile="true"/>
   <include file="3-007-bootstraps-legacy-table.xml" relativeToChangelogFile="true"/>
 
-  <include file="0-000-drop-all-tables.xml" relativeToChangelogFile="true"/>
-
 </databaseChangeLog>
