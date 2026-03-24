@@ -167,3 +167,50 @@ export const normalizeConfidenceFields = (enrichedPayload, validationLevel) => {
  * Re-exported from nfm-normalizers.js for backward compatibility
  */
 export { handleNfmMeasureData } from './nfm-normalizers.js'
+
+/**
+ * Sanitizes WLC cost fields (for validation stage) by removing commas
+ * and trimming whitespace. Keeps empty string as-is so required validation
+ * still returns required-message semantics.
+ */
+export const sanitizeWlcFields = (payload, validationLevel) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_COST) {
+    return
+  }
+
+  const wlcFields = [
+    'wlcEstimatedWholeLifePvCosts',
+    'wlcEstimatedDesignConstructionCosts',
+    'wlcEstimatedRiskContingencyCosts',
+    'wlcEstimatedFutureCosts'
+  ]
+
+  wlcFields.forEach((field) => {
+    if (typeof payload[field] === 'string') {
+      payload[field] = payload[field].replaceAll(',', '').trim()
+    }
+  })
+}
+
+/**
+ * Normalizes WLC cost fields by converting empty strings to null.
+ * Empty strings arise from optional form inputs left blank by the user.
+ */
+export const normalizeWlcFields = (enrichedPayload, validationLevel) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_COST) {
+    return
+  }
+
+  const wlcFields = [
+    'wlcEstimatedWholeLifePvCosts',
+    'wlcEstimatedDesignConstructionCosts',
+    'wlcEstimatedRiskContingencyCosts',
+    'wlcEstimatedFutureCosts'
+  ]
+
+  wlcFields.forEach((field) => {
+    if (enrichedPayload[field] === '') {
+      enrichedPayload[field] = null
+    }
+  })
+}

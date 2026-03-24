@@ -116,7 +116,13 @@ describe('project-config', () => {
         nfmLandUseChange: 'nfm_land_use_change',
         nfmLandownerConsent: 'nfm_landowner_consent',
         nfmExperienceLevel: 'nfm_experience_level',
-        nfmProjectReadiness: 'nfm_project_readiness'
+        nfmProjectReadiness: 'nfm_project_readiness',
+        wlcEstimatedWholeLifePvCosts: 'wlc_estimated_whole_life_pv_costs',
+        wlcEstimatedDesignConstructionCosts:
+          'wlc_estimated_design_construction_costs',
+        wlcEstimatedRiskContingencyCosts:
+          'wlc_estimated_risk_contingency_costs',
+        wlcEstimatedFutureCosts: 'wlc_estimated_future_costs'
       })
     })
 
@@ -177,8 +183,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 85 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(85)
+    it('should have 89 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(89)
     })
   })
 
@@ -245,9 +251,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 85 fields', () => {
+    it('should return an object with 89 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(85)
+      expect(Object.keys(result)).toHaveLength(89)
     })
 
     it('should return a new object each time', () => {

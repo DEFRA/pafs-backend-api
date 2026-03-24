@@ -23,3 +23,6 @@ export * from './project/environment-benefits.js'
 
 // Re-export NFM schemas
 export * from './project/nfm.js'
+
+// Re-export WLC schemas
+export * from './project/wlc.js'

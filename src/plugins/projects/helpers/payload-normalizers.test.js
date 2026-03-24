@@ -10,6 +10,8 @@ import {
   normalizeEnvironmentalBenefits,
   normalizeRiskFields,
   normalizeConfidenceFields,
+  sanitizeWlcFields,
+  normalizeWlcFields,
   handleNfmMeasureData
 } from './payload-normalizers.js'
 
@@ -1311,5 +1313,61 @@ describe('normalizeConfidenceFields', () => {
       expect(payload.confidenceHomesByGatewayFour).toBeNull()
       expect(payload.confidenceSecuredPartnershipFunding).toBeNull()
     })
+  })
+})
+
+describe('sanitizeWlcFields', () => {
+  it('should remove commas and trim spaces at WHOLE_LIFE_COST level', () => {
+    const payload = {
+      wlcEstimatedWholeLifePvCosts: ' 1,234,567 ',
+      wlcEstimatedDesignConstructionCosts: '2,500',
+      wlcEstimatedRiskContingencyCosts: ' 300 ',
+      wlcEstimatedFutureCosts: '4,000'
+    }
+
+    sanitizeWlcFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_COST)
+
+    expect(payload.wlcEstimatedWholeLifePvCosts).toBe('1234567')
+    expect(payload.wlcEstimatedDesignConstructionCosts).toBe('2500')
+    expect(payload.wlcEstimatedRiskContingencyCosts).toBe('300')
+    expect(payload.wlcEstimatedFutureCosts).toBe('4000')
+  })
+
+  it('should keep empty string for required validation behavior', () => {
+    const payload = {
+      wlcEstimatedWholeLifePvCosts: '   '
+    }
+
+    sanitizeWlcFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_COST)
+
+    expect(payload.wlcEstimatedWholeLifePvCosts).toBe('')
+  })
+
+  it('should not modify WLC fields at other validation levels', () => {
+    const payload = {
+      wlcEstimatedWholeLifePvCosts: '1,234'
+    }
+
+    sanitizeWlcFields(payload, PROJECT_VALIDATION_LEVELS.RISK)
+
+    expect(payload.wlcEstimatedWholeLifePvCosts).toBe('1,234')
+  })
+})
+
+describe('normalizeWlcFields', () => {
+  it('should convert empty WLC strings to null at WHOLE_LIFE_COST level', () => {
+    const payload = {
+      wlcEstimatedWholeLifePvCosts: '',
+      wlcEstimatedDesignConstructionCosts: '123',
+      wlcEstimatedRiskContingencyCosts: '',
+      wlcEstimatedFutureCosts: '456'
+    }
+
+    normalizeWlcFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_COST)
+
+    expect(payload.wlcEstimatedWholeLifePvCosts).toBeNull()
+    expect(payload.wlcEstimatedDesignConstructionCosts).toBe('123')
+    expect(payload.wlcEstimatedRiskContingencyCosts).toBeNull()
+    expect(payload.wlcEstimatedFutureCosts).toBe('456')
   })
 })

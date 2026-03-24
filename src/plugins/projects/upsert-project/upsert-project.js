@@ -16,6 +16,8 @@ import {
   normalizeEnvironmentalBenefits,
   normalizeRiskFields,
   normalizeConfidenceFields,
+  sanitizeWlcFields,
+  normalizeWlcFields,
   handleNfmMeasureData
 } from '../helpers/payload-normalizers.js'
 
@@ -60,6 +62,9 @@ const upsertProject = {
       const validationLevel = apiPayload.level
 
       try {
+        // Apply same input sanitization as frontend before backend validation
+        sanitizeWlcFields(proposalPayload, validationLevel)
+
         const projectService = new ProjectService(
           request.prisma,
           request.server.logger
@@ -107,6 +112,9 @@ const upsertProject = {
 
         // Normalize confidence fields: reset for restricted project types (ELO, HCR, STR, STU)
         normalizeConfidenceFields(enrichedPayload, validationLevel)
+
+        // Normalize WLC cost fields: convert empty strings to null
+        normalizeWlcFields(enrichedPayload, validationLevel)
 
         // Handle NFM measure data - save to separate table if applicable
         await handleNfmMeasureData(

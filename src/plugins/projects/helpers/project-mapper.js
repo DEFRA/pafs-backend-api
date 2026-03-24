@@ -4,7 +4,7 @@ import {
   PROJECT_JOIN_TABLES,
   CONVERSION_DIRECTIONS
 } from './project-config.js'
-import { convertArray, convertNumber } from './conversions.js'
+import { convertArray, convertBigInt, convertNumber } from './conversions.js'
 
 // Field type constants for different conversion strategies
 const ARRAY_FIELDS = new Set(['projectInterventionTypes', 'risks'])
@@ -12,6 +12,12 @@ const NUMBER_FIELDS = new Set(['financialStartYear', 'financialEndYear', 'id'])
 const PERCENTAGE_FIELDS = new Set([
   'percentProperties20PercentDeprived',
   'percentProperties40PercentDeprived'
+])
+const BIGINT_FIELDS = new Set([
+  'wlcEstimatedWholeLifePvCosts',
+  'wlcEstimatedDesignConstructionCosts',
+  'wlcEstimatedRiskContingencyCosts',
+  'wlcEstimatedFutureCosts'
 ])
 
 export class ProjectMapper {
@@ -105,6 +111,10 @@ export class ProjectMapper {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
 
+    if (BIGINT_FIELDS.has(field)) {
+      return convertBigInt(value, CONVERSION_DIRECTIONS.TO_DATABASE)
+    }
+
     if (NUMBER_FIELDS.has(field) || PERCENTAGE_FIELDS.has(field)) {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
@@ -123,6 +133,10 @@ export class ProjectMapper {
   static reverseTransformValue(field, value) {
     if (ARRAY_FIELDS.has(field)) {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_API)
+    }
+
+    if (BIGINT_FIELDS.has(field)) {
+      return convertBigInt(value, CONVERSION_DIRECTIONS.TO_API)
     }
 
     if (NUMBER_FIELDS.has(field) || PERCENTAGE_FIELDS.has(field)) {

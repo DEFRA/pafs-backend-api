@@ -139,7 +139,12 @@ export const PROJECT_FIELDS_MAP = {
   nfmLandUseChange: 'nfm_land_use_change',
   nfmLandownerConsent: 'nfm_landowner_consent',
   nfmExperienceLevel: 'nfm_experience_level',
-  nfmProjectReadiness: 'nfm_project_readiness'
+  nfmProjectReadiness: 'nfm_project_readiness',
+  wlcEstimatedWholeLifePvCosts: 'wlc_estimated_whole_life_pv_costs',
+  wlcEstimatedDesignConstructionCosts:
+    'wlc_estimated_design_construction_costs',
+  wlcEstimatedRiskContingencyCosts: 'wlc_estimated_risk_contingency_costs',
+  wlcEstimatedFutureCosts: 'wlc_estimated_future_costs'
 }
 
 /**
