@@ -1,5 +1,3 @@
-import Joi from 'joi'
-
 describe('wlc.js schema', () => {
   let schemas
   beforeAll(async () => {
