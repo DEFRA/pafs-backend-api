@@ -47,7 +47,9 @@ const createOptionalWlcCostSchema = (label) =>
     .allow(null, '')
     .optional()
     .custom((value, helpers) => {
-      if (value === null || value === undefined || value === '') return value
+      if (value === null || value === undefined || value === '') {
+        return value
+      }
       return validateWlcCostString(value, helpers)
     })
     .label(label)

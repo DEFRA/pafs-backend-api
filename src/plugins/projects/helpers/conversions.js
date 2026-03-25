@@ -73,43 +73,43 @@ export const convertNumber = (value, direction) => {
  * @param {string} direction - 'toDatabase' or 'toApi'
  * @returns {bigint|string|null|undefined|number} - Converted value
  */
+
+function toDatabaseBigInt(value) {
+  if (value === '') {
+    return null
+  }
+  if (typeof value === 'bigint') {
+    return value
+  }
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? BigInt(value) : value
+  }
+  if (typeof value === 'string') {
+    try {
+      return BigInt(value)
+    } catch {
+      return value
+    }
+  }
+  return value
+}
+
+function toApiBigInt(value) {
+  if (typeof value === 'bigint') {
+    return value.toString()
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(Math.trunc(value)) : value
+  }
+  return value
+}
+
 export const convertBigInt = (value, direction) => {
   if (value === null || value === undefined) {
     return value
   }
-
   if (direction === CONVERSION_DIRECTIONS.TO_DATABASE) {
-    if (value === '') {
-      return null
-    }
-
-    if (typeof value === 'bigint') {
-      return value
-    }
-
-    if (typeof value === 'number') {
-      return Number.isInteger(value) ? BigInt(value) : value
-    }
-
-    if (typeof value === 'string') {
-      try {
-        return BigInt(value)
-      } catch {
-        return value
-      }
-    }
-
-    return value
+    return toDatabaseBigInt(value)
   }
-
-  // TO_API: Always return string for bigint-compatible values to avoid precision loss
-  if (typeof value === 'bigint') {
-    return value.toString()
-  }
-
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? String(Math.trunc(value)) : value
-  }
-
-  return value
+  return toApiBigInt(value)
 }
