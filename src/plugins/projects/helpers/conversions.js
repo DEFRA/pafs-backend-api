@@ -63,3 +63,53 @@ export const convertNumber = (value, direction) => {
   }
   return typeof value === 'string' ? parseStringToNumber(value) : value
 }
+
+/**
+ * Converts bigint-compatible values between API and database formats.
+ * - TO_DATABASE: string/number -> bigint (empty string -> null)
+ * - TO_API: bigint -> string (preserves precision)
+ *
+ * @param {bigint|number|string|null|undefined} value - Value to convert
+ * @param {string} direction - 'toDatabase' or 'toApi'
+ * @returns {bigint|string|null|undefined|number} - Converted value
+ */
+
+function toDatabaseBigInt(value) {
+  if (value === '') {
+    return null
+  }
+  if (typeof value === 'bigint') {
+    return value
+  }
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? BigInt(value) : value
+  }
+  if (typeof value === 'string') {
+    try {
+      return BigInt(value)
+    } catch {
+      return value
+    }
+  }
+  return value
+}
+
+function toApiBigInt(value) {
+  if (typeof value === 'bigint') {
+    return value.toString()
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(Math.trunc(value)) : value
+  }
+  return value
+}
+
+export const convertBigInt = (value, direction) => {
+  if (value === null || value === undefined) {
+    return value
+  }
+  if (direction === CONVERSION_DIRECTIONS.TO_DATABASE) {
+    return toDatabaseBigInt(value)
+  }
+  return toApiBigInt(value)
+}

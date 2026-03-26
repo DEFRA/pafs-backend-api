@@ -1125,7 +1125,11 @@ describe('ProjectService', () => {
           nfm_land_use_change: true,
           nfm_landowner_consent: true,
           nfm_experience_level: true,
-          nfm_project_readiness: true
+          nfm_project_readiness: true,
+          wlc_estimated_whole_life_pv_costs: true,
+          wlc_estimated_design_construction_costs: true,
+          wlc_estimated_risk_contingency_costs: true,
+          wlc_estimated_future_costs: true
         }
       })
 

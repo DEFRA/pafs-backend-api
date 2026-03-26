@@ -194,6 +194,31 @@ describe('ProjectMapper', () => {
         project_end_financial_year: 2026
       })
     })
+
+    it('should transform WLC string values to bigint for database', () => {
+      const apiData = {
+        wlcEstimatedWholeLifePvCosts: '123456789012345678',
+        wlcEstimatedDesignConstructionCosts: '111',
+        wlcEstimatedRiskContingencyCosts: '222',
+        wlcEstimatedFutureCosts: '333'
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'wlc_estimated_whole_life_pv_costs',
+        BigInt('123456789012345678')
+      )
+      expect(result).toHaveProperty(
+        'wlc_estimated_design_construction_costs',
+        BigInt(111)
+      )
+      expect(result).toHaveProperty(
+        'wlc_estimated_risk_contingency_costs',
+        BigInt(222)
+      )
+      expect(result).toHaveProperty('wlc_estimated_future_costs', BigInt(333))
+    })
   })
 
   describe('toApi', () => {
@@ -380,6 +405,28 @@ describe('ProjectMapper', () => {
       expect(result).toHaveProperty('referenceNumber', 'REF123')
       expect(result).toHaveProperty('name', 'Test Project')
       expect(result).toHaveProperty('updatedAt', '2024-01-15T10:30:00Z')
+    })
+
+    it('should convert WLC bigint fields to strings for API', () => {
+      const dbData = {
+        wlc_estimated_whole_life_pv_costs: BigInt('123456789012345678'),
+        wlc_estimated_design_construction_costs: BigInt(111),
+        wlc_estimated_risk_contingency_costs: BigInt(222),
+        wlc_estimated_future_costs: BigInt(333)
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty(
+        'wlcEstimatedWholeLifePvCosts',
+        '123456789012345678'
+      )
+      expect(result).toHaveProperty(
+        'wlcEstimatedDesignConstructionCosts',
+        '111'
+      )
+      expect(result).toHaveProperty('wlcEstimatedRiskContingencyCosts', '222')
+      expect(result).toHaveProperty('wlcEstimatedFutureCosts', '333')
     })
 
     it('should map joined fields from pafs_core_states', () => {
@@ -598,6 +645,16 @@ describe('ProjectMapper', () => {
       const result = ProjectMapper.reverseTransformValue('id', BigInt(123))
       expect(result).toBe(123)
       expect(typeof result).toBe('number')
+    })
+
+    it('should convert WLC bigint to string for API', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'wlcEstimatedWholeLifePvCosts',
+        BigInt('123456789012345678')
+      )
+
+      expect(result).toBe('123456789012345678')
+      expect(typeof result).toBe('string')
     })
 
     it('should preserve numeric id values', () => {

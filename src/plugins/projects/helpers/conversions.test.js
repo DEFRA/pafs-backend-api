@@ -1,5 +1,64 @@
 import { describe, it, expect } from 'vitest'
-import { convertArray, convertNumber } from './conversions.js'
+import { convertArray, convertNumber, convertBigInt } from './conversions.js'
+describe('convertBigInt', () => {
+  const TO_DB = 'toDatabase'
+  const TO_API = 'toApi'
+
+  it('should return null or undefined as is', () => {
+    expect(convertBigInt(null, TO_DB)).toBeNull()
+    expect(convertBigInt(undefined, TO_DB)).toBeUndefined()
+    expect(convertBigInt(null, TO_API)).toBeNull()
+    expect(convertBigInt(undefined, TO_API)).toBeUndefined()
+  })
+
+  describe('toDatabase direction', () => {
+    it('should convert empty string to null', () => {
+      expect(convertBigInt('', TO_DB)).toBeNull()
+    })
+    it('should return bigint as is', () => {
+      expect(convertBigInt(1234n, TO_DB)).toBe(1234n)
+    })
+    it('should convert integer number to bigint', () => {
+      expect(convertBigInt(42, TO_DB)).toBe(42n)
+    })
+    it('should return float number as is', () => {
+      expect(convertBigInt(3.14, TO_DB)).toBe(3.14)
+    })
+    it('should convert valid string to bigint', () => {
+      expect(convertBigInt('12345678901234567890', TO_DB)).toBe(
+        BigInt('12345678901234567890')
+      )
+    })
+    it('should return invalid string as is', () => {
+      expect(convertBigInt('not-a-bigint', TO_DB)).toBe('not-a-bigint')
+    })
+    it('should return other types as is', () => {
+      expect(convertBigInt({}, TO_DB)).toEqual({})
+      expect(convertBigInt([], TO_DB)).toEqual([])
+    })
+  })
+
+  describe('toApi direction', () => {
+    it('should convert bigint to string', () => {
+      expect(convertBigInt(1234n, TO_API)).toBe('1234')
+    })
+    it('should convert finite number to truncated string', () => {
+      expect(convertBigInt(123.99, TO_API)).toBe('123')
+      expect(convertBigInt(-456.7, TO_API)).toBe('-456')
+    })
+    it('should return non-finite number as is', () => {
+      expect(convertBigInt(Infinity, TO_API)).toBe(Infinity)
+      expect(convertBigInt(NaN, TO_API)).toBe(NaN)
+    })
+    it('should return string as is', () => {
+      expect(convertBigInt('already-a-string', TO_API)).toBe('already-a-string')
+    })
+    it('should return other types as is', () => {
+      expect(convertBigInt({}, TO_API)).toEqual({})
+      expect(convertBigInt([], TO_API)).toEqual([])
+    })
+  })
+})
 
 describe('conversions', () => {
   describe('convertArray', () => {
