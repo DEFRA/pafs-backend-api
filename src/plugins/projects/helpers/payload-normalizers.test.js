@@ -1373,6 +1373,22 @@ describe('normalizeWlcFields', () => {
     expect(payload.wlcEstimatedRiskContingencyCosts).toBeNull()
     expect(payload.wlcEstimatedFutureCosts).toBe('456')
   })
+
+  it('should not normalize WLC fields at non-WHOLE_LIFE_COST levels', () => {
+    const payload = {
+      wlcEstimatedWholeLifePvCosts: '',
+      wlcEstimatedDesignConstructionCosts: '',
+      wlcEstimatedRiskContingencyCosts: '',
+      wlcEstimatedFutureCosts: ''
+    }
+
+    normalizeWlcFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.wlcEstimatedWholeLifePvCosts).toBe('')
+    expect(payload.wlcEstimatedDesignConstructionCosts).toBe('')
+    expect(payload.wlcEstimatedRiskContingencyCosts).toBe('')
+    expect(payload.wlcEstimatedFutureCosts).toBe('')
+  })
 })
 
 describe('clearWlbOnProjectTypeChange', () => {
@@ -1458,6 +1474,28 @@ describe('clearWlbOnProjectTypeChange', () => {
     clearWlbOnProjectTypeChange(
       payload,
       PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('2000')
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBe('3000')
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBe('4000')
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBe('5000')
+  })
+
+  it('does not clear WLB fields when next projectType is missing', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '1000',
+      wlbEstimatedPropertyDamagesAvoided: '2000',
+      wlbEstimatedEnvironmentalBenefits: '3000',
+      wlbEstimatedRecreationTourismBenefits: '4000',
+      wlbEstimatedLandValueUpliftBenefits: '5000'
+    }
+
+    clearWlbOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
       { projectType: PROJECT_TYPES.DEF }
     )
 

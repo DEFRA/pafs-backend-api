@@ -46,12 +46,7 @@ const createOptionalWlbEstimateSchema = (label) =>
     .trim()
     .allow(null, '')
     .optional()
-    .custom((value, helpers) => {
-      if (value === null || value === undefined || value === '') {
-        return value
-      }
-      return validateWlbEstimateString(value, helpers)
-    })
+    .custom((value, helpers) => validateWlbEstimateString(value, helpers))
     .label(label)
     .messages({
       'string.base': PROJECT_VALIDATION_MESSAGES.WLB_ESTIMATE_INVALID,

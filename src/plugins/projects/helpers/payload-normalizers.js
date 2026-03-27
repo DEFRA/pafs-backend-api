@@ -168,7 +168,7 @@ export const normalizeConfidenceFields = (enrichedPayload, validationLevel) => {
 export const clearWlbOnProjectTypeChange = (
   enrichedPayload,
   validationLevel,
-  existingProject
+  _existingProject
 ) => {
   if (validationLevel !== PROJECT_VALIDATION_LEVELS.PROJECT_TYPE) {
     return
