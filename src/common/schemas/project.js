@@ -26,3 +26,6 @@ export * from './project/nfm.js'
 
 // Re-export WLC schemas
 export * from './project/wlc.js'
+
+// Re-export WLB schemas
+export * from './project/wlb.js'

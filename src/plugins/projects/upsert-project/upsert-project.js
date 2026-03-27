@@ -18,7 +18,10 @@ import {
   normalizeConfidenceFields,
   sanitizeWlcFields,
   normalizeWlcFields,
-  handleNfmMeasureData
+  handleNfmMeasureData,
+  sanitizeWlbFields,
+  normalizeWlbFields,
+  clearWlbOnProjectTypeChange
 } from '../helpers/payload-normalizers.js'
 
 /**
@@ -64,6 +67,7 @@ const upsertProject = {
       try {
         // Apply same input sanitization as frontend before backend validation
         sanitizeWlcFields(proposalPayload, validationLevel)
+        sanitizeWlbFields(proposalPayload, validationLevel)
 
         const projectService = new ProjectService(
           request.prisma,
@@ -88,7 +92,7 @@ const upsertProject = {
           return validationResult.error
         }
 
-        const { rfccCode } = validationResult
+        const { rfccCode, existingProject } = validationResult
         const userId = request.auth.credentials.userId
         const isCreate = !referenceNumber
 
@@ -115,6 +119,16 @@ const upsertProject = {
 
         // Normalize WLC cost fields: convert empty strings to null
         normalizeWlcFields(enrichedPayload, validationLevel)
+
+        // Clear WLB fields when project type changes
+        clearWlbOnProjectTypeChange(
+          enrichedPayload,
+          validationLevel,
+          existingProject
+        )
+
+        // Normalize WLB cost fields: convert empty strings to null
+        normalizeWlbFields(enrichedPayload, validationLevel)
 
         // Handle NFM measure data - save to separate table if applicable
         await handleNfmMeasureData(

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { convertArray, convertNumber, convertBigInt } from './conversions.js'
+
 describe('convertBigInt', () => {
   const TO_DB = 'toDatabase'
   const TO_API = 'toApi'
@@ -283,6 +284,176 @@ describe('conversions', () => {
       it('should handle negative floats', () => {
         expect(convertNumber('-3.14', 'toDatabase')).toBe(-3.14)
         expect(convertNumber(-2.718, 'toApi')).toBe(-2.718)
+      })
+    })
+  })
+
+  describe('convertBigInt', () => {
+    describe('toDatabase direction', () => {
+      it('should convert string to bigint', () => {
+        const result = convertBigInt('999999999999999999', 'toDatabase')
+        expect(result).toBe(999999999999999999n)
+        expect(typeof result).toBe('bigint')
+      })
+
+      it('should convert number to bigint if integer', () => {
+        const result = convertBigInt(12345, 'toDatabase')
+        expect(result).toBe(12345n)
+        expect(typeof result).toBe('bigint')
+      })
+
+      it('should return non-integer number unchanged', () => {
+        const result = convertBigInt(123.45, 'toDatabase')
+        expect(result).toBe(123.45)
+      })
+
+      it('should convert bigint unchanged', () => {
+        const input = 999999999999999999n
+        const result = convertBigInt(input, 'toDatabase')
+        expect(result).toBe(input)
+      })
+
+      it('should pass through null unchanged', () => {
+        const result = convertBigInt(null, 'toDatabase')
+        expect(result).toBeNull()
+      })
+
+      it('should pass through undefined unchanged', () => {
+        const result = convertBigInt(undefined, 'toDatabase')
+        expect(result).toBeUndefined()
+      })
+
+      it('should convert empty string to null', () => {
+        const result = convertBigInt('', 'toDatabase')
+        expect(result).toBeNull()
+      })
+
+      it('should handle zero', () => {
+        expect(convertBigInt('0', 'toDatabase')).toBe(0n)
+        expect(convertBigInt(0, 'toDatabase')).toBe(0n)
+      })
+
+      it('should handle very large numbers beyond Number.MAX_SAFE_INTEGER', () => {
+        const largeNumber = '9007199254740992' // Number.MAX_SAFE_INTEGER + 1
+        const result = convertBigInt(largeNumber, 'toDatabase')
+        expect(result).toBe(BigInt(largeNumber))
+      })
+
+      it('should handle invalid string gracefully', () => {
+        const result = convertBigInt('not-a-number', 'toDatabase')
+        expect(result).toBe('not-a-number')
+      })
+
+      it('should handle negative numbers', () => {
+        expect(convertBigInt('-12345', 'toDatabase')).toBe(-12345n)
+        expect(convertBigInt(-999, 'toDatabase')).toBe(-999n)
+      })
+    })
+
+    describe('toApi direction', () => {
+      it('should convert bigint to string', () => {
+        const result = convertBigInt(999999999999999999n, 'toApi')
+        expect(result).toBe('999999999999999999')
+        expect(typeof result).toBe('string')
+      })
+
+      it('should convert number to string (truncates decimals)', () => {
+        const result = convertBigInt(12345.678, 'toApi')
+        expect(result).toBe('12345')
+        expect(typeof result).toBe('string')
+      })
+
+      it('should pass through Infinity unchanged', () => {
+        const result = convertBigInt(Infinity, 'toApi')
+        expect(result).toBe(Infinity)
+      })
+
+      it('should pass through -Infinity unchanged', () => {
+        const result = convertBigInt(-Infinity, 'toApi')
+        expect(result).toBe(-Infinity)
+      })
+
+      it('should pass through NaN unchanged', () => {
+        const result = convertBigInt(NaN, 'toApi')
+        expect(Number.isNaN(result)).toBe(true)
+      })
+
+      it('should pass through string unchanged', () => {
+        const result = convertBigInt('already-string', 'toApi')
+        expect(result).toBe('already-string')
+      })
+
+      it('should pass through null unchanged', () => {
+        const result = convertBigInt(null, 'toApi')
+        expect(result).toBeNull()
+      })
+
+      it('should pass through undefined unchanged', () => {
+        const result = convertBigInt(undefined, 'toApi')
+        expect(result).toBeUndefined()
+      })
+
+      it('should handle zero', () => {
+        const result = convertBigInt(0n, 'toApi')
+        expect(result).toBe('0')
+      })
+
+      it('should handle large integers', () => {
+        const largeInt = 9007199254740992
+        const result = convertBigInt(largeInt, 'toApi')
+        expect(result).toBe('9007199254740992')
+      })
+
+      it('should handle negative numbers', () => {
+        expect(convertBigInt(-12345n, 'toApi')).toBe('-12345')
+        expect(convertBigInt(-999, 'toApi')).toBe('-999')
+      })
+    })
+
+    describe('bidirectional conversions', () => {
+      it('should maintain value through database and back to API', () => {
+        const original = 123456789n
+        const toDb = convertBigInt(original, 'toDatabase')
+        const backToApi = convertBigInt(toDb, 'toApi')
+        expect(backToApi).toBe('123456789')
+      })
+
+      it('should handle string input through both directions', () => {
+        const original = '987654321'
+        const toDb = convertBigInt(original, 'toDatabase')
+        expect(toDb).toBe(987654321n)
+        const backToApi = convertBigInt(toDb, 'toApi')
+        expect(backToApi).toBe(original)
+      })
+
+      it('should handle very large numbers through both directions', () => {
+        const original = '999999999999999999'
+        const toDb = convertBigInt(original, 'toDatabase')
+        const backToApi = convertBigInt(toDb, 'toApi')
+        expect(backToApi).toBe(original)
+      })
+    })
+
+    describe('edge cases', () => {
+      it('should handle scientific notation strings as invalid', () => {
+        const result = convertBigInt('1e10', 'toDatabase')
+        expect(result).toBe('1e10') // Cannot convert scientific notation to bigint
+      })
+
+      it('should handle negative zero', () => {
+        const result = convertBigInt(-0, 'toDatabase')
+        expect(result).toBe(0n)
+      })
+
+      it('should handle float number with toDatabase', () => {
+        const result = convertBigInt(99.99, 'toDatabase')
+        expect(result).toBe(99.99) // Not integer, so returned unchanged
+      })
+
+      it('should handle zero across both directions', () => {
+        const toDb = convertBigInt(0, 'toDatabase')
+        const backToApi = convertBigInt(toDb, 'toApi')
+        expect(backToApi).toBe('0')
       })
     })
   })

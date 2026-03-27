@@ -17,7 +17,12 @@ const BIGINT_FIELDS = new Set([
   'wlcEstimatedWholeLifePvCosts',
   'wlcEstimatedDesignConstructionCosts',
   'wlcEstimatedRiskContingencyCosts',
-  'wlcEstimatedFutureCosts'
+  'wlcEstimatedFutureCosts',
+  'wlbEstimatedWholeLifePvBenefits',
+  'wlbEstimatedPropertyDamagesAvoided',
+  'wlbEstimatedEnvironmentalBenefits',
+  'wlbEstimatedRecreationTourismBenefits',
+  'wlbEstimatedLandValueUpliftBenefits'
 ])
 
 export class ProjectMapper {

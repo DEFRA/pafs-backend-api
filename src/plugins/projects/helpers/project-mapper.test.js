@@ -915,4 +915,154 @@ describe('ProjectMapper', () => {
       expect(result.pafs_core_nfm_measures).toEqual([])
     })
   })
+
+  describe('WLB BigInt field transformations', () => {
+    it('should transform WLB fields from database (bigint) to API (string)', () => {
+      const apiData = {
+        wlbEstimatedWholeLifePvBenefits: '1000000000000000000',
+        wlbEstimatedPropertyDamagesAvoided: '500000000000000000',
+        wlbEstimatedEnvironmentalBenefits: '250000000000000000',
+        wlbEstimatedRecreationTourismBenefits: '100000000000000000',
+        wlbEstimatedLandValueUpliftBenefits: '750000000000000000'
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'wlc_estimated_whole_life_pv_benefits',
+        BigInt('1000000000000000000')
+      )
+      expect(result).toHaveProperty(
+        'wlc_estimated_property_damages_avoided',
+        BigInt('500000000000000000')
+      )
+      expect(result).toHaveProperty(
+        'wlc_estimated_environmental_benefits',
+        BigInt('250000000000000000')
+      )
+      expect(result).toHaveProperty(
+        'wlc_estimated_recreation_tourism_benefits',
+        BigInt('100000000000000000')
+      )
+      expect(result).toHaveProperty(
+        'wlc_estimated_land_value_uplift_benefits',
+        BigInt('750000000000000000')
+      )
+    })
+
+    it('should transform WLB fields from database back to API', () => {
+      const dbData = {
+        name: 'Test Project',
+        wlc_estimated_whole_life_pv_benefits: 1000000000000000000n,
+        wlc_estimated_property_damages_avoided: 500000000000000000n,
+        wlc_estimated_environmental_benefits: 250000000000000000n,
+        wlc_estimated_recreation_tourism_benefits: 100000000000000000n,
+        wlc_estimated_land_value_uplift_benefits: 750000000000000000n
+      }
+
+      const result = ProjectMapper.toApi(dbData)
+
+      expect(result).toHaveProperty(
+        'wlbEstimatedWholeLifePvBenefits',
+        '1000000000000000000'
+      )
+      expect(result).toHaveProperty(
+        'wlbEstimatedPropertyDamagesAvoided',
+        '500000000000000000'
+      )
+      expect(result).toHaveProperty(
+        'wlbEstimatedEnvironmentalBenefits',
+        '250000000000000000'
+      )
+      expect(result).toHaveProperty(
+        'wlbEstimatedRecreationTourismBenefits',
+        '100000000000000000'
+      )
+      expect(result).toHaveProperty(
+        'wlbEstimatedLandValueUpliftBenefits',
+        '750000000000000000'
+      )
+    })
+
+    it('should handle null WLB fields', () => {
+      const apiData = {
+        wlbEstimatedWholeLifePvBenefits: null,
+        wlbEstimatedPropertyDamagesAvoided: null
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).toHaveProperty(
+        'wlc_estimated_whole_life_pv_benefits',
+        null
+      )
+      expect(result).toHaveProperty(
+        'wlc_estimated_property_damages_avoided',
+        null
+      )
+    })
+
+    it('should handle undefined WLB fields', () => {
+      const apiData = {
+        wlbEstimatedWholeLifePvBenefits: undefined,
+        wlbEstimatedPropertyDamagesAvoided: undefined
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result).not.toHaveProperty('wlc_estimated_whole_life_pv_benefits')
+      expect(result).not.toHaveProperty(
+        'wlc_estimated_property_damages_avoided'
+      )
+    })
+
+    it('should convert numeric WLB values to bigint', () => {
+      const apiData = {
+        wlbEstimatedWholeLifePvBenefits: 1000000
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result.wlc_estimated_whole_life_pv_benefits).toBe(1000000n)
+      expect(typeof result.wlc_estimated_whole_life_pv_benefits).toBe('bigint')
+    })
+
+    it('should round float WLB values to integer bigint', () => {
+      const apiData = {
+        wlbEstimatedWholeLifePvBenefits: 1000000.5
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      // BigInt constructor truncates decimals
+      expect(result.wlc_estimated_whole_life_pv_benefits).toBe(1000000.5)
+    })
+
+    it('should handle mixed null and defined WLB fields', () => {
+      const apiData = {
+        wlbEstimatedWholeLifePvBenefits: '500000',
+        wlbEstimatedPropertyDamagesAvoided: null,
+        wlbEstimatedEnvironmentalBenefits: '250000'
+      }
+
+      const result = ProjectMapper.toDatabase(apiData)
+
+      expect(result.wlc_estimated_whole_life_pv_benefits).toBe(500000n)
+      expect(result.wlc_estimated_property_damages_avoided).toBeNull()
+      expect(result.wlc_estimated_environmental_benefits).toBe(250000n)
+    })
+
+    it('should bidirectionally convert WLB values', () => {
+      const originalApi = {
+        wlbEstimatedWholeLifePvBenefits: '1000000000000000000'
+      }
+
+      const toDb = ProjectMapper.toDatabase(originalApi)
+      const backToApi = ProjectMapper.toApi(toDb)
+
+      expect(backToApi.wlbEstimatedWholeLifePvBenefits).toBe(
+        '1000000000000000000'
+      )
+    })
+  })
 })

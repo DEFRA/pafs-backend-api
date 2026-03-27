@@ -144,7 +144,14 @@ export const PROJECT_FIELDS_MAP = {
   wlcEstimatedDesignConstructionCosts:
     'wlc_estimated_design_construction_costs',
   wlcEstimatedRiskContingencyCosts: 'wlc_estimated_risk_contingency_costs',
-  wlcEstimatedFutureCosts: 'wlc_estimated_future_costs'
+  wlcEstimatedFutureCosts: 'wlc_estimated_future_costs',
+  wlbEstimatedWholeLifePvBenefits: 'wlc_estimated_whole_life_pv_benefits',
+  wlbEstimatedPropertyDamagesAvoided: 'wlc_estimated_property_damages_avoided',
+  wlbEstimatedEnvironmentalBenefits: 'wlc_estimated_environmental_benefits',
+  wlbEstimatedRecreationTourismBenefits:
+    'wlc_estimated_recreation_tourism_benefits',
+  wlbEstimatedLandValueUpliftBenefits:
+    'wlc_estimated_land_value_uplift_benefits'
 }
 
 /**

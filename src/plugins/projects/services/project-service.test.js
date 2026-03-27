@@ -1129,7 +1129,12 @@ describe('ProjectService', () => {
           wlc_estimated_whole_life_pv_costs: true,
           wlc_estimated_design_construction_costs: true,
           wlc_estimated_risk_contingency_costs: true,
-          wlc_estimated_future_costs: true
+          wlc_estimated_future_costs: true,
+          wlc_estimated_whole_life_pv_benefits: true,
+          wlc_estimated_property_damages_avoided: true,
+          wlc_estimated_environmental_benefits: true,
+          wlc_estimated_recreation_tourism_benefits: true,
+          wlc_estimated_land_value_uplift_benefits: true
         }
       })
 
