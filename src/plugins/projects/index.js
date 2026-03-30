@@ -5,6 +5,7 @@ import updateStatus from './update-status/update-status.js'
 import downloadBenefitAreaFile from './download-benefit-area-file/download-benefit-area-file.js'
 import deleteBenefitAreaFile from './delete-benefit-area-file/delete-benefit-area-file.js'
 import listProjects from './list-projects/list-projects.js'
+import flushSection from './flush-section/flush-section.js'
 
 const projectsPlugin = {
   name: 'projects',
@@ -17,7 +18,8 @@ const projectsPlugin = {
       updateStatus,
       downloadBenefitAreaFile,
       deleteBenefitAreaFile,
-      listProjects
+      listProjects,
+      flushSection
     ])
     server.logger.info('Projects plugin registered')
   }
