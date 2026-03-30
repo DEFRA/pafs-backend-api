@@ -5,7 +5,9 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 
 // Moved here from flush-section.js for test-only use
 function clearSectionFields(project, section) {
-  if (!project) return project
+  if (!project) {
+    return project
+  }
   const cleared = { ...project }
   if (section === 'nfm') {
     // Remove all NFM-related fields in core_project
@@ -15,9 +17,12 @@ function clearSectionFields(project, section) {
     cleared.nfm_experience_level = null
     cleared.nfm_project_readiness = null
     // Set NFM arrays to empty arrays if present
-    if ('pafs_core_nfm_measures' in cleared) cleared.pafs_core_nfm_measures = []
-    if ('pafs_core_nfm_land_use_changes' in cleared)
+    if ('pafs_core_nfm_measures' in cleared) {
+      cleared.pafs_core_nfm_measures = []
+    }
+    if ('pafs_core_nfm_land_use_changes' in cleared) {
       cleared.pafs_core_nfm_land_use_changes = []
+    }
   }
   // Future: add more sections here
   return cleared
