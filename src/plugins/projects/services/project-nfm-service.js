@@ -239,4 +239,44 @@ export class ProjectNfmService {
       throw error
     }
   }
+
+  /**
+   * Delete all NFM child records (land use changes + measures) for a project (bulk delete)
+   * Used when clearing NFM data after an intervention type change away from NFM/SUDS
+   * @param {string} referenceNumber - Project reference number
+   * @returns {Promise<{landUseChangesDeleted: number, measuresDeleted: number}>}
+   */
+  async deleteAllNfmChildRecords(referenceNumber) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const landUseResult =
+        await this.prisma.pafs_core_nfm_land_use_changes.deleteMany({
+          where: { project_id: projectId }
+        })
+
+      const measuresResult =
+        await this.prisma.pafs_core_nfm_measures.deleteMany({
+          where: { project_id: projectId }
+        })
+
+      const result = {
+        landUseChangesDeleted: landUseResult.count,
+        measuresDeleted: measuresResult.count
+      }
+
+      this.logger.info(
+        { projectId, referenceNumber, ...result },
+        'All NFM land use changes and measures deleted successfully'
+      )
+
+      return result
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber },
+        'Error deleting all NFM land use changes and measures'
+      )
+      throw error
+    }
+  }
 }

@@ -21,7 +21,8 @@ import {
   handleNfmMeasureData,
   sanitizeWlbFields,
   normalizeWlbFields,
-  clearWlbOnProjectTypeChange
+  clearWlFieldsOnProjectTypeChange,
+  clearNfmFieldsOnInterventionTypeChange
 } from '../helpers/payload-normalizers.js'
 
 /**
@@ -82,11 +83,23 @@ const applyPayloadNormalizers = async (
   // Normalize WLC cost fields: convert empty strings to null
   normalizeWlcFields(enrichedPayload, validationLevel)
 
-  // Clear WLB fields when project type changes
-  clearWlbOnProjectTypeChange(enrichedPayload, validationLevel, existingProject)
+  // Clear WLB and WLC fields when project type changes
+  clearWlFieldsOnProjectTypeChange(
+    enrichedPayload,
+    validationLevel,
+    existingProject
+  )
 
   // Normalize WLB cost fields: convert empty strings to null
   normalizeWlbFields(enrichedPayload, validationLevel)
+
+  // Clear NFM fields when intervention type changes away from NFM/SUDS
+  await clearNfmFieldsOnInterventionTypeChange(
+    enrichedPayload,
+    validationLevel,
+    existingProject,
+    projectService
+  )
 
   // Handle NFM measure data - save to separate table if applicable
   await handleNfmMeasureData(enrichedPayload, validationLevel, projectService)

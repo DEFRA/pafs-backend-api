@@ -432,4 +432,125 @@ describe('ProjectNfmService', () => {
       )
     })
   })
+
+  // ─── deleteAllNfmChildRecords ────────────────────────────────────────────────
+
+  describe('deleteAllNfmChildRecords', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
+      mockPrisma.pafs_core_nfm_land_use_changes = {
+        deleteMany: vi.fn()
+      }
+      mockPrisma.pafs_core_nfm_measures = {
+        deleteMany: vi.fn()
+      }
+    })
+
+    test('should delete all land use change and measure records and return counts', async () => {
+      mockPrisma.pafs_core_nfm_land_use_changes.deleteMany.mockResolvedValue({
+        count: 3
+      })
+      mockPrisma.pafs_core_nfm_measures.deleteMany.mockResolvedValue({
+        count: 5
+      })
+
+      const result = await service.deleteAllNfmChildRecords(referenceNumber)
+
+      expect(result).toEqual({ landUseChangesDeleted: 3, measuresDeleted: 5 })
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.deleteMany
+      ).toHaveBeenCalledWith({
+        where: { project_id: 1 }
+      })
+      expect(mockPrisma.pafs_core_nfm_measures.deleteMany).toHaveBeenCalledWith(
+        {
+          where: { project_id: 1 }
+        }
+      )
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceNumber,
+          landUseChangesDeleted: 3,
+          measuresDeleted: 5
+        }),
+        'All NFM land use changes and measures deleted successfully'
+      )
+    })
+
+    test('should return zero counts when no records exist', async () => {
+      mockPrisma.pafs_core_nfm_land_use_changes.deleteMany.mockResolvedValue({
+        count: 0
+      })
+      mockPrisma.pafs_core_nfm_measures.deleteMany.mockResolvedValue({
+        count: 0
+      })
+
+      const result = await service.deleteAllNfmChildRecords(referenceNumber)
+
+      expect(result).toEqual({ landUseChangesDeleted: 0, measuresDeleted: 0 })
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.deleteMany
+      ).toHaveBeenCalledWith({
+        where: { project_id: 1 }
+      })
+      expect(mockPrisma.pafs_core_nfm_measures.deleteMany).toHaveBeenCalledWith(
+        {
+          where: { project_id: 1 }
+        }
+      )
+    })
+
+    test('should throw and log error when project is not found', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.deleteAllNfmChildRecords(referenceNumber)
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber }),
+        'Error deleting all NFM land use changes and measures'
+      )
+    })
+
+    test('should throw and log error when land use deleteMany fails', async () => {
+      mockPrisma.pafs_core_nfm_land_use_changes.deleteMany.mockRejectedValue(
+        new Error('DB bulk delete error')
+      )
+
+      await expect(
+        service.deleteAllNfmChildRecords(referenceNumber)
+      ).rejects.toThrow('DB bulk delete error')
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'DB bulk delete error',
+          referenceNumber
+        }),
+        'Error deleting all NFM land use changes and measures'
+      )
+    })
+
+    test('should throw and log error when measures deleteMany fails', async () => {
+      mockPrisma.pafs_core_nfm_land_use_changes.deleteMany.mockResolvedValue({
+        count: 2
+      })
+      mockPrisma.pafs_core_nfm_measures.deleteMany.mockRejectedValue(
+        new Error('DB measure delete error')
+      )
+
+      await expect(
+        service.deleteAllNfmChildRecords(referenceNumber)
+      ).rejects.toThrow('DB measure delete error')
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'DB measure delete error',
+          referenceNumber
+        }),
+        'Error deleting all NFM land use changes and measures'
+      )
+    })
+  })
 })

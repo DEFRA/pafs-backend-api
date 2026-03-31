@@ -5,6 +5,7 @@ import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 import {
   PROJECT_VALIDATION_MESSAGES,
   PROJECT_VALIDATION_LEVELS,
+  PROJECT_INTERVENTION_TYPES,
   PROJECT_TYPES
 } from '../../../common/constants/project.js'
 import { ProjectService } from '../services/project-service.js'
@@ -1513,6 +1514,146 @@ describe('upsertProject handler', () => {
       expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBeNull()
       // Confidence should also be cleared for restricted type
       expect(callArgs.confidenceHomesBetterProtected).toBeNull()
+    })
+  })
+
+  describe('NFM clearing on intervention type change', () => {
+    beforeEach(() => {
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
+    })
+
+    it('should clear NFM scalar fields and delete land use changes when NFM is removed', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectInterventionTypes = ['PFR']
+      mockRequest.payload.payload.projectType = 'DEF'
+      mockRequest.payload.payload.nfmSelectedMeasures =
+        'river_floodplain_restoration'
+      mockRequest.payload.payload.nfmLandUseChange = 'woodland'
+      mockRequest.payload.payload.nfmLandownerConsent = 'yes'
+      mockRequest.payload.payload.nfmExperienceLevel = 'moderate_experience'
+      mockRequest.payload.payload.nfmProjectReadiness = 'ready_to_deliver'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF',
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+      })
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'deleteAllNfmChildRecords'
+      ).mockResolvedValueOnce({ count: 2 })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.nfmSelectedMeasures).toBeNull()
+      expect(callArgs.nfmLandUseChange).toBeNull()
+      expect(callArgs.nfmLandownerConsent).toBeNull()
+      expect(callArgs.nfmExperienceLevel).toBeNull()
+      expect(callArgs.nfmProjectReadiness).toBeNull()
+    })
+
+    it('should clear NFM fields when SUDS is removed', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectInterventionTypes = ['Other']
+      mockRequest.payload.payload.projectType = 'DEF'
+      mockRequest.payload.payload.nfmSelectedMeasures = 'leaky_barriers'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF',
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS]
+      })
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'deleteAllNfmChildRecords'
+      ).mockResolvedValueOnce({ count: 0 })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.nfmSelectedMeasures).toBeNull()
+    })
+
+    it('should NOT clear NFM fields when NFM is still present', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectInterventionTypes = [
+        PROJECT_INTERVENTION_TYPES.NFM,
+        'PFR'
+      ]
+      mockRequest.payload.payload.projectType = 'DEF'
+      mockRequest.payload.payload.nfmSelectedMeasures =
+        'river_floodplain_restoration'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF',
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+      })
+
+      const deleteAllSpy = vi.spyOn(
+        ProjectService.prototype,
+        'deleteAllNfmChildRecords'
+      )
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.nfmSelectedMeasures).toBe('river_floodplain_restoration')
+      expect(deleteAllSpy).not.toHaveBeenCalled()
+    })
+
+    it('should NOT clear NFM fields at non-PROJECT_TYPE levels', async () => {
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectInterventionTypes = ['PFR']
+      mockRequest.payload.payload.nfmSelectedMeasures = 'woodland'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF',
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+      })
+
+      const deleteAllSpy = vi.spyOn(
+        ProjectService.prototype,
+        'deleteAllNfmChildRecords'
+      )
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.nfmSelectedMeasures).toBe('woodland')
+      expect(deleteAllSpy).not.toHaveBeenCalled()
     })
   })
 })

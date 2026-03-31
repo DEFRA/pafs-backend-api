@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   PROJECT_VALIDATION_LEVELS,
+  PROJECT_INTERVENTION_TYPES,
   PROJECT_TYPES
 } from '../../../common/constants/project.js'
 import {
@@ -13,9 +14,10 @@ import {
   sanitizeWlcFields,
   normalizeWlcFields,
   handleNfmMeasureData,
-  clearWlbOnProjectTypeChange,
+  clearWlFieldsOnProjectTypeChange,
   sanitizeWlbFields,
-  normalizeWlbFields
+  normalizeWlbFields,
+  clearNfmFieldsOnInterventionTypeChange
 } from './payload-normalizers.js'
 
 describe('normalizeInterventionTypes', () => {
@@ -1391,8 +1393,8 @@ describe('normalizeWlcFields', () => {
   })
 })
 
-describe('clearWlbOnProjectTypeChange', () => {
-  it('clears all WLB fields when changing to STR project type', () => {
+describe('clearWlFieldsOnProjectTypeChange', () => {
+  it('clears all WLB and WLC fields when changing to STR project type', () => {
     const payload = {
       projectType: PROJECT_TYPES.STR,
       wlbEstimatedWholeLifePvBenefits: '1000',
@@ -1402,7 +1404,7 @@ describe('clearWlbOnProjectTypeChange', () => {
       wlbEstimatedLandValueUpliftBenefits: '5000'
     }
 
-    clearWlbOnProjectTypeChange(
+    clearWlFieldsOnProjectTypeChange(
       payload,
       PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
       { projectType: PROJECT_TYPES.DEF }
@@ -1425,7 +1427,7 @@ describe('clearWlbOnProjectTypeChange', () => {
       wlbEstimatedLandValueUpliftBenefits: '5000'
     }
 
-    clearWlbOnProjectTypeChange(
+    clearWlFieldsOnProjectTypeChange(
       payload,
       PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
       { projectType: PROJECT_TYPES.REF }
@@ -1448,7 +1450,7 @@ describe('clearWlbOnProjectTypeChange', () => {
       wlbEstimatedLandValueUpliftBenefits: '5000'
     }
 
-    clearWlbOnProjectTypeChange(
+    clearWlFieldsOnProjectTypeChange(
       payload,
       PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
       { projectType: PROJECT_TYPES.DEF }
@@ -1471,7 +1473,7 @@ describe('clearWlbOnProjectTypeChange', () => {
       wlbEstimatedLandValueUpliftBenefits: '5000'
     }
 
-    clearWlbOnProjectTypeChange(
+    clearWlFieldsOnProjectTypeChange(
       payload,
       PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS,
       { projectType: PROJECT_TYPES.DEF }
@@ -1493,7 +1495,7 @@ describe('clearWlbOnProjectTypeChange', () => {
       wlbEstimatedLandValueUpliftBenefits: '5000'
     }
 
-    clearWlbOnProjectTypeChange(
+    clearWlFieldsOnProjectTypeChange(
       payload,
       PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
       { projectType: PROJECT_TYPES.DEF }
@@ -1701,5 +1703,182 @@ describe('normalizeWlbFields', () => {
 
     expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
     expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+  })
+})
+
+describe('clearNfmFieldsOnInterventionTypeChange', () => {
+  let projectService
+
+  beforeEach(() => {
+    projectService = {
+      deleteAllNfmChildRecords: vi
+        .fn()
+        .mockResolvedValue({ landUseChangesDeleted: 2, measuresDeleted: 1 })
+    }
+  })
+
+  it('clears NFM scalar fields and deletes land use changes when NFM is removed', async () => {
+    const payload = {
+      referenceNumber: 'REF001',
+      projectInterventionTypes: ['PFR'],
+      nfmSelectedMeasures: 'river_floodplain_restoration',
+      nfmLandUseChange: 'woodland',
+      nfmLandownerConsent: 'yes',
+      nfmExperienceLevel: 'moderate_experience',
+      nfmProjectReadiness: 'ready_to_deliver'
+    }
+    const existingProject = {
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBeNull()
+    expect(payload.nfmLandUseChange).toBeNull()
+    expect(payload.nfmLandownerConsent).toBeNull()
+    expect(payload.nfmExperienceLevel).toBeNull()
+    expect(payload.nfmProjectReadiness).toBeNull()
+    expect(projectService.deleteAllNfmChildRecords).toHaveBeenCalledWith(
+      'REF001'
+    )
+  })
+
+  it('clears NFM fields when SUDS is removed', async () => {
+    const payload = {
+      referenceNumber: 'REF002',
+      projectInterventionTypes: ['Other'],
+      nfmSelectedMeasures: 'leaky_barriers',
+      nfmLandUseChange: null,
+      nfmLandownerConsent: null,
+      nfmExperienceLevel: null,
+      nfmProjectReadiness: null
+    }
+    const existingProject = {
+      projectInterventionTypes: [
+        PROJECT_INTERVENTION_TYPES.SUDS,
+        PROJECT_INTERVENTION_TYPES.PFR
+      ]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBeNull()
+    expect(projectService.deleteAllNfmChildRecords).toHaveBeenCalledWith(
+      'REF002'
+    )
+  })
+
+  it('does NOT clear NFM fields when NFM is still present in new types', async () => {
+    const payload = {
+      referenceNumber: 'REF003',
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM, 'PFR'],
+      nfmSelectedMeasures: 'river_floodplain_restoration'
+    }
+    const existingProject = {
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBe('river_floodplain_restoration')
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('does NOT clear NFM fields when SUDS is still present in new types', async () => {
+    const payload = {
+      referenceNumber: 'REF004',
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS],
+      nfmSelectedMeasures: 'woodland'
+    }
+    const existingProject = {
+      projectInterventionTypes: [
+        PROJECT_INTERVENTION_TYPES.NFM,
+        PROJECT_INTERVENTION_TYPES.SUDS
+      ]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBe('woodland')
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('does NOT clear NFM fields when existing project had no NFM or SUDS', async () => {
+    const payload = {
+      referenceNumber: 'REF005',
+      projectInterventionTypes: ['PFR'],
+      nfmSelectedMeasures: null
+    }
+    const existingProject = {
+      projectInterventionTypes: ['PFR', 'Other']
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('does NOT clear NFM fields at non-PROJECT_TYPE validation levels', async () => {
+    const payload = {
+      referenceNumber: 'REF006',
+      projectInterventionTypes: ['PFR'],
+      nfmSelectedMeasures: 'woodland'
+    }
+    const existingProject = {
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBe('woodland')
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('handles existingProject with no projectInterventionTypes gracefully', async () => {
+    const payload = {
+      referenceNumber: 'REF007',
+      projectInterventionTypes: ['PFR'],
+      nfmSelectedMeasures: 'woodland'
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      null,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBe('woodland')
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
   })
 })
