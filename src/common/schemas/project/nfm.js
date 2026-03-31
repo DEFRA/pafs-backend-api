@@ -25,11 +25,13 @@ const maxTwoDecimalPlaces = (value, helpers) => {
   if (value === null || value === undefined) {
     return value
   }
-
-  const scaled = value * 100
-  const hasMaxTwoDecimals = Math.abs(scaled - Math.trunc(scaled)) < 1e-8
-
-  return hasMaxTwoDecimals ? value : helpers.error('number.precision')
+  // Convert to string to check decimal places accurately
+  const valueStr = String(value)
+  // Allow integers and up to 2 decimal places
+  if (/^\d+(\.\d{1,2})?$/.test(valueStr)) {
+    return value
+  }
+  return helpers.error('number.precision')
 }
 
 /**
@@ -75,6 +77,24 @@ const LAND_USE_AFTER_MESSAGES = {
 /**
  * Factory: required positive numeric field (area in ha, length in km, width in m).
  */
+// For land use fields (allow 0)
+const createRequiredNonNegativeSchema = (
+  label,
+  { required, invalid, precision }
+) =>
+  Joi.number()
+    .min(0)
+    .custom(maxTwoDecimalPlaces)
+    .required()
+    .label(label)
+    .messages({
+      'number.base': invalid,
+      'number.min': invalid,
+      'number.precision': precision,
+      'any.required': required
+    })
+
+// For all other required positive fields (must be > 0)
 const createRequiredPositiveSchema = (
   label,
   { required, invalid, precision }
@@ -356,100 +376,105 @@ export const nfmSandDuneLengthSchema = createOptionalPositiveSchema(
 // --- Land Use Change (before/after per land use type) ---
 
 export const nfmEnclosedArableFarmlandBeforeSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmEnclosedArableFarmlandBefore',
     LAND_USE_BEFORE_MESSAGES
   )
 
 export const nfmEnclosedArableFarmlandAfterSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmEnclosedArableFarmlandAfter',
     LAND_USE_AFTER_MESSAGES
   )
 
 export const nfmEnclosedLivestockFarmlandBeforeSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmEnclosedLivestockFarmlandBefore',
     LAND_USE_BEFORE_MESSAGES
   )
 
 export const nfmEnclosedLivestockFarmlandAfterSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmEnclosedLivestockFarmlandAfter',
     LAND_USE_AFTER_MESSAGES
   )
 
 export const nfmEnclosedDairyingFarmlandBeforeSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmEnclosedDairyingFarmlandBefore',
     LAND_USE_BEFORE_MESSAGES
   )
 
 export const nfmEnclosedDairyingFarmlandAfterSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmEnclosedDairyingFarmlandAfter',
     LAND_USE_AFTER_MESSAGES
   )
 
-export const nfmSemiNaturalGrasslandBeforeSchema = createRequiredPositiveSchema(
-  'nfmSemiNaturalGrasslandBefore',
-  LAND_USE_BEFORE_MESSAGES
-)
+export const nfmSemiNaturalGrasslandBeforeSchema =
+  createRequiredNonNegativeSchema(
+    'nfmSemiNaturalGrasslandBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
 
-export const nfmSemiNaturalGrasslandAfterSchema = createRequiredPositiveSchema(
-  'nfmSemiNaturalGrasslandAfter',
-  LAND_USE_AFTER_MESSAGES
-)
+export const nfmSemiNaturalGrasslandAfterSchema =
+  createRequiredNonNegativeSchema(
+    'nfmSemiNaturalGrasslandAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
 
-export const nfmWoodlandLandUseBeforeSchema = createRequiredPositiveSchema(
+export const nfmWoodlandLandUseBeforeSchema = createRequiredNonNegativeSchema(
   'nfmWoodlandLandUseBefore',
   LAND_USE_BEFORE_MESSAGES
 )
 
-export const nfmWoodlandLandUseAfterSchema = createRequiredPositiveSchema(
+export const nfmWoodlandLandUseAfterSchema = createRequiredNonNegativeSchema(
   'nfmWoodlandLandUseAfter',
   LAND_USE_AFTER_MESSAGES
 )
 
 export const nfmMountainMoorsAndHeathBeforeSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmMountainMoorsAndHeathBefore',
     LAND_USE_BEFORE_MESSAGES
   )
 
-export const nfmMountainMoorsAndHeathAfterSchema = createRequiredPositiveSchema(
-  'nfmMountainMoorsAndHeathAfter',
-  LAND_USE_AFTER_MESSAGES
-)
+export const nfmMountainMoorsAndHeathAfterSchema =
+  createRequiredNonNegativeSchema(
+    'nfmMountainMoorsAndHeathAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
 
-export const nfmPeatlandRestorationBeforeSchema = createRequiredPositiveSchema(
-  'nfmPeatlandRestorationBefore',
-  LAND_USE_BEFORE_MESSAGES
-)
+export const nfmPeatlandRestorationBeforeSchema =
+  createRequiredNonNegativeSchema(
+    'nfmPeatlandRestorationBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
 
-export const nfmPeatlandRestorationAfterSchema = createRequiredPositiveSchema(
-  'nfmPeatlandRestorationAfter',
-  LAND_USE_AFTER_MESSAGES
-)
+export const nfmPeatlandRestorationAfterSchema =
+  createRequiredNonNegativeSchema(
+    'nfmPeatlandRestorationAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
 
 export const nfmRiversWetlandsFreshwaterBeforeSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmRiversWetlandsFreshwaterBefore',
     LAND_USE_BEFORE_MESSAGES
   )
 
 export const nfmRiversWetlandsFreshwaterAfterSchema =
-  createRequiredPositiveSchema(
+  createRequiredNonNegativeSchema(
     'nfmRiversWetlandsFreshwaterAfter',
     LAND_USE_AFTER_MESSAGES
   )
 
-export const nfmCoastalMarginsBeforeSchema = createRequiredPositiveSchema(
+export const nfmCoastalMarginsBeforeSchema = createRequiredNonNegativeSchema(
   'nfmCoastalMarginsBefore',
   LAND_USE_BEFORE_MESSAGES
 )
 
-export const nfmCoastalMarginsAfterSchema = createRequiredPositiveSchema(
+export const nfmCoastalMarginsAfterSchema = createRequiredNonNegativeSchema(
   'nfmCoastalMarginsAfter',
   LAND_USE_AFTER_MESSAGES
 )

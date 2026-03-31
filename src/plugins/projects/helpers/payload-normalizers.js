@@ -1,5 +1,6 @@
 import {
   PROJECT_VALIDATION_LEVELS,
+  PROJECT_INTERVENTION_TYPES,
   URGENCY_REASONS,
   PROJECT_TYPES
 } from '../../../common/constants/project.js'
@@ -162,10 +163,10 @@ export const normalizeConfidenceFields = (enrichedPayload, validationLevel) => {
 }
 
 /**
- * Clears WLB fields when project type is changed to STR or STU at PROJECT_TYPE level.
+ * Clears WLB and WLC fields when project type is changed to STR or STU at PROJECT_TYPE level.
  * STR and STU project types do not support WLB, so any values must be cleared.
  */
-export const clearWlbOnProjectTypeChange = (
+export const clearWlFieldsOnProjectTypeChange = (
   enrichedPayload,
   validationLevel,
   _existingProject
@@ -185,12 +186,18 @@ export const clearWlbOnProjectTypeChange = (
   if (!strOrStuTypes.includes(nextProjectType)) {
     return
   }
-
+  // WLB fields
   enrichedPayload.wlbEstimatedWholeLifePvBenefits = null
   enrichedPayload.wlbEstimatedPropertyDamagesAvoided = null
   enrichedPayload.wlbEstimatedEnvironmentalBenefits = null
   enrichedPayload.wlbEstimatedRecreationTourismBenefits = null
   enrichedPayload.wlbEstimatedLandValueUpliftBenefits = null
+
+  // WLC fields
+  enrichedPayload.wlcEstimatedWholeLifePvCosts = null
+  enrichedPayload.wlcEstimatedDesignConstructionCosts = null
+  enrichedPayload.wlcEstimatedRiskContingencyCosts = null
+  enrichedPayload.wlcEstimatedFutureCosts = null
 }
 
 /**
@@ -294,4 +301,53 @@ export const normalizeWlbFields = (enrichedPayload, validationLevel) => {
       enrichedPayload[field] = null
     }
   })
+}
+
+/**
+ * Clears NFM scalar fields and deletes all NFM land use change records when
+ * the intervention type is changed away from NFM or SUDS at PROJECT_TYPE level.
+ *
+ * NFM data is only relevant when the project has NFM or SUDS as an intervention
+ * type. When both are removed, the following fields must be cleared:
+ * - pafs_core_projects: nfmSelectedMeasures, nfmLandUseChange,
+ *   nfmLandownerConsent, nfmExperienceLevel, nfmProjectReadiness
+ * - pafs_core_nfm_land_use_changes: all rows for the project
+ */
+export const clearNfmFieldsOnInterventionTypeChange = async (
+  enrichedPayload,
+  validationLevel,
+  existingProject,
+  projectService
+) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.PROJECT_TYPE) {
+    return
+  }
+
+  const previousTypes = existingProject?.projectInterventionTypes ?? []
+  const hadNfmOrSuds =
+    previousTypes.includes(PROJECT_INTERVENTION_TYPES.NFM) ||
+    previousTypes.includes(PROJECT_INTERVENTION_TYPES.SUDS)
+
+  if (!hadNfmOrSuds) {
+    return
+  }
+
+  const newTypes = enrichedPayload.projectInterventionTypes ?? []
+  const stillHasNfmOrSuds =
+    newTypes.includes(PROJECT_INTERVENTION_TYPES.NFM) ||
+    newTypes.includes(PROJECT_INTERVENTION_TYPES.SUDS)
+
+  if (stillHasNfmOrSuds) {
+    return
+  }
+
+  // Clear NFM scalar fields on pafs_core_projects
+  enrichedPayload.nfmSelectedMeasures = null
+  enrichedPayload.nfmLandUseChange = null
+  enrichedPayload.nfmLandownerConsent = null
+  enrichedPayload.nfmExperienceLevel = null
+  enrichedPayload.nfmProjectReadiness = null
+
+  // Delete all NFM detail rows (land use changes and measures) for this project
+  await projectService.deleteAllNfmChildRecords(enrichedPayload.referenceNumber)
 }
