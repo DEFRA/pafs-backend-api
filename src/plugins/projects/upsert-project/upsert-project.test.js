@@ -4,7 +4,8 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 import {
   PROJECT_VALIDATION_MESSAGES,
-  PROJECT_VALIDATION_LEVELS
+  PROJECT_VALIDATION_LEVELS,
+  PROJECT_TYPES
 } from '../../../common/constants/project.js'
 import { ProjectService } from '../services/project-service.js'
 import { AreaService } from '../../areas/services/area-service.js'
@@ -1263,6 +1264,255 @@ describe('upsertProject handler', () => {
       expect(upsertProject.options.validate).toBeDefined()
       expect(upsertProject.options.validate.payload).toBeDefined()
       expect(upsertProject.options.validate.failAction).toBeDefined()
+    })
+  })
+
+  describe('WLB field normalization integration', () => {
+    beforeEach(() => {
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS
+    })
+
+    it('should sanitize WLB fields (remove commas) when provided at WHOLE_LIFE_BENEFITS level', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1,000,000'
+      mockRequest.payload.payload.wlbEstimatedPropertyDamagesAvoided = '500,000'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF'
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+      expect(callArgs.wlbEstimatedPropertyDamagesAvoided).toBe('500000')
+    })
+
+    it('should convert empty WLB strings to null at WHOLE_LIFE_BENEFITS level', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1000000'
+      mockRequest.payload.payload.wlbEstimatedPropertyDamagesAvoided = ''
+      mockRequest.payload.payload.wlbEstimatedEnvironmentalBenefits = ''
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF'
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+      expect(callArgs.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+      expect(callArgs.wlbEstimatedEnvironmentalBenefits).toBeNull()
+    })
+
+    it('should sanitize and normalize WLB fields together', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits =
+        '  1,000,000  '
+      mockRequest.payload.payload.wlbEstimatedPropertyDamagesAvoided = ''
+      mockRequest.payload.payload.wlbEstimatedEnvironmentalBenefits = '250,000'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF'
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+      expect(callArgs.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+      expect(callArgs.wlbEstimatedEnvironmentalBenefits).toBe('250000')
+    })
+  })
+
+  describe('WLB clearing on project type change', () => {
+    beforeEach(() => {
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
+    })
+
+    it('should clear all WLB fields when changing project type to STR', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectType = PROJECT_TYPES.STR
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1000000'
+      mockRequest.payload.payload.wlbEstimatedPropertyDamagesAvoided = '500000'
+      mockRequest.payload.payload.wlbEstimatedEnvironmentalBenefits = '250000'
+      mockRequest.payload.payload.wlbEstimatedRecreationTourismBenefits =
+        '100000'
+      mockRequest.payload.payload.wlbEstimatedLandValueUpliftBenefits = '750000'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: PROJECT_TYPES.DEF
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBeNull()
+      expect(callArgs.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+      expect(callArgs.wlbEstimatedEnvironmentalBenefits).toBeNull()
+      expect(callArgs.wlbEstimatedRecreationTourismBenefits).toBeNull()
+      expect(callArgs.wlbEstimatedLandValueUpliftBenefits).toBeNull()
+    })
+
+    it('should clear all WLB fields when changing project type to STU', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectType = PROJECT_TYPES.STU
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1000000'
+      mockRequest.payload.payload.wlbEstimatedPropertyDamagesAvoided = '500000'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: PROJECT_TYPES.REF
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBeNull()
+      expect(callArgs.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+    })
+
+    it('should NOT clear WLB fields when changing to non-STR/STU project type', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectType = PROJECT_TYPES.HCR
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1000000'
+      mockRequest.payload.payload.wlbEstimatedPropertyDamagesAvoided = '500000'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: PROJECT_TYPES.DEF
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+      expect(callArgs.wlbEstimatedPropertyDamagesAvoided).toBe('500000')
+    })
+
+    it('should NOT clear WLB fields when project type is not changing', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectType = PROJECT_TYPES.DEF
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1000000'
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: PROJECT_TYPES.DEF
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    })
+
+    it('should NOT clear WLB fields at non-PROJECT_TYPE levels', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectType = PROJECT_TYPES.STR
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1000000'
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: PROJECT_TYPES.DEF
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    })
+
+    it('should clear WLB and normalize confidence fields when changing to STR', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.projectType = PROJECT_TYPES.STR
+      mockRequest.payload.payload.wlbEstimatedWholeLifePvBenefits = '1000000'
+      mockRequest.payload.payload.confidenceHomesBetterProtected = 'high'
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.PROJECT_TYPE
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: PROJECT_TYPES.DEF,
+        confidenceHomesBetterProtected: 'high'
+      })
+
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      // WLB should be cleared
+      expect(callArgs.wlbEstimatedWholeLifePvBenefits).toBeNull()
+      // Confidence should also be cleared for restricted type
+      expect(callArgs.confidenceHomesBetterProtected).toBeNull()
     })
   })
 })

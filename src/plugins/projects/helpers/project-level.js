@@ -9,6 +9,7 @@ import { environmentalBenefitsLevels } from './levels/environmental-benefits.js'
 import { risksLevels } from './levels/risks.js'
 import { nfmLevels } from './levels/nfm.js'
 import { wlcLevels } from './levels/wlc.js'
+import { wlbLevels } from './levels/wlb.js'
 
 const referenceNumber = projectReferenceNumberSchema.required().messages({
   'any.required': PROJECT_VALIDATION_MESSAGES.REFERENCE_NUMBER_REQUIRED
@@ -22,7 +23,8 @@ export const VALIDATION_LEVELS = {
   ...environmentalBenefitsLevels(referenceNumber),
   ...risksLevels(referenceNumber),
   ...nfmLevels(referenceNumber),
-  ...wlcLevels(referenceNumber)
+  ...wlcLevels(referenceNumber),
+  ...wlbLevels(referenceNumber)
   // Add more levels as needed
 }
 

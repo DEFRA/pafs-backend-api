@@ -122,7 +122,16 @@ describe('project-config', () => {
           'wlc_estimated_design_construction_costs',
         wlcEstimatedRiskContingencyCosts:
           'wlc_estimated_risk_contingency_costs',
-        wlcEstimatedFutureCosts: 'wlc_estimated_future_costs'
+        wlcEstimatedFutureCosts: 'wlc_estimated_future_costs',
+        wlbEstimatedWholeLifePvBenefits: 'wlc_estimated_whole_life_pv_benefits',
+        wlbEstimatedPropertyDamagesAvoided:
+          'wlc_estimated_property_damages_avoided',
+        wlbEstimatedEnvironmentalBenefits:
+          'wlc_estimated_environmental_benefits',
+        wlbEstimatedRecreationTourismBenefits:
+          'wlc_estimated_recreation_tourism_benefits',
+        wlbEstimatedLandValueUpliftBenefits:
+          'wlc_estimated_land_value_uplift_benefits'
       })
     })
 
@@ -147,6 +156,22 @@ describe('project-config', () => {
       )
       expect(PROJECT_FIELDS_MAP).toHaveProperty(
         'propertiesBenefitInvestmentCoastalErosion'
+      )
+      // WLB fields
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'wlbEstimatedWholeLifePvBenefits'
+      )
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'wlbEstimatedPropertyDamagesAvoided'
+      )
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'wlbEstimatedEnvironmentalBenefits'
+      )
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'wlbEstimatedRecreationTourismBenefits'
+      )
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'wlbEstimatedLandValueUpliftBenefits'
       )
     })
 
@@ -183,8 +208,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 89 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(89)
+    it('should have 94 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(94)
     })
   })
 
@@ -251,9 +276,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 89 fields', () => {
+    it('should return an object with 94 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(89)
+      expect(Object.keys(result)).toHaveLength(94)
     })
 
     it('should return a new object each time', () => {

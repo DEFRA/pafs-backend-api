@@ -18,7 +18,10 @@ import {
   normalizeConfidenceFields,
   sanitizeWlcFields,
   normalizeWlcFields,
-  handleNfmMeasureData
+  handleNfmMeasureData,
+  sanitizeWlbFields,
+  normalizeWlbFields,
+  clearWlbOnProjectTypeChange
 } from '../helpers/payload-normalizers.js'
 
 /**
@@ -40,6 +43,117 @@ const createSuccessResponse = (h, project, isCreate) => {
   )
 }
 
+const createServices = (request) => {
+  return {
+    projectService: new ProjectService(request.prisma, request.server.logger),
+    areaService: new AreaService(request.prisma, request.server.logger)
+  }
+}
+
+const sanitizePayloadForValidation = (proposalPayload, validationLevel) => {
+  sanitizeWlcFields(proposalPayload, validationLevel)
+  sanitizeWlbFields(proposalPayload, validationLevel)
+}
+
+const applyPayloadNormalizers = async (
+  enrichedPayload,
+  validationLevel,
+  existingProject,
+  projectService
+) => {
+  // Normalize empty intervention types only for INITIAL_SAVE or PROJECT_TYPE levels
+  normalizeInterventionTypes(enrichedPayload, validationLevel)
+
+  // Reset earliestWithGia fields when couldStartEarly is false or when saving COULD_START_EARLY level
+  resetEarliestWithGiaFields(enrichedPayload, validationLevel)
+
+  // Normalize urgency data: nullify details when not_urgent, stamp updatedAt
+  normalizeUrgencyData(enrichedPayload, validationLevel)
+
+  // Normalize environmental benefits: reset fields based on gate values
+  normalizeEnvironmentalBenefits(enrichedPayload, validationLevel)
+
+  //Normalize Risk & Property benefiting fields
+  normalizeRiskFields(enrichedPayload, validationLevel)
+
+  // Normalize confidence fields: reset for restricted project types (ELO, HCR, STR, STU)
+  normalizeConfidenceFields(enrichedPayload, validationLevel)
+
+  // Normalize WLC cost fields: convert empty strings to null
+  normalizeWlcFields(enrichedPayload, validationLevel)
+
+  // Clear WLB fields when project type changes
+  clearWlbOnProjectTypeChange(enrichedPayload, validationLevel, existingProject)
+
+  // Normalize WLB cost fields: convert empty strings to null
+  normalizeWlbFields(enrichedPayload, validationLevel)
+
+  // Handle NFM measure data - save to separate table if applicable
+  await handleNfmMeasureData(enrichedPayload, validationLevel, projectService)
+}
+
+const setAreaNameIfPresent = async (enrichedPayload, areaId, areaService) => {
+  if (!areaId) {
+    return
+  }
+
+  const area = await areaService.getAreaByIdWithParents(areaId)
+  enrichedPayload.rmaName = area.name // Add area name for database storage
+}
+
+const processUpsert = async (request, h, apiPayload) => {
+  const proposalPayload = apiPayload.payload
+  const { referenceNumber, areaId } = proposalPayload
+  const validationLevel = apiPayload.level
+
+  sanitizePayloadForValidation(proposalPayload, validationLevel)
+
+  const { projectService, areaService } = createServices(request)
+
+  const validationResult = await performValidations(
+    projectService,
+    areaService,
+    proposalPayload,
+    request.auth.credentials,
+    validationLevel,
+    request.server.logger,
+    h
+  )
+
+  if (validationResult.error) {
+    return validationResult.error
+  }
+
+  const { rfccCode, existingProject } = validationResult
+  const userId = request.auth.credentials.userId
+  const isCreate = !referenceNumber
+  const enrichedPayload = { ...proposalPayload }
+
+  await applyPayloadNormalizers(
+    enrichedPayload,
+    validationLevel,
+    existingProject,
+    projectService
+  )
+
+  await setAreaNameIfPresent(enrichedPayload, areaId, areaService)
+
+  const project = await projectService.upsertProject(
+    enrichedPayload,
+    userId,
+    rfccCode
+  )
+
+  return createSuccessResponse(h, project, isCreate)
+}
+
+const logUpsertError = (request, error, name) => {
+  request.server.logger.error(
+    { error: error.message, stack: error.stack, name },
+    'Error upserting project proposal'
+  )
+}
+
 const upsertProject = {
   method: 'POST',
   path: '/api/v1/project/upsert',
@@ -57,89 +171,12 @@ const upsertProject = {
     },
     handler: async (request, h) => {
       const apiPayload = request.payload
-      const proposalPayload = apiPayload.payload
-      const { referenceNumber, name, areaId } = proposalPayload
-      const validationLevel = apiPayload.level
+      const { name } = apiPayload.payload
 
       try {
-        // Apply same input sanitization as frontend before backend validation
-        sanitizeWlcFields(proposalPayload, validationLevel)
-
-        const projectService = new ProjectService(
-          request.prisma,
-          request.server.logger
-        )
-        const areaService = new AreaService(
-          request.prisma,
-          request.server.logger
-        )
-
-        const validationResult = await performValidations(
-          projectService,
-          areaService,
-          proposalPayload,
-          request.auth.credentials,
-          validationLevel,
-          request.server.logger,
-          h
-        )
-
-        if (validationResult.error) {
-          return validationResult.error
-        }
-
-        const { rfccCode } = validationResult
-        const userId = request.auth.credentials.userId
-        const isCreate = !referenceNumber
-
-        // Fetch area name if areaId is provided and add to payload
-        const enrichedPayload = { ...proposalPayload }
-
-        // Normalize empty intervention types only for INITIAL_SAVE or PROJECT_TYPE levels
-        normalizeInterventionTypes(enrichedPayload, validationLevel)
-
-        // Reset earliestWithGia fields when couldStartEarly is false or when saving COULD_START_EARLY level
-        resetEarliestWithGiaFields(enrichedPayload, validationLevel)
-
-        // Normalize urgency data: nullify details when not_urgent, stamp updatedAt
-        normalizeUrgencyData(enrichedPayload, validationLevel)
-
-        // Normalize environmental benefits: reset fields based on gate values
-        normalizeEnvironmentalBenefits(enrichedPayload, validationLevel)
-
-        //Normalize Risk & Property benefiting fields
-        normalizeRiskFields(enrichedPayload, validationLevel)
-
-        // Normalize confidence fields: reset for restricted project types (ELO, HCR, STR, STU)
-        normalizeConfidenceFields(enrichedPayload, validationLevel)
-
-        // Normalize WLC cost fields: convert empty strings to null
-        normalizeWlcFields(enrichedPayload, validationLevel)
-
-        // Handle NFM measure data - save to separate table if applicable
-        await handleNfmMeasureData(
-          enrichedPayload,
-          validationLevel,
-          projectService
-        )
-
-        if (areaId) {
-          const area = await areaService.getAreaByIdWithParents(areaId)
-          enrichedPayload.rmaName = area.name // Add area name for database storage
-        }
-
-        const project = await projectService.upsertProject(
-          enrichedPayload,
-          userId,
-          rfccCode
-        )
-
-        return createSuccessResponse(h, project, isCreate)
+        return await processUpsert(request, h, apiPayload)
       } catch (error) {
-        request.server.logger.error(
-          { error: error.message, stack: error.stack, name },
-          'Error upserting project proposal'
-        )
+        logUpsertError(request, error, name)
 
         return buildErrorResponse(
           h,

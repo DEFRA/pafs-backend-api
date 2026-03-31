@@ -162,6 +162,38 @@ export const normalizeConfidenceFields = (enrichedPayload, validationLevel) => {
 }
 
 /**
+ * Clears WLB fields when project type is changed to STR or STU at PROJECT_TYPE level.
+ * STR and STU project types do not support WLB, so any values must be cleared.
+ */
+export const clearWlbOnProjectTypeChange = (
+  enrichedPayload,
+  validationLevel,
+  _existingProject
+) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.PROJECT_TYPE) {
+    return
+  }
+
+  const nextProjectType = enrichedPayload?.projectType
+
+  if (!nextProjectType) {
+    return
+  }
+
+  // Only clear WLB fields if changing TO STR or STU
+  const strOrStuTypes = [PROJECT_TYPES.STR, PROJECT_TYPES.STU]
+  if (!strOrStuTypes.includes(nextProjectType)) {
+    return
+  }
+
+  enrichedPayload.wlbEstimatedWholeLifePvBenefits = null
+  enrichedPayload.wlbEstimatedPropertyDamagesAvoided = null
+  enrichedPayload.wlbEstimatedEnvironmentalBenefits = null
+  enrichedPayload.wlbEstimatedRecreationTourismBenefits = null
+  enrichedPayload.wlbEstimatedLandValueUpliftBenefits = null
+}
+
+/**
  * Handle NFM measure data - save to separate pafs_core_nfm_measures table
  * or delete measures when they are unselected
  * Re-exported from nfm-normalizers.js for backward compatibility
@@ -193,6 +225,31 @@ export const sanitizeWlcFields = (payload, validationLevel) => {
 }
 
 /**
+ * Sanitizes WLB estimated fields (for validation stage) by removing commas
+ * and trimming whitespace. Keeps empty string as-is so required validation
+ * still returns required-message semantics.
+ */
+export const sanitizeWlbFields = (payload, validationLevel) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS) {
+    return
+  }
+
+  const wlbFields = [
+    'wlbEstimatedWholeLifePvBenefits',
+    'wlbEstimatedPropertyDamagesAvoided',
+    'wlbEstimatedEnvironmentalBenefits',
+    'wlbEstimatedRecreationTourismBenefits',
+    'wlbEstimatedLandValueUpliftBenefits'
+  ]
+
+  wlbFields.forEach((field) => {
+    if (typeof payload[field] === 'string') {
+      payload[field] = payload[field].replaceAll(',', '').trim()
+    }
+  })
+}
+
+/**
  * Normalizes WLC cost fields by converting empty strings to null.
  * Empty strings arise from optional form inputs left blank by the user.
  */
@@ -209,6 +266,30 @@ export const normalizeWlcFields = (enrichedPayload, validationLevel) => {
   ]
 
   wlcFields.forEach((field) => {
+    if (enrichedPayload[field] === '') {
+      enrichedPayload[field] = null
+    }
+  })
+}
+
+/**
+ * Normalizes WLB cost fields by converting empty strings to null.
+ * Empty strings arise from optional form inputs left blank by the user.
+ */
+export const normalizeWlbFields = (enrichedPayload, validationLevel) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS) {
+    return
+  }
+
+  const wlbFields = [
+    'wlbEstimatedWholeLifePvBenefits',
+    'wlbEstimatedPropertyDamagesAvoided',
+    'wlbEstimatedEnvironmentalBenefits',
+    'wlbEstimatedRecreationTourismBenefits',
+    'wlbEstimatedLandValueUpliftBenefits'
+  ]
+
+  wlbFields.forEach((field) => {
     if (enrichedPayload[field] === '') {
       enrichedPayload[field] = null
     }

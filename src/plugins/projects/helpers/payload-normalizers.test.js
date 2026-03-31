@@ -12,7 +12,10 @@ import {
   normalizeConfidenceFields,
   sanitizeWlcFields,
   normalizeWlcFields,
-  handleNfmMeasureData
+  handleNfmMeasureData,
+  clearWlbOnProjectTypeChange,
+  sanitizeWlbFields,
+  normalizeWlbFields
 } from './payload-normalizers.js'
 
 describe('normalizeInterventionTypes', () => {
@@ -1369,5 +1372,334 @@ describe('normalizeWlcFields', () => {
     expect(payload.wlcEstimatedDesignConstructionCosts).toBe('123')
     expect(payload.wlcEstimatedRiskContingencyCosts).toBeNull()
     expect(payload.wlcEstimatedFutureCosts).toBe('456')
+  })
+
+  it('should not normalize WLC fields at non-WHOLE_LIFE_COST levels', () => {
+    const payload = {
+      wlcEstimatedWholeLifePvCosts: '',
+      wlcEstimatedDesignConstructionCosts: '',
+      wlcEstimatedRiskContingencyCosts: '',
+      wlcEstimatedFutureCosts: ''
+    }
+
+    normalizeWlcFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.wlcEstimatedWholeLifePvCosts).toBe('')
+    expect(payload.wlcEstimatedDesignConstructionCosts).toBe('')
+    expect(payload.wlcEstimatedRiskContingencyCosts).toBe('')
+    expect(payload.wlcEstimatedFutureCosts).toBe('')
+  })
+})
+
+describe('clearWlbOnProjectTypeChange', () => {
+  it('clears all WLB fields when changing to STR project type', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STR,
+      wlbEstimatedWholeLifePvBenefits: '1000',
+      wlbEstimatedPropertyDamagesAvoided: '2000',
+      wlbEstimatedEnvironmentalBenefits: '3000',
+      wlbEstimatedRecreationTourismBenefits: '4000',
+      wlbEstimatedLandValueUpliftBenefits: '5000'
+    }
+
+    clearWlbOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBeNull()
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBeNull()
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBeNull()
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBeNull()
+  })
+
+  it('clears all WLB fields when changing to STU project type', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STU,
+      wlbEstimatedWholeLifePvBenefits: '1000',
+      wlbEstimatedPropertyDamagesAvoided: '2000',
+      wlbEstimatedEnvironmentalBenefits: '3000',
+      wlbEstimatedRecreationTourismBenefits: '4000',
+      wlbEstimatedLandValueUpliftBenefits: '5000'
+    }
+
+    clearWlbOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.REF }
+    )
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBeNull()
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBeNull()
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBeNull()
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBeNull()
+  })
+
+  it('does not clear WLB fields when changing to non-STR/STU project type', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.HCR,
+      wlbEstimatedWholeLifePvBenefits: '1000',
+      wlbEstimatedPropertyDamagesAvoided: '2000',
+      wlbEstimatedEnvironmentalBenefits: '3000',
+      wlbEstimatedRecreationTourismBenefits: '4000',
+      wlbEstimatedLandValueUpliftBenefits: '5000'
+    }
+
+    clearWlbOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('2000')
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBe('3000')
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBe('4000')
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBe('5000')
+  })
+
+  it('does not clear WLB fields outside PROJECT_TYPE level', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STR,
+      wlbEstimatedWholeLifePvBenefits: '1000',
+      wlbEstimatedPropertyDamagesAvoided: '2000',
+      wlbEstimatedEnvironmentalBenefits: '3000',
+      wlbEstimatedRecreationTourismBenefits: '4000',
+      wlbEstimatedLandValueUpliftBenefits: '5000'
+    }
+
+    clearWlbOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('2000')
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBe('3000')
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBe('4000')
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBe('5000')
+  })
+
+  it('does not clear WLB fields when next projectType is missing', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '1000',
+      wlbEstimatedPropertyDamagesAvoided: '2000',
+      wlbEstimatedEnvironmentalBenefits: '3000',
+      wlbEstimatedRecreationTourismBenefits: '4000',
+      wlbEstimatedLandValueUpliftBenefits: '5000'
+    }
+
+    clearWlbOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('2000')
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBe('3000')
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBe('4000')
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBe('5000')
+  })
+})
+
+describe('sanitizeWlbFields', () => {
+  it('should remove commas from WLB fields at WHOLE_LIFE_BENEFITS level', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '1,000,000',
+      wlbEstimatedPropertyDamagesAvoided: '2,500,000',
+      wlbEstimatedEnvironmentalBenefits: '3,000,000',
+      wlbEstimatedRecreationTourismBenefits: '1,500,000',
+      wlbEstimatedLandValueUpliftBenefits: '500,000'
+    }
+
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('2500000')
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBe('3000000')
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBe('1500000')
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBe('500000')
+  })
+
+  it('should trim whitespace from WLB fields', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '  1000000  ',
+      wlbEstimatedPropertyDamagesAvoided: '\t500000\t',
+      wlbEstimatedEnvironmentalBenefits: '  250000  '
+    }
+
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('500000')
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBe('250000')
+  })
+
+  it('should handle null WLB fields', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: null,
+      wlbEstimatedPropertyDamagesAvoided: null
+    }
+
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBeNull()
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+  })
+
+  it('should not sanitize at non-WHOLE_LIFE_BENEFITS levels', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '1,000,000  '
+    }
+
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1,000,000  ')
+  })
+
+  it('should handle multiple commas in sequence', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '1,,,000'
+    }
+
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000')
+  })
+
+  it('should preserve undefined and not process non-string values', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: undefined,
+      wlbEstimatedPropertyDamagesAvoided: 12345
+    }
+
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBeUndefined()
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe(12345)
+  })
+
+  it('should handle commas and spaces together', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: ' 1,000,000 ',
+      wlbEstimatedPropertyDamagesAvoided: '  2,500  '
+    }
+
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('2500')
+  })
+})
+
+describe('normalizeWlbFields', () => {
+  it('should convert empty strings to null at WHOLE_LIFE_BENEFITS level', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '',
+      wlbEstimatedPropertyDamagesAvoided: '',
+      wlbEstimatedEnvironmentalBenefits: '',
+      wlbEstimatedRecreationTourismBenefits: '',
+      wlbEstimatedLandValueUpliftBenefits: ''
+    }
+
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBeNull()
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBeNull()
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBeNull()
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBeNull()
+  })
+
+  it('should preserve non-empty string values', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '1000000',
+      wlbEstimatedPropertyDamagesAvoided: '500000'
+    }
+
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe('500000')
+  })
+
+  it('should preserve null values', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: null
+    }
+
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBeNull()
+  })
+
+  it('should not normalize at non-WHOLE_LIFE_BENEFITS levels', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: ''
+    }
+
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('')
+  })
+
+  it('should handle mixed empty and populated fields', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '1000000',
+      wlbEstimatedPropertyDamagesAvoided: '',
+      wlbEstimatedEnvironmentalBenefits: '250000',
+      wlbEstimatedRecreationTourismBenefits: '',
+      wlbEstimatedLandValueUpliftBenefits: '750000'
+    }
+
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+    expect(payload.wlbEstimatedEnvironmentalBenefits).toBe('250000')
+    expect(payload.wlbEstimatedRecreationTourismBenefits).toBeNull()
+    expect(payload.wlbEstimatedLandValueUpliftBenefits).toBe('750000')
+  })
+
+  it('should preserve numeric values', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: 1000000,
+      wlbEstimatedPropertyDamagesAvoided: 0
+    }
+
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe(1000000)
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBe(0)
+  })
+
+  it('should preserve undefined fields', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: undefined
+    }
+
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBeUndefined()
+  })
+
+  it('should work together with sanitizeWlbFields', () => {
+    const payload = {
+      wlbEstimatedWholeLifePvBenefits: '  1,000,000  ',
+      wlbEstimatedPropertyDamagesAvoided: ''
+    }
+
+    // First sanitize (removes commas and trims)
+    sanitizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+    // Then normalize (converts empty to null)
+    normalizeWlbFields(payload, PROJECT_VALIDATION_LEVELS.WHOLE_LIFE_BENEFITS)
+
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
   })
 })
