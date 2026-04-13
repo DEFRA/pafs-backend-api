@@ -21,6 +21,7 @@ import jwtAuthPlugin from './plugins/jwt/jwt-auth.js'
 import apiKeyAuthPlugin from './plugins/api-key/api-key-auth.js'
 import schedulerPlugin from './plugins/scheduler/index.js'
 import { loadTasks } from './plugins/scheduler/helpers/task-loader.js'
+import swaggerPlugin from './plugins/swagger/index.js'
 
 function createServerConfig() {
   return {
@@ -115,11 +116,17 @@ async function registerScheduler(server) {
   })
 }
 
+async function registerSwagger(server) {
+  // Register swagger after all routes are registered so all routes are included
+  await server.register(swaggerPlugin)
+}
+
 async function createServer() {
   setupProxy()
   const server = Hapi.server(createServerConfig())
   await registerCorePlugins(server)
   await registerScheduler(server)
+  await registerSwagger(server)
   return server
 }
 

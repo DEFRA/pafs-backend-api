@@ -17,7 +17,7 @@ vi.mock('../helpers/benefit-area-file-helper.js', async (importOriginal) => {
   return {
     ...actual,
     generateDownloadUrl: vi.fn(),
-    updateBenefitAreaFile: vi.fn()
+    updateBenefitAreaDownloadUrl: vi.fn()
   }
 })
 
@@ -117,7 +117,7 @@ describe('download-benefit-area-file endpoint', () => {
         downloadUrl: mockDownloadUrl,
         downloadExpiry: mockExpiry
       })
-      helpers.updateBenefitAreaFile.mockResolvedValue(undefined)
+      helpers.updateBenefitAreaDownloadUrl.mockResolvedValue(undefined)
 
       await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
@@ -131,15 +131,10 @@ describe('download-benefit-area-file endpoint', () => {
         mockLogger,
         'test-shapefile.zip'
       )
-      expect(helpers.updateBenefitAreaFile).toHaveBeenCalledWith(
+      expect(helpers.updateBenefitAreaDownloadUrl).toHaveBeenCalledWith(
         mockPrisma,
         'TEST/001/001',
         {
-          filename: 'test-shapefile.zip',
-          fileSize: 2048,
-          contentType: 'application/zip',
-          s3Bucket: 'test-bucket',
-          s3Key: 'TEST/001/001/1/test.zip',
           downloadUrl: mockDownloadUrl,
           downloadExpiry: mockExpiry
         }
@@ -177,7 +172,7 @@ describe('download-benefit-area-file endpoint', () => {
         downloadUrl: 'url',
         downloadExpiry: new Date()
       })
-      helpers.updateBenefitAreaFile.mockResolvedValue(undefined)
+      helpers.updateBenefitAreaDownloadUrl.mockResolvedValue(undefined)
 
       await downloadBenefitAreaFile.handler(mockRequest, mockH)
 
@@ -363,7 +358,7 @@ describe('download-benefit-area-file endpoint', () => {
         downloadUrl: 'url',
         downloadExpiry: new Date()
       })
-      helpers.updateBenefitAreaFile.mockRejectedValue(
+      helpers.updateBenefitAreaDownloadUrl.mockRejectedValue(
         new Error('Database update failed')
       )
 
@@ -474,7 +469,7 @@ describe('download-benefit-area-file endpoint', () => {
         downloadUrl: 'url',
         downloadExpiry: new Date()
       })
-      helpers.updateBenefitAreaFile.mockResolvedValue(undefined)
+      helpers.updateBenefitAreaDownloadUrl.mockResolvedValue(undefined)
 
       await downloadBenefitAreaFile.handler(mockRequest, mockH)
 

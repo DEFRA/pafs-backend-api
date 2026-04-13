@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   generateDownloadUrl,
   updateBenefitAreaFile,
+  updateBenefitAreaDownloadUrl,
   clearBenefitAreaFile,
   deleteFromS3
 } from './benefit-area-file-helper.js'
@@ -175,6 +176,118 @@ describe('benefit-area-file-helper', () => {
           contentType: 'application/zip',
           s3Bucket: 'bucket',
           s3Key: 'key',
+          downloadUrl: 'url',
+          downloadExpiry: new Date()
+        })
+      ).rejects.toThrow('Update failed')
+    })
+  })
+
+  describe('updateBenefitAreaDownloadUrl', () => {
+    it('should update only the download URL and expiry', async () => {
+      const referenceNumber = 'TEST/001/001'
+      const downloadUrl = 'https://s3.amazonaws.com/test?sig=xyz'
+      const downloadExpiry = new Date('2026-04-20T00:00:00Z')
+
+      mockPrisma.pafs_core_projects.update.mockResolvedValue({
+        id: 1n,
+        reference_number: referenceNumber
+      })
+
+      await updateBenefitAreaDownloadUrl(mockPrisma, referenceNumber, {
+        downloadUrl,
+        downloadExpiry
+      })
+
+      expect(mockPrisma.pafs_core_projects.update).toHaveBeenCalledWith({
+        where: {
+          reference_number_version: {
+            reference_number: referenceNumber,
+            version: 1
+          }
+        },
+        data: {
+          benefit_area_file_download_url: downloadUrl,
+          benefit_area_file_download_expiry: downloadExpiry
+        }
+      })
+    })
+
+    it('should not update benefit_area_file_updated_at or updated_at', async () => {
+      mockPrisma.pafs_core_projects.update.mockResolvedValue({})
+
+      await updateBenefitAreaDownloadUrl(mockPrisma, 'TEST/001/001', {
+        downloadUrl: 'https://s3.amazonaws.com/test',
+        downloadExpiry: new Date()
+      })
+
+      const updateCall = mockPrisma.pafs_core_projects.update.mock.calls[0][0]
+      expect(updateCall.data).not.toHaveProperty('benefit_area_file_updated_at')
+      expect(updateCall.data).not.toHaveProperty('updated_at')
+    })
+
+    it('should handle database errors', async () => {
+      const dbError = new Error('Update failed')
+      mockPrisma.pafs_core_projects.update.mockRejectedValue(dbError)
+
+      await expect(
+        updateBenefitAreaDownloadUrl(mockPrisma, 'TEST/001/001', {
+          downloadUrl: 'url',
+          downloadExpiry: new Date()
+        })
+      ).rejects.toThrow('Update failed')
+    })
+  })
+
+  describe('updateBenefitAreaDownloadUrl', () => {
+    it('should update only the download URL and expiry', async () => {
+      const referenceNumber = 'TEST/001/001'
+      const downloadUrl = 'https://s3.amazonaws.com/test?sig=xyz'
+      const downloadExpiry = new Date('2026-04-20T00:00:00Z')
+
+      mockPrisma.pafs_core_projects.update.mockResolvedValue({
+        id: 1n,
+        reference_number: referenceNumber
+      })
+
+      await updateBenefitAreaDownloadUrl(mockPrisma, referenceNumber, {
+        downloadUrl,
+        downloadExpiry
+      })
+
+      expect(mockPrisma.pafs_core_projects.update).toHaveBeenCalledWith({
+        where: {
+          reference_number_version: {
+            reference_number: referenceNumber,
+            version: 1
+          }
+        },
+        data: {
+          benefit_area_file_download_url: downloadUrl,
+          benefit_area_file_download_expiry: downloadExpiry
+        }
+      })
+    })
+
+    it('should not update benefit_area_file_updated_at or updated_at', async () => {
+      mockPrisma.pafs_core_projects.update.mockResolvedValue({})
+
+      await updateBenefitAreaDownloadUrl(mockPrisma, 'TEST/001/001', {
+        downloadUrl: 'https://s3.amazonaws.com/test',
+        downloadExpiry: new Date()
+      })
+
+      const updateCall = mockPrisma.pafs_core_projects.update.mock.calls[0][0]
+      expect(updateCall.data).not.toHaveProperty('benefit_area_file_updated_at')
+      expect(updateCall.data).not.toHaveProperty('updated_at')
+    })
+
+    it('should handle database errors', async () => {
+      const dbError = new Error('Update failed')
+      mockPrisma.pafs_core_projects.update.mockRejectedValue(dbError)
+
+      await expect(
+        updateBenefitAreaDownloadUrl(mockPrisma, 'TEST/001/001', {
           downloadUrl: 'url',
           downloadExpiry: new Date()
         })

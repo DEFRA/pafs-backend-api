@@ -4,6 +4,7 @@ import upsertProject from './upsert-project/upsert-project.js'
 import updateStatus from './update-status/update-status.js'
 import downloadBenefitAreaFile from './download-benefit-area-file/download-benefit-area-file.js'
 import deleteBenefitAreaFile from './delete-benefit-area-file/delete-benefit-area-file.js'
+import downloadFundingCalculator from './download-funding-calculator/download-funding-calculator.js'
 import listProjects from './list-projects/list-projects.js'
 
 const projectsPlugin = {
@@ -17,6 +18,7 @@ const projectsPlugin = {
       updateStatus,
       downloadBenefitAreaFile,
       deleteBenefitAreaFile,
+      downloadFundingCalculator,
       listProjects
     ])
     server.logger.info('Projects plugin registered')
@@ -29,5 +31,6 @@ export { default as getProject } from './get-project/get-project.js'
 export { default as upsertProject } from './upsert-project/upsert-project.js'
 export { default as downloadBenefitAreaFile } from './download-benefit-area-file/download-benefit-area-file.js'
 export { default as deleteBenefitAreaFile } from './delete-benefit-area-file/delete-benefit-area-file.js'
+export { default as downloadFundingCalculator } from './download-funding-calculator/download-funding-calculator.js'
 export { default as listProjects } from './list-projects/list-projects.js'
 export { default as updateStatus } from './update-status/update-status.js'

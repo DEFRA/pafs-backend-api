@@ -95,6 +95,29 @@ export async function updateBenefitAreaFile(
 }
 
 /**
+ * Update only the download URL and expiry — does NOT touch benefit_area_file_updated_at.
+ * Use this when refreshing a presigned URL so the upload timestamp stays accurate.
+ */
+export async function updateBenefitAreaDownloadUrl(
+  prisma,
+  referenceNumber,
+  { downloadUrl, downloadExpiry }
+) {
+  return prisma.pafs_core_projects.update({
+    where: {
+      reference_number_version: {
+        reference_number: referenceNumber,
+        version: 1
+      }
+    },
+    data: {
+      benefit_area_file_download_url: downloadUrl,
+      benefit_area_file_download_expiry: downloadExpiry
+    }
+  })
+}
+
+/**
  * Clear all benefit area file metadata
  */
 export async function clearBenefitAreaFile(prisma, referenceNumber) {

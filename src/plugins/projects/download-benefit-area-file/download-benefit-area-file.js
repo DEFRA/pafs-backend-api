@@ -2,7 +2,7 @@ import Joi from 'joi'
 import { FILE_UPLOAD_VALIDATION_CODES } from '../../../common/constants/index.js'
 import {
   generateDownloadUrl,
-  updateBenefitAreaFile,
+  updateBenefitAreaDownloadUrl,
   withBenefitAreaFileValidation
 } from '../helpers/benefit-area-file-helper.js'
 import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
@@ -38,12 +38,7 @@ export default {
           project.benefit_area_file_name
         )
 
-        await updateBenefitAreaFile(prisma, project.reference_number, {
-          filename: project.benefit_area_file_name,
-          fileSize: project.benefit_area_file_size,
-          contentType: project.benefit_area_content_type,
-          s3Bucket: project.benefit_area_file_s3_bucket,
-          s3Key: project.benefit_area_file_s3_key,
+        await updateBenefitAreaDownloadUrl(prisma, project.reference_number, {
           downloadUrl,
           downloadExpiry
         })

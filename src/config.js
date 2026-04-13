@@ -401,6 +401,14 @@ const config = convict({
       env: 'SCHEDULER_TIMEZONE'
     }
   },
+  swagger: {
+    enabled: {
+      doc: 'Enable Swagger API documentation UI and JSON spec endpoint',
+      format: Boolean,
+      default: !isProduction,
+      env: 'SWAGGER_ENABLED'
+    }
+  },
   cdpUploader: {
     enabled: {
       doc: 'Enable CDP Uploader integration',

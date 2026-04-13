@@ -173,6 +173,10 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   benefitAreaFileUpdatedAt: 'benefit_area_file_updated_at',
   benefitAreaFileDownloadUrl: 'benefit_area_file_download_url',
   benefitAreaFileDownloadExpiry: 'benefit_area_file_download_expiry',
+  fundingCalculatorFileName: 'funding_calculator_file_name',
+  fundingCalculatorFileSize: 'funding_calculator_file_size',
+  fundingCalculatorContentType: 'funding_calculator_content_type',
+  fundingCalculatorUpdatedAt: 'funding_calculator_updated_at',
   isLegacy: 'is_legacy',
   isRevised: 'is_revised'
 }

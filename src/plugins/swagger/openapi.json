@@ -1,0 +1,2534 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PAFS Backend API",
+    "description": "## Project Application and Funding Service - Backend API\n\nRESTful API for managing Flood and Coastal Erosion Risk Management (FCRM) projects on behalf of Regional Management Authorities (RMAs) and the Environment Agency.\n\n---\n\n### Authentication\n\nTwo authentication mechanisms are supported:\n\n| Mechanism | Header | Format | Usage |\n|---|---|---|---|\n| **JWT Bearer** | `Authorization` | `Bearer <accessToken>` | All authenticated user routes |\n\nObtain a JWT access token via `POST /api/v1/auth/login`.  \nRefresh an expired access token via `POST /api/v1/auth/refresh`.\n\n---\n\n### Role-Based Access\n\n- **Public** - No authentication required.\n- **Authenticated** - Valid JWT Bearer token required.\n- **Admin only** - Valid JWT from an account with `admin: true`.\n- **Service** - Valid JWT Bearer token.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Defra DDTS",
+      "url": "https://www.gov.uk/government/organisations/department-for-environment-food-rural-affairs"
+    },
+    "license": {
+      "name": "Open Government Licence v3.0",
+      "url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5001",
+      "description": "Local development"
+    },
+    {
+      "url": "https://pafs-backend-api.dev.cdp-int.defra.cloud",
+      "description": "CDP Dev"
+    },
+    {
+      "url": "https://pafs-backend-api.test.cdp-int.defra.cloud",
+      "description": "CDP Test"
+    },
+    {
+      "url": "https://pafs-backend-api.prod.cdp-int.defra.cloud",
+      "description": "CDP Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Service health and readiness checks. These endpoints are **public** and require no authentication."
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication, session management, and password operations. Includes login, logout, token refresh, forgot/reset password, and invitation set-password flow."
+    },
+    {
+      "name": "Accounts",
+      "description": "User account creation, retrieval, update, and administration. Includes account approval, reactivation, and invitation management. Most endpoints require JWT. Create (without ID) supports optional JWT."
+    },
+    {
+      "name": "Areas",
+      "description": "Geographic area management for EA Areas, PSO Areas, RMAs, and Authorities. `GET /areas-by-type` is public; all other endpoints require JWT."
+    },
+    {
+      "name": "Projects",
+      "description": "FCRM project proposal management: create, retrieve, update status, validate names, and manage benefit area shapefiles. All endpoints require JWT (update-status also accepts API Key)."
+    },
+    {
+      "name": "File Uploads",
+      "description": "File upload session management via CDP Uploader service for benefit area shapefiles. JWT is optional."
+    },
+    {
+      "name": "Email",
+      "description": "Email address validation utilities. Public endpoint."
+    },
+    {
+      "name": "Scheduler",
+      "description": "Distributed scheduler task management. All endpoints require JWT with `admin: true`."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT access token obtained from `POST /api/v1/auth/login`. Expires after 15 minutes by default."
+      }
+    },
+    "parameters": {
+      "AccountId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "UUID of the user account",
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "ReferenceNumber": {
+        "name": "referenceNumber",
+        "in": "path",
+        "required": true,
+        "description": "Project reference number. Forward slashes (`/`) should be replaced with hyphens (`-`) in the URL path. E.g. `2425/YNEJ/01/01` becomes `2425-YNEJ-01-01`.",
+        "schema": { "type": "string", "example": "2425-YNEJ-01-01" }
+      },
+      "UploadId": {
+        "name": "uploadId",
+        "in": "path",
+        "required": true,
+        "description": "CDP Uploader upload session ID",
+        "schema": { "type": "string" }
+      },
+      "TaskName": {
+        "name": "taskName",
+        "in": "path",
+        "required": true,
+        "description": "Name of the scheduled task",
+        "schema": { "type": "string" }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "Page number (1-indexed)",
+        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "required": false,
+        "description": "Number of records per page",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 20
+        }
+      },
+      "Search": {
+        "name": "search",
+        "in": "query",
+        "required": false,
+        "description": "Free-text search term",
+        "schema": { "type": "string", "maxLength": 100 }
+      }
+    },
+    "schemas": {
+      "ErrorItem": {
+        "type": "object",
+        "required": ["errorCode"],
+        "properties": {
+          "errorCode": {
+            "type": "string",
+            "description": "Machine-readable error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "field": {
+            "type": "string",
+            "nullable": true,
+            "description": "Field that caused the error (validation errors)"
+          },
+          "warningCode": {
+            "type": "string",
+            "description": "Optional warning code (e.g. approaching account lock)"
+          },
+          "supportCode": {
+            "type": "string",
+            "description": "Optional support reference code"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ErrorItem" }
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "validationErrors": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ErrorItem" }
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of records"
+          },
+          "page": { "type": "integer", "description": "Current page number" },
+          "pageSize": { "type": "integer", "description": "Records per page" },
+          "totalPages": {
+            "type": "integer",
+            "description": "Total number of pages"
+          }
+        }
+      },
+      "HealthCheck": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["healthy", "unhealthy"] },
+          "message": { "type": "string", "example": "success" },
+          "uptime": {
+            "type": "number",
+            "description": "Process uptime in seconds"
+          },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "HealthCheckDetailed": {
+        "allOf": [
+          { "$ref": "#/components/schemas/HealthCheck" },
+          {
+            "type": "object",
+            "properties": {
+              "checks": {
+                "type": "object",
+                "properties": {
+                  "postgres": {
+                    "type": "object",
+                    "properties": {
+                      "healthy": { "type": "boolean" },
+                      "message": { "type": "string" }
+                    }
+                  },
+                  "notify": {
+                    "type": "object",
+                    "properties": {
+                      "healthy": { "type": "boolean" },
+                      "message": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User's email address",
+            "example": "user@example.gov.uk"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "User's current password"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "email": { "type": "string", "format": "email" },
+              "firstName": { "type": "string" },
+              "lastName": { "type": "string" },
+              "isAdmin": { "type": "boolean" }
+            }
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Short-lived JWT access token (default 15 minutes)"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Long-lived refresh token (default 7 days)"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Access token lifetime in seconds"
+          }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "required": ["refreshToken"],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Valid refresh token obtained from login or previous refresh"
+          }
+        }
+      },
+      "RefreshResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string" },
+          "refreshToken": { "type": "string" },
+          "expiresIn": { "type": "integer" }
+        }
+      },
+      "ValidateTokenRequest": {
+        "type": "object",
+        "required": ["token", "type"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The token string to validate"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["reset", "invitation"],
+            "description": "Token type"
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address of the account to reset. Always returns 200 regardless of whether the address exists (anti-enumeration)."
+          }
+        }
+      },
+      "PasswordFormRequest": {
+        "type": "object",
+        "required": ["token", "password", "confirmPassword"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Reset or invitation token"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "New password (must meet strength requirements)"
+          },
+          "confirmPassword": {
+            "type": "string",
+            "format": "password",
+            "description": "Must match password exactly"
+          }
+        }
+      },
+      "AccountArea": {
+        "type": "object",
+        "required": ["areaId"],
+        "properties": {
+          "areaId": {
+            "type": "integer",
+            "description": "ID of the area to assign"
+          },
+          "primary": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this is the user's primary area"
+          }
+        }
+      },
+      "UpsertAccountRequest": {
+        "type": "object",
+        "required": ["firstName", "lastName", "email"],
+        "description": "Create (no `id`) or update (with `id`) a user account. Admin-only fields: `id`, `admin`. Non-admin accounts require `responsibility`, `jobTitle`, `organisation`, `telephoneNumber`, and `areas`.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "If provided, performs an update. Requires admin JWT."
+          },
+          "firstName": { "type": "string", "maxLength": 100 },
+          "lastName": { "type": "string", "maxLength": 100 },
+          "email": { "type": "string", "format": "email" },
+          "admin": {
+            "type": "boolean",
+            "default": false,
+            "description": "Grant admin privileges. Requires admin JWT."
+          },
+          "isAdminContext": {
+            "type": "boolean",
+            "default": false,
+            "description": "Set to true when an admin is creating/editing another user to relax field requirements"
+          },
+          "responsibility": {
+            "type": "string",
+            "description": "Required for non-admin accounts"
+          },
+          "jobTitle": {
+            "type": "string",
+            "description": "Required for non-admin accounts (unless isAdminContext)"
+          },
+          "organisation": {
+            "type": "string",
+            "description": "Required for non-admin accounts (unless isAdminContext)"
+          },
+          "telephoneNumber": {
+            "type": "string",
+            "description": "Required for non-admin accounts (unless isAdminContext)"
+          },
+          "areas": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AccountArea" },
+            "description": "Required for non-admin accounts (min 1 area)"
+          }
+        }
+      },
+      "AccountResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "admin": { "type": "boolean" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "active", "disabled", "locked"]
+          },
+          "responsibility": { "type": "string", "nullable": true },
+          "jobTitle": { "type": "string", "nullable": true },
+          "organisation": { "type": "string", "nullable": true },
+          "telephoneNumber": { "type": "string", "nullable": true },
+          "areas": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AccountArea" }
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AccountListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AccountResponse" }
+          },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "AreaItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "areaType": {
+            "type": "string",
+            "enum": ["ea_area", "pso_area", "rma", "authority"]
+          },
+          "identifier": { "type": "string", "nullable": true },
+          "subType": { "type": "string", "nullable": true },
+          "parentId": { "type": "integer", "nullable": true },
+          "endDate": { "type": "string", "format": "date", "nullable": true }
+        }
+      },
+      "AreasByTypeResponse": {
+        "type": "object",
+        "description": "Areas keyed by areaType",
+        "additionalProperties": {
+          "type": "array",
+          "items": { "$ref": "#/components/schemas/AreaItem" }
+        },
+        "example": {
+          "ea_area": [{ "id": 1, "name": "Anglian", "areaType": "ea_area" }],
+          "pso_area": [
+            {
+              "id": 10,
+              "name": "Anglian Northern",
+              "areaType": "pso_area",
+              "parentId": 1
+            }
+          ]
+        }
+      },
+      "AreaListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AreaItem" }
+          },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "UpsertAreaRequest": {
+        "type": "object",
+        "required": ["areaType", "name"],
+        "description": "Create (no `id`) or update (with `id`) an area. Admin only. EA Area type cannot be created or updated via this endpoint.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "If provided, performs an update."
+          },
+          "areaType": {
+            "type": "string",
+            "enum": ["authority", "pso_area", "rma"],
+            "description": "EA Area cannot be created/updated via this endpoint"
+          },
+          "name": { "type": "string", "maxLength": 255 },
+          "identifier": {
+            "type": "string",
+            "description": "Authority Code (for Authority) or Identifier Code (for RMA)"
+          },
+          "parentId": {
+            "type": "integer",
+            "description": "EA Area ID (for PSO) or PSO ID (for RMA)"
+          },
+          "subType": {
+            "type": "string",
+            "description": "RFCC Code (for PSO) or Authority Code (for RMA)"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Optional decommission date (YYYY-MM-DD)"
+          }
+        }
+      },
+      "ProjectSummary": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "referenceNumber": {
+            "type": "string",
+            "example": "2425/YNEJ/01/01"
+          },
+          "name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["revise", "draft", "submitted", "completed", "archived"]
+          },
+          "areaId": { "type": "integer", "nullable": true },
+          "rmaName": { "type": "string", "nullable": true },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProjectListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProjectSummary" }
+          },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "ProjectDetail": {
+        "type": "object",
+        "description": "Full project proposal data. Fields vary based on what has been saved.",
+        "properties": {
+          "id": { "type": "integer" },
+          "referenceNumber": { "type": "string", "example": "2425/YNEJ/01/01" },
+          "slug": { "type": "string" },
+          "name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["revise", "draft", "submitted", "completed", "archived"]
+          },
+          "projectType": {
+            "type": "string",
+            "enum": ["DEF", "REP", "REF", "HCR", "STR", "STU", "ELO"],
+            "nullable": true
+          },
+          "interventionTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["NFM", "SUDS", "PFR", "Other"]
+            }
+          },
+          "areaId": { "type": "integer", "nullable": true },
+          "rmaName": { "type": "string", "nullable": true },
+          "financialStartYear": { "type": "integer", "nullable": true },
+          "financialEndYear": { "type": "integer", "nullable": true },
+          "urgencyReason": {
+            "type": "string",
+            "enum": [
+              "not_urgent",
+              "statutory_need",
+              "legal_need",
+              "health_and_safety",
+              "emergency_works",
+              "time_limited"
+            ],
+            "nullable": true
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "fluvial_flooding",
+                "tidal_flooding",
+                "groundwater_flooding",
+                "surface_water_flooding",
+                "sea_flooding",
+                "reservoir_flooding",
+                "coastal_erosion"
+              ]
+            }
+          },
+          "benefitAreaFileName": { "type": "string", "nullable": true },
+          "benefitAreaFileSize": { "type": "integer", "nullable": true },
+          "benefitAreaFileDownloadUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UpsertProjectRequest": {
+        "type": "object",
+        "required": ["level", "payload"],
+        "description": "The `payload` schema varies by `level`. Each `level` validates only the fields relevant to that save step. Always include `referenceNumber` in `payload` for updates (omit for initial create).",
+        "properties": {
+          "level": {
+            "type": "string",
+            "description": "Validation level key — determines which fields in `payload` are validated.",
+            "enum": [
+              "INITIAL_SAVE",
+              "PROJECT_NAME",
+              "PROJECT_AREA",
+              "PROJECT_TYPE",
+              "FINANCIAL_START_YEAR",
+              "FINANCIAL_END_YEAR",
+              "START_OUTLINE_BUSINESS_CASE",
+              "COMPLETE_OUTLINE_BUSINESS_CASE",
+              "AWARD_CONTRACT",
+              "START_CONSTRUCTION",
+              "READY_FOR_SERVICE",
+              "COULD_START_EARLY",
+              "EARLIEST_WITH_GIA",
+              "RISK",
+              "MAIN_RISK",
+              "PROPERTY_AFFECTED_FLOODING",
+              "PROPERTY_AFFECTED_COASTAL_EROSION",
+              "TWENTY_PERCENT_DEPRIVED",
+              "FORTY_PERCENT_DEPRIVED",
+              "CURRENT_FLOOD_FLUVIAL_RISK",
+              "CURRENT_FLOOD_SURFACE_WATER_RISK",
+              "CURRENT_COASTAL_EROSION_RISK",
+              "APPROACH",
+              "URGENCY_REASON",
+              "URGENCY_DETAILS",
+              "CONFIDENCE_HOMES_BETTER_PROTECTED",
+              "CONFIDENCE_HOMES_BY_GATEWAY_FOUR",
+              "CONFIDENCE_SECURED_PARTNERSHIP_FUNDING",
+              "ENVIRONMENTAL_BENEFITS",
+              "INTERTIDAL_HABITAT",
+              "HECTARES_OF_INTERTIDAL_HABITAT_CREATED_OR_ENHANCED",
+              "WOODLAND",
+              "HECTARES_OF_WOODLAND_HABITAT_CREATED_OR_ENHANCED",
+              "WET_WOODLAND",
+              "HECTARES_OF_WET_WOODLAND_HABITAT_CREATED_OR_ENHANCED",
+              "WETLAND_OR_WET_GRASSLAND",
+              "HECTARES_OF_WETLAND_OR_WET_GRASSLAND_CREATED_OR_ENHANCED",
+              "GRASSLAND",
+              "HECTARES_OF_GRASSLAND_HABITAT_CREATED_OR_ENHANCED",
+              "HEATHLAND",
+              "HECTARES_OF_HEATHLAND_CREATED_OR_ENHANCED",
+              "PONDS_LAKES",
+              "HECTARES_OF_POND_OR_LAKE_HABITAT_CREATED_OR_ENHANCED",
+              "ARABLE_LAND",
+              "HECTARES_OF_ARABLE_LAND_LAKE_HABITAT_CREATED_OR_ENHANCED",
+              "COMPREHENSIVE_RESTORATION",
+              "KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_COMPREHENSIVE",
+              "PARTIAL_RESTORATION",
+              "KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_PARTIAL",
+              "CREATE_HABITAT_WATERCOURSE",
+              "KILOMETRES_OF_WATERCOURSE_ENHANCED_OR_CREATED_SINGLE",
+              "NFM_SELECTED_MEASURES",
+              "NFM_RIVER_RESTORATION",
+              "NFM_LEAKY_BARRIERS",
+              "NFM_OFFLINE_STORAGE",
+              "NFM_WOODLAND",
+              "NFM_HEADWATER_DRAINAGE",
+              "NFM_RUNOFF_MANAGEMENT",
+              "NFM_SALTMARSH",
+              "NFM_SAND_DUNE",
+              "NFM_LAND_USE_CHANGE",
+              "NFM_LAND_USE_ENCLOSED_ARABLE_FARMLAND",
+              "NFM_LAND_USE_ENCLOSED_LIVESTOCK_FARMLAND",
+              "NFM_LAND_USE_ENCLOSED_DAIRYING_FARMLAND",
+              "NFM_LAND_USE_SEMI_NATURAL_GRASSLAND",
+              "NFM_LAND_USE_WOODLAND",
+              "NFM_LAND_USE_MOUNTAIN_MOORS_AND_HEATH",
+              "NFM_LAND_USE_PEATLAND_RESTORATION",
+              "NFM_LAND_USE_RIVERS_WETLANDS_FRESHWATER",
+              "NFM_LAND_USE_COASTAL_MARGINS",
+              "NFM_LANDOWNER_CONSENT",
+              "NFM_EXPERIENCE_LEVEL",
+              "NFM_PROJECT_READINESS",
+              "WHOLE_LIFE_COST"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "description": "The project data to save. Required fields depend on the `level` value. Always include `referenceNumber` for updates.",
+            "properties": {
+              "referenceNumber": {
+                "type": "string",
+                "nullable": true,
+                "description": "Omit on initial create; required on all subsequent updates"
+              },
+              "name": { "type": "string", "maxLength": 100 },
+              "areaId": { "type": "integer" },
+              "projectType": {
+                "type": "string",
+                "enum": ["DEF", "REP", "REF", "HCR", "STR", "STU", "ELO"]
+              },
+              "interventionTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["NFM", "SUDS", "PFR", "Other"]
+                }
+              },
+              "financialStartYear": { "type": "integer" },
+              "financialEndYear": { "type": "integer" },
+              "startOutlineBusinessCaseMonth": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              },
+              "startOutlineBusinessCaseYear": { "type": "integer" },
+              "completeOutlineBusinessCaseMonth": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              },
+              "completeOutlineBusinessCaseYear": { "type": "integer" },
+              "awardContractMonth": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              },
+              "awardContractYear": { "type": "integer" },
+              "startConstructionMonth": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              },
+              "startConstructionYear": { "type": "integer" },
+              "readyForServiceMonth": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              },
+              "readyForServiceYear": { "type": "integer" },
+              "couldStartEarly": { "type": "boolean" },
+              "earliestStartMonth": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              },
+              "earliestStartYear": { "type": "integer" },
+              "risks": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "fluvial_flooding",
+                    "tidal_flooding",
+                    "groundwater_flooding",
+                    "surface_water_flooding",
+                    "sea_flooding",
+                    "reservoir_flooding",
+                    "coastal_erosion"
+                  ]
+                }
+              },
+              "mainRisk": {
+                "type": "string",
+                "enum": [
+                  "fluvial_flooding",
+                  "tidal_flooding",
+                  "groundwater_flooding",
+                  "surface_water_flooding",
+                  "sea_flooding",
+                  "reservoir_flooding",
+                  "coastal_erosion"
+                ]
+              },
+              "noPropertiesAtFloodRisk": { "type": "integer", "minimum": 0 },
+              "noPropertiesAtCoastalErosionRisk": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "percentProperties20PercentDeprived": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "percentProperties40PercentDeprived": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "currentFloodFluvialRisk": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "very_low"]
+              },
+              "currentFloodSurfaceWaterRisk": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "very_low"]
+              },
+              "currentCoastalErosionRisk": {
+                "type": "string",
+                "enum": ["medium_term", "longer_term"]
+              },
+              "approach": { "type": "string", "maxLength": 1000 },
+              "urgencyReason": {
+                "type": "string",
+                "enum": [
+                  "not_urgent",
+                  "statutory_need",
+                  "legal_need",
+                  "health_and_safety",
+                  "emergency_works",
+                  "time_limited"
+                ]
+              },
+              "urgencyDetails": { "type": "string", "maxLength": 1000 },
+              "confidenceHomesBetterProtected": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium_high",
+                  "medium_low",
+                  "low",
+                  "not_applicable"
+                ]
+              },
+              "confidenceHomesByGatewayFour": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium_high",
+                  "medium_low",
+                  "low",
+                  "not_applicable"
+                ]
+              },
+              "confidenceSecuredPartnershipFunding": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium_high",
+                  "medium_low",
+                  "low",
+                  "not_applicable"
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "UpsertProjectResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "referenceNumber": {
+                "type": "string",
+                "example": "2425/YNEJ/01/01"
+              },
+              "slug": { "type": "string" },
+              "name": { "type": "string" }
+            }
+          }
+        }
+      },
+      "UpdateStatusRequest": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["revise", "draft", "submitted", "completed", "archived"],
+            "description": "New project status"
+          }
+        }
+      },
+      "CheckProjectNameRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Project name to check for uniqueness"
+          },
+          "referenceNumber": {
+            "type": "string",
+            "nullable": true,
+            "description": "Reference number of the current project (to exclude it from duplicate check)"
+          }
+        }
+      },
+      "BenefitAreaFileDownloadResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "downloadUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "Presigned S3 URL valid for 7 days"
+              },
+              "expiresAt": { "type": "string", "format": "date-time" },
+              "filename": { "type": "string" },
+              "fileSize": { "type": "integer", "nullable": true },
+              "contentType": { "type": "string" }
+            }
+          }
+        }
+      },
+      "InitiateUploadRequest": {
+        "type": "object",
+        "properties": {
+          "redirect": {
+            "type": "string",
+            "description": "Redirect URL after upload completes (default: /upload-complete)"
+          },
+          "entityType": {
+            "type": "string",
+            "description": "Type of entity the upload belongs to (e.g. proposal)"
+          },
+          "entityId": {
+            "type": "integer",
+            "description": "ID of the entity the upload belongs to"
+          },
+          "reference": {
+            "type": "string",
+            "description": "Business reference (e.g. project reference number with hyphens)"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Custom metadata to attach to the upload session",
+            "additionalProperties": true
+          },
+          "downloadUrls": {
+            "type": "array",
+            "items": { "type": "string", "format": "uri" },
+            "description": "If provided, CDP Uploader will download from these URLs instead of accepting a file upload. Sets initial status to PROCESSING."
+          }
+        }
+      },
+      "UploadSessionResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "uploadId": {
+                "type": "string",
+                "description": "Unique upload session ID for polling status"
+              },
+              "uploadUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "CDP Uploader URL to POST the file to"
+              },
+              "reference": { "type": "string", "nullable": true }
+            }
+          }
+        }
+      },
+      "UploadStatusResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "uploadId": { "type": "string" },
+              "uploadStatus": {
+                "type": "string",
+                "enum": ["pending", "processing", "ready", "failed"],
+                "description": "Current upload status"
+              },
+              "fileStatus": { "type": "string", "nullable": true },
+              "filename": { "type": "string", "nullable": true },
+              "contentType": { "type": "string", "nullable": true },
+              "contentLength": { "type": "integer", "nullable": true },
+              "s3Bucket": { "type": "string", "nullable": true },
+              "s3Key": { "type": "string", "nullable": true },
+              "reference": { "type": "string", "nullable": true },
+              "entityType": { "type": "string", "nullable": true },
+              "entityId": { "type": "integer", "nullable": true },
+              "rejectionReason": { "type": "string", "nullable": true },
+              "numberOfRejectedFiles": { "type": "integer", "nullable": true },
+              "createdAt": { "type": "string", "format": "date-time" },
+              "completedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "ValidateEmailRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address to validate"
+          },
+          "checkDisposable": {
+            "type": "boolean",
+            "description": "Check if email is from a disposable domain"
+          },
+          "checkDnsMx": {
+            "type": "boolean",
+            "description": "Check DNS MX records for the email domain"
+          },
+          "checkDuplicate": {
+            "type": "boolean",
+            "description": "Check if email is already registered"
+          },
+          "excludeUserId": {
+            "type": "integer",
+            "description": "Exclude this user ID from duplicate check (for updates)"
+          }
+        }
+      },
+      "TaskItem": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "schedule": { "type": "string", "description": "Cron expression" },
+          "status": { "type": "string", "enum": ["idle", "running", "failed"] },
+          "lastRun": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "nextRun": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "TaskStatsResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "stats": {
+                "type": "object",
+                "properties": {
+                  "totalRuns": { "type": "integer" },
+                  "successfulRuns": { "type": "integer" },
+                  "failedRuns": { "type": "integer" },
+                  "averageDurationMs": { "type": "number" }
+                }
+              },
+              "latestExecution": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": { "type": "integer" },
+                  "taskName": { "type": "string" },
+                  "status": { "type": "string" },
+                  "startedAt": { "type": "string", "format": "date-time" },
+                  "completedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
+                  "durationMs": { "type": "integer", "nullable": true },
+                  "error": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        }
+      },
+      "LogItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "taskName": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["running", "success", "failed", "timeout"]
+          },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "durationMs": { "type": "integer", "nullable": true },
+          "triggeredBy": { "type": "string", "nullable": true },
+          "error": { "type": "string", "nullable": true }
+        }
+      },
+      "TriggerTaskRequest": {
+        "type": "object",
+        "required": ["taskName"],
+        "properties": {
+          "taskName": {
+            "type": "string",
+            "description": "Name of the registered scheduled task to trigger manually"
+          }
+        }
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Authentication required or credentials invalid",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": {
+              "errors": [{ "errorCode": "TOKEN_EXPIRED_OR_INVALID" }]
+            }
+          }
+        }
+      },
+      "ForbiddenError": {
+        "description": "Authenticated but not authorised (e.g. non-admin accessing admin route)",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "errors": [{ "errorCode": "UNAUTHORIZED" }] }
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "errors": [{ "errorCode": "NOT_FOUND" }] }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Request payload or parameter validation failed",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": {
+              "errors": [
+                {
+                  "errorCode": "INVALID_DATA",
+                  "field": "email",
+                  "message": "must be a valid email address"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Unexpected internal server error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "errors": [{ "errorCode": "INTERNAL_ERROR" }] }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Basic health check",
+        "description": "Returns overall service health status without individual check details. Suitable for load balancer health checks.",
+        "operationId": "getHealth",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthCheck" },
+                "example": {
+                  "status": "healthy",
+                  "message": "success",
+                  "uptime": 12345.67,
+                  "timestamp": "2025-01-01T12:00:00.000Z"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthCheck" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health-detailed": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Detailed health check",
+        "description": "Returns health status with individual checks for each backing service (PostgreSQL, GOV.UK Notify).",
+        "operationId": "getHealthDetailed",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "All services healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthCheckDetailed" }
+              }
+            }
+          },
+          "503": {
+            "description": "One or more services unhealthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthCheckDetailed" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login",
+        "description": "Authenticate with email and password. Returns JWT access token and refresh token on success. Returns `401` with error codes on failure (invalid credentials, account locked, account disabled).",
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "examples": {
+                  "invalid_credentials": {
+                    "summary": "Invalid email or password",
+                    "value": {
+                      "errors": [{ "errorCode": "INVALID_CREDENTIALS" }]
+                    }
+                  },
+                  "account_locked": {
+                    "summary": "Account locked after too many failed attempts",
+                    "value": {
+                      "errors": [
+                        {
+                          "errorCode": "ACCOUNT_LOCKED",
+                          "warningCode": "ACCOUNT_LOCK_WARNING"
+                        }
+                      ]
+                    }
+                  },
+                  "account_disabled": {
+                    "summary": "Account has been disabled",
+                    "value": { "errors": [{ "errorCode": "ACCOUNT_DISABLED" }] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout",
+        "description": "Invalidates the current JWT session. The user's `unique_session_id` is rotated, making the current access token and refresh token immediately invalid.",
+        "operationId": "logout",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Refresh access token",
+        "description": "Exchange a valid refresh token for a new access token and refresh token pair. The old refresh token is invalidated (token rotation).",
+        "operationId": "refreshToken",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefreshRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RefreshResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token invalid or expired",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "errors": [{ "errorCode": "TOKEN_EXPIRED_OR_INVALID" }]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/validate-session": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Validate current session",
+        "description": "Lightweight endpoint to verify that the JWT token is valid and the session is still active. Used by frontend to check authentication state.",
+        "operationId": "validateSession",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Session is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/api/v1/auth/validate-token": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Validate a reset or invitation token",
+        "description": "Checks whether a password-reset or account-invitation token is valid and has not expired. Returns the associated email address on success.",
+        "operationId": "validateToken",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ValidateTokenRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "email": { "type": "string", "format": "email" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token invalid or expired",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "errors": [{ "errorCode": "TOKEN_EXPIRED_OR_INVALID" }],
+                  "email": "user@example.gov.uk"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Request password reset email",
+        "description": "Sends a password reset email to the given address if an active account exists. **Always returns 200** regardless of whether the email address is registered (anti-enumeration measure).",
+        "operationId": "forgotPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ForgotPasswordRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request received (email sent if account exists)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Reset password using reset token",
+        "description": "Validates the password reset token and sets the new password. The token is invalidated after use. Requires `token` + `password` + `confirmPassword`.",
+        "operationId": "resetPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PasswordFormRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Token invalid/expired or passwords do not match",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Account disabled",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "errors": [{ "errorCode": "ACCOUNT_DISABLED" }] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/set-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Set initial password via invitation token",
+        "description": "Used in the account invitation flow. Validates the invitation token, sets the user's initial password, and marks the invitation as accepted. The token is invalidated after use.",
+        "operationId": "setPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PasswordFormRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password set and invitation accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Token invalid/expired or passwords do not match",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Account disabled",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts": {
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "List accounts",
+        "description": "Returns a paginated list of user accounts. Supports filtering by status, area, and free-text search. Requires JWT.",
+        "operationId": "listAccounts",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by account status",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "active", "disabled", "locked"]
+            }
+          },
+          { "$ref": "#/components/parameters/Search" },
+          {
+            "name": "areaId",
+            "in": "query",
+            "required": false,
+            "description": "Filter accounts assigned to this area ID",
+            "schema": { "type": "integer" }
+          },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accounts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Create or update account",
+        "description": "Creates a new user account (no `id` in payload) or updates an existing one (`id` required, admin JWT required). New accounts are auto-approved if the email domain matches the configured auto-approve list, otherwise left pending for admin approval. Admin accounts (`admin: true`) always require an admin JWT.",
+        "operationId": "upsertAccount",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpsertAccountRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            }
+          },
+          "201": {
+            "description": "Account created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/accounts/{id}": {
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "Get account by ID",
+        "description": "Returns full account details including area assignments. Requires JWT.",
+        "operationId": "getAccount",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "responses": {
+          "200": {
+            "description": "Account found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Accounts"],
+        "summary": "Delete account",
+        "description": "Permanently deletes a user account. **Admin only.** Works on both pending and active accounts.",
+        "operationId": "deleteAccount",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "responses": {
+          "200": {
+            "description": "Account deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/accounts/{id}/approve": {
+      "patch": {
+        "tags": ["Accounts"],
+        "summary": "Approve a pending account",
+        "description": "Approves a pending account and sends the user a password-set invitation email via GOV.UK Notify. **Admin only.**",
+        "operationId": "approveAccount",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "responses": {
+          "200": {
+            "description": "Account approved and invitation email sent",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/accounts/{id}/reactivate": {
+      "patch": {
+        "tags": ["Accounts"],
+        "summary": "Reactivate a disabled account",
+        "description": "Reactivates a disabled account and sends a reactivation notification email. **Admin only.**",
+        "operationId": "reactivateAccount",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "responses": {
+          "200": {
+            "description": "Account reactivated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/accounts/{id}/resend-invitation": {
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Resend invitation email",
+        "description": "Generates a new invitation token and resends the password-set invitation email. Only valid for approved accounts that have not yet set their password. **Admin only.**",
+        "operationId": "resendInvitation",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "responses": {
+          "200": {
+            "description": "Invitation email resent",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/areas-by-type": {
+      "get": {
+        "tags": ["Areas"],
+        "summary": "Get all areas grouped by type",
+        "description": "Returns all areas from the database grouped by their `areaType`. **Public endpoint — no authentication required.**",
+        "operationId": "listAreasByType",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Areas grouped by type",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AreasByTypeResponse" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/areas-by-list": {
+      "get": {
+        "tags": ["Areas"],
+        "summary": "List areas with filtering and pagination",
+        "description": "Returns a paginated list of areas, optionally filtered by search term and/or area type. Requires JWT.",
+        "operationId": "listAreasByList",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/Search" },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Filter by area type",
+            "schema": { "type": "string", "maxLength": 50 }
+          },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Areas retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AreaListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/area-by-id/{id}": {
+      "get": {
+        "tags": ["Areas"],
+        "summary": "Get single area by ID",
+        "description": "Returns area details for the specified ID. **Admin only.** Country and EA Area types are excluded from results.",
+        "operationId": "getAreaById",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Area ID",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Area found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AreaItem" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/areas/upsert": {
+      "post": {
+        "tags": ["Areas"],
+        "summary": "Create or update an area",
+        "description": "Creates a new area (no `id`) or updates an existing one (`id` required). **Admin only.** EA Area type cannot be created or updated. Supported types: `authority`, `pso_area`, `rma`. Each type has specific required fields:\n- **Authority**: `identifier` (Authority Code), `name`\n- **PSO Area**: `name`, `parentId` (EA Area ID), `subType` (RFCC Code)\n- **RMA**: `name`, `identifier` (Identifier Code), `parentId` (PSO ID), `subType` (Authority Code)",
+        "operationId": "upsertArea",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpsertAreaRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Area updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AreaItem" }
+              }
+            }
+          },
+          "201": {
+            "description": "Area created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AreaItem" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "List projects",
+        "description": "Returns a paginated list of FCRM project proposals. **Role-filtered**: non-admin users only see projects for their assigned areas. Admins can optionally filter by a specific `areaId`.",
+        "operationId": "listProjects",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/Search" },
+          {
+            "name": "areaId",
+            "in": "query",
+            "required": false,
+            "description": "Filter by area ID. Admins only — non-admin users are restricted to their assigned areas.",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by project status",
+            "schema": {
+              "type": "string",
+              "enum": ["draft", "submitted", "archived"]
+            }
+          },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projects retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/project/{referenceNumber}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get project by reference number",
+        "description": "Returns the full project proposal data for the given reference number. Replace forward slashes with hyphens in the URL (e.g. `2425/YNEJ/01/01` → `2425-YNEJ-01-01`).",
+        "operationId": "getProject",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "responses": {
+          "200": {
+            "description": "Project found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectDetail" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/project/upsert": {
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Create or update a project",
+        "description": "Creates a new project (no `referenceNumber` in `payload`) or updates an existing one. The `level` field controls which fields in `payload` are validated.\n\n**Create:** Only RMA users with access to the specified `areaId` can create projects.\n\n**Update:** Admin users, RMA users with access to the project area, or users with access to the parent PSO area can update.\n\nSave is performed field-by-field as the user progresses through the proposal form — each `level` corresponds to a form step.",
+        "operationId": "upsertProject",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpsertProjectRequest" },
+              "examples": {
+                "initial_create": {
+                  "summary": "Initial project creation",
+                  "value": {
+                    "level": "INITIAL_SAVE",
+                    "payload": {
+                      "name": "River Flood Defence Upgrade",
+                      "areaId": 42
+                    }
+                  }
+                },
+                "update_project_type": {
+                  "summary": "Set project type",
+                  "value": {
+                    "level": "PROJECT_TYPE",
+                    "payload": {
+                      "referenceNumber": "2425-YNEJ-01-01",
+                      "projectType": "DEF",
+                      "interventionTypes": ["NFM", "PFR"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertProjectResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Project created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertProjectResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/project/{referenceNumber}/status": {
+      "put": {
+        "tags": ["Projects"],
+        "summary": "Update project status",
+        "description": "Updates the status of an existing project. Accepts either a JWT Bearer token — designed for service-to-service calls from the frontend or workflow engine.",
+        "operationId": "updateProjectStatus",
+        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateStatusRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "referenceNumber": { "type": "string" },
+                        "status": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/project/check-name": {
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Check if project name is unique",
+        "description": "Checks whether a project name already exists in the system. Pass `referenceNumber` to exclude the current project from the duplicate check (used during edits).",
+        "operationId": "checkProjectName",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckProjectNameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Name is available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "valid": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Name is already taken",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "errors": [
+                    { "errorCode": "PROJECT_NAME_DUPLICATE", "field": "name" }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/project/{referenceNumber}/benefit-area-file/download": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get benefit area file download URL",
+        "description": "Regenerates a presigned S3 download URL for the project's benefit area shapefile (ZIP containing .dbf, .shx, .shp, .prj files). The URL is valid for 7 days and is also persisted to the project record.",
+        "operationId": "downloadBenefitAreaFile",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "responses": {
+          "200": {
+            "description": "Download URL generated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenefitAreaFileDownloadResponse"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "404": {
+            "description": "Project not found or no benefit area file attached",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/project/{referenceNumber}/benefit-area-file": {
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Delete benefit area file",
+        "description": "Deletes the benefit area shapefile from S3 and clears the associated file metadata from the project record.",
+        "operationId": "deleteBenefitAreaFile",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "responses": {
+          "200": {
+            "description": "File deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": {
+                      "type": "string",
+                      "example": "Benefit area file deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "404": {
+            "description": "Project not found or no file to delete",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/file-uploads/initiate": {
+      "post": {
+        "tags": ["File Uploads"],
+        "summary": "Initiate a file upload session",
+        "description": "Creates a new upload session with the CDP Uploader service and records it in the database. Returns a `uploadId` for status polling and an `uploadUrl` to POST the file to. If `downloadUrls` are provided, CDP Uploader downloads from those URLs instead of accepting a direct file POST (status begins as `processing`).",
+        "operationId": "initiateUpload",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitiateUploadRequest"
+              },
+              "example": {
+                "entityType": "proposal",
+                "reference": "2425-YNEJ-01-01",
+                "redirect": "/upload-complete"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upload session created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadSessionResponse"
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/file-uploads/{uploadId}/status": {
+      "get": {
+        "tags": ["File Uploads"],
+        "summary": "Get file upload status",
+        "description": "Returns the current status of a file upload session. On each call, if the status is `pending`, it syncs with the CDP Uploader service. If the upload reaches `ready` status, it also triggers host-application validation (ZIP content check) and updates the associated project's benefit area file metadata.",
+        "operationId": "getUploadStatus",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/UploadId" }],
+        "responses": {
+          "200": {
+            "description": "Upload status retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadStatusResponse"
+                },
+                "examples": {
+                  "pending": {
+                    "summary": "Upload awaiting file",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "uploadId": "abc123",
+                        "uploadStatus": "pending"
+                      }
+                    }
+                  },
+                  "ready": {
+                    "summary": "Upload complete and validated",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "uploadId": "abc123",
+                        "uploadStatus": "ready",
+                        "filename": "benefit_area.zip",
+                        "contentLength": 204800
+                      }
+                    }
+                  },
+                  "failed": {
+                    "summary": "Upload failed validation",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "uploadId": "abc123",
+                        "uploadStatus": "failed",
+                        "rejectionReason": "Required shapefile components missing from ZIP"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Upload session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/validate-email": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Validate email address",
+        "description": "Validates an email address against configurable checks: disposable domain detection, DNS MX record verification, and duplicate account check. All checks are optional and enabled per request. **Public endpoint — no authentication required.**",
+        "operationId": "validateEmail",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ValidateEmailRequest" },
+              "examples": {
+                "full_check": {
+                  "summary": "All checks enabled (new registration)",
+                  "value": {
+                    "email": "user@example.gov.uk",
+                    "checkDisposable": true,
+                    "checkDnsMx": true,
+                    "checkDuplicate": true
+                  }
+                },
+                "update_check": {
+                  "summary": "Duplicate check excluding current user",
+                  "value": {
+                    "email": "user@example.gov.uk",
+                    "checkDuplicate": true,
+                    "excludeUserId": 123
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "email": { "type": "string", "format": "email" },
+                    "valid": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Email failed one or more validation checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                "example": {
+                  "validationErrors": [
+                    { "errorCode": "EMAIL_DISPOSABLE_DOMAIN", "field": "email" }
+                  ]
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/scheduler/tasks": {
+      "get": {
+        "tags": ["Scheduler"],
+        "summary": "List all scheduled tasks",
+        "description": "Returns the status of all registered scheduled tasks including their cron schedule, last run time, and next scheduled run. **Admin only.**",
+        "operationId": "getSchedulerTasks",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Tasks retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "tasks": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/TaskItem" }
+                        },
+                        "totalCount": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/scheduler/tasks/{taskName}/stats": {
+      "get": {
+        "tags": ["Scheduler"],
+        "summary": "Get task execution statistics",
+        "description": "Returns aggregate execution statistics and the most recent execution log entry for a named scheduled task. **Admin only.**",
+        "operationId": "getTaskStats",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/TaskName" }],
+        "responses": {
+          "200": {
+            "description": "Statistics retrieved",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaskStatsResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/scheduler/logs": {
+      "get": {
+        "tags": ["Scheduler"],
+        "summary": "Get scheduler execution logs",
+        "description": "Returns execution log entries for scheduled tasks with optional filtering. **Admin only.**",
+        "operationId": "getSchedulerLogs",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "taskName",
+            "in": "query",
+            "required": false,
+            "description": "Filter logs by task name",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter logs by execution status",
+            "schema": {
+              "type": "string",
+              "enum": ["running", "success", "failed", "timeout"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Number of log entries to return (max 500)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logs retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "logs": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/LogItem" }
+                        },
+                        "totalCount": { "type": "integer" },
+                        "filters": {
+                          "type": "object",
+                          "properties": {
+                            "taskName": { "type": "string", "nullable": true },
+                            "status": { "type": "string", "nullable": true },
+                            "limit": { "type": "integer" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/v1/scheduler/trigger": {
+      "post": {
+        "tags": ["Scheduler"],
+        "summary": "Manually trigger a scheduled task",
+        "description": "Immediately executes a named scheduled task outside of its normal schedule. Uses distributed locking to prevent concurrent executions. **Admin only.**",
+        "operationId": "triggerTask",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TriggerTaskRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task triggered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "taskName": { "type": "string" },
+                        "triggeredBy": { "type": "string" },
+                        "status": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Task not found or already running",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "errors": [{ "errorCode": "TASK_NOT_FOUND" }] }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    }
+  }
+}
