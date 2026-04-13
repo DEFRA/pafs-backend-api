@@ -34,6 +34,15 @@ export const URGENCY_REASONS = {
   TIME_LIMITED: 'time_limited'
 }
 
+/** Short codes used in moderation filenames (mirrors pafs_core urgency codes) */
+export const URGENCY_CODES = {
+  [URGENCY_REASONS.STATUTORY_NEED]: 'BS',
+  [URGENCY_REASONS.LEGAL_NEED]: 'BL',
+  [URGENCY_REASONS.HEALTH_AND_SAFETY]: 'HS',
+  [URGENCY_REASONS.EMERGENCY_WORKS]: 'EM',
+  [URGENCY_REASONS.TIME_LIMITED]: 'TL'
+}
+
 export const CONFIDENCE_LEVELS = {
   HIGH: 'high',
   MEDIUM_HIGH: 'medium_high',

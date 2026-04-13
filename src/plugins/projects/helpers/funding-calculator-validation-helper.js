@@ -6,14 +6,6 @@ import { PROJECT_VALIDATION_MESSAGES } from '../../../common/constants/project.j
 import { buildValidationErrorResponse } from '../../../common/helpers/response-builder.js'
 import { ProjectService } from '../services/project-service.js'
 
-/**
- * Validates that a project exists, is a legacy project, and has a funding
- * calculator file. Returns the validated project or an error response.
- *
- * @param {Object} request - Hapi request object
- * @param {Object} h - Hapi response toolkit
- * @returns {Promise<{project: Object}|{error: Object}>}
- */
 export async function validateProjectWithFundingCalculator(request, h) {
   const { logger, prisma } = request.server
   const referenceNumber = request.params.referenceNumber.replaceAll('-', '/')

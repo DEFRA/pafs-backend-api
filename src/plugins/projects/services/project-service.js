@@ -1,4 +1,4 @@
-import { PASSWORD, SIZE } from '../../../common/constants/common.js'
+import { PASSWORD } from '../../../common/constants/common.js'
 import {
   PROJECT_STATUS,
   PROJECT_VALIDATION_MESSAGES
@@ -8,14 +8,10 @@ import {
   getProjectSelectFields,
   getJoinedTableConfig
 } from '../helpers/project-config.js'
-import {
-  resolveAreaNames,
-  resolveStatus
-} from '../helpers/project-formatter.js'
+import { enrichProjectResponse } from '../helpers/project-enricher.js'
+import { generateProjectReferenceNumber } from './project-reference-service.js'
 import { ProjectNfmService } from './project-nfm-service.js'
 
-const COUNTER_SUFFIX = 'A'
-const REFERENCE_NUMBER_TEMPLATE = 'C501E'
 const OPTIONAL_OVERVIEW_NFM_FIELDS = [
   'nfm_landowner_consent',
   'nfm_experience_level',
@@ -158,104 +154,6 @@ export class ProjectService extends ProjectNfmService {
     }
   }
 
-  /**
-   * Increment counter for RFCC code using Prisma upsert
-   * Uses upsert with atomic increment operations in a transaction
-   * @param {string} rfccCode - RFCC code
-   * @returns {Promise<Object>} Updated counter
-   * @private
-   */
-  async _incrementCounter(rfccCode) {
-    return this.prisma.$transaction(async (tx) => {
-      // Fetch current counter to check for rollover
-      const current = await tx.pafs_core_reference_counters.findUnique({
-        where: { rfcc_code: rfccCode },
-        select: { low_counter: true, high_counter: true }
-      })
-
-      const shouldRollover = current && current.low_counter >= SIZE.LENGTH_999
-
-      // Upsert with appropriate increment logic
-      return tx.pafs_core_reference_counters.upsert({
-        where: { rfcc_code: rfccCode },
-        update: {
-          high_counter: shouldRollover ? { increment: 1 } : undefined,
-          low_counter: shouldRollover ? 1 : { increment: 1 },
-          updated_at: new Date()
-        },
-        create: {
-          rfcc_code: rfccCode,
-          high_counter: 0,
-          low_counter: 1,
-          created_at: new Date(),
-          updated_at: new Date()
-        }
-      })
-    })
-  }
-
-  /**
-   * Format counter values for reference number
-   * @param {number} highCounter - High counter value
-   * @param {number} lowCounter - Low counter value
-   * @returns {string} Formatted reference number suffix
-   * @private
-   */
-  _formatCounterParts(highCounter, lowCounter) {
-    const highPart =
-      String(highCounter).padStart(SIZE.LENGTH_3, '0') + COUNTER_SUFFIX
-    const lowPart =
-      String(lowCounter).padStart(SIZE.LENGTH_3, '0') + COUNTER_SUFFIX
-    return `${highPart}/${lowPart}`
-  }
-
-  /**
-   * Generate a unique reference number for a project
-   * Format: {RFCC_CODE}C501E/{high_counter:03d}A/{low_counter:03d}A
-   * e.g., ANC501E/000A/001A, AEC501E/000A/001A
-   *
-   * RFCC Code Source:
-   * - RFCC codes come from the area hierarchy stored in pafs_core_areas table
-   * - Area hierarchy: EA (top) → PSO (has RFCC in sub_type) → RMA (inherits from parent PSO)
-   * - Frontend extracts RFCC code from selected area and passes it to this service
-   *
-   * @param {string} rfccCode - RFCC code extracted from area hierarchy (e.g., 'AN', 'AE')
-   * @returns {Promise<string>} Generated reference number
-   */
-  async generateReferenceNumber(rfccCode = 'AN') {
-    this.logger.info({ rfccCode }, 'Generating reference number')
-
-    try {
-      // Increment counter atomically with transaction
-      const counter = await this._incrementCounter(rfccCode)
-
-      // Format: {RFCC_CODE}C501E/{high_counter:03d}A/{low_counter:03d}A
-      const counterParts = this._formatCounterParts(
-        counter.high_counter,
-        counter.low_counter
-      )
-      const referenceNumber = `${rfccCode}${REFERENCE_NUMBER_TEMPLATE}/${counterParts}`
-
-      this.logger.info(
-        {
-          referenceNumber,
-          rfccCode,
-          highCounter: counter.high_counter,
-          lowCounter: counter.low_counter
-        },
-        'Reference number generated successfully'
-      )
-
-      return referenceNumber
-    } catch (error) {
-      this.logger.error(
-        { error: error.message, rfccCode },
-        'Error generating reference number'
-      )
-      throw error
-    }
-  }
-
   async upsertProject(proposalPayload, userId, rfccCode = 'AN') {
     try {
       const dbData = ProjectMapper.toDatabase(proposalPayload)
@@ -264,13 +162,15 @@ export class ProjectService extends ProjectNfmService {
       dbData.updated_by_type = PASSWORD.ARCHIVABLE_TYPE.USER
       const isCreateOperation = !proposalPayload.referenceNumber
 
-      // Generate reference number for creation if not provided
       let referenceNumber = proposalPayload.referenceNumber
       if (!referenceNumber && rfccCode) {
-        referenceNumber = await this.generateReferenceNumber(rfccCode)
+        referenceNumber = await generateProjectReferenceNumber(
+          this.prisma,
+          this.logger,
+          rfccCode
+        )
       }
 
-      // Generate slug from reference number (replace / with -)
       const slug = referenceNumber ? referenceNumber.replaceAll('/', '-') : ''
 
       const result = await this.prisma.pafs_core_projects.upsert({
@@ -369,24 +269,6 @@ export class ProjectService extends ProjectNfmService {
     }
   }
 
-  async _resolveProjectAreaName(project) {
-    if (project.rma_name) {
-      return
-    }
-
-    const projectId = Number(project.id)
-    const areaNames = await resolveAreaNames(this.prisma, [projectId])
-    const areaName = areaNames.get(projectId)
-
-    if (areaName) {
-      project.rma_name = areaName
-    }
-  }
-
-  /**
-   * Get Project Overview data using reference number
-   * Fetches project with joined tables and returns mapped API format
-   */
   async getProjectByReferenceNumber(referenceNumber) {
     if (!referenceNumber || referenceNumber.length === 0) {
       return []
@@ -405,16 +287,12 @@ export class ProjectService extends ProjectNfmService {
       }
 
       await this._populateJoinedTables(project)
-      await this._resolveProjectAreaName(project)
 
       const apiData = ProjectMapper.toApi(project)
 
-      // Resolve status for legacy projects
-      apiData.projectState = resolveStatus(
-        apiData.projectState,
-        apiData.isLegacy ?? false,
-        apiData.isRevised ?? false
-      )
+      // Apply all response enrichments (area hierarchy, moderation filename,
+      // status resolution).  To add a new field, add a step in project-enricher.js.
+      await enrichProjectResponse(this.prisma, project, apiData, this.logger)
 
       return apiData
     } catch (error) {
