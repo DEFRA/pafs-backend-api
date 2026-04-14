@@ -2,6 +2,7 @@ import Joi from 'joi'
 import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
 const MAX_DIGITS = 18
+const MAX_HEXDIGEST_LENGTH = 255
 const DECIMAL_REGEX = /^\d+(\.\d{1,2})?$/
 const INTEGER_REGEX = /^\d+$/
 
@@ -111,5 +112,5 @@ export const carbonValuesHexdigestOptionalSchema = Joi.string()
   .trim()
   .allow(null, '')
   .optional()
-  .max(255)
+  .max(MAX_HEXDIGEST_LENGTH)
   .label('carbonValuesHexdigest')

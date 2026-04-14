@@ -4,6 +4,13 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const carbonImpactRates = require('../../../config/carbon-impact-rates.json')
 
+const FINANCIAL_YEAR_START_MONTH = 4 // April
+const CARBON_RATE_DIVISOR = 10000
+const PERCENTAGE_DIVISOR = 100
+const ROUNDING_PRECISION = 100 // 2 decimal places (×100 then round then ÷100)
+const YEAR_SUFFIX_SLICE = 2 // e.g. 2025 → "25"
+const EARLIEST_RATE_YEAR = 2019 // oldest year in carbon-impact-rates.json
+
 /**
  * Carbon Impact Calculator
  *
@@ -50,8 +57,10 @@ export class CarbonImpactCalculator {
    * FY runs April–March: April 2025 → FY 2025, March 2026 → FY 2025.
    */
   _toFinancialYear(month, year) {
-    if (month == null || year == null) return null
-    return month >= 4 ? year : year - 1
+    if (month == null || year == null) {
+      return null
+    }
+    return month >= FINANCIAL_YEAR_START_MONTH ? year : year - 1
   }
 
   /**
@@ -66,7 +75,9 @@ export class CarbonImpactCalculator {
       this.project.readyForServiceMonth,
       this.project.readyForServiceYear
     )
-    if (startFY == null || endFY == null) return null
+    if (startFY == null || endFY == null) {
+      return null
+    }
     return Math.floor((startFY + endFY) / 2)
   }
 
@@ -75,16 +86,18 @@ export class CarbonImpactCalculator {
    * Walks backwards if the exact year or rate is missing.
    */
   _rateForYear(year, rateKey) {
-    if (year == null) return null
-    const yearStr = `${year}/${String(year + 1).slice(2)}`
+    if (year == null) {
+      return null
+    }
+    const yearStr = `${year}/${String(year + 1).slice(YEAR_SUFFIX_SLICE)}`
     const entry = this.rates.find((r) => r.Year === yearStr)
     const value = entry?.[rateKey]
     if (value !== null && value !== undefined) {
       return value
     }
     // Walk backwards
-    for (let y = year - 1; y >= 2019; y--) {
-      const fallbackStr = `${y}/${String(y + 1).slice(2)}`
+    for (let y = year - 1; y >= EARLIEST_RATE_YEAR; y--) {
+      const fallbackStr = `${y}/${String(y + 1).slice(YEAR_SUFFIX_SLICE)}`
       const fallbackEntry = this.rates.find((r) => r.Year === fallbackStr)
       const fallbackValue = fallbackEntry?.[rateKey]
       if (fallbackValue !== null && fallbackValue !== undefined) {
@@ -133,8 +146,10 @@ export class CarbonImpactCalculator {
     const tpf = this._constructionTotalProjectFunding()
     const midYear = this._midYear()
     const rate = this._rateForYear(midYear, 'Cap Do Nothing Intensity')
-    if (rate == null) return null
-    return (tpf * rate) / 10000
+    if (rate == null) {
+      return null
+    }
+    return (tpf * rate) / CARBON_RATE_DIVISOR
   }
 
   capitalCarbonTarget() {
@@ -142,8 +157,13 @@ export class CarbonImpactCalculator {
     const midYear = this._midYear()
     const doNothing = this._rateForYear(midYear, 'Cap Do Nothing Intensity')
     const reduction = this._rateForYear(midYear, 'Cap Target Reduction Rate')
-    if (doNothing == null || reduction == null) return null
-    return (tpf * doNothing * (1 + reduction / 100)) / 10000
+    if (doNothing == null || reduction == null) {
+      return null
+    }
+    return (
+      (tpf * doNothing * (1 + reduction / PERCENTAGE_DIVISOR)) /
+      CARBON_RATE_DIVISOR
+    )
   }
 
   // --- Operational Carbon ---
@@ -152,8 +172,10 @@ export class CarbonImpactCalculator {
     const tpf = this._operationalTotalProjectFunding()
     const midYear = this._midYear()
     const rate = this._rateForYear(midYear, 'Ops Do Nothing Intensity')
-    if (rate == null) return null
-    return (tpf * rate) / 10000
+    if (rate == null) {
+      return null
+    }
+    return (tpf * rate) / CARBON_RATE_DIVISOR
   }
 
   operationalCarbonTarget() {
@@ -161,8 +183,13 @@ export class CarbonImpactCalculator {
     const midYear = this._midYear()
     const doNothing = this._rateForYear(midYear, 'Ops Do Nothing Intensity')
     const reduction = this._rateForYear(midYear, 'Ops Target Reduction Rate')
-    if (doNothing == null || reduction == null) return null
-    return (tpf * doNothing * (1 + reduction / 100)) / 10000
+    if (doNothing == null || reduction == null) {
+      return null
+    }
+    return (
+      (tpf * doNothing * (1 + reduction / PERCENTAGE_DIVISOR)) /
+      CARBON_RATE_DIVISOR
+    )
   }
 
   // --- Net Carbon ---
@@ -203,7 +230,9 @@ export class CarbonImpactCalculator {
       this._parseDecimal(this.project.carbonCostSequestered) ?? 0
     const avoided = this._parseDecimal(this.project.carbonCostAvoided) ?? 0
 
-    if (build == null || operation == null) return null
+    if (build == null || operation == null) {
+      return null
+    }
 
     return build + operation - sequestered - avoided
   }
@@ -247,13 +276,17 @@ export class CarbonImpactCalculator {
   }
 
   _parseDecimal(value) {
-    if (value == null || value === '') return null
+    if (value == null || value === '') {
+      return null
+    }
     const num = Number(value)
     return Number.isNaN(num) ? null : num
   }
 
   _round(value) {
-    if (value == null) return null
-    return Math.round(value * 100) / 100
+    if (value == null) {
+      return null
+    }
+    return Math.round(value * ROUNDING_PRECISION) / ROUNDING_PRECISION
   }
 }

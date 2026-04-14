@@ -3,6 +3,93 @@ import { CarbonImpactCalculator } from '../services/carbon-impact-calculator.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 
+const FINANCIAL_YEAR_START_MONTH = 4
+
+const toFinancialYear = (month, year) =>
+  month >= FINANCIAL_YEAR_START_MONTH ? year : year - 1
+
+const hasConstructionTimeline = (project) =>
+  project.startConstructionMonth != null &&
+  project.startConstructionYear != null &&
+  project.readyForServiceMonth != null &&
+  project.readyForServiceYear != null
+
+const buildPlaceholderFundingValues = (project) => {
+  const startFY = toFinancialYear(
+    project.startConstructionMonth,
+    project.startConstructionYear
+  )
+  const endFY = toFinancialYear(
+    project.readyForServiceMonth,
+    project.readyForServiceYear
+  )
+  const placeholders = []
+  for (let fy = startFY; fy <= endFY; fy++) {
+    placeholders.push({ financial_year: fy, total: 0 })
+  }
+  return placeholders
+}
+
+const fetchRealFundingValues = async (prisma, referenceNumber) => {
+  const dbProject = await prisma.pafs_core_projects.findFirst({
+    where: { reference_number: referenceNumber },
+    select: { id: true }
+  })
+  if (!dbProject?.id) {
+    return []
+  }
+  const rows = await prisma.pafs_core_funding_values.findMany({
+    where: { project_id: dbProject.id },
+    select: { financial_year: true, total: true }
+  })
+  return rows.map((row) => ({
+    financial_year: row.financial_year,
+    total: Number(row.total || 0)
+  }))
+}
+
+// Placeholder funding values are generated when no real values exist in the DB yet.
+// Remove this fallback once real funding values are captured via the funding sources section.
+const fetchFundingValues = async (prisma, referenceNumber, project) => {
+  const fundingValues = await fetchRealFundingValues(prisma, referenceNumber)
+  if (fundingValues.length === 0 && hasConstructionTimeline(project)) {
+    return buildPlaceholderFundingValues(project)
+  }
+  return fundingValues
+}
+
+const buildCalcProject = (project) => ({
+  startConstructionMonth: project.startConstructionMonth ?? null,
+  startConstructionYear: project.startConstructionYear ?? null,
+  readyForServiceMonth: project.readyForServiceMonth ?? null,
+  readyForServiceYear: project.readyForServiceYear ?? null,
+  carbonCostBuild: project.carbonCostBuild ?? null,
+  carbonCostOperation: project.carbonCostOperation ?? null,
+  carbonCostSequestered: project.carbonCostSequestered ?? null,
+  carbonCostAvoided: project.carbonCostAvoided ?? null,
+  carbonSavingsNetEconomicBenefit:
+    project.carbonSavingsNetEconomicBenefit ?? null,
+  carbonOperationalCostForecast: project.carbonOperationalCostForecast ?? null
+})
+
+const computeCarbonResults = (project, fundingValues) => {
+  const calculator = new CarbonImpactCalculator(
+    buildCalcProject(project),
+    fundingValues
+  )
+  const summary = calculator.getSummary()
+  const constructionTotalFunding = calculator._constructionTotalProjectFunding()
+  const storedHexdigest = project.carbonValuesHexdigest ?? null
+  const hasValuesChanged =
+    storedHexdigest !== null && storedHexdigest !== summary.hexdigest
+  return {
+    ...summary,
+    constructionTotalFunding,
+    storedHexdigest,
+    hasValuesChanged
+  }
+}
+
 /**
  * GET /api/v1/project/{referenceNumber}/carbon-impact
  *
@@ -35,8 +122,6 @@ const carbonImpact = {
         request.prisma,
         request.server.logger
       )
-
-      // Fetch core project data (construction dates + carbon user inputs)
       const project =
         await projectService.getProjectByReferenceNumber(referenceNumber)
 
@@ -46,83 +131,16 @@ const carbonImpact = {
           .code(HTTP_STATUS.NOT_FOUND)
       }
 
-      // Fetch funding values for capital cost estimate calculation
-      const dbProject = await request.prisma.pafs_core_projects.findFirst({
-        where: { reference_number: referenceNumber },
-        select: { id: true }
-      })
+      const fundingValues = await fetchFundingValues(
+        request.prisma,
+        referenceNumber,
+        project
+      )
 
-      let fundingValues = []
-      if (dbProject?.id) {
-        const rows = await request.prisma.pafs_core_funding_values.findMany({
-          where: { project_id: dbProject.id },
-          select: { financial_year: true, total: true }
-        })
-        fundingValues = rows.map((row) => ({
-          financial_year: row.financial_year,
-          total: Number(row.total || 0)
-        }))
-      }
-
-      // TODO: Remove dummy data once real funding values are captured in the DB.
-      // If no funding values exist yet, generate placeholder entries across
-      // the construction year range so baseline/target calculations still work.
-      if (
-        fundingValues.length === 0 &&
-        project.startConstructionMonth != null &&
-        project.startConstructionYear != null &&
-        project.readyForServiceMonth != null &&
-        project.readyForServiceYear != null
-      ) {
-        const toFY = (month, year) => (month >= 4 ? year : year - 1)
-        const startFY = toFY(
-          project.startConstructionMonth,
-          project.startConstructionYear
-        )
-        const endFY = toFY(
-          project.readyForServiceMonth,
-          project.readyForServiceYear
-        )
-        for (let fy = startFY; fy <= endFY; fy++) {
-          fundingValues.push({ financial_year: fy, total: 0 })
-        }
-      }
-
-      // Build calculator input from mapped API project data
-      const calcProject = {
-        startConstructionMonth: project.startConstructionMonth ?? null,
-        startConstructionYear: project.startConstructionYear ?? null,
-        readyForServiceMonth: project.readyForServiceMonth ?? null,
-        readyForServiceYear: project.readyForServiceYear ?? null,
-        carbonCostBuild: project.carbonCostBuild ?? null,
-        carbonCostOperation: project.carbonCostOperation ?? null,
-        carbonCostSequestered: project.carbonCostSequestered ?? null,
-        carbonCostAvoided: project.carbonCostAvoided ?? null,
-        carbonSavingsNetEconomicBenefit:
-          project.carbonSavingsNetEconomicBenefit ?? null,
-        carbonOperationalCostForecast:
-          project.carbonOperationalCostForecast ?? null
-      }
-
-      const calculator = new CarbonImpactCalculator(calcProject, fundingValues)
-      const summary = calculator.getSummary()
-
-      // Compute construction total funding for display
-      const constructionTotalFunding =
-        calculator._constructionTotalProjectFunding()
-
-      // Compare current hexdigest against stored value to detect changes
-      const storedHexdigest = project.carbonValuesHexdigest ?? null
-      const currentHexdigest = summary.hexdigest
-      const hasValuesChanged =
-        storedHexdigest !== null && storedHexdigest !== currentHexdigest
-
-      return buildSuccessResponse(h, {
-        ...summary,
-        constructionTotalFunding,
-        storedHexdigest,
-        hasValuesChanged
-      })
+      return buildSuccessResponse(
+        h,
+        computeCarbonResults(project, fundingValues)
+      )
     } catch (error) {
       request.server.logger.error(
         { error },
