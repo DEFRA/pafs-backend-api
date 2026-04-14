@@ -4,7 +4,12 @@ import {
   PROJECT_JOIN_TABLES,
   CONVERSION_DIRECTIONS
 } from './project-config.js'
-import { convertArray, convertBigInt, convertNumber } from './conversions.js'
+import {
+  convertArray,
+  convertBigInt,
+  convertDecimal,
+  convertNumber
+} from './conversions.js'
 
 // Field type constants for different conversion strategies
 const ARRAY_FIELDS = new Set(['projectInterventionTypes', 'risks'])
@@ -22,7 +27,15 @@ const BIGINT_FIELDS = new Set([
   'wlbEstimatedPropertyDamagesAvoided',
   'wlbEstimatedEnvironmentalBenefits',
   'wlbEstimatedRecreationTourismBenefits',
-  'wlbEstimatedLandValueUpliftBenefits'
+  'wlbEstimatedLandValueUpliftBenefits',
+  'carbonOperationalCostForecast'
+])
+const DECIMAL_FIELDS = new Set([
+  'carbonCostBuild',
+  'carbonCostOperation',
+  'carbonCostSequestered',
+  'carbonCostAvoided',
+  'carbonSavingsNetEconomicBenefit'
 ])
 
 export class ProjectMapper {
@@ -120,6 +133,10 @@ export class ProjectMapper {
       return convertBigInt(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
 
+    if (DECIMAL_FIELDS.has(field)) {
+      return convertDecimal(value, CONVERSION_DIRECTIONS.TO_DATABASE)
+    }
+
     if (NUMBER_FIELDS.has(field) || PERCENTAGE_FIELDS.has(field)) {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_DATABASE)
     }
@@ -142,6 +159,10 @@ export class ProjectMapper {
 
     if (BIGINT_FIELDS.has(field)) {
       return convertBigInt(value, CONVERSION_DIRECTIONS.TO_API)
+    }
+
+    if (DECIMAL_FIELDS.has(field)) {
+      return convertDecimal(value, CONVERSION_DIRECTIONS.TO_API)
     }
 
     if (NUMBER_FIELDS.has(field) || PERCENTAGE_FIELDS.has(field)) {

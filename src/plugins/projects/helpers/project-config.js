@@ -151,7 +151,14 @@ export const PROJECT_FIELDS_MAP = {
   wlbEstimatedRecreationTourismBenefits:
     'wlc_estimated_recreation_tourism_benefits',
   wlbEstimatedLandValueUpliftBenefits:
-    'wlc_estimated_land_value_uplift_benefits'
+    'wlc_estimated_land_value_uplift_benefits',
+  carbonCostBuild: 'carbon_cost_build',
+  carbonCostOperation: 'carbon_cost_operation',
+  carbonCostSequestered: 'carbon_cost_sequestered',
+  carbonCostAvoided: 'carbon_cost_avoided',
+  carbonSavingsNetEconomicBenefit: 'carbon_savings_net_economic_benefit',
+  carbonOperationalCostForecast: 'carbon_operational_cost_forecast',
+  carbonValuesHexdigest: 'carbon_values_hexdigest'
 }
 
 /**

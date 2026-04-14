@@ -131,7 +131,14 @@ describe('project-config', () => {
         wlbEstimatedRecreationTourismBenefits:
           'wlc_estimated_recreation_tourism_benefits',
         wlbEstimatedLandValueUpliftBenefits:
-          'wlc_estimated_land_value_uplift_benefits'
+          'wlc_estimated_land_value_uplift_benefits',
+        carbonCostBuild: 'carbon_cost_build',
+        carbonCostOperation: 'carbon_cost_operation',
+        carbonCostSequestered: 'carbon_cost_sequestered',
+        carbonCostAvoided: 'carbon_cost_avoided',
+        carbonSavingsNetEconomicBenefit: 'carbon_savings_net_economic_benefit',
+        carbonOperationalCostForecast: 'carbon_operational_cost_forecast',
+        carbonValuesHexdigest: 'carbon_values_hexdigest'
       })
     })
 
@@ -208,8 +215,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 94 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(94)
+    it('should have 101 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(101)
     })
   })
 
@@ -276,9 +283,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 94 fields', () => {
+    it('should return an object with 101 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(94)
+      expect(Object.keys(result)).toHaveLength(101)
     })
 
     it('should return a new object each time', () => {

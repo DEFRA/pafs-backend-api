@@ -29,3 +29,6 @@ export * from './project/wlc.js'
 
 // Re-export WLB schemas
 export * from './project/wlb.js'
+
+// Re-export Carbon Impact schemas
+export * from './project/carbon.js'

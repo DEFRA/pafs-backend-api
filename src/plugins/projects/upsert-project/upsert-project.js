@@ -22,7 +22,9 @@ import {
   sanitizeWlbFields,
   normalizeWlbFields,
   clearWlFieldsOnProjectTypeChange,
-  clearNfmFieldsOnInterventionTypeChange
+  clearNfmFieldsOnInterventionTypeChange,
+  sanitizeCarbonFields,
+  normalizeCarbonFields
 } from '../helpers/payload-normalizers.js'
 
 /**
@@ -54,6 +56,7 @@ const createServices = (request) => {
 const sanitizePayloadForValidation = (proposalPayload, validationLevel) => {
   sanitizeWlcFields(proposalPayload, validationLevel)
   sanitizeWlbFields(proposalPayload, validationLevel)
+  sanitizeCarbonFields(proposalPayload, validationLevel)
 }
 
 const applyPayloadNormalizers = async (
@@ -92,6 +95,9 @@ const applyPayloadNormalizers = async (
 
   // Normalize WLB cost fields: convert empty strings to null
   normalizeWlbFields(enrichedPayload, validationLevel)
+
+  // Normalize carbon impact fields: convert empty strings to null
+  normalizeCarbonFields(enrichedPayload, validationLevel)
 
   // Clear NFM fields when intervention type changes away from NFM/SUDS
   await clearNfmFieldsOnInterventionTypeChange(
