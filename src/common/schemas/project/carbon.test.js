@@ -6,7 +6,8 @@ import {
   carbonCostAvoidedOptionalSchema,
   carbonSavingsNetEconomicBenefitOptionalSchema,
   carbonOperationalCostForecastRequiredSchema,
-  carbonOperationalCostForecastOptionalSchema
+  carbonOperationalCostForecastOptionalSchema,
+  carbonValuesHexdigestOptionalSchema
 } from './carbon.js'
 
 describe('Carbon Impact Schemas', () => {
@@ -188,6 +189,38 @@ describe('Carbon Impact Schemas', () => {
     it('should accept empty string', () => {
       const { error } = carbonOperationalCostForecastOptionalSchema.validate('')
       expect(error).toBeUndefined()
+    })
+  })
+
+  describe('carbonValuesHexdigestOptionalSchema', () => {
+    it('should accept a valid hex string', () => {
+      const hexValue = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1'
+      const { error } = carbonValuesHexdigestOptionalSchema.validate(hexValue)
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept null', () => {
+      const { error } = carbonValuesHexdigestOptionalSchema.validate(null)
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept empty string', () => {
+      const { error } = carbonValuesHexdigestOptionalSchema.validate('')
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject values exceeding 255 characters', () => {
+      const tooLong = 'a'.repeat(256)
+      const { error } = carbonValuesHexdigestOptionalSchema.validate(tooLong)
+      expect(error).toBeDefined()
+    })
+
+    it('should trim whitespace', () => {
+      const hexValue = '  a1b2c3d4e5f6  '
+      const { value, error } =
+        carbonValuesHexdigestOptionalSchema.validate(hexValue)
+      expect(error).toBeUndefined()
+      expect(value).toBe('a1b2c3d4e5f6')
     })
   })
 })
