@@ -17,7 +17,9 @@ import {
   clearWlFieldsOnProjectTypeChange,
   sanitizeWlbFields,
   normalizeWlbFields,
-  clearNfmFieldsOnInterventionTypeChange
+  clearNfmFieldsOnInterventionTypeChange,
+  sanitizeCarbonFields,
+  normalizeCarbonFields
 } from './payload-normalizers.js'
 
 describe('normalizeInterventionTypes', () => {
@@ -1880,5 +1882,253 @@ describe('clearNfmFieldsOnInterventionTypeChange', () => {
 
     expect(payload.nfmSelectedMeasures).toBe('woodland')
     expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+})
+
+describe('sanitizeCarbonFields', () => {
+  it('should strip commas and trim whitespace at CARBON_IMPACT level', () => {
+    const payload = {
+      carbonCostBuild: '1,000.50 ',
+      carbonCostOperation: ' 2,500.75',
+      carbonCostSequestered: '500,000'
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBe('1000.50')
+    expect(payload.carbonCostOperation).toBe('2500.75')
+    expect(payload.carbonCostSequestered).toBe('500000')
+  })
+
+  it('should sanitize carbonCostBuild field at CARBON_COST_BUILD level', () => {
+    const payload = {
+      carbonCostBuild: '3,000.00 '
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_COST_BUILD)
+
+    expect(payload.carbonCostBuild).toBe('3000.00')
+  })
+
+  it('should sanitize carbonCostOperation field at CARBON_COST_OPERATION level', () => {
+    const payload = {
+      carbonCostOperation: ' 5,000 '
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_OPERATION
+    )
+
+    expect(payload.carbonCostOperation).toBe('5000')
+  })
+
+  it('should sanitize carbonCostSequestered field at CARBON_COST_SEQUESTERED level', () => {
+    const payload = {
+      carbonCostSequestered: '10,000.25 '
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_SEQUESTERED
+    )
+
+    expect(payload.carbonCostSequestered).toBe('10000.25')
+  })
+
+  it('should sanitize carbonCostAvoided field at CARBON_COST_AVOIDED level', () => {
+    const payload = {
+      carbonCostAvoided: ' 2,500.50'
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_COST_AVOIDED)
+
+    expect(payload.carbonCostAvoided).toBe('2500.50')
+  })
+
+  it('should sanitize carbonSavingsNetEconomicBenefit field at CARBON_SAVINGS_NET_ECONOMIC_BENEFIT level', () => {
+    const payload = {
+      carbonSavingsNetEconomicBenefit: '500,000.99 '
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_SAVINGS_NET_ECONOMIC_BENEFIT
+    )
+
+    expect(payload.carbonSavingsNetEconomicBenefit).toBe('500000.99')
+  })
+
+  it('should sanitize carbonOperationalCostForecast field at CARBON_OPERATIONAL_COST_FORECAST level', () => {
+    const payload = {
+      carbonOperationalCostForecast: ' 1,234,567.89'
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_OPERATIONAL_COST_FORECAST
+    )
+
+    expect(payload.carbonOperationalCostForecast).toBe('1234567.89')
+  })
+
+  it('should not sanitize fields at non-carbon validation levels', () => {
+    const payload = {
+      carbonCostBuild: '1,000.50 '
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.carbonCostBuild).toBe('1,000.50 ')
+  })
+
+  it('should only sanitize string values', () => {
+    const payload = {
+      carbonCostBuild: 1000.5,
+      carbonCostOperation: null,
+      carbonCostSequestered: undefined
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBe(1000.5)
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBeUndefined()
+  })
+})
+
+describe('normalizeCarbonFields', () => {
+  it('should convert empty strings to null at CARBON_IMPACT level', () => {
+    const payload = {
+      carbonCostBuild: '',
+      carbonCostOperation: '2500.75',
+      carbonCostSequestered: '',
+      carbonCostAvoided: null
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonCostOperation).toBe('2500.75')
+    expect(payload.carbonCostSequestered).toBeNull()
+    expect(payload.carbonCostAvoided).toBeNull()
+  })
+
+  it('should convert empty carbonCostBuild to null at CARBON_COST_BUILD level', () => {
+    const payload = {
+      carbonCostBuild: ''
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_COST_BUILD)
+
+    expect(payload.carbonCostBuild).toBeNull()
+  })
+
+  it('should convert empty carbonCostOperation to null at CARBON_COST_OPERATION level', () => {
+    const payload = {
+      carbonCostOperation: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_OPERATION
+    )
+
+    expect(payload.carbonCostOperation).toBeNull()
+  })
+
+  it('should convert empty carbonCostSequestered to null at CARBON_COST_SEQUESTERED level', () => {
+    const payload = {
+      carbonCostSequestered: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_SEQUESTERED
+    )
+
+    expect(payload.carbonCostSequestered).toBeNull()
+  })
+
+  it('should convert empty carbonCostAvoided to null at CARBON_COST_AVOIDED level', () => {
+    const payload = {
+      carbonCostAvoided: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_AVOIDED
+    )
+
+    expect(payload.carbonCostAvoided).toBeNull()
+  })
+
+  it('should convert empty carbonSavingsNetEconomicBenefit to null at CARBON_SAVINGS_NET_ECONOMIC_BENEFIT level', () => {
+    const payload = {
+      carbonSavingsNetEconomicBenefit: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_SAVINGS_NET_ECONOMIC_BENEFIT
+    )
+
+    expect(payload.carbonSavingsNetEconomicBenefit).toBeNull()
+  })
+
+  it('should convert empty carbonOperationalCostForecast to null at CARBON_OPERATIONAL_COST_FORECAST level', () => {
+    const payload = {
+      carbonOperationalCostForecast: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_OPERATIONAL_COST_FORECAST
+    )
+
+    expect(payload.carbonOperationalCostForecast).toBeNull()
+  })
+
+  it('should work at CARBON_VALUES_HEXDIGEST level', () => {
+    const payload = {
+      carbonCostBuild: '',
+      carbonOperationalCostForecast: 'abc123'
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_VALUES_HEXDIGEST
+    )
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonOperationalCostForecast).toBe('abc123')
+  })
+
+  it('should not normalize fields at non-carbon validation levels', () => {
+    const payload = {
+      carbonCostBuild: '',
+      carbonCostOperation: ''
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.carbonCostBuild).toBe('')
+    expect(payload.carbonCostOperation).toBe('')
+  })
+
+  it('should preserve non-empty values and other field types', () => {
+    const payload = {
+      carbonCostBuild: '1000.50',
+      carbonCostOperation: null,
+      carbonCostSequestered: 0,
+      carbonCostAvoided: false
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBe('1000.50')
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBe(0)
+    expect(payload.carbonCostAvoided).toBe(false)
   })
 })

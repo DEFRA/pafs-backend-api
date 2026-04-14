@@ -4,7 +4,9 @@ import {
   hasConstructionTimeline,
   buildPlaceholderFundingValues,
   buildCalcProject,
-  computeCarbonResults
+  computeCarbonResults,
+  fetchRealFundingValues,
+  fetchFundingValues
 } from './carbon-impact.js'
 import { CarbonImpactCalculator } from '../services/carbon-impact-calculator.js'
 
@@ -501,5 +503,137 @@ describe('Carbon Impact Helper Functions', () => {
       const calc2 = new CarbonImpactCalculator(completeData, [])
       expect(calc2.isCarbonInformationReady()).toBe(true)
     })
+  })
+})
+
+describe('fetchRealFundingValues', () => {
+  it('should fetch funding values from database for valid project', async () => {
+    const prisma = {
+      pafs_core_projects: {
+        findFirst: async () => ({
+          id: 123
+        })
+      },
+      pafs_core_funding_values: {
+        findMany: async () => [
+          { financial_year: 2024, total: '1000000' },
+          { financial_year: 2025, total: '1500000' }
+        ]
+      }
+    }
+
+    const result = await fetchRealFundingValues(prisma, 'FCERM/2024/001')
+
+    expect(result).toHaveLength(2)
+    expect(result[0]).toEqual({ financial_year: 2024, total: 1000000 })
+    expect(result[1]).toEqual({ financial_year: 2025, total: 1500000 })
+  })
+
+  it('should return empty array when project not found', async () => {
+    const prisma = {
+      pafs_core_projects: {
+        findFirst: async () => null
+      }
+    }
+
+    const result = await fetchRealFundingValues(prisma, 'INVALID/REF')
+
+    expect(result).toEqual([])
+  })
+
+  it('should handle null total values as 0', async () => {
+    const prisma = {
+      pafs_core_projects: {
+        findFirst: async () => ({
+          id: 123
+        })
+      },
+      pafs_core_funding_values: {
+        findMany: async () => [
+          { financial_year: 2024, total: null },
+          { financial_year: 2025, total: '2000000' }
+        ]
+      }
+    }
+
+    const result = await fetchRealFundingValues(prisma, 'FCERM/2024/001')
+
+    expect(result[0].total).toBe(0)
+    expect(result[1].total).toBe(2000000)
+  })
+})
+
+describe('fetchFundingValues', () => {
+  it('should return real funding values when they exist', async () => {
+    const prisma = {
+      pafs_core_projects: {
+        findFirst: async () => ({
+          id: 123
+        })
+      },
+      pafs_core_funding_values: {
+        findMany: async () => [
+          { financial_year: 2024, total: '1000000' },
+          { financial_year: 2025, total: '1500000' }
+        ]
+      }
+    }
+
+    const project = {
+      startConstructionMonth: 6,
+      startConstructionYear: 2025,
+      readyForServiceMonth: 3,
+      readyForServiceYear: 2027
+    }
+
+    const result = await fetchFundingValues(prisma, 'FCERM/2024/001', project)
+
+    expect(result).toHaveLength(2)
+    expect(result[0].financial_year).toBe(2024)
+  })
+
+  it('should return placeholder funding values when no real values exist and construction timeline is present', async () => {
+    const prisma = {
+      pafs_core_projects: {
+        findFirst: async () => ({
+          id: 123
+        })
+      },
+      pafs_core_funding_values: {
+        findMany: async () => []
+      }
+    }
+
+    const project = {
+      startConstructionMonth: 6,
+      startConstructionYear: 2025,
+      readyForServiceMonth: 3,
+      readyForServiceYear: 2027
+    }
+
+    const result = await fetchFundingValues(prisma, 'FCERM/2024/001', project)
+
+    expect(result.length).toBeGreaterThan(0)
+    expect(result[0]).toHaveProperty('financial_year')
+    expect(result[0]).toHaveProperty('total', 0)
+  })
+
+  it('should return empty array when no real values and no construction timeline', async () => {
+    const prisma = {
+      pafs_core_projects: {
+        findFirst: async () => null
+      }
+    }
+
+    const project = {
+      startConstructionMonth: null,
+      startConstructionYear: null,
+      readyForServiceMonth: null,
+      readyForServiceYear: null
+    }
+
+    const result = await fetchFundingValues(prisma, 'FCERM/2024/001', project)
+
+    expect(result).toEqual([])
   })
 })
