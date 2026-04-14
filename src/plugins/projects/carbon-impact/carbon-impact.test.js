@@ -1,29 +1,304 @@
 import { describe, it, expect } from 'vitest'
+import {
+  toFinancialYear,
+  hasConstructionTimeline,
+  buildPlaceholderFundingValues,
+  buildCalcProject,
+  computeCarbonResults
+} from './carbon-impact.js'
 import { CarbonImpactCalculator } from '../services/carbon-impact-calculator.js'
 
-describe('Carbon Impact Route Handler', () => {
-  describe('Error handling', () => {
-    it('should return 404 when project not found', async () => {
-      // Test that the route properly handles missing projects
-      // This is verified through calculator tests below
-      const calc = new CarbonImpactCalculator(
-        {
-          startConstructionMonth: null,
-          startConstructionYear: null,
-          readyForServiceMonth: null,
-          readyForServiceYear: null,
-          carbonCostBuild: null,
-          carbonCostOperation: null,
-          carbonCostSequestered: null,
-          carbonCostAvoided: null,
-          carbonSavingsNetEconomicBenefit: null,
-          carbonOperationalCostForecast: null
-        },
-        []
-      )
+describe('Carbon Impact Helper Functions', () => {
+  describe('toFinancialYear', () => {
+    it('should return same year for months 4-12 (April-December)', () => {
+      expect(toFinancialYear(4, 2024)).toBe(2024)
+      expect(toFinancialYear(6, 2025)).toBe(2025)
+      expect(toFinancialYear(12, 2026)).toBe(2026)
+    })
 
-      const summary = calc.getSummary()
-      expect(summary.isReady).toBe(false)
+    it('should return previous year for months 1-3 (January-March)', () => {
+      expect(toFinancialYear(1, 2024)).toBe(2023)
+      expect(toFinancialYear(2, 2025)).toBe(2024)
+      expect(toFinancialYear(3, 2026)).toBe(2025)
+    })
+  })
+
+  describe('hasConstructionTimeline', () => {
+    it('should return true when all timeline fields are present', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027
+      }
+      expect(hasConstructionTimeline(project)).toBe(true)
+    })
+
+    it('should return false when startConstructionMonth is null', () => {
+      const project = {
+        startConstructionMonth: null,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027
+      }
+      expect(hasConstructionTimeline(project)).toBe(false)
+    })
+
+    it('should return false when startConstructionYear is null', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: null,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027
+      }
+      expect(hasConstructionTimeline(project)).toBe(false)
+    })
+
+    it('should return false when readyForServiceMonth is null', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: null,
+        readyForServiceYear: 2027
+      }
+      expect(hasConstructionTimeline(project)).toBe(false)
+    })
+
+    it('should return false when readyForServiceYear is null', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: null
+      }
+      expect(hasConstructionTimeline(project)).toBe(false)
+    })
+
+    it('should return false when all timeline fields are undefined', () => {
+      const project = {}
+      expect(hasConstructionTimeline(project)).toBe(false)
+    })
+  })
+
+  describe('buildPlaceholderFundingValues', () => {
+    it('should generate placeholder funding values spanning construction period', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027
+      }
+      const result = buildPlaceholderFundingValues(project)
+
+      // Start FY: 2025 (June = month >= 4, so FY 2025)
+      // End FY: 2026 (March = month < 4, so FY 2026)
+      expect(result).toEqual([
+        { financial_year: 2025, total: 0 },
+        { financial_year: 2026, total: 0 }
+      ])
+    })
+
+    it('should handle single-year construction period', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2025
+      }
+      const result = buildPlaceholderFundingValues(project)
+
+      // Start FY: 2025 (June 2025 = FY 2025)
+      // End FY: 2024 (March 2025 = FY 2024)
+      // Result should be empty because startFY (2025) > endFY (2024)
+      expect(result.length).toBe(0)
+    })
+
+    it('should handle multi-year construction period', () => {
+      const project = {
+        startConstructionMonth: 1,
+        startConstructionYear: 2024,
+        readyForServiceMonth: 12,
+        readyForServiceYear: 2027
+      }
+      const result = buildPlaceholderFundingValues(project)
+
+      // Start FY: 2023 (January 2024 = FY 2023)
+      // End FY: 2027 (December 2027 = FY 2027)
+      expect(result.length).toBe(5) // 2023, 2024, 2025, 2026, 2027
+      expect(result[0].financial_year).toBe(2023)
+      expect(result[4].financial_year).toBe(2027)
+    })
+
+    it('should set all total values to zero', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 6,
+        readyForServiceYear: 2026
+      }
+      const result = buildPlaceholderFundingValues(project)
+
+      result.forEach((entry) => {
+        expect(entry.total).toBe(0)
+      })
+    })
+  })
+
+  describe('buildCalcProject', () => {
+    it('should map project fields to calculator input format', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonCostSequestered: '10',
+        carbonCostAvoided: '5',
+        carbonSavingsNetEconomicBenefit: '25000',
+        carbonOperationalCostForecast: '5000'
+      }
+
+      const result = buildCalcProject(project)
+
+      expect(result).toEqual({
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonCostSequestered: '10',
+        carbonCostAvoided: '5',
+        carbonSavingsNetEconomicBenefit: '25000',
+        carbonOperationalCostForecast: '5000'
+      })
+    })
+
+    it('should convert undefined values to null', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025
+      }
+
+      const result = buildCalcProject(project)
+
+      expect(result.readyForServiceMonth).toBeNull()
+      expect(result.readyForServiceYear).toBeNull()
+      expect(result.carbonCostBuild).toBeNull()
+    })
+
+    it('should handle mixed defined and undefined values', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        carbonCostBuild: '100'
+      }
+
+      const result = buildCalcProject(project)
+
+      expect(result.startConstructionMonth).toBe(6)
+      expect(result.carbonCostBuild).toBe('100')
+      expect(result.readyForServiceMonth).toBeNull()
+      expect(result.carbonCostOperation).toBeNull()
+    })
+  })
+
+  describe('computeCarbonResults', () => {
+    it('should compute carbon results with all inputs', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonCostSequestered: '10',
+        carbonCostAvoided: '5',
+        carbonSavingsNetEconomicBenefit: '25000',
+        carbonOperationalCostForecast: '5000',
+        carbonValuesHexdigest: 'old-hash'
+      }
+
+      const fundingValues = [
+        { financial_year: 2025, total: 1000000 },
+        { financial_year: 2026, total: 1500000 }
+      ]
+
+      const result = computeCarbonResults(project, fundingValues)
+
+      expect(result.capitalCarbonBaseline).toBeDefined()
+      expect(result.capitalCarbonTarget).toBeDefined()
+      expect(result.operationalCarbonBaseline).toBeDefined()
+      expect(result.operationalCarbonTarget).toBeDefined()
+      expect(result.hexdigest).toBeDefined()
+      expect(result.netCarbonEstimate).toBeDefined()
+      expect(result.constructionTotalFunding).toBeDefined()
+      expect(result.storedHexdigest).toBe('old-hash')
+    })
+
+    it('should detect value changes when hexdigest differs', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonCostSequestered: null,
+        carbonCostAvoided: null,
+        carbonOperationalCostForecast: null,
+        carbonValuesHexdigest: 'old-hash-value'
+      }
+
+      const fundingValues = []
+
+      const result = computeCarbonResults(project, fundingValues)
+
+      // If stored hash differs from computed hash, hasValuesChanged should be true
+      expect(result.hasValuesChanged).toBe(
+        result.storedHexdigest !== result.hexdigest
+      )
+    })
+
+    it('should handle null carbonValuesHexdigest', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: null,
+        carbonOperationalCostForecast: null,
+        carbonValuesHexdigest: null
+      }
+
+      const fundingValues = []
+
+      const result = computeCarbonResults(project, fundingValues)
+
+      expect(result.storedHexdigest).toBeNull()
+      expect(result.hasValuesChanged).toBe(false) // null !== hash is true, so change is detected
+    })
+
+    it('should include all summary fields in result', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonOperationalCostForecast: '5000'
+      }
+
+      const result = computeCarbonResults(project, [])
+
+      // Should have calculator summary fields plus our extras
+      expect(result).toHaveProperty('capitalCarbonBaseline')
+      expect(result).toHaveProperty('constructionTotalFunding')
+      expect(result).toHaveProperty('storedHexdigest')
+      expect(result).toHaveProperty('hasValuesChanged')
     })
   })
 

@@ -5,16 +5,16 @@ import { buildSuccessResponse } from '../../../common/helpers/response-builder.j
 
 const FINANCIAL_YEAR_START_MONTH = 4
 
-const toFinancialYear = (month, year) =>
+export const toFinancialYear = (month, year) =>
   month >= FINANCIAL_YEAR_START_MONTH ? year : year - 1
 
-const hasConstructionTimeline = (project) =>
+export const hasConstructionTimeline = (project) =>
   project.startConstructionMonth != null &&
   project.startConstructionYear != null &&
   project.readyForServiceMonth != null &&
   project.readyForServiceYear != null
 
-const buildPlaceholderFundingValues = (project) => {
+export const buildPlaceholderFundingValues = (project) => {
   const startFY = toFinancialYear(
     project.startConstructionMonth,
     project.startConstructionYear
@@ -30,7 +30,7 @@ const buildPlaceholderFundingValues = (project) => {
   return placeholders
 }
 
-const fetchRealFundingValues = async (prisma, referenceNumber) => {
+export const fetchRealFundingValues = async (prisma, referenceNumber) => {
   const dbProject = await prisma.pafs_core_projects.findFirst({
     where: { reference_number: referenceNumber },
     select: { id: true }
@@ -50,7 +50,7 @@ const fetchRealFundingValues = async (prisma, referenceNumber) => {
 
 // Placeholder funding values are generated when no real values exist in the DB yet.
 // Remove this fallback once real funding values are captured via the funding sources section.
-const fetchFundingValues = async (prisma, referenceNumber, project) => {
+export const fetchFundingValues = async (prisma, referenceNumber, project) => {
   const fundingValues = await fetchRealFundingValues(prisma, referenceNumber)
   if (fundingValues.length === 0 && hasConstructionTimeline(project)) {
     return buildPlaceholderFundingValues(project)
@@ -58,7 +58,7 @@ const fetchFundingValues = async (prisma, referenceNumber, project) => {
   return fundingValues
 }
 
-const buildCalcProject = (project) => ({
+export const buildCalcProject = (project) => ({
   startConstructionMonth: project.startConstructionMonth ?? null,
   startConstructionYear: project.startConstructionYear ?? null,
   readyForServiceMonth: project.readyForServiceMonth ?? null,
@@ -72,7 +72,7 @@ const buildCalcProject = (project) => ({
   carbonOperationalCostForecast: project.carbonOperationalCostForecast ?? null
 })
 
-const computeCarbonResults = (project, fundingValues) => {
+export const computeCarbonResults = (project, fundingValues) => {
   const calculator = new CarbonImpactCalculator(
     buildCalcProject(project),
     fundingValues
@@ -88,6 +88,31 @@ const computeCarbonResults = (project, fundingValues) => {
     storedHexdigest,
     hasValuesChanged
   }
+}
+
+const getProject = async (request, referenceNumber) => {
+  const projectService = new ProjectService(
+    request.prisma,
+    request.server.logger
+  )
+  return projectService.getProjectByReferenceNumber(referenceNumber)
+}
+
+const handleCarbonImpactRequest = async (request) => {
+  const referenceNumber = request.params.referenceNumber.replaceAll('-', '/')
+  const project = await getProject(request, referenceNumber)
+
+  if (!project) {
+    return null
+  }
+
+  const fundingValues = await fetchFundingValues(
+    request.prisma,
+    referenceNumber,
+    project
+  )
+
+  return computeCarbonResults(project, fundingValues)
 }
 
 /**
@@ -113,34 +138,15 @@ const carbonImpact = {
   },
   handler: async (request, h) => {
     try {
-      const referenceNumber = request.params.referenceNumber.replaceAll(
-        '-',
-        '/'
-      )
+      const result = await handleCarbonImpactRequest(request)
 
-      const projectService = new ProjectService(
-        request.prisma,
-        request.server.logger
-      )
-      const project =
-        await projectService.getProjectByReferenceNumber(referenceNumber)
-
-      if (!project) {
+      if (!result) {
         return h
           .response({ error: 'Project not found' })
           .code(HTTP_STATUS.NOT_FOUND)
       }
 
-      const fundingValues = await fetchFundingValues(
-        request.prisma,
-        referenceNumber,
-        project
-      )
-
-      return buildSuccessResponse(
-        h,
-        computeCarbonResults(project, fundingValues)
-      )
+      return buildSuccessResponse(h, result)
     } catch (error) {
       request.server.logger.error(
         { error },
