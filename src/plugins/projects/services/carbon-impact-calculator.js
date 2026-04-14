@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto'
-import carbonImpactRates from '../../../config/carbon-impact-rates.json' with { type: 'json' }
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
+const carbonImpactRates = require('../../../config/carbon-impact-rates.json')
 
 /**
  * Carbon Impact Calculator
