@@ -404,7 +404,7 @@ describe('Carbon Impact Helper Functions', () => {
 
       expect(hexdigest).toBeDefined()
       expect(typeof hexdigest).toBe('string')
-      expect(hexdigest.length).toBe(40) // SHA-1 produces 40 hex characters
+      expect(hexdigest.length).toBe(64) // SHA-256 produces 64 hex characters
     })
 
     it('should detect value changes by comparing hexdigests', () => {

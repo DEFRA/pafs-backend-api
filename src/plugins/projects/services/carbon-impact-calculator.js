@@ -249,7 +249,7 @@ export class CarbonImpactCalculator {
       this._round(this.operationalCarbonTarget())
     ]
     const data = JSON.stringify(values)
-    return createHash('sha1').update(data).digest('hex')
+    return createHash('sha256').update(data).digest('hex')
   }
 
   /**
