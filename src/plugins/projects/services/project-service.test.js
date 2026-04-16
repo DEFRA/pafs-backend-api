@@ -2156,7 +2156,7 @@ describe('ProjectService', () => {
 
       const expected = { id: 1n }
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'upsertFundingValue')
+        .spyOn(service, 'upsertFundingValue')
         .mockResolvedValue(expected)
 
       const result = await service.upsertFundingValue(payload)
@@ -2172,7 +2172,7 @@ describe('ProjectService', () => {
       }
 
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'deleteFundingValue')
+        .spyOn(service, 'deleteFundingValue')
         .mockResolvedValue(null)
 
       const result = await service.deleteFundingValue(payload)
@@ -2188,7 +2188,7 @@ describe('ProjectService', () => {
       }
 
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'deleteAllFundingContributors')
+        .spyOn(service, 'deleteAllFundingContributors')
         .mockResolvedValue(3)
 
       const result = await service.deleteAllFundingContributors(payload)
@@ -2208,7 +2208,7 @@ describe('ProjectService', () => {
 
       const expected = { id: 10n }
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'upsertFundingContributor')
+        .spyOn(service, 'upsertFundingContributor')
         .mockResolvedValue(expected)
 
       const result = await service.upsertFundingContributor(payload)
@@ -2220,7 +2220,7 @@ describe('ProjectService', () => {
     test('should delegate deleteFundingContributor to fundingSourcesService', async () => {
       const payload = { id: 5n }
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'deleteFundingContributor')
+        .spyOn(service, 'deleteFundingContributor')
         .mockResolvedValue(null)
 
       const result = await service.deleteFundingContributor(payload)
@@ -2232,7 +2232,7 @@ describe('ProjectService', () => {
     test('should delegate deleteAllFundingData to fundingSourcesService', async () => {
       const referenceNumber = 'ANC501E/000A/001A'
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'deleteAllFundingData')
+        .spyOn(service, 'deleteAllFundingData')
         .mockResolvedValue(undefined)
 
       await service.deleteAllFundingData(referenceNumber)
@@ -2246,7 +2246,7 @@ describe('ProjectService', () => {
         contributorType: 'public_contributions'
       }
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'deleteContributorsByType')
+        .spyOn(service, 'deleteContributorsByType')
         .mockResolvedValue(2)
 
       const result = await service.deleteContributorsByType(payload)
@@ -2258,7 +2258,7 @@ describe('ProjectService', () => {
     test('should delegate nullAdditionalGiaColumns to fundingSourcesService', async () => {
       const referenceNumber = 'ANC501E/000A/001A'
       const spy = vi
-        .spyOn(service.fundingSourcesService, 'nullAdditionalGiaColumns')
+        .spyOn(service, 'nullAdditionalGiaColumns')
         .mockResolvedValue(undefined)
 
       await service.nullAdditionalGiaColumns(referenceNumber)

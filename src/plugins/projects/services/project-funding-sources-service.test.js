@@ -626,4 +626,206 @@ describe('ProjectFundingSourcesService', () => {
       )
     })
   })
+
+  // ─── cleanupContributorsByName ─────────────────────────────────────────────────
+
+  describe('cleanupContributorsByName', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+    const contributorType = 'public_contributions'
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
+      // Reset for each test so we can set them individually
+      mockPrisma.pafs_core_funding_values.findMany = vi.fn()
+      mockPrisma.pafs_core_funding_contributors.findMany = vi.fn()
+      mockPrisma.pafs_core_funding_values.update = vi.fn()
+      mockPrisma.pafs_core_funding_contributors.deleteMany = vi.fn()
+    })
+
+    test('should delete contributors whose names are no longer in the list', async () => {
+      const fundingValue = {
+        id: 100n,
+        total: 1000n,
+        public_contributions: 500n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { amount: 300n },
+        { amount: 200n }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({
+        id: 100n,
+        total: 800n,
+        public_contributions: 500n
+      })
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['Remaining Partner']
+      })
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: { in: [100n] },
+          contributor_type: contributorType,
+          NOT: { name: { in: ['Remaining Partner'] } }
+        }
+      })
+    })
+
+    test('should delete all contributors when currentNames is empty', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 100n, total: 1000n, public_contributions: 500n }
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: []
+      })
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: { in: [100n] },
+          contributor_type: contributorType
+        }
+      })
+    })
+
+    test('should recalculate funding value total based on remaining contributors', async () => {
+      const fundingValue = {
+        id: 100n,
+        total: 1000n,
+        public_contributions: 500n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { amount: 200n }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['Remaining Partner']
+      })
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: {
+          public_contributions: 200n,
+          total: 700n
+        }
+      })
+    })
+
+    test('should null the amount field when no remaining contributors', async () => {
+      const fundingValue = {
+        id: 100n,
+        total: 500n,
+        public_contributions: 500n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([])
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['Alice']
+      })
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: {
+          public_contributions: null,
+          total: 0n
+        }
+      })
+    })
+
+    test('should handle multiple funding values', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 100n, total: 1000n, public_contributions: 500n },
+        { id: 101n, total: 2000n, public_contributions: 1000n }
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany
+        .mockResolvedValueOnce([{ amount: 300n }])
+        .mockResolvedValueOnce([{ amount: 600n }])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['Partner']
+      })
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledTimes(
+        2
+      )
+      expect(
+        mockPrisma.pafs_core_funding_values.update
+      ).toHaveBeenNthCalledWith(1, {
+        where: { id: 100n },
+        data: {
+          public_contributions: 300n,
+          total: 800n
+        }
+      })
+      expect(
+        mockPrisma.pafs_core_funding_values.update
+      ).toHaveBeenNthCalledWith(2, {
+        where: { id: 101n },
+        data: {
+          public_contributions: 600n,
+          total: 1600n
+        }
+      })
+    })
+
+    test('should return early when no funding values exist', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([])
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['Partner']
+      })
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).not.toHaveBeenCalled()
+      expect(mockPrisma.pafs_core_funding_values.update).not.toHaveBeenCalled()
+    })
+
+    test('should throw and log error when project lookup fails', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.cleanupContributorsByName({
+          referenceNumber,
+          contributorType,
+          currentNames: ['Partner']
+        })
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, contributorType }),
+        'Error cleaning up removed contributors'
+      )
+    })
+  })
 })

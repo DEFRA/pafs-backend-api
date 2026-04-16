@@ -245,16 +245,12 @@ const sumContributorAmounts = (contributors) => {
   }
 
   const total = contributors.reduce((sum, contributor) => {
-    if (
-      !contributor ||
-      contributor.amount === null ||
-      contributor.amount === undefined ||
-      contributor.amount === ''
-    ) {
+    const amount = contributor?.amount
+    if (amount === null || amount === undefined || amount === '') {
       return sum
     }
 
-    return sum + BigInt(contributor.amount)
+    return sum + BigInt(amount)
   }, 0n)
 
   return total.toString()
@@ -290,6 +286,80 @@ const calculateFundingTotal = (amounts) => {
   }, 0n)
 
   return total.toString()
+}
+
+const isFundingValueRowObject = (row) => {
+  return Boolean(row && typeof row === 'object')
+}
+
+const hasFinancialYear = (row) => {
+  return row.financialYear !== null && row.financialYear !== undefined
+}
+
+const upsertFundingContributors = async ({
+  projectService,
+  referenceNumber,
+  financialYear,
+  contributorEntries
+}) => {
+  await projectService.deleteAllFundingContributors({
+    referenceNumber,
+    financialYear
+  })
+
+  for (const contributor of contributorEntries) {
+    await projectService.upsertFundingContributor({
+      referenceNumber,
+      financialYear,
+      contributorType: contributor.contributorType,
+      name: contributor.name,
+      amount: contributor.amount,
+      secured: contributor.secured,
+      constrained: contributor.constrained
+    })
+  }
+}
+
+const processFundingValueRow = async ({
+  row,
+  referenceNumber,
+  projectService
+}) => {
+  const financialYear = row.financialYear
+  const amounts = createFundingAmounts(row)
+
+  mergeContributorTotalsIntoAmounts(row, amounts)
+  amounts.total = calculateFundingTotal(amounts)
+
+  if (!hasAnyAmountValue(amounts)) {
+    await projectService.deleteAllFundingContributors({
+      referenceNumber,
+      financialYear
+    })
+    await projectService.deleteFundingValue({
+      referenceNumber,
+      financialYear
+    })
+    return
+  }
+
+  await projectService.upsertFundingValue({
+    referenceNumber,
+    financialYear,
+    amounts
+  })
+
+  if (!hasContributorFields(row)) {
+    return
+  }
+
+  const contributorEntries = getContributorEntries(row)
+  await upsertFundingContributors({
+    projectService,
+    referenceNumber,
+    financialYear,
+    contributorEntries
+  })
 }
 
 /**
@@ -385,6 +455,69 @@ export const clearDeselectedContributorData = async (
   }
 }
 
+const CONTRIBUTOR_CLEANUP_CONFIG = [
+  {
+    level: 'PUBLIC_SECTOR_CONTRIBUTORS',
+    namesField: 'publicContributorNames',
+    contributorType: 'public_contributions'
+  },
+  {
+    level: 'PRIVATE_SECTOR_CONTRIBUTORS',
+    namesField: 'privateContributorNames',
+    contributorType: 'private_contributions'
+  },
+  {
+    level: 'OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS',
+    namesField: 'otherEaContributorNames',
+    contributorType: 'other_ea_contributions'
+  }
+]
+
+/**
+ * Cleans up contributor rows that have been removed when a user edits the
+ * contributor names list on the public / private / other-EA contributors page.
+ *
+ * For each funding value row belonging to the project this function:
+ *   1. Deletes pafs_core_funding_contributors rows of that type whose name is
+ *      no longer in the saved names list.
+ *   2. Re-sums the remaining contributors for that year and updates the
+ *      matching amount column (public_contributions / private_contributions /
+ *      other_ea_contributions) plus the overall total in
+ *      pafs_core_funding_values.
+ *
+ * Runs only at the PUBLIC_SECTOR_CONTRIBUTORS, PRIVATE_SECTOR_CONTRIBUTORS and
+ * OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS validation levels.
+ */
+export const cleanupRemovedContributors = async (
+  enrichedPayload,
+  validationLevel,
+  projectService
+) => {
+  const config = CONTRIBUTOR_CLEANUP_CONFIG.find(
+    (c) => c.level === validationLevel
+  )
+
+  if (!config) {
+    return
+  }
+
+  const { referenceNumber } = enrichedPayload
+  const namesValue = enrichedPayload[config.namesField]
+  const currentNames =
+    namesValue && typeof namesValue === 'string' && namesValue.trim()
+      ? namesValue
+          .split(',')
+          .map((n) => n.trim())
+          .filter(Boolean)
+      : []
+
+  await projectService.cleanupContributorsByName({
+    referenceNumber,
+    contributorType: config.contributorType,
+    currentNames
+  })
+}
+
 /**
  * Handles funding source estimated spend rows by persisting to:
  * - pafs_core_funding_values (upsert/delete)
@@ -412,57 +545,15 @@ export const handleFundingSourcesData = async (
   const { referenceNumber } = enrichedPayload
 
   for (const row of enrichedPayload.fundingValues) {
-    if (!row || typeof row !== 'object') {
+    if (!isFundingValueRowObject(row)) {
       continue
     }
 
-    const financialYear = row.financialYear
-    if (financialYear === null || financialYear === undefined) {
+    if (!hasFinancialYear(row)) {
       continue
     }
 
-    const amounts = createFundingAmounts(row)
-    mergeContributorTotalsIntoAmounts(row, amounts)
-    amounts.total = calculateFundingTotal(amounts)
-    const contributorEntries = getContributorEntries(row)
-    const contributorDataProvided = hasContributorFields(row)
-
-    if (!hasAnyAmountValue(amounts)) {
-      await projectService.deleteAllFundingContributors({
-        referenceNumber,
-        financialYear
-      })
-      await projectService.deleteFundingValue({
-        referenceNumber,
-        financialYear
-      })
-      continue
-    }
-
-    await projectService.upsertFundingValue({
-      referenceNumber,
-      financialYear,
-      amounts
-    })
-
-    if (contributorDataProvided) {
-      await projectService.deleteAllFundingContributors({
-        referenceNumber,
-        financialYear
-      })
-
-      for (const contributor of contributorEntries) {
-        await projectService.upsertFundingContributor({
-          referenceNumber,
-          financialYear,
-          contributorType: contributor.contributorType,
-          name: contributor.name,
-          amount: contributor.amount,
-          secured: contributor.secured,
-          constrained: contributor.constrained
-        })
-      }
-    }
+    await processFundingValueRow({ row, referenceNumber, projectService })
   }
 
   delete enrichedPayload.fundingValues

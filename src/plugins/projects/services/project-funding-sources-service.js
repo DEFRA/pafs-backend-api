@@ -5,6 +5,23 @@
  * Extracted from ProjectService to keep file sizes within SonarQube limits.
  * ProjectService extends this class and inherits all its methods.
  */
+const FUNDING_VALUE_AMOUNT_FIELD_MAP = [
+  ['fcermGia', 'fcerm_gia'],
+  ['localLevy', 'local_levy'],
+  ['internalDrainageBoards', 'internal_drainage_boards'],
+  ['publicContributions', 'public_contributions'],
+  ['privateContributions', 'private_contributions'],
+  ['otherEaContributions', 'other_ea_contributions'],
+  ['notYetIdentified', 'not_yet_identified'],
+  ['assetReplacementAllowance', 'asset_replacement_allowance'],
+  ['environmentStatutoryFunding', 'environment_statutory_funding'],
+  ['frequentlyFloodedCommunities', 'frequently_flooded_communities'],
+  ['otherAdditionalGrantInAid', 'other_additional_grant_in_aid'],
+  ['otherGovernmentDepartment', 'other_government_department'],
+  ['recovery', 'recovery'],
+  ['summerEconomicFund', 'summer_economic_fund']
+]
+
 export class ProjectFundingSourcesService {
   constructor(prisma, logger) {
     this.prisma = prisma
@@ -30,6 +47,58 @@ export class ProjectFundingSourcesService {
     return Number(project.id)
   }
 
+  _toNullableBigInt(value) {
+    return value ? BigInt(value) : null
+  }
+
+  _toTotalBigInt(value) {
+    return value ? BigInt(value) : 0n
+  }
+
+  _buildFundingValueUpdateData(amounts) {
+    const updateData = {}
+
+    for (const [sourceField, dbField] of FUNDING_VALUE_AMOUNT_FIELD_MAP) {
+      updateData[dbField] = this._toNullableBigInt(amounts[sourceField])
+    }
+
+    updateData.total = this._toTotalBigInt(amounts.total)
+
+    return updateData
+  }
+
+  async _findExistingFundingValue(projectId, financialYear) {
+    return this.prisma.pafs_core_funding_values.findFirst({
+      where: {
+        project_id: projectId,
+        financial_year: financialYear
+      }
+    })
+  }
+
+  async _saveFundingValue({
+    projectId,
+    financialYear,
+    existingValue,
+    updateData
+  }) {
+    if (existingValue) {
+      return this.prisma.pafs_core_funding_values.update({
+        where: { id: existingValue.id },
+        data: updateData
+      })
+    }
+
+    return this.prisma.pafs_core_funding_values.create({
+      data: {
+        project_id: projectId,
+        financial_year: financialYear,
+        total: 0n,
+        ...updateData
+      }
+    })
+  }
+
   /**
    * Upsert funding value (annual spend) record
    * @param {Object} data - Funding value data
@@ -42,70 +111,17 @@ export class ProjectFundingSourcesService {
     try {
       const projectId = await this._getProjectIdByReference(referenceNumber)
 
-      const existingValue =
-        await this.prisma.pafs_core_funding_values.findFirst({
-          where: {
-            project_id: projectId,
-            financial_year: financialYear
-          }
-        })
-
-      const updateData = {
-        fcerm_gia: amounts.fcermGia ? BigInt(amounts.fcermGia) : null,
-        local_levy: amounts.localLevy ? BigInt(amounts.localLevy) : null,
-        internal_drainage_boards: amounts.internalDrainageBoards
-          ? BigInt(amounts.internalDrainageBoards)
-          : null,
-        public_contributions: amounts.publicContributions
-          ? BigInt(amounts.publicContributions)
-          : null,
-        private_contributions: amounts.privateContributions
-          ? BigInt(amounts.privateContributions)
-          : null,
-        other_ea_contributions: amounts.otherEaContributions
-          ? BigInt(amounts.otherEaContributions)
-          : null,
-        not_yet_identified: amounts.notYetIdentified
-          ? BigInt(amounts.notYetIdentified)
-          : null,
-        asset_replacement_allowance: amounts.assetReplacementAllowance
-          ? BigInt(amounts.assetReplacementAllowance)
-          : null,
-        environment_statutory_funding: amounts.environmentStatutoryFunding
-          ? BigInt(amounts.environmentStatutoryFunding)
-          : null,
-        frequently_flooded_communities: amounts.frequentlyFloodedCommunities
-          ? BigInt(amounts.frequentlyFloodedCommunities)
-          : null,
-        other_additional_grant_in_aid: amounts.otherAdditionalGrantInAid
-          ? BigInt(amounts.otherAdditionalGrantInAid)
-          : null,
-        other_government_department: amounts.otherGovernmentDepartment
-          ? BigInt(amounts.otherGovernmentDepartment)
-          : null,
-        recovery: amounts.recovery ? BigInt(amounts.recovery) : null,
-        summer_economic_fund: amounts.summerEconomicFund
-          ? BigInt(amounts.summerEconomicFund)
-          : null,
-        total: amounts.total ? BigInt(amounts.total) : 0n
-      }
-
-      let fundingValue
-      if (existingValue) {
-        fundingValue = await this.prisma.pafs_core_funding_values.update({
-          where: { id: existingValue.id },
-          data: updateData
-        })
-      } else {
-        fundingValue = await this.prisma.pafs_core_funding_values.create({
-          data: {
-            project_id: projectId,
-            financial_year: financialYear,
-            total: 0n,
-            ...updateData
-          }
-        })
-      }
+      const existingValue = await this._findExistingFundingValue(
+        projectId,
+        financialYear
+      )
+      const updateData = this._buildFundingValueUpdateData(amounts)
+      const fundingValue = await this._saveFundingValue({
+        projectId,
+        financialYear,
+        existingValue,
+        updateData
+      })
 
       this.logger.info(
         { projectId, financialYear, referenceNumber },
@@ -403,6 +419,104 @@ export class ProjectFundingSourcesService {
       this.logger.error(
         { error: error.message, referenceNumber, financialYear },
         'Error deleting all funding contributors'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Delete contributor rows of a specific type whose name is no longer in the
+   * provided list, then recalculate the matching amount column and overall
+   * total in pafs_core_funding_values for each affected year.
+   *
+   * Called when the user edits the contributor names list on the
+   * public / private / other-EA contributors page.
+   *
+   * @param {Object} data
+   * @param {string} data.referenceNumber - Project reference number
+   * @param {string} data.contributorType - e.g. 'public_contributions'
+   * @param {string[]} data.currentNames - Names that are still present
+   * @returns {Promise<void>}
+   */
+  async cleanupContributorsByName({
+    referenceNumber,
+    contributorType,
+    currentNames
+  }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
+        {
+          where: { project_id: projectId }
+        }
+      )
+
+      if (fundingValues.length === 0) {
+        return
+      }
+
+      const fundingValueIds = fundingValues.map((fv) => fv.id)
+
+      // Remove stale contributor rows
+      if (currentNames.length > 0) {
+        await this.prisma.pafs_core_funding_contributors.deleteMany({
+          where: {
+            funding_value_id: { in: fundingValueIds },
+            contributor_type: contributorType,
+            NOT: { name: { in: currentNames } }
+          }
+        })
+      } else {
+        await this.prisma.pafs_core_funding_contributors.deleteMany({
+          where: {
+            funding_value_id: { in: fundingValueIds },
+            contributor_type: contributorType
+          }
+        })
+      }
+
+      // Map contributorType to the pafs_core_funding_values column name
+      const amountDbField = contributorType // e.g. 'public_contributions'
+
+      // Recalculate per-year amount and total for each funding value row
+      for (const fv of fundingValues) {
+        const remaining =
+          await this.prisma.pafs_core_funding_contributors.findMany({
+            where: {
+              funding_value_id: fv.id,
+              contributor_type: contributorType
+            },
+            select: { amount: true }
+          })
+
+        const newAmount =
+          remaining.length > 0
+            ? remaining.reduce((sum, c) => sum + (c.amount ?? 0n), 0n)
+            : null
+
+        // Recalculate the overall row total: swap old amount for new amount
+        const oldAmount = fv[amountDbField] ?? 0n
+        const newAmountBigInt = newAmount ?? 0n
+        const newTotal = (fv.total ?? 0n) - oldAmount + newAmountBigInt
+
+        await this.prisma.pafs_core_funding_values.update({
+          where: { id: fv.id },
+          data: {
+            [amountDbField]: newAmount,
+            total: newTotal < 0n ? 0n : newTotal
+          }
+        })
+      }
+
+      this.logger.info(
+        { projectId, referenceNumber, contributorType, currentNames },
+        'Cleaned up removed contributors and recalculated totals'
+      )
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, contributorType },
+        'Error cleaning up removed contributors'
       )
       throw error
     }

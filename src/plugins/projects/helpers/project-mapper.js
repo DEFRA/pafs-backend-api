@@ -43,6 +43,26 @@ const FUNDING_VALUE_BIGINT_FIELDS = new Set([
   'summerEconomicFund'
 ])
 
+const FUNDING_CONTRIBUTOR_BIGINT_FIELDS = new Set(['fundingValueId', 'amount'])
+
+const isFundingValuesBigIntField = (field, sourceTable) => {
+  return (
+    sourceTable === 'pafs_core_funding_values' &&
+    FUNDING_VALUE_BIGINT_FIELDS.has(field)
+  )
+}
+
+const isFundingValuesNumberField = (field, sourceTable) => {
+  return sourceTable === 'pafs_core_funding_values' && field === 'financialYear'
+}
+
+const isFundingContributorsBigIntField = (field, sourceTable) => {
+  return (
+    sourceTable === 'pafs_core_funding_contributors' &&
+    FUNDING_CONTRIBUTOR_BIGINT_FIELDS.has(field)
+  )
+}
+
 export class ProjectMapper {
   /**
    * Maps API data to database format (for create/upsert operations)
@@ -155,24 +175,15 @@ export class ProjectMapper {
    * @returns {any} - The reversed transformed value
    */
   static reverseTransformValue(field, value, sourceTable = 'main') {
-    if (
-      sourceTable === 'pafs_core_funding_values' &&
-      FUNDING_VALUE_BIGINT_FIELDS.has(field)
-    ) {
+    if (isFundingValuesBigIntField(field, sourceTable)) {
       return convertBigInt(value, CONVERSION_DIRECTIONS.TO_API)
     }
 
-    if (
-      sourceTable === 'pafs_core_funding_values' &&
-      field === 'financialYear'
-    ) {
+    if (isFundingValuesNumberField(field, sourceTable)) {
       return convertNumber(value, CONVERSION_DIRECTIONS.TO_API)
     }
 
-    if (
-      sourceTable === 'pafs_core_funding_contributors' &&
-      (field === 'fundingValueId' || field === 'amount')
-    ) {
+    if (isFundingContributorsBigIntField(field, sourceTable)) {
       return convertBigInt(value, CONVERSION_DIRECTIONS.TO_API)
     }
 

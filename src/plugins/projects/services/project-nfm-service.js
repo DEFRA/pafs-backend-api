@@ -5,8 +5,11 @@
  * Extracted from ProjectService to keep file sizes within SonarQube limits.
  * ProjectService extends this class and inherits all its methods.
  */
-export class ProjectNfmService {
+import { ProjectFundingSourcesService } from './project-funding-sources-service.js'
+
+export class ProjectNfmService extends ProjectFundingSourcesService {
   constructor(prisma, logger) {
+    super(prisma, logger)
     this.prisma = prisma
     this.logger = logger
   }

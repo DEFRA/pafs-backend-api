@@ -220,6 +220,179 @@ const parseContributorNames = (names) => {
   )
 }
 
+const validateFundingValuesYearRange = (
+  row,
+  rowIndex,
+  startYear,
+  endYear,
+  h
+) => {
+  if (!Number.isInteger(startYear) || !Number.isInteger(endYear)) {
+    return null
+  }
+
+  if (!Number.isInteger(row.financialYear)) {
+    return null
+  }
+
+  if (row.financialYear >= startYear && row.financialYear <= endYear) {
+    return null
+  }
+
+  return createValidationError(
+    `fundingValues[${rowIndex}].financialYear`,
+    `Financial year must be between ${startYear} and ${endYear}`,
+    h
+  )
+}
+
+const validateEnabledFundingSourceFields = (
+  row,
+  rowIndex,
+  existingProject,
+  h
+) => {
+  for (const { rowField, projectField } of FUNDING_SOURCE_FIELD_CONFIG) {
+    if (!hasValue(row[rowField])) {
+      continue
+    }
+
+    if (existingProject?.[projectField] === true) {
+      continue
+    }
+
+    return createValidationError(
+      `fundingValues[${rowIndex}].${rowField}`,
+      `${rowField} is not enabled for this project`,
+      h
+    )
+  }
+
+  return null
+}
+
+const validateContributorNamesForGroup = (
+  contributors,
+  allowedNames,
+  rowIndex,
+  rowField,
+  h
+) => {
+  for (
+    let contributorIndex = 0;
+    contributorIndex < contributors.length;
+    contributorIndex++
+  ) {
+    const contributor = contributors[contributorIndex]
+    const contributorName = contributor?.name?.trim()?.toLowerCase()
+
+    if (!contributorName || allowedNames.has(contributorName)) {
+      continue
+    }
+
+    return createValidationError(
+      `fundingValues[${rowIndex}].${rowField}[${contributorIndex}].name`,
+      `${contributor?.name} is not configured for this project`,
+      h
+    )
+  }
+
+  return null
+}
+
+const validateContributorGroup = (
+  row,
+  rowIndex,
+  existingProject,
+  { rowField, projectField, projectNamesField },
+  h
+) => {
+  const contributors = row[rowField]
+  if (!Array.isArray(contributors) || contributors.length === 0) {
+    return null
+  }
+
+  if (existingProject?.[projectField] !== true) {
+    return createValidationError(
+      `fundingValues[${rowIndex}].${rowField}`,
+      `${rowField} is not enabled for this project`,
+      h
+    )
+  }
+
+  const allowedNames = parseContributorNames(
+    existingProject?.[projectNamesField]
+  )
+  if (allowedNames.size === 0) {
+    return createValidationError(
+      `fundingValues[${rowIndex}].${rowField}`,
+      `No contributors are configured for ${rowField}`,
+      h
+    )
+  }
+
+  return validateContributorNamesForGroup(
+    contributors,
+    allowedNames,
+    rowIndex,
+    rowField,
+    h
+  )
+}
+
+const validateContributorFields = (row, rowIndex, existingProject, h) => {
+  for (const config of CONTRIBUTOR_CONFIG) {
+    const groupError = validateContributorGroup(
+      row,
+      rowIndex,
+      existingProject,
+      config,
+      h
+    )
+    if (groupError) {
+      return groupError
+    }
+  }
+
+  return null
+}
+
+const validateFundingValueRow = (
+  row,
+  rowIndex,
+  startYear,
+  endYear,
+  existingProject,
+  h
+) => {
+  if (!row || typeof row !== 'object') {
+    return null
+  }
+
+  const yearError = validateFundingValuesYearRange(
+    row,
+    rowIndex,
+    startYear,
+    endYear,
+    h
+  )
+  if (yearError) {
+    return yearError
+  }
+
+  const sourceError = validateEnabledFundingSourceFields(
+    row,
+    rowIndex,
+    existingProject,
+    h
+  )
+  if (sourceError) {
+    return sourceError
+  }
+
+  return validateContributorFields(row, rowIndex, existingProject, h)
+}
+
 const validateFundingSourcesEstimatedSpend = (
   proposalPayload,
   validationLevel,
@@ -247,78 +420,16 @@ const validateFundingSourcesEstimatedSpend = (
   ) {
     const row = proposalPayload.fundingValues[rowIndex]
 
-    if (!row || typeof row !== 'object') {
-      continue
-    }
-
-    if (
-      Number.isInteger(startYear) &&
-      Number.isInteger(endYear) &&
-      Number.isInteger(row.financialYear) &&
-      (row.financialYear < startYear || row.financialYear > endYear)
-    ) {
-      return createValidationError(
-        `fundingValues[${rowIndex}].financialYear`,
-        `Financial year must be between ${startYear} and ${endYear}`,
-        h
-      )
-    }
-
-    for (const { rowField, projectField } of FUNDING_SOURCE_FIELD_CONFIG) {
-      if (hasValue(row[rowField]) && existingProject?.[projectField] !== true) {
-        return createValidationError(
-          `fundingValues[${rowIndex}].${rowField}`,
-          `${rowField} is not enabled for this project`,
-          h
-        )
-      }
-    }
-
-    for (const {
-      rowField,
-      projectField,
-      projectNamesField
-    } of CONTRIBUTOR_CONFIG) {
-      const contributors = row[rowField]
-      if (!Array.isArray(contributors) || contributors.length === 0) {
-        continue
-      }
-
-      if (existingProject?.[projectField] !== true) {
-        return createValidationError(
-          `fundingValues[${rowIndex}].${rowField}`,
-          `${rowField} is not enabled for this project`,
-          h
-        )
-      }
-
-      const allowedNames = parseContributorNames(
-        existingProject?.[projectNamesField]
-      )
-      if (allowedNames.size === 0) {
-        return createValidationError(
-          `fundingValues[${rowIndex}].${rowField}`,
-          `No contributors are configured for ${rowField}`,
-          h
-        )
-      }
-
-      for (
-        let contributorIndex = 0;
-        contributorIndex < contributors.length;
-        contributorIndex++
-      ) {
-        const contributor = contributors[contributorIndex]
-        const contributorName = contributor?.name?.trim()?.toLowerCase()
-
-        if (contributorName && !allowedNames.has(contributorName)) {
-          return createValidationError(
-            `fundingValues[${rowIndex}].${rowField}[${contributorIndex}].name`,
-            `${contributor?.name} is not configured for this project`,
-            h
-          )
-        }
-      }
+    const rowError = validateFundingValueRow(
+      row,
+      rowIndex,
+      startYear,
+      endYear,
+      existingProject,
+      h
+    )
+    if (rowError) {
+      return rowError
     }
   }
 

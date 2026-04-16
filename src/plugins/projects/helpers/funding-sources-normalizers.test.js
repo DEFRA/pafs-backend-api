@@ -5,7 +5,8 @@ import {
   normalizeFundingSourceFields,
   handleFundingSourcesData,
   clearDeselectedAdditionalGiaData,
-  clearDeselectedContributorData
+  clearDeselectedContributorData,
+  cleanupRemovedContributors
 } from './funding-sources-normalizers.js'
 
 describe('funding-sources-normalizers', () => {
@@ -672,6 +673,107 @@ describe('funding-sources-normalizers', () => {
       expect(payload.privateContributorNames).toBeNull()
       expect(payload.otherEaContributorNames).toBeNull()
       expect(projectService.deleteContributorsByType).toHaveBeenCalledTimes(3)
+    })
+  })
+
+  describe('cleanupRemovedContributors', () => {
+    let projectService
+
+    beforeEach(() => {
+      projectService = {
+        cleanupContributorsByName: vi.fn().mockResolvedValue(undefined)
+      }
+    })
+
+    it('does nothing at non-contributor validation levels', async () => {
+      const payload = {
+        publicContributorNames: 'Alice',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.APPROACH,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).not.toHaveBeenCalled()
+    })
+
+    it('calls service with public contributors when at PUBLIC_SECTOR_CONTRIBUTORS level', async () => {
+      const payload = {
+        publicContributorNames: 'Alice, Bob',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'public_contributions',
+        currentNames: ['Alice', 'Bob']
+      })
+    })
+
+    it('parses comma-separated names and trims whitespace', async () => {
+      const payload = {
+        publicContributorNames: '  Alice  ,  Bob  ,  Charlie  ',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'public_contributions',
+        currentNames: ['Alice', 'Bob', 'Charlie']
+      })
+    })
+
+    it('handles empty names string as empty array', async () => {
+      const payload = {
+        publicContributorNames: '',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'public_contributions',
+        currentNames: []
+      })
+    })
+
+    it('handles null names field as empty array', async () => {
+      const payload = {
+        publicContributorNames: null,
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'public_contributions',
+        currentNames: []
+      })
     })
   })
 })

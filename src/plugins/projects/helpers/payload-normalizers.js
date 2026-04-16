@@ -216,7 +216,8 @@ export {
   normalizeFundingSourceFields,
   handleFundingSourcesData,
   clearDeselectedContributorData,
-  clearDeselectedAdditionalGiaData
+  clearDeselectedAdditionalGiaData,
+  cleanupRemovedContributors
 } from './funding-sources-normalizers.js'
 
 /**

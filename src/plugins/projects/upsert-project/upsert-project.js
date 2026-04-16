@@ -23,6 +23,7 @@ import {
   handleFundingSourcesData,
   clearDeselectedContributorData,
   clearDeselectedAdditionalGiaData,
+  cleanupRemovedContributors,
   handleNfmMeasureData,
   sanitizeWlbFields,
   normalizeWlbFields,
@@ -115,6 +116,13 @@ const applyPayloadNormalizers = async (
 
   // Clear additional GIA boolean flags + spend columns when additionalFcermGia is deselected
   await clearDeselectedAdditionalGiaData(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
+
+  // Remove contributor DB rows that are no longer in the saved names list
+  await cleanupRemovedContributors(
     enrichedPayload,
     validationLevel,
     projectService
