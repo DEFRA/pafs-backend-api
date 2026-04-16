@@ -184,4 +184,82 @@ describe('CarbonImpactCalculator', () => {
       expect(baseline).toBe(31.4)
     })
   })
+
+  describe('edge cases for uncovered branches', () => {
+    it('should return null for _toFinancialYear when month or year is null', () => {
+      const calc = new CarbonImpactCalculator(baseProject, fundingValues)
+
+      expect(calc._toFinancialYear(null, 2025)).toBeNull()
+      expect(calc._toFinancialYear(4, null)).toBeNull()
+    })
+
+    it('should return null for _midYear when timeline is incomplete', () => {
+      const calc = new CarbonImpactCalculator(
+        { ...baseProject, startConstructionMonth: null },
+        fundingValues
+      )
+
+      expect(calc._midYear()).toBeNull()
+    })
+
+    it('should return null for _rateForYear when year is null', () => {
+      const calc = new CarbonImpactCalculator(baseProject, fundingValues)
+
+      expect(calc._rateForYear(null, 'Cap Do Nothing Intensity')).toBeNull()
+    })
+
+    it('should return 0 for _operationalTotalProjectFunding when forecast is null/undefined', () => {
+      const calcNull = new CarbonImpactCalculator(
+        { ...baseProject, carbonOperationalCostForecast: null },
+        fundingValues
+      )
+      const calcUndefined = new CarbonImpactCalculator(
+        { ...baseProject, carbonOperationalCostForecast: undefined },
+        fundingValues
+      )
+
+      expect(calcNull._operationalTotalProjectFunding()).toBe(0)
+      expect(calcUndefined._operationalTotalProjectFunding()).toBe(0)
+    })
+
+    it('should return null for target/baseline methods when rates are unavailable', () => {
+      const project = {
+        ...baseProject,
+        startConstructionMonth: 4,
+        startConstructionYear: 2010,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2012,
+        carbonOperationalCostForecast: '1000'
+      }
+      const calc = new CarbonImpactCalculator(project, fundingValues)
+
+      expect(calc.capitalCarbonTarget()).toBeNull()
+      expect(calc.operationalCarbonBaseline()).toBeNull()
+      expect(calc.operationalCarbonTarget()).toBeNull()
+    })
+
+    it('should return null for netCarbonWithBlanksCalculated when baseline values are unavailable', () => {
+      const calc = new CarbonImpactCalculator(
+        {
+          ...baseProject,
+          startConstructionMonth: null,
+          startConstructionYear: null,
+          readyForServiceMonth: null,
+          readyForServiceYear: null,
+          carbonCostBuild: null,
+          carbonCostOperation: null
+        },
+        []
+      )
+
+      expect(calc.netCarbonWithBlanksCalculated()).toBeNull()
+    })
+
+    it('should handle parseDecimal invalid values and _round null', () => {
+      const calc = new CarbonImpactCalculator(baseProject, fundingValues)
+
+      expect(calc._parseDecimal('not-a-number')).toBeNull()
+      expect(calc._round(null)).toBeNull()
+    })
+  })
 })

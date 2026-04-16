@@ -58,18 +58,23 @@ export const fetchFundingValues = async (prisma, referenceNumber, project) => {
   return fundingValues
 }
 
+const nullIfMissing = (value) => value ?? null
+
 export const buildCalcProject = (project) => ({
-  startConstructionMonth: project.startConstructionMonth ?? null,
-  startConstructionYear: project.startConstructionYear ?? null,
-  readyForServiceMonth: project.readyForServiceMonth ?? null,
-  readyForServiceYear: project.readyForServiceYear ?? null,
-  carbonCostBuild: project.carbonCostBuild ?? null,
-  carbonCostOperation: project.carbonCostOperation ?? null,
-  carbonCostSequestered: project.carbonCostSequestered ?? null,
-  carbonCostAvoided: project.carbonCostAvoided ?? null,
-  carbonSavingsNetEconomicBenefit:
-    project.carbonSavingsNetEconomicBenefit ?? null,
-  carbonOperationalCostForecast: project.carbonOperationalCostForecast ?? null
+  startConstructionMonth: nullIfMissing(project.startConstructionMonth),
+  startConstructionYear: nullIfMissing(project.startConstructionYear),
+  readyForServiceMonth: nullIfMissing(project.readyForServiceMonth),
+  readyForServiceYear: nullIfMissing(project.readyForServiceYear),
+  carbonCostBuild: nullIfMissing(project.carbonCostBuild),
+  carbonCostOperation: nullIfMissing(project.carbonCostOperation),
+  carbonCostSequestered: nullIfMissing(project.carbonCostSequestered),
+  carbonCostAvoided: nullIfMissing(project.carbonCostAvoided),
+  carbonSavingsNetEconomicBenefit: nullIfMissing(
+    project.carbonSavingsNetEconomicBenefit
+  ),
+  carbonOperationalCostForecast: nullIfMissing(
+    project.carbonOperationalCostForecast
+  )
 })
 
 export const computeCarbonResults = (project, fundingValues) => {
