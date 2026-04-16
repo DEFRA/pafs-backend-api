@@ -81,7 +81,7 @@ describe('CarbonImpactCalculator', () => {
     it('should use carbonOperationalCostForecast as TPF', () => {
       const calc = new CarbonImpactCalculator(baseProject, fundingValues)
       const result = calc.operationalCarbonBaseline()
-      // Mid-year: 2026, Ops DN = 3.91
+      // RFS FY: 2027, Ops DN = 3.91
       // TPF = 150000 (carbonOperationalCostForecast)
       // Baseline = 150000 * 3.91 / 10000 = 58.65
       expect(result).toBe(58.65)
@@ -92,10 +92,10 @@ describe('CarbonImpactCalculator', () => {
     it('should calculate operational target with reduction', () => {
       const calc = new CarbonImpactCalculator(baseProject, fundingValues)
       const result = calc.operationalCarbonTarget()
-      // Mid-year: 2026, Ops DN = 3.91, Ops Reduction = -31.50
+      // RFS FY: 2027, Ops DN = 3.91, Ops Reduction = -36.00
       // TPF = 150000
-      // Target = 150000 * 3.91 * (1 + (-31.50 / 100)) / 10000 = 150000 * 3.91 * 0.685 / 10000 = 40.18
-      expect(result).toBeCloseTo(40.18, 1)
+      // Target = 150000 * 3.91 * (1 + (-36.00 / 100)) / 10000 = 150000 * 3.91 * 0.64 / 10000 = 37.536
+      expect(result).toBeCloseTo(37.54, 1)
     })
   })
 

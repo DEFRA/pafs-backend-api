@@ -82,6 +82,17 @@ export class CarbonImpactCalculator {
   }
 
   /**
+   * Ready-for-service financial year.
+   * Used for operational rate lookups (matching pafs_core behaviour).
+   */
+  _readyForServiceFinancialYear() {
+    return this._toFinancialYear(
+      this.project.readyForServiceMonth,
+      this.project.readyForServiceYear
+    )
+  }
+
+  /**
    * Look up the carbon impact rate for a given year.
    * Walks backwards if the exact year or rate is missing.
    */
@@ -92,7 +103,7 @@ export class CarbonImpactCalculator {
     const yearStr = `${year}/${String(year + 1).slice(YEAR_SUFFIX_SLICE)}`
     const entry = this.rates.find((r) => r.Year === yearStr)
     const value = entry?.[rateKey]
-    if (value !== null && value !== undefined) {
+    if (value !== null && value !== undefined && value !== '') {
       return value
     }
     // Walk backwards
@@ -100,7 +111,11 @@ export class CarbonImpactCalculator {
       const fallbackStr = `${y}/${String(y + 1).slice(YEAR_SUFFIX_SLICE)}`
       const fallbackEntry = this.rates.find((r) => r.Year === fallbackStr)
       const fallbackValue = fallbackEntry?.[rateKey]
-      if (fallbackValue !== null && fallbackValue !== undefined) {
+      if (
+        fallbackValue !== null &&
+        fallbackValue !== undefined &&
+        fallbackValue !== ''
+      ) {
         return fallbackValue
       }
     }
@@ -170,8 +185,8 @@ export class CarbonImpactCalculator {
 
   operationalCarbonBaseline() {
     const tpf = this._operationalTotalProjectFunding()
-    const midYear = this._midYear()
-    const rate = this._rateForYear(midYear, 'Ops Do Nothing Intensity')
+    const rfsFY = this._readyForServiceFinancialYear()
+    const rate = this._rateForYear(rfsFY, 'Ops Do Nothing Intensity')
     if (rate == null) {
       return null
     }
@@ -180,9 +195,9 @@ export class CarbonImpactCalculator {
 
   operationalCarbonTarget() {
     const tpf = this._operationalTotalProjectFunding()
-    const midYear = this._midYear()
-    const doNothing = this._rateForYear(midYear, 'Ops Do Nothing Intensity')
-    const reduction = this._rateForYear(midYear, 'Ops Target Reduction Rate')
+    const rfsFY = this._readyForServiceFinancialYear()
+    const doNothing = this._rateForYear(rfsFY, 'Ops Do Nothing Intensity')
+    const reduction = this._rateForYear(rfsFY, 'Ops Target Reduction Rate')
     if (doNothing == null || reduction == null) {
       return null
     }
