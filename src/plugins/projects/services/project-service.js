@@ -13,6 +13,7 @@ import {
   resolveStatus
 } from '../helpers/project-formatter.js'
 import { ProjectNfmService } from './project-nfm-service.js'
+import { ProjectFundingSourcesService } from './project-funding-sources-service.js'
 
 const COUNTER_SUFFIX = 'A'
 const REFERENCE_NUMBER_TEMPLATE = 'C501E'
@@ -27,6 +28,42 @@ export class ProjectService extends ProjectNfmService {
     super(prisma, logger)
     this.prisma = prisma
     this.logger = logger
+    this.fundingSourcesService = new ProjectFundingSourcesService(
+      prisma,
+      logger
+    )
+  }
+
+  async upsertFundingValue(data) {
+    return this.fundingSourcesService.upsertFundingValue(data)
+  }
+
+  async deleteFundingValue(data) {
+    return this.fundingSourcesService.deleteFundingValue(data)
+  }
+
+  async upsertFundingContributor(data) {
+    return this.fundingSourcesService.upsertFundingContributor(data)
+  }
+
+  async deleteFundingContributor(data) {
+    return this.fundingSourcesService.deleteFundingContributor(data)
+  }
+
+  async deleteAllFundingContributors(data) {
+    return this.fundingSourcesService.deleteAllFundingContributors(data)
+  }
+
+  async deleteAllFundingData(referenceNumber) {
+    return this.fundingSourcesService.deleteAllFundingData(referenceNumber)
+  }
+
+  async deleteContributorsByType(data) {
+    return this.fundingSourcesService.deleteContributorsByType(data)
+  }
+
+  async nullAdditionalGiaColumns(referenceNumber) {
+    return this.fundingSourcesService.nullAdditionalGiaColumns(referenceNumber)
   }
 
   _getOverviewSelectFields() {
@@ -337,7 +374,46 @@ export class ProjectService extends ProjectNfmService {
     )
   }
 
+  async _fetchFundingContributorsByProjectId(projectId, config) {
+    if (!this.prisma.pafs_core_funding_values?.findMany) {
+      return []
+    }
+
+    const fundingValues = await this.prisma.pafs_core_funding_values.findMany({
+      where: { project_id: Number(projectId) },
+      select: { id: true }
+    })
+
+    const fundingValueIds = fundingValues
+      .map(({ id }) => Number(id))
+      .filter((id) => !Number.isNaN(id))
+
+    if (fundingValueIds.length === 0) {
+      return []
+    }
+
+    if (!this.prisma[config.tableName]?.findMany) {
+      return []
+    }
+
+    return this.prisma[config.tableName].findMany({
+      where: {
+        [config.joinField]: {
+          in: fundingValueIds
+        }
+      },
+      select: this._buildJoinSelect(config)
+    })
+  }
+
   async _fetchJoinedDataByConfig(projectId, config) {
+    if (
+      config.tableName === 'pafs_core_funding_contributors' &&
+      config.joinField === 'funding_value_id'
+    ) {
+      return this._fetchFundingContributorsByProjectId(projectId, config)
+    }
+
     const query = {
       where: {
         [config.joinField]: Number(projectId)
@@ -345,9 +421,12 @@ export class ProjectService extends ProjectNfmService {
       select: this._buildJoinSelect(config)
     }
 
-    return config.isArray
-      ? this.prisma[config.tableName].findMany(query)
-      : this.prisma[config.tableName].findFirst(query)
+    const table = this.prisma[config.tableName]
+    if (!table) {
+      return config.isArray ? [] : null
+    }
+
+    return config.isArray ? table.findMany(query) : table.findFirst(query)
   }
 
   _attachJoinedTableData(project, tableKey, joinData, isArray) {

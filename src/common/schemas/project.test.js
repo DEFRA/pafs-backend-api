@@ -22,7 +22,13 @@ import {
   readyForServiceYearSchema,
   couldStartEarlySchema,
   earliestWithGiaMonthSchema,
-  earliestWithGiaYearSchema
+  earliestWithGiaYearSchema,
+  wlbEstimatedWholeLifePvBenefitsRequiredSchema,
+  wlbEstimatedWholeLifePvBenefitsOptionalSchema,
+  wlcEstimatedWholeLifePvCostsRequiredSchema,
+  wlcEstimatedWholeLifePvCostsOptionalSchema,
+  nfmRiverRestorationAreaSchema,
+  nfmLandUseChangeSchema
 } from './project.js'
 import { PROJECT_TYPES } from '../constants/project.js'
 
@@ -949,6 +955,351 @@ describe('project schemas', () => {
         completeOutlineBusinessCaseYear: 2027
       })
       expect(error).toBeUndefined()
+    })
+  })
+})
+
+describe('projectFinancialEndYearSchema – cross-field start/end validation', () => {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1
+  const currentFinancialYear = currentMonth >= 4 ? currentYear : currentYear - 1
+
+  it('should reject end year strictly less than start year in object context', () => {
+    const schema = Joi.object({
+      financialStartYear: Joi.number(),
+      financialEndYear: projectFinancialEndYearSchema
+    })
+
+    const { error } = schema.validate({
+      financialStartYear: currentFinancialYear + 3,
+      financialEndYear: currentFinancialYear + 1
+    })
+    expect(error).toBeDefined()
+  })
+
+  it('should accept end year equal to start year in object context', () => {
+    const schema = Joi.object({
+      financialStartYear: Joi.number(),
+      financialEndYear: projectFinancialEndYearSchema
+    })
+
+    const { error } = schema.validate({
+      financialStartYear: currentFinancialYear + 1,
+      financialEndYear: currentFinancialYear + 1
+    })
+    expect(error).toBeUndefined()
+  })
+})
+
+describe('Timeline schemas with financial year range context', () => {
+  const schemaWithRange = Joi.object({
+    startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+    startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+    financialStartYear: Joi.number(),
+    financialEndYear: Joi.number()
+  })
+
+  it('should reject start OBC date before financial start year', () => {
+    const { error } = schemaWithRange.validate({
+      startOutlineBusinessCaseMonth: 1,
+      startOutlineBusinessCaseYear: 2024,
+      financialStartYear: 2025,
+      financialEndYear: 2030
+    })
+    expect(error).toBeDefined()
+  })
+
+  it('should reject start OBC date after financial end year', () => {
+    const { error } = schemaWithRange.validate({
+      startOutlineBusinessCaseMonth: 6,
+      startOutlineBusinessCaseYear: 2032,
+      financialStartYear: 2025,
+      financialEndYear: 2030
+    })
+    expect(error).toBeDefined()
+  })
+
+  it('should accept start OBC date at boundary of financial end year (March of end+1)', () => {
+    const { error } = schemaWithRange.validate({
+      startOutlineBusinessCaseMonth: 3,
+      startOutlineBusinessCaseYear: 2031,
+      financialStartYear: 2025,
+      financialEndYear: 2030
+    })
+    expect(error).toBeUndefined()
+  })
+
+  it('should accept start OBC date within financial year range', () => {
+    const { error } = schemaWithRange.validate({
+      startOutlineBusinessCaseMonth: 6,
+      startOutlineBusinessCaseYear: 2027,
+      financialStartYear: 2025,
+      financialEndYear: 2030
+    })
+    expect(error).toBeUndefined()
+  })
+
+  it('should reject complete OBC date before start OBC date (year1 < year2)', () => {
+    const schema = Joi.object({
+      startOutlineBusinessCaseMonth: Joi.number(),
+      startOutlineBusinessCaseYear: Joi.number(),
+      completeOutlineBusinessCaseMonth: completeOutlineBusinessCaseMonthSchema,
+      completeOutlineBusinessCaseYear: completeOutlineBusinessCaseYearSchema
+    })
+
+    const { error } = schema.validate({
+      startOutlineBusinessCaseMonth: 6,
+      startOutlineBusinessCaseYear: 2027,
+      completeOutlineBusinessCaseMonth: 3,
+      completeOutlineBusinessCaseYear: 2026
+    })
+    expect(error).toBeDefined()
+  })
+})
+
+describe('earliestWithGia schemas with OBC context', () => {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1
+  const currentFY = currentMonth >= 4 ? currentYear : currentYear - 1
+
+  const buildSchema = () =>
+    Joi.object({
+      couldStartEarly: couldStartEarlySchema,
+      earliestWithGiaMonth: earliestWithGiaMonthSchema,
+      earliestWithGiaYear: earliestWithGiaYearSchema,
+      startOutlineBusinessCaseMonth: Joi.number(),
+      startOutlineBusinessCaseYear: Joi.number()
+    })
+
+  it('should reject when earliest GIA is on the same month as OBC start', () => {
+    const { error } = buildSchema().validate({
+      couldStartEarly: true,
+      earliestWithGiaMonth: 6,
+      earliestWithGiaYear: 2027,
+      startOutlineBusinessCaseMonth: 6,
+      startOutlineBusinessCaseYear: 2027
+    })
+    expect(error).toBeDefined()
+  })
+
+  it('should reject when earliest GIA is after OBC start', () => {
+    const { error } = buildSchema().validate({
+      couldStartEarly: true,
+      earliestWithGiaMonth: 7,
+      earliestWithGiaYear: 2027,
+      startOutlineBusinessCaseMonth: 6,
+      startOutlineBusinessCaseYear: 2027
+    })
+    expect(error).toBeDefined()
+  })
+
+  it('should reject when earliest GIA is before current financial year', () => {
+    const { error } = buildSchema().validate({
+      couldStartEarly: true,
+      earliestWithGiaMonth: 1,
+      earliestWithGiaYear: 2020,
+      startOutlineBusinessCaseMonth: 6,
+      startOutlineBusinessCaseYear: 2027
+    })
+    expect(error).toBeDefined()
+  })
+
+  it('should accept a valid earliest GIA date within current financial year before OBC', () => {
+    const obcYear = currentFY + 1
+    const { error } = buildSchema().validate({
+      couldStartEarly: true,
+      earliestWithGiaMonth: 5,
+      earliestWithGiaYear: currentFY,
+      startOutlineBusinessCaseMonth: 1,
+      startOutlineBusinessCaseYear: obcYear
+    })
+    expect(error).toBeUndefined()
+  })
+})
+
+describe('WLB estimate schemas', () => {
+  describe('required schema', () => {
+    it('should reject a string with non-digit characters', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate('abc123!')
+      expect(error).toBeDefined()
+    })
+
+    it('should reject a string exceeding 18 digits', () => {
+      const { error } = wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(
+        '1234567890123456789'
+      )
+      expect(error).toBeDefined()
+    })
+
+    it('should accept a valid digits-only string', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate('12345678')
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept exactly 18 digits', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(
+          '123456789012345678'
+        )
+      expect(error).toBeUndefined()
+    })
+  })
+
+  describe('optional schema', () => {
+    it('should accept null', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsOptionalSchema.validate(null)
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept empty string', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsOptionalSchema.validate('')
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject a non-digit non-empty string', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsOptionalSchema.validate('abc!')
+      expect(error).toBeDefined()
+    })
+
+    it('should reject a string exceeding 18 digits', () => {
+      const { error } = wlbEstimatedWholeLifePvBenefitsOptionalSchema.validate(
+        '1234567890123456789'
+      )
+      expect(error).toBeDefined()
+    })
+
+    it('should accept a valid digit string', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsOptionalSchema.validate('50000')
+      expect(error).toBeUndefined()
+    })
+  })
+})
+
+describe('WLC cost schemas', () => {
+  describe('required schema', () => {
+    it('should reject a string with non-digit characters', () => {
+      const { error } =
+        wlcEstimatedWholeLifePvCostsRequiredSchema.validate('abc123!')
+      expect(error).toBeDefined()
+    })
+
+    it('should reject a string exceeding 18 digits', () => {
+      const { error } = wlcEstimatedWholeLifePvCostsRequiredSchema.validate(
+        '1234567890123456789'
+      )
+      expect(error).toBeDefined()
+    })
+
+    it('should accept a valid digits-only string', () => {
+      const { error } =
+        wlcEstimatedWholeLifePvCostsRequiredSchema.validate('50000')
+      expect(error).toBeUndefined()
+    })
+  })
+
+  describe('optional schema', () => {
+    it('should accept null', () => {
+      const { error } =
+        wlcEstimatedWholeLifePvCostsOptionalSchema.validate(null)
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept empty string', () => {
+      const { error } = wlcEstimatedWholeLifePvCostsOptionalSchema.validate('')
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept a valid digit string', () => {
+      const { error } =
+        wlcEstimatedWholeLifePvCostsOptionalSchema.validate('99999')
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject a non-digit non-empty string', () => {
+      const { error } =
+        wlcEstimatedWholeLifePvCostsOptionalSchema.validate('abc!')
+      expect(error).toBeDefined()
+    })
+
+    it('should reject a string exceeding 18 digits', () => {
+      const { error } = wlcEstimatedWholeLifePvCostsOptionalSchema.validate(
+        '1234567890123456789'
+      )
+      expect(error).toBeDefined()
+    })
+  })
+})
+
+describe('NFM measure schemas', () => {
+  describe('nfmRiverRestorationAreaSchema (maxTwoDecimalPlaces)', () => {
+    it('should accept a positive integer', () => {
+      const { error } = nfmRiverRestorationAreaSchema.validate(10)
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept a positive number with 1 decimal place', () => {
+      const { error } = nfmRiverRestorationAreaSchema.validate(5.5)
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept a positive number with exactly 2 decimal places', () => {
+      const { error } = nfmRiverRestorationAreaSchema.validate(5.55)
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject a number with more than 2 decimal places', () => {
+      const { error } = nfmRiverRestorationAreaSchema.validate(5.555)
+      expect(error).toBeDefined()
+    })
+
+    it('should reject zero (must be positive)', () => {
+      const { error } = nfmRiverRestorationAreaSchema.validate(0)
+      expect(error).toBeDefined()
+    })
+
+    it('should reject a negative number', () => {
+      const { error } = nfmRiverRestorationAreaSchema.validate(-1)
+      expect(error).toBeDefined()
+    })
+
+    it('should reject undefined', () => {
+      const { error } = nfmRiverRestorationAreaSchema.validate(undefined)
+      expect(error).toBeDefined()
+    })
+  })
+
+  describe('nfmLandUseChangeSchema', () => {
+    it('should accept a valid single land use type', () => {
+      const { error } = nfmLandUseChangeSchema.validate('woodland')
+      expect(error).toBeUndefined()
+    })
+
+    it('should accept multiple valid land use types', () => {
+      const { error } = nfmLandUseChangeSchema.validate(
+        'woodland, peatland_restoration'
+      )
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject an invalid land use type', () => {
+      const { error } = nfmLandUseChangeSchema.validate('invalid_type')
+      expect(error).toBeDefined()
+    })
+
+    it('should reject a string that becomes empty after splitting and filtering', () => {
+      const { error } = nfmLandUseChangeSchema.validate(' ,  , ')
+      expect(error).toBeDefined()
+    })
+
+    it('should reject undefined', () => {
+      const { error } = nfmLandUseChangeSchema.validate(undefined)
+      expect(error).toBeDefined()
     })
   })
 })

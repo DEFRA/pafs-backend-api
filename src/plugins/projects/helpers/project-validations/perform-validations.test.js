@@ -281,6 +281,307 @@ describe('performValidations', () => {
     })
   })
 
+  describe('Funding sources estimated spend validations', () => {
+    beforeEach(() => {
+      validateUpdatePermissions.validateUpdatePermissions.mockResolvedValue(
+        null
+      )
+      validateCommonFields.validateCommonFields.mockResolvedValue({
+        error: null
+      })
+      validateUpdateAreaChange.validateUpdateAreaChange.mockResolvedValue({
+        error: null,
+        areaData: { id: 1n, name: 'Test Area' }
+      })
+    })
+
+    it('should return bad request when financial year is outside project range', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          fcermGia: true
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [{ financialYear: 2027, fcermGia: '1000' }]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'fundingValues[0].financialYear',
+            message: 'Financial year must be between 2024 and 2026',
+            errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should return bad request when a funding source is not enabled on the project', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          fcermGia: false
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [{ financialYear: 2025, fcermGia: '1000' }]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'fundingValues[0].fcermGia',
+            message: 'fcermGia is not enabled for this project',
+            errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should return bad request when contributor is not configured on the project', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          publicContributions: true,
+          publicContributorNames: 'Local Authority A'
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [
+            {
+              financialYear: 2025,
+              publicContributors: [
+                {
+                  name: 'Unknown Org',
+                  contributorType: 'public_contributions',
+                  amount: '1000'
+                }
+              ]
+            }
+          ]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith({
+        validationErrors: [
+          {
+            field: 'fundingValues[0].publicContributors[0].name',
+            message: 'Unknown Org is not configured for this project',
+            errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA
+          }
+        ]
+      })
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+    })
+
+    it('should return null when fundingValues is not an array', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n
+          // no fundingValues key
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should return null when all funding values are valid', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          fcermGia: true
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [{ financialYear: 2025, fcermGia: '1000' }]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should return error when contributor type is present but not enabled on project', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          publicContributions: false
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [
+            {
+              financialYear: 2025,
+              publicContributors: [
+                {
+                  name: 'Some Org',
+                  contributorType: 'public_contributions',
+                  amount: '1000'
+                }
+              ]
+            }
+          ]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith(
+        expect.objectContaining({
+          validationErrors: expect.arrayContaining([
+            expect.objectContaining({
+              field: 'fundingValues[0].publicContributors',
+              message: 'publicContributors is not enabled for this project'
+            })
+          ])
+        })
+      )
+    })
+
+    it('should return error when contributors exist but none are configured (empty names)', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          publicContributions: true,
+          publicContributorNames: null
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [
+            {
+              financialYear: 2025,
+              publicContributors: [
+                {
+                  name: 'Some Org',
+                  contributorType: 'public_contributions',
+                  amount: '1000'
+                }
+              ]
+            }
+          ]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeDefined()
+      expect(mockH.response).toHaveBeenCalledWith(
+        expect.objectContaining({
+          validationErrors: expect.arrayContaining([
+            expect.objectContaining({
+              message: 'No contributors are configured for publicContributors'
+            })
+          ])
+        })
+      )
+    })
+  })
+
   describe('Timeline boundary validations', () => {
     const existingProject = {
       referenceNumber: 'REF123',

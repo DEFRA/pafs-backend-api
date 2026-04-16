@@ -208,6 +208,18 @@ export const clearWlFieldsOnProjectTypeChange = (
 export { handleNfmMeasureData } from './nfm-normalizers.js'
 
 /**
+ * Funding source normalizers/handlers are implemented in a dedicated module.
+ * Re-exported here for backward compatibility with existing imports.
+ */
+export {
+  sanitizeFundingSourceFields,
+  normalizeFundingSourceFields,
+  handleFundingSourcesData,
+  clearDeselectedContributorData,
+  clearDeselectedAdditionalGiaData
+} from './funding-sources-normalizers.js'
+
+/**
  * Sanitizes WLC cost fields (for validation stage) by removing commas
  * and trimming whitespace. Keeps empty string as-is so required validation
  * still returns required-message semantics.

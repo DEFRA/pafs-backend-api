@@ -5,7 +5,10 @@ import { validateCommonFields } from './validate-common-fields.js'
 import { validateCreateSpecificFields } from './validate-create-specific-fields.js'
 import { validateUpdateAreaChange } from './validate-update-area-change.js'
 import { validateConfidenceFields } from './validate-confidence-fields.js'
-import { PROJECT_VALIDATION_MESSAGES } from '../../../../common/constants/project.js'
+import {
+  PROJECT_VALIDATION_MESSAGES,
+  PROJECT_VALIDATION_LEVELS
+} from '../../../../common/constants/project.js'
 import { HTTP_STATUS } from '../../../../common/constants/common.js'
 
 // Timeline validation levels that require financial year boundary checks
@@ -40,6 +43,55 @@ const TIMELINE_FIELD_MAP = {
     year: 'readyForServiceYear'
   }
 }
+
+const FUNDING_SOURCE_FIELD_CONFIG = [
+  { rowField: 'fcermGia', projectField: 'fcermGia' },
+  { rowField: 'localLevy', projectField: 'localLevy' },
+  { rowField: 'publicContributions', projectField: 'publicContributions' },
+  { rowField: 'privateContributions', projectField: 'privateContributions' },
+  { rowField: 'otherEaContributions', projectField: 'otherEaContributions' },
+  {
+    rowField: 'assetReplacementAllowance',
+    projectField: 'assetReplacementAllowance'
+  },
+  {
+    rowField: 'environmentStatutoryFunding',
+    projectField: 'environmentStatutoryFunding'
+  },
+  {
+    rowField: 'frequentlyFloodedCommunities',
+    projectField: 'frequentlyFloodedCommunities'
+  },
+  {
+    rowField: 'otherAdditionalGrantInAid',
+    projectField: 'otherAdditionalGrantInAid'
+  },
+  {
+    rowField: 'otherGovernmentDepartment',
+    projectField: 'otherGovernmentDepartment'
+  },
+  { rowField: 'recovery', projectField: 'recovery' },
+  { rowField: 'summerEconomicFund', projectField: 'summerEconomicFund' },
+  { rowField: 'notYetIdentified', projectField: 'notYetIdentified' }
+]
+
+const CONTRIBUTOR_CONFIG = [
+  {
+    rowField: 'publicContributors',
+    projectField: 'publicContributions',
+    projectNamesField: 'publicContributorNames'
+  },
+  {
+    rowField: 'privateContributors',
+    projectField: 'privateContributions',
+    projectNamesField: 'privateContributorNames'
+  },
+  {
+    rowField: 'otherEaContributors',
+    projectField: 'otherEaContributions',
+    projectNamesField: 'otherEaContributorNames'
+  }
+]
 
 /**
  * Check if date is before financial start
@@ -151,6 +203,128 @@ const validateTimelineBoundaries = (
   )
 }
 
+const hasValue = (value) => {
+  return value !== null && value !== undefined && value !== ''
+}
+
+const parseContributorNames = (names) => {
+  if (typeof names !== 'string') {
+    return new Set()
+  }
+
+  return new Set(
+    names
+      .split(',')
+      .map((name) => name.trim().toLowerCase())
+      .filter((name) => name.length > 0)
+  )
+}
+
+const validateFundingSourcesEstimatedSpend = (
+  proposalPayload,
+  validationLevel,
+  existingProject,
+  h
+) => {
+  if (
+    validationLevel !==
+    PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+  ) {
+    return null
+  }
+
+  if (!Array.isArray(proposalPayload.fundingValues)) {
+    return null
+  }
+
+  const startYear = existingProject?.financialStartYear
+  const endYear = existingProject?.financialEndYear
+
+  for (
+    let rowIndex = 0;
+    rowIndex < proposalPayload.fundingValues.length;
+    rowIndex++
+  ) {
+    const row = proposalPayload.fundingValues[rowIndex]
+
+    if (!row || typeof row !== 'object') {
+      continue
+    }
+
+    if (
+      Number.isInteger(startYear) &&
+      Number.isInteger(endYear) &&
+      Number.isInteger(row.financialYear) &&
+      (row.financialYear < startYear || row.financialYear > endYear)
+    ) {
+      return createValidationError(
+        `fundingValues[${rowIndex}].financialYear`,
+        `Financial year must be between ${startYear} and ${endYear}`,
+        h
+      )
+    }
+
+    for (const { rowField, projectField } of FUNDING_SOURCE_FIELD_CONFIG) {
+      if (hasValue(row[rowField]) && existingProject?.[projectField] !== true) {
+        return createValidationError(
+          `fundingValues[${rowIndex}].${rowField}`,
+          `${rowField} is not enabled for this project`,
+          h
+        )
+      }
+    }
+
+    for (const {
+      rowField,
+      projectField,
+      projectNamesField
+    } of CONTRIBUTOR_CONFIG) {
+      const contributors = row[rowField]
+      if (!Array.isArray(contributors) || contributors.length === 0) {
+        continue
+      }
+
+      if (existingProject?.[projectField] !== true) {
+        return createValidationError(
+          `fundingValues[${rowIndex}].${rowField}`,
+          `${rowField} is not enabled for this project`,
+          h
+        )
+      }
+
+      const allowedNames = parseContributorNames(
+        existingProject?.[projectNamesField]
+      )
+      if (allowedNames.size === 0) {
+        return createValidationError(
+          `fundingValues[${rowIndex}].${rowField}`,
+          `No contributors are configured for ${rowField}`,
+          h
+        )
+      }
+
+      for (
+        let contributorIndex = 0;
+        contributorIndex < contributors.length;
+        contributorIndex++
+      ) {
+        const contributor = contributors[contributorIndex]
+        const contributorName = contributor?.name?.trim()?.toLowerCase()
+
+        if (contributorName && !allowedNames.has(contributorName)) {
+          return createValidationError(
+            `fundingValues[${rowIndex}].${rowField}[${contributorIndex}].name`,
+            `${contributor?.name} is not configured for this project`,
+            h
+          )
+        }
+      }
+    }
+  }
+
+  return null
+}
+
 /**
  * Validates project existence for update operations
  */
@@ -254,6 +428,17 @@ const validateUpdateSpecificFields = async (
   )
   if (timelineError) {
     return { error: timelineError }
+  }
+
+  // Validate funding-source estimated spend against project config and year range
+  const fundingSourcesError = validateFundingSourcesEstimatedSpend(
+    proposalPayload,
+    validationLevel,
+    existingProject,
+    h
+  )
+  if (fundingSourcesError) {
+    return { error: fundingSourcesError }
   }
 
   return { rfccCode: null, areaData: areaResult.areaData, existingProject }
