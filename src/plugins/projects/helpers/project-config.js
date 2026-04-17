@@ -162,6 +162,7 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   ...PROJECT_FIELDS_MAP,
   id: 'id',
   referenceNumber: 'reference_number',
+  version: 'version',
   slug: 'slug',
   updatedAt: 'updated_at',
   createdAt: 'created_at',

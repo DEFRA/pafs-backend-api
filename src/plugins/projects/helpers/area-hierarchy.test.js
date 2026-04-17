@@ -30,6 +30,7 @@ describe('resolveAreaHierarchy', () => {
 
       expect(result).toEqual({
         rmaName: null,
+        rmaSubType: null,
         psoName: null,
         rfccName: null,
         eaAreaName: null
@@ -44,6 +45,7 @@ describe('resolveAreaHierarchy', () => {
 
       expect(result).toEqual({
         rmaName: null,
+        rmaSubType: null,
         psoName: null,
         rfccName: null,
         eaAreaName: null
@@ -58,6 +60,7 @@ describe('resolveAreaHierarchy', () => {
 
       expect(result).toEqual({
         rmaName: null,
+        rmaSubType: null,
         psoName: null,
         rfccName: null,
         eaAreaName: null
@@ -74,6 +77,7 @@ describe('resolveAreaHierarchy', () => {
 
       expect(result).toEqual({
         rmaName: null,
+        rmaSubType: null,
         psoName: null,
         rfccName: null,
         eaAreaName: null
@@ -81,7 +85,7 @@ describe('resolveAreaHierarchy', () => {
       expect(prisma.pafs_core_areas.findFirst).toHaveBeenCalledOnce()
       expect(prisma.pafs_core_areas.findFirst).toHaveBeenCalledWith({
         where: { id: BigInt(42) },
-        select: { name: true, parent_id: true }
+        select: { name: true, sub_type: true, parent_id: true }
       })
     })
   })
@@ -89,13 +93,14 @@ describe('resolveAreaHierarchy', () => {
   describe('Partial hierarchy', () => {
     test('Should return only rmaName when RMA has no parent_id', async () => {
       const prisma = buildMockPrisma([
-        { name: 'South Yorkshire', parent_id: null } // RMA — no PSO parent
+        { name: 'South Yorkshire', sub_type: null, parent_id: null } // RMA — no PSO parent
       ])
 
       const result = await resolveAreaHierarchy(prisma, 10)
 
       expect(result).toEqual({
         rmaName: 'South Yorkshire',
+        rmaSubType: null,
         psoName: null,
         rfccName: null,
         eaAreaName: null
@@ -106,7 +111,7 @@ describe('resolveAreaHierarchy', () => {
 
     test('Should return rmaName and psoName/rfccName when PSO has no parent_id', async () => {
       const prisma = buildMockPrisma([
-        { name: 'South Yorkshire', parent_id: 20 }, // RMA
+        { name: 'South Yorkshire', sub_type: null, parent_id: 20 }, // RMA
         { name: 'Yorkshire RFCC', parent_id: null } // PSO — no EA parent
       ])
 
@@ -114,6 +119,7 @@ describe('resolveAreaHierarchy', () => {
 
       expect(result).toEqual({
         rmaName: 'South Yorkshire',
+        rmaSubType: null,
         psoName: 'Yorkshire RFCC',
         rfccName: 'Yorkshire RFCC', // same as psoName
         eaAreaName: null
@@ -123,7 +129,7 @@ describe('resolveAreaHierarchy', () => {
 
     test('Should return null rmaName when RMA name is null', async () => {
       const prisma = buildMockPrisma([
-        { name: null, parent_id: null } // RMA with null name
+        { name: null, sub_type: null, parent_id: null } // RMA with null name
       ])
 
       const result = await resolveAreaHierarchy(prisma, 10)
@@ -133,7 +139,7 @@ describe('resolveAreaHierarchy', () => {
 
     test('Should return null psoName when PSO is not found in DB', async () => {
       const prisma = buildMockPrisma([
-        { name: 'South Yorkshire', parent_id: 99 }, // RMA points to PSO 99
+        { name: 'South Yorkshire', sub_type: null, parent_id: 99 }, // RMA points to PSO 99
         null // PSO 99 not found
       ])
 
@@ -149,7 +155,7 @@ describe('resolveAreaHierarchy', () => {
   describe('Full three-level hierarchy', () => {
     test('Should resolve full RMA → PSO → EA hierarchy', async () => {
       const prisma = buildMockPrisma([
-        { name: 'South Yorkshire', parent_id: 20 }, // RMA
+        { name: 'South Yorkshire', sub_type: 'LA', parent_id: 20 }, // RMA
         { name: 'Yorkshire RFCC', parent_id: 30 }, // PSO
         { name: 'North East' } // EA Area
       ])
@@ -158,6 +164,7 @@ describe('resolveAreaHierarchy', () => {
 
       expect(result).toEqual({
         rmaName: 'South Yorkshire',
+        rmaSubType: 'LA',
         psoName: 'Yorkshire RFCC',
         rfccName: 'Yorkshire RFCC',
         eaAreaName: 'North East'
@@ -167,7 +174,7 @@ describe('resolveAreaHierarchy', () => {
 
     test('Should query each level with the correct parent_id as BigInt', async () => {
       const prisma = buildMockPrisma([
-        { name: 'Doncaster MBC', parent_id: 50 },
+        { name: 'Doncaster MBC', sub_type: 'LA', parent_id: 50 },
         { name: 'Yorkshire RFCC', parent_id: 51 },
         { name: 'North East' }
       ])
@@ -177,11 +184,11 @@ describe('resolveAreaHierarchy', () => {
       const calls = prisma.pafs_core_areas.findFirst.mock.calls
       expect(calls[0][0]).toEqual({
         where: { id: BigInt(100) },
-        select: { name: true, parent_id: true }
+        select: { name: true, sub_type: true, parent_id: true }
       })
       expect(calls[1][0]).toEqual({
         where: { id: BigInt(50) },
-        select: { name: true, parent_id: true }
+        select: { name: true, parent_id: true } // PSO select does not need sub_type
       })
       expect(calls[2][0]).toEqual({
         where: { id: BigInt(51) },
@@ -191,7 +198,7 @@ describe('resolveAreaHierarchy', () => {
 
     test('Should treat psoName and rfccName as identical values', async () => {
       const prisma = buildMockPrisma([
-        { name: 'Hull City Council', parent_id: 20 },
+        { name: 'Hull City Council', sub_type: null, parent_id: 20 },
         { name: 'Humber RFCC', parent_id: 30 },
         { name: 'North East' }
       ])

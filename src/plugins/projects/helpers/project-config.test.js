@@ -208,8 +208,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 98 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(98)
+    it('should have 99 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(99)
     })
   })
 
@@ -276,9 +276,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 98 fields', () => {
+    it('should return an object with 99 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(98)
+      expect(Object.keys(result)).toHaveLength(99)
     })
 
     it('should return a new object each time', () => {

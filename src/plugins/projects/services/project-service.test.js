@@ -900,6 +900,7 @@ describe('ProjectService', () => {
           earliest_with_gia_year: true,
           approach: true,
           urgency_reason: true,
+          version: true,
           urgency_details: true,
           urgency_details_updated_at: true,
           confidence_homes_better_protected: true,

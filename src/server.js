@@ -22,6 +22,7 @@ import apiKeyAuthPlugin from './plugins/api-key/api-key-auth.js'
 import schedulerPlugin from './plugins/scheduler/index.js'
 import { loadTasks } from './plugins/scheduler/helpers/task-loader.js'
 import swaggerPlugin from './plugins/swagger/index.js'
+import downloadsPlugin from './plugins/downloads/index.js'
 
 function createServerConfig() {
   return {
@@ -103,7 +104,8 @@ async function registerCorePlugins(server) {
     accountsPlugin,
     emailValidationPlugin,
     projectsPlugin,
-    fileUploadPlugin
+    fileUploadPlugin,
+    downloadsPlugin
   ])
 }
 

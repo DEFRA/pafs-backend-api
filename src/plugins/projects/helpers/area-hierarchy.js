@@ -1,5 +1,6 @@
 const EMPTY_HIERARCHY = {
   rmaName: null,
+  rmaSubType: null,
   psoName: null,
   rfccName: null,
   eaAreaName: null
@@ -13,7 +14,7 @@ export async function resolveAreaHierarchy(prisma, areaId) {
   // Step 1 — RMA
   const rma = await prisma.pafs_core_areas.findFirst({
     where: { id: BigInt(areaId) },
-    select: { name: true, parent_id: true }
+    select: { name: true, sub_type: true, parent_id: true }
   })
 
   if (!rma) {
@@ -38,6 +39,7 @@ export async function resolveAreaHierarchy(prisma, areaId) {
 
   return {
     rmaName: rma.name ?? null,
+    rmaSubType: rma.sub_type ?? null,
     psoName: pso?.name ?? null,
     rfccName: pso?.name ?? null, // PSO name IS the RFCC committee name
     eaAreaName: ea?.name ?? null
