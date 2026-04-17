@@ -60,20 +60,20 @@ describe('Carbon Impact Schemas', () => {
         it('should reject non-numeric strings', () => {
           const { error } = schema.validate('abc')
           expect(error).toBeDefined()
-          expect(error.details[0].message).toBe('CARBON_COST_INVALID')
+          expect(error.details[0].message).toBe('CARBON_EMISSION_INVALID')
         })
 
         it('should reject values with more than 2 decimal places', () => {
           const { error } = schema.validate('123.456')
           expect(error).toBeDefined()
-          expect(error.details[0].message).toBe('CARBON_COST_INVALID')
+          expect(error.details[0].message).toBe('CARBON_EMISSION_INVALID')
         })
 
-        it('should reject values with more than 18 digits in integer part', () => {
-          const oversized = '1234567890123456789'
+        it('should reject values with more than 16 digits in integer part', () => {
+          const oversized = '12345678901234567'
           const { error } = schema.validate(oversized)
           expect(error).toBeDefined()
-          expect(error.details[0].message).toBe('CARBON_COST_MAX_DIGITS')
+          expect(error.details[0].message).toBe('CARBON_EMISSION_INVALID')
         })
 
         it('should trim whitespace', () => {
@@ -124,7 +124,7 @@ describe('Carbon Impact Schemas', () => {
       const { error } =
         carbonSavingsNetEconomicBenefitOptionalSchema.validate(oversized)
       expect(error).toBeDefined()
-      expect(error.details[0].message).toBe('CARBON_COST_MAX_DIGITS')
+      expect(error.details[0].message).toBe('CARBON_COST_INVALID')
     })
 
     it('should trim whitespace', () => {
@@ -168,7 +168,7 @@ describe('Carbon Impact Schemas', () => {
       const { error } =
         carbonOperationalCostForecastRequiredSchema.validate(oversized)
       expect(error).toBeDefined()
-      expect(error.details[0].message).toBe('CARBON_COST_MAX_DIGITS')
+      expect(error.details[0].message).toBe('CARBON_COST_INVALID')
     })
   })
 

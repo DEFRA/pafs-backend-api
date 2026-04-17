@@ -1,7 +1,8 @@
 import Joi from 'joi'
 import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
-const MAX_DIGITS = 18
+const MAX_EMISSION_DIGITS = 16
+const MAX_COST_DIGITS = 18
 const MAX_HEXDIGEST_LENGTH = 255
 const DECIMAL_REGEX = /^\d+(\.\d{1,2})?$/
 const INTEGER_REGEX = /^\d+$/
@@ -15,7 +16,7 @@ const validateCarbonDecimalString = (value, helpers) => {
     return helpers.error('string.pattern.base')
   }
   const intPart = value.split('.')[0]
-  if (intPart.length > MAX_DIGITS) {
+  if (intPart.length > MAX_EMISSION_DIGITS) {
     return helpers.error('string.max')
   }
   return value
@@ -29,7 +30,7 @@ const validateCarbonIntegerString = (value, helpers) => {
   if (!INTEGER_REGEX.test(value)) {
     return helpers.error('string.pattern.base')
   }
-  if (value.length > MAX_DIGITS) {
+  if (value.length > MAX_COST_DIGITS) {
     return helpers.error('string.max')
   }
   return value
@@ -50,9 +51,10 @@ const createOptionalCarbonDecimalSchema = (label) =>
     })
     .label(label)
     .messages({
-      'string.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
-      'string.pattern.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
-      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_MAX_DIGITS
+      'string.base': PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_INVALID,
+      'string.pattern.base':
+        PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_INVALID,
+      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_INVALID
     })
 
 // --- Integer field schemas (£ fields) ---
@@ -72,7 +74,7 @@ const createOptionalCarbonIntegerSchema = (label) =>
     .messages({
       'string.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
       'string.pattern.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
-      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_MAX_DIGITS
+      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID
     })
 
 const createRequiredCarbonIntegerSchema = (label) =>
@@ -85,7 +87,7 @@ const createRequiredCarbonIntegerSchema = (label) =>
     .messages({
       'string.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
       'string.pattern.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
-      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_MAX_DIGITS,
+      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
       'any.required': PROJECT_VALIDATION_MESSAGES.CARBON_COST_REQUIRED
     })
 
