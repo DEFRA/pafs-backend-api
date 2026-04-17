@@ -545,11 +545,7 @@ export const handleFundingSourcesData = async (
   const { referenceNumber } = enrichedPayload
 
   for (const row of enrichedPayload.fundingValues) {
-    if (!isFundingValueRowObject(row)) {
-      continue
-    }
-
-    if (!hasFinancialYear(row)) {
+    if (!isFundingValueRowObject(row) || !hasFinancialYear(row)) {
       continue
     }
 

@@ -827,5 +827,349 @@ describe('ProjectFundingSourcesService', () => {
         'Error cleaning up removed contributors'
       )
     })
+
+    test('should clamp total to 0 when recalculated total would be negative', async () => {
+      const fundingValue = {
+        id: 100n,
+        total: 100n,
+        public_contributions: 500n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { amount: 50n }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['Remaining']
+      })
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: {
+          public_contributions: 50n,
+          total: 0n
+        }
+      })
+    })
+
+    test('should handle contributor with null amount in reduce', async () => {
+      const fundingValue = {
+        id: 100n,
+        total: 1000n,
+        public_contributions: 500n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { amount: 200n },
+        { amount: null }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['A', 'B']
+      })
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: {
+          public_contributions: 200n,
+          total: 700n
+        }
+      })
+    })
+
+    test('should handle funding value with null total field', async () => {
+      const fundingValue = {
+        id: 100n,
+        total: null,
+        public_contributions: null
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { amount: 100n }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.cleanupContributorsByName({
+        referenceNumber,
+        contributorType,
+        currentNames: ['Partner']
+      })
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: {
+          public_contributions: 100n,
+          total: 100n
+        }
+      })
+    })
+  })
+
+  // ─── deleteContributorsByType ─────────────────────────────────────────────
+
+  describe('deleteContributorsByType', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+    const contributorType = 'public_contributions'
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
+    })
+
+    test('should delete all contributors of a specific type and return count', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 100n },
+        { id: 101n }
+      ])
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
+        count: 5
+      })
+
+      const result = await service.deleteContributorsByType({
+        referenceNumber,
+        contributorType
+      })
+
+      expect(result).toBe(5)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: { in: [100n, 101n] },
+          contributor_type: contributorType
+        }
+      })
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ contributorType, count: 5 }),
+        'Funding contributors deleted by type'
+      )
+    })
+
+    test('should return 0 when no funding values exist', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([])
+
+      const result = await service.deleteContributorsByType({
+        referenceNumber,
+        contributorType
+      })
+
+      expect(result).toBe(0)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('should throw and log error when project lookup fails', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.deleteContributorsByType({ referenceNumber, contributorType })
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, contributorType }),
+        'Error deleting funding contributors by type'
+      )
+    })
+
+    test('should throw when deleteMany fails', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 100n }
+      ])
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockRejectedValue(
+        new Error('DB error')
+      )
+
+      await expect(
+        service.deleteContributorsByType({ referenceNumber, contributorType })
+      ).rejects.toThrow('DB error')
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
+  })
+
+  // ─── nullAdditionalGiaColumns ─────────────────────────────────────────────
+
+  describe('nullAdditionalGiaColumns', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
+    })
+
+    test('should null additional GIA columns and recalculate total', async () => {
+      const fundingValue = {
+        id: 100n,
+        fcerm_gia: 1000n,
+        local_levy: 500n,
+        internal_drainage_boards: 200n,
+        public_contributions: 100n,
+        private_contributions: 50n,
+        other_ea_contributions: 25n,
+        not_yet_identified: 10n,
+        asset_replacement_allowance: 300n,
+        environment_statutory_funding: 400n,
+        frequently_flooded_communities: null,
+        other_additional_grant_in_aid: null,
+        other_government_department: null,
+        recovery: null,
+        summer_economic_fund: null,
+        total: 2585n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullAdditionalGiaColumns(referenceNumber)
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: {
+          asset_replacement_allowance: null,
+          environment_statutory_funding: null,
+          frequently_flooded_communities: null,
+          other_additional_grant_in_aid: null,
+          other_government_department: null,
+          recovery: null,
+          summer_economic_fund: null,
+          total: 1885n
+        }
+      })
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber }),
+        'Additional GIA columns nulled successfully'
+      )
+    })
+
+    test('should handle funding values with null base fields', async () => {
+      const fundingValue = {
+        id: 100n,
+        fcerm_gia: null,
+        local_levy: null,
+        internal_drainage_boards: null,
+        public_contributions: null,
+        private_contributions: null,
+        other_ea_contributions: null,
+        not_yet_identified: null,
+        asset_replacement_allowance: 500n,
+        total: 500n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullAdditionalGiaColumns(referenceNumber)
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: expect.objectContaining({ total: 0n })
+      })
+    })
+
+    test('should handle multiple funding values', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        {
+          id: 100n,
+          fcerm_gia: 1000n,
+          local_levy: null,
+          internal_drainage_boards: null,
+          public_contributions: null,
+          private_contributions: null,
+          other_ea_contributions: null,
+          not_yet_identified: null,
+          total: 1500n
+        },
+        {
+          id: 101n,
+          fcerm_gia: 2000n,
+          local_levy: 500n,
+          internal_drainage_boards: null,
+          public_contributions: null,
+          private_contributions: null,
+          other_ea_contributions: null,
+          not_yet_identified: null,
+          total: 3000n
+        }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullAdditionalGiaColumns(referenceNumber)
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledTimes(
+        2
+      )
+      expect(
+        mockPrisma.pafs_core_funding_values.update
+      ).toHaveBeenNthCalledWith(1, {
+        where: { id: 100n },
+        data: expect.objectContaining({ total: 1000n })
+      })
+      expect(
+        mockPrisma.pafs_core_funding_values.update
+      ).toHaveBeenNthCalledWith(2, {
+        where: { id: 101n },
+        data: expect.objectContaining({ total: 2500n })
+      })
+    })
+
+    test('should do nothing when no funding values exist', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([])
+
+      await service.nullAdditionalGiaColumns(referenceNumber)
+
+      expect(mockPrisma.pafs_core_funding_values.update).not.toHaveBeenCalled()
+      expect(mockLogger.info).toHaveBeenCalled()
+    })
+
+    test('should throw and log error when project lookup fails', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.nullAdditionalGiaColumns(referenceNumber)
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber }),
+        'Error nulling additional GIA columns'
+      )
+    })
+
+    test('should throw when database update fails', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        {
+          id: 100n,
+          fcerm_gia: 1000n,
+          local_levy: null,
+          internal_drainage_boards: null,
+          public_contributions: null,
+          private_contributions: null,
+          other_ea_contributions: null,
+          not_yet_identified: null,
+          total: 1000n
+        }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockRejectedValue(
+        new Error('Update failed')
+      )
+
+      await expect(
+        service.nullAdditionalGiaColumns(referenceNumber)
+      ).rejects.toThrow('Update failed')
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
   })
 })

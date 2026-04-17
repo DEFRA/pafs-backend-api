@@ -43,6 +43,123 @@ describe('funding-sources-normalizers', () => {
       expect(payload.fundingValues[0].internalDrainageBoards).toBe('2500')
       expect(payload.fundingValues[0].total).toBe('3500')
     })
+
+    it('trims private contributor names at PRIVATE_SECTOR_CONTRIBUTORS level', () => {
+      const payload = { privateContributorNames: '  Corp A, Corp B  ' }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PRIVATE_SECTOR_CONTRIBUTORS
+      )
+
+      expect(payload.privateContributorNames).toBe('Corp A, Corp B')
+    })
+
+    it('does not modify private contributor names when not a string', () => {
+      const payload = { privateContributorNames: null }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PRIVATE_SECTOR_CONTRIBUTORS
+      )
+
+      expect(payload.privateContributorNames).toBeNull()
+    })
+
+    it('trims other EA contributor names at OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS level', () => {
+      const payload = { otherEaContributorNames: '  EA Partner X  ' }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS
+      )
+
+      expect(payload.otherEaContributorNames).toBe('EA Partner X')
+    })
+
+    it('does not modify other EA contributor names when not a string', () => {
+      const payload = { otherEaContributorNames: 123 }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS
+      )
+
+      expect(payload.otherEaContributorNames).toBe(123)
+    })
+
+    it('returns early for unrecognized validation level', () => {
+      const payload = { publicContributorNames: '  name  ' }
+
+      sanitizeFundingSourceFields(payload, 'SOME_OTHER_LEVEL')
+
+      expect(payload.publicContributorNames).toBe('  name  ')
+    })
+
+    it('returns early when fundingValues is not an array at estimated spend level', () => {
+      const payload = { fundingValues: 'not-an-array' }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues).toBe('not-an-array')
+    })
+
+    it('skips non-object rows in fundingValues', () => {
+      const payload = {
+        fundingValues: [null, undefined, 'string-row']
+      }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues).toEqual([null, undefined, 'string-row'])
+    })
+
+    it('sanitizes contributor fields within funding value rows', () => {
+      const payload = {
+        fundingValues: [
+          {
+            financialYear: 2026,
+            publicContributors: [
+              { name: '  Alice  ', amount: ' 1,000 ' },
+              null,
+              { name: null, amount: null }
+            ]
+          }
+        ]
+      }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues[0].publicContributors[0].name).toBe('Alice')
+      expect(payload.fundingValues[0].publicContributors[0].amount).toBe('1000')
+    })
+
+    it('skips non-array contributor fields in rows', () => {
+      const payload = {
+        fundingValues: [
+          {
+            financialYear: 2026,
+            publicContributors: 'not-an-array'
+          }
+        ]
+      }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues[0].publicContributors).toBe('not-an-array')
+    })
   })
 
   describe('normalizeFundingSourceFields', () => {
@@ -66,6 +183,97 @@ describe('funding-sources-normalizers', () => {
       expect(payload.fundingValues[0].fcermGia).toBeNull()
       expect(payload.fundingValues[0].internalDrainageBoards).toBeNull()
       expect(payload.fundingValues[0].total).toBeNull()
+    })
+
+    it('returns early for non-estimated-spend validation level', () => {
+      const payload = { fundingValues: [{ fcermGia: '' }] }
+
+      normalizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS
+      )
+
+      expect(payload.fundingValues[0].fcermGia).toBe('')
+    })
+
+    it('returns early when fundingValues is not an array', () => {
+      const payload = { fundingValues: 'not-array' }
+
+      normalizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues).toBe('not-array')
+    })
+
+    it('skips non-object rows', () => {
+      const payload = { fundingValues: [null, undefined] }
+
+      normalizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues).toEqual([null, undefined])
+    })
+
+    it('normalizes contributor empty amount to null within rows', () => {
+      const payload = {
+        fundingValues: [
+          {
+            financialYear: 2026,
+            publicContributors: [{ name: 'Alice', amount: '' }]
+          }
+        ]
+      }
+
+      normalizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues[0].publicContributors[0].name).toBe('Alice')
+      expect(payload.fundingValues[0].publicContributors[0].amount).toBeNull()
+    })
+
+    it('skips non-array contributor fields during normalization', () => {
+      const payload = {
+        fundingValues: [
+          {
+            financialYear: 2026,
+            publicContributors: 'not-array'
+          }
+        ]
+      }
+
+      normalizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues[0].publicContributors).toBe('not-array')
+    })
+
+    it('skips null contributors in contributor array', () => {
+      const payload = {
+        fundingValues: [
+          {
+            financialYear: 2026,
+            publicContributors: [null, undefined]
+          }
+        ]
+      }
+
+      normalizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+      )
+
+      expect(payload.fundingValues[0].publicContributors).toEqual([
+        null,
+        undefined
+      ])
     })
   })
 

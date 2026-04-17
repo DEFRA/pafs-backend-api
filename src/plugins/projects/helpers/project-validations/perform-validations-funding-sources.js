@@ -120,11 +120,7 @@ const validateEnabledFundingSourceFields = (
   h
 ) => {
   for (const { rowField, projectField } of FUNDING_SOURCE_FIELD_CONFIG) {
-    if (!hasValue(row[rowField])) {
-      continue
-    }
-
-    if (existingProject?.[projectField] === true) {
+    if (!hasValue(row[rowField]) || existingProject?.[projectField] === true) {
       continue
     }
 

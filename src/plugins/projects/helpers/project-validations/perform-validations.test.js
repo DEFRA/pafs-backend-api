@@ -580,6 +580,179 @@ describe('performValidations', () => {
         })
       )
     })
+
+    it('should skip year range validation when financialYear is not an integer', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          fcermGia: true
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [
+            {
+              financialYear: 'not-a-number',
+              fcermGia: '1000'
+            }
+          ]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      // Should not return a year range error since financialYear is not an integer
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should skip year range validation when startYear or endYear is not an integer', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: null,
+          financialEndYear: null,
+          fcermGia: true
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [
+            {
+              financialYear: 2025,
+              fcermGia: '1000'
+            }
+          ]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should skip validation for null or non-object rows', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [null, undefined, 'string']
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should allow empty contributor arrays without error', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          publicContributions: true,
+          publicContributorNames: 'Alice'
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [
+            {
+              financialYear: 2025,
+              publicContributors: []
+            }
+          ]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should allow contributors with matching names (case insensitive)', async () => {
+      validateProjectExists.validateProjectExists.mockResolvedValue({
+        error: null,
+        project: {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          financialStartYear: 2024,
+          financialEndYear: 2026,
+          publicContributions: true,
+          publicContributorNames: 'Alice, Bob'
+        }
+      })
+
+      const result = await performValidations(
+        mockProjectService,
+        mockAreaService,
+        {
+          referenceNumber: 'REF123',
+          areaId: 1n,
+          fundingValues: [
+            {
+              financialYear: 2025,
+              publicContributors: [
+                {
+                  name: 'alice',
+                  contributorType: 'public_contributions',
+                  amount: '500'
+                }
+              ]
+            }
+          ]
+        },
+        mockCredentials,
+        'FUNDING_SOURCES_ESTIMATED_SPEND',
+        mockLogger,
+        mockH
+      )
+
+      expect(result.error).toBeUndefined()
+    })
   })
 
   describe('Timeline boundary validations', () => {

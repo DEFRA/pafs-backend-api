@@ -2144,6 +2144,128 @@ describe('ProjectService', () => {
         { funding_value_id: 12n, amount: 2000n }
       ])
     })
+
+    test('should return empty array when funding contributors table findMany is missing', async () => {
+      mockPrisma.pafs_core_funding_values = {
+        findMany: vi.fn().mockResolvedValue([{ id: 11n }])
+      }
+      mockPrisma.pafs_core_funding_contributors = undefined
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return empty array when funding values findMany is missing', async () => {
+      mockPrisma.pafs_core_funding_values = undefined
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return empty array when no funding value ids found', async () => {
+      mockPrisma.pafs_core_funding_values = {
+        findMany: vi.fn().mockResolvedValue([])
+      }
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return empty array when table is not found for non-contributor config (isArray)', async () => {
+      mockPrisma.nonexistent_table = undefined
+
+      const config = {
+        tableName: 'nonexistent_table',
+        joinField: 'project_id',
+        isArray: true,
+        fields: { name: 'name' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return null when table is not found for non-contributor config (single)', async () => {
+      mockPrisma.nonexistent_table = undefined
+
+      const config = {
+        tableName: 'nonexistent_table',
+        joinField: 'project_id',
+        isArray: false,
+        fields: { name: 'name' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toBeNull()
+    })
+
+    test('should use findFirst for non-array config', async () => {
+      mockPrisma.pafs_core_states = {
+        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
+      }
+
+      const config = {
+        tableName: 'pafs_core_states',
+        joinField: 'project_id',
+        isArray: false,
+        fields: { state: 'state' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual({ state: 'draft' })
+      expect(mockPrisma.pafs_core_states.findFirst).toHaveBeenCalledWith({
+        where: { project_id: 1 },
+        select: { state: true }
+      })
+    })
+
+    test('should filter out NaN ids from funding value results', async () => {
+      mockPrisma.pafs_core_funding_values = {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 11n }, { id: 'invalid' }, { id: 12n }])
+      }
+      mockPrisma.pafs_core_funding_contributors = {
+        findMany: vi.fn().mockResolvedValue([])
+      }
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).toHaveBeenCalledWith({
+        where: { funding_value_id: { in: [11, 12] } },
+        select: { amount: true }
+      })
+      expect(result).toEqual([])
+    })
   })
 
   describe('funding service delegation', () => {
