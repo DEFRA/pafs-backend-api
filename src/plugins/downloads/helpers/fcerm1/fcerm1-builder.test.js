@@ -47,6 +47,7 @@ const mocks = vi.hoisted(() => {
     }),
     updateFile: vi.fn(),
     addFile: vi.fn(),
+    deleteFile: vi.fn(),
     toBuffer: vi.fn(() => Buffer.from('mock-zip-output'))
   }
 

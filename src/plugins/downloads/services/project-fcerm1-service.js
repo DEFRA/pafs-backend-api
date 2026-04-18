@@ -58,16 +58,16 @@ export class ProjectFcerm1Service {
     const contributors =
       fundingValueIds.length > 0
         ? await this.prisma.pafs_core_funding_contributors.findMany({
-          where: { funding_value_id: { in: fundingValueIds } }
-        })
+            where: { funding_value_id: { in: fundingValueIds } }
+          })
         : []
 
     // Resolve the name of the person who last updated the project
     const updatedByUser = project.updated_by_id
       ? await this.prisma.pafs_core_users.findFirst({
-        where: { id: project.updated_by_id },
-        select: { first_name: true, last_name: true }
-      })
+          where: { id: project.updated_by_id },
+          select: { first_name: true, last_name: true }
+        })
       : null
 
     // Assemble the enriched project object — the presenter expects child rows attached

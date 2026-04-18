@@ -136,7 +136,7 @@ function buildDataRowXml(
   columns
 ) {
   const defaultStyle = styleMap.A ?? '66'
-  let cells = ''
+  const cellList = []
   const writtenCols = new Set()
 
   for (const col of columns) {
@@ -150,30 +150,43 @@ function buildDataRowXml(
       FCERM1_YEARS.forEach((year, offset) => {
         const colLetter = columnIndexToLetter(startIndex + offset)
         const value = useValue ? (presenter[col.field](year) ?? 0) : 0
-        cells += buildCellXml(
-          `${colLetter}${rowNumber}`,
-          value,
-          styleMap[colLetter] ?? defaultStyle
-        )
+        cellList.push({
+          colIndex: startIndex + offset,
+          xml: buildCellXml(
+            `${colLetter}${rowNumber}`,
+            value,
+            styleMap[colLetter] ?? defaultStyle
+          )
+        })
         writtenCols.add(colLetter)
       })
     } else {
       const value = useValue ? presenter[col.field]() : 0
-      cells += buildCellXml(
-        `${col.column}${rowNumber}`,
-        value,
-        styleMap[col.column] ?? defaultStyle
-      )
+      cellList.push({
+        colIndex: columnLetterToIndex(col.column),
+        xml: buildCellXml(
+          `${col.column}${rowNumber}`,
+          value,
+          styleMap[col.column] ?? defaultStyle
+        )
+      })
       writtenCols.add(col.column)
     }
   }
 
-  // Append formula cells from the template for any column not already written with data
+  // Insert formula cells from the template for any column not already written with data
   for (const [col, formulaXml] of Object.entries(formulaCells)) {
     if (!writtenCols.has(col)) {
-      cells += shiftFormulaToRow(formulaXml, rowNumber)
+      cellList.push({
+        colIndex: columnLetterToIndex(col),
+        xml: shiftFormulaToRow(formulaXml, rowNumber)
+      })
     }
   }
+
+  // OOXML requires cells to be in ascending column order within a row
+  cellList.sort((a, b) => a.colIndex - b.colIndex)
+  const cells = cellList.map((c) => c.xml).join('')
 
   return (
     `<row r="${rowNumber}" customFormat="false" ht="15" hidden="false" ` +
@@ -271,8 +284,8 @@ function addContributorsSheetToZip(
       relsXml.replace(
         '</Relationships>',
         `<Relationship Id="${contributorsRid}" ` +
-        `Type="${WORKSHEET_REL_TYPE}" Target="worksheets/sheet2.xml"/>` +
-        '</Relationships>'
+          `Type="${WORKSHEET_REL_TYPE}" Target="worksheets/sheet2.xml"/>` +
+          '</Relationships>'
       ),
       'utf8'
     )
@@ -284,8 +297,8 @@ function addContributorsSheetToZip(
       zipReadText(zip, '[Content_Types].xml').replace(
         '</Types>',
         `<Override PartName="/xl/worksheets/sheet2.xml" ` +
-        `ContentType="${WORKSHEET_CONTENT_TYPE}"/>` +
-        '</Types>'
+          `ContentType="${WORKSHEET_CONTENT_TYPE}"/>` +
+          '</Types>'
       ),
       'utf8'
     )
@@ -335,6 +348,7 @@ async function _buildWorkbook(templatePath, presenters, columns) {
     contributorsRid,
     relsXml
   )
+  zip.deleteFile('xl/calcChain.xml')
 
   return zip.toBuffer()
 }
