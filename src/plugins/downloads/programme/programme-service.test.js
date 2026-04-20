@@ -467,7 +467,8 @@ describe('queueAdminGeneration', () => {
     prisma.pafs_core_states.findMany.mockResolvedValue([])
     prisma.pafs_core_users.findFirst.mockResolvedValue({
       email: 'admin@example.gov.uk',
-      first_name: 'Admin'
+      first_name: 'Admin',
+      last_name: null
     })
 
     const mockSend = vi.fn().mockResolvedValue({})
@@ -492,7 +493,10 @@ describe('queueAdminGeneration', () => {
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-complete',
       'admin@example.gov.uk',
-      expect.objectContaining({ first_name: 'Admin' }),
+      expect.objectContaining({
+        full_name: 'Admin',
+        download_url: expect.stringContaining('/download')
+      }),
       'programme-download-complete'
     )
   })
@@ -598,13 +602,13 @@ describe('sendDownloadEmail edge cases', () => {
     vi.unstubAllGlobals()
   })
 
-  test('uses "User" as first_name fallback when first_name is null', async () => {
+  test('uses "User" as full_name fallback when both names are null', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([])
     prisma.pafs_core_users.findFirst.mockResolvedValue({
       email: 'a@b.gov.uk',
       first_name: null,
-      last_name: 'Test'
+      last_name: null
     })
 
     const mockSend = vi.fn().mockResolvedValue({})
@@ -627,7 +631,7 @@ describe('sendDownloadEmail edge cases', () => {
     expect(mockSend).toHaveBeenCalledWith(
       expect.any(String),
       'a@b.gov.uk',
-      expect.objectContaining({ first_name: 'User' }),
+      expect.objectContaining({ full_name: 'User' }),
       expect.any(String)
     )
   })
@@ -1132,7 +1136,10 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-complete',
       'alice@example.gov.uk',
-      expect.objectContaining({ first_name: 'Alice' }),
+      expect.objectContaining({
+        full_name: 'Alice Smith',
+        download_url: expect.stringContaining('/download')
+      }),
       'programme-download-complete'
     )
   })
@@ -1190,7 +1197,10 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-failed',
       'bob@example.gov.uk',
-      expect.objectContaining({ first_name: 'Bob' }),
+      expect.objectContaining({
+        full_name: 'Bob Jones',
+        download_url: expect.stringContaining('/download')
+      }),
       'programme-download-failed'
     )
   })
@@ -1430,7 +1440,10 @@ describe('queueAdminGeneration — projects, batching, and email paths', () => {
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-failed',
       'admin@dept.gov.uk',
-      expect.objectContaining({ first_name: 'Caroline' }),
+      expect.objectContaining({
+        full_name: 'Caroline Green',
+        download_url: expect.stringContaining('/download')
+      }),
       'programme-download-failed'
     )
   })

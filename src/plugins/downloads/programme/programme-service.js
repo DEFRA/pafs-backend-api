@@ -19,6 +19,9 @@ const DOWNLOAD_STATUS = {
 // Sentinel value: admin system-wide download has user_id = null
 const ADMIN_USER_ID = null
 
+// Frontend download page path — both user and admin land on the same page
+const DOWNLOAD_PATH = '/download'
+
 /**
  * Get the current download record for a user.
  * Returns null if no record exists yet.
@@ -223,20 +226,37 @@ async function getUserEmailDetails(prisma, userId) {
  * Send a programme download notification email via GOV.UK Notify.
  * Fails silently — a notification failure must never block the download.
  */
-async function sendDownloadEmail(logger, email, firstName, isSuccess) {
+async function sendDownloadEmail(
+  logger,
+  email,
+  firstName,
+  lastName,
+  requestedOn,
+  downloadUrl,
+  isSuccess
+) {
   const templateId = config.get(
     isSuccess
       ? 'notify.templateProgrammeDownloadComplete'
       : 'notify.templateProgrammeDownloadFailed'
   )
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'User'
+  const requestedOnFormatted = requestedOn
+    ? new Date(requestedOn).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
+    : ''
   try {
     const emailService = getEmailService(logger)
     await emailService.send(
       templateId,
       email,
       {
-        first_name: firstName || 'User',
-        download_url: `${config.get('frontendUrl')}/download`
+        full_name: fullName,
+        requested_on: requestedOnFormatted,
+        download_url: downloadUrl
       },
       isSuccess ? 'programme-download-complete' : 'programme-download-failed'
     )
@@ -283,7 +303,14 @@ async function fetchUserProjectIds(prisma, userId) {
   return rows.map((r) => r.project_id)
 }
 
-async function notifyByEmail(prisma, logger, userId, isSuccess) {
+async function notifyByEmail(
+  prisma,
+  logger,
+  userId,
+  requestedOn,
+  downloadUrl,
+  isSuccess
+) {
   if (!userId) {
     return
   }
@@ -293,6 +320,9 @@ async function notifyByEmail(prisma, logger, userId, isSuccess) {
       logger,
       details.email,
       details.first_name,
+      details.last_name,
+      requestedOn,
+      downloadUrl,
       isSuccess
     )
   }
@@ -305,7 +335,8 @@ async function runUserGeneration({
   logger,
   userId,
   downloadId,
-  s3Bucket
+  s3Bucket,
+  requestedOn
 }) {
   try {
     logger.info({ userId, downloadId }, 'Starting user programme generation')
@@ -355,7 +386,8 @@ async function runUserGeneration({
       'User programme generation complete'
     )
 
-    await notifyByEmail(prisma, logger, userId, true)
+    const downloadUrl = `${config.get('frontendUrl')}${DOWNLOAD_PATH}`
+    await notifyByEmail(prisma, logger, userId, requestedOn, downloadUrl, true)
   } catch (err) {
     logger.error(
       { err, userId, downloadId },
@@ -367,7 +399,8 @@ async function runUserGeneration({
       progress_message: 'Generation failed'
     }).catch(() => {})
 
-    await notifyByEmail(prisma, logger, userId, false)
+    const downloadUrl = `${config.get('frontendUrl')}${DOWNLOAD_PATH}`
+    await notifyByEmail(prisma, logger, userId, requestedOn, downloadUrl, false)
   }
 }
 
@@ -377,12 +410,62 @@ export function queueUserGeneration(params) {
 
 // ── Admin programme generation ────────────────────────────────────────────────
 
+async function generateAdminSpreadsheet({
+  prisma,
+  logger,
+  downloadId,
+  s3Bucket
+}) {
+  const stateRows = await prisma.pafs_core_states.findMany({
+    where: { state: { not: 'archived' } },
+    select: { project_id: true }
+  })
+
+  const projectIds = stateRows
+    .map((r) => r.project_id)
+    .filter((id) => id != null)
+  const total = projectIds.length
+
+  await updateDownloadRecord(prisma, downloadId, {
+    progress_message: `Loading ${total} projects...`,
+    progress_total: total
+  })
+
+  const s3Service = getS3Service(logger)
+  const presenters = await loadAllProjectsInBatches(
+    prisma,
+    projectIds,
+    downloadId,
+    total,
+    logger
+  )
+
+  const fcerm1Key = adminS3Key('all_proposals.xlsx')
+  const fcerm1Filename = await uploadFcerm1IfAny(
+    s3Service,
+    s3Bucket,
+    fcerm1Key,
+    presenters
+  )
+
+  await updateDownloadRecord(prisma, downloadId, {
+    status: DOWNLOAD_STATUS.READY,
+    number_of_proposals: presenters.length,
+    fcerm1_filename: fcerm1Filename,
+    progress_current: total,
+    progress_message: 'Complete'
+  })
+
+  return presenters.length
+}
+
 async function runAdminGeneration({
   prisma,
   logger,
   downloadId,
   s3Bucket,
-  requestingUserId
+  requestingUserId,
+  requestedOn
 }) {
   try {
     logger.info(
@@ -390,52 +473,24 @@ async function runAdminGeneration({
       'Starting admin programme generation'
     )
 
-    const stateRows = await prisma.pafs_core_states.findMany({
-      where: { state: { not: 'archived' } },
-      select: { project_id: true }
-    })
-
-    const projectIds = stateRows
-      .map((r) => r.project_id)
-      .filter((id) => id != null)
-    const total = projectIds.length
-
-    await updateDownloadRecord(prisma, downloadId, {
-      progress_message: `Loading ${total} projects...`,
-      progress_total: total
-    })
-
-    const s3Service = getS3Service(logger)
-    const presenters = await loadAllProjectsInBatches(
+    const count = await generateAdminSpreadsheet({
       prisma,
-      projectIds,
+      logger,
       downloadId,
-      total,
-      logger
-    )
-
-    const fcerm1Key = adminS3Key('all_proposals.xlsx')
-    const fcerm1Filename = await uploadFcerm1IfAny(
-      s3Service,
-      s3Bucket,
-      fcerm1Key,
-      presenters
-    )
-
-    await updateDownloadRecord(prisma, downloadId, {
-      status: DOWNLOAD_STATUS.READY,
-      number_of_proposals: presenters.length,
-      fcerm1_filename: fcerm1Filename,
-      progress_current: total,
-      progress_message: 'Complete'
+      s3Bucket
     })
 
-    logger.info(
-      { downloadId, count: presenters.length },
-      'Admin programme generation complete'
-    )
+    logger.info({ downloadId, count }, 'Admin programme generation complete')
 
-    await notifyByEmail(prisma, logger, requestingUserId, true)
+    const downloadUrl = `${config.get('frontendUrl')}${DOWNLOAD_PATH}`
+    await notifyByEmail(
+      prisma,
+      logger,
+      requestingUserId,
+      requestedOn,
+      downloadUrl,
+      true
+    )
   } catch (err) {
     logger.error({ err, downloadId }, 'Admin programme generation failed')
 
@@ -444,7 +499,15 @@ async function runAdminGeneration({
       progress_message: 'Generation failed'
     }).catch(() => {})
 
-    await notifyByEmail(prisma, logger, requestingUserId, false)
+    const downloadUrl = `${config.get('frontendUrl')}${DOWNLOAD_PATH}`
+    await notifyByEmail(
+      prisma,
+      logger,
+      requestingUserId,
+      requestedOn,
+      downloadUrl,
+      false
+    )
   }
 }
 

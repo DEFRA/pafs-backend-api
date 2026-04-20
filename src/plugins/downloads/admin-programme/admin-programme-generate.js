@@ -41,7 +41,8 @@ export const generateAdminProgramme = {
         logger,
         downloadId: record.id,
         s3Bucket,
-        requestingUserId
+        requestingUserId,
+        requestedOn: record.requested_on
       })
 
       logger.info(

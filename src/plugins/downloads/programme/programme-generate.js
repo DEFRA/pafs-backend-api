@@ -52,7 +52,8 @@ export const generateUserProgramme = {
         logger,
         userId,
         downloadId: record.id,
-        s3Bucket
+        s3Bucket,
+        requestedOn: record.requested_on
       })
 
       logger.info(
