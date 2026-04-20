@@ -282,11 +282,13 @@ export class CarbonImpactCalculator {
   /**
    * Compute the legacy hexdigest (SHA-1) of the 4 calculated values.
    * Used for compatibility with migrated pafs_core projects.
+   * This is not used for security (auth/signing/encryption), only deterministic
+   * change detection against historical stored digests.
    */
   computeLegacyHexdigest() {
     const values = this._hexdigestValues()
     const data = JSON.stringify(values)
-    return createHash('sha1').update(data).digest('hex')
+    return createHash('sha1').update(data).digest('hex') // NOSONAR - required legacy compatibility hash in non-sensitive context
   }
 
   /**
