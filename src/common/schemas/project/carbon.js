@@ -77,7 +77,7 @@ const createOptionalCarbonIntegerSchema = (label) =>
       'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID
     })
 
-const createRequiredCarbonIntegerSchema = (label) =>
+const createRequiredCarbonOperationalCostForecastSchema = (label) =>
   Joi.string()
     .trim()
     .empty('')
@@ -88,7 +88,8 @@ const createRequiredCarbonIntegerSchema = (label) =>
       'string.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
       'string.pattern.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
       'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
-      'any.required': PROJECT_VALIDATION_MESSAGES.CARBON_COST_REQUIRED
+      'any.required':
+        PROJECT_VALIDATION_MESSAGES.CARBON_OPERATIONAL_COST_FORECAST_REQUIRED
     })
 
 // tCO₂ decimal fields (all optional)
@@ -105,7 +106,9 @@ export const carbonCostAvoidedOptionalSchema =
 export const carbonSavingsNetEconomicBenefitOptionalSchema =
   createOptionalCarbonIntegerSchema('carbonSavingsNetEconomicBenefit')
 export const carbonOperationalCostForecastRequiredSchema =
-  createRequiredCarbonIntegerSchema('carbonOperationalCostForecast')
+  createRequiredCarbonOperationalCostForecastSchema(
+    'carbonOperationalCostForecast'
+  )
 export const carbonOperationalCostForecastOptionalSchema =
   createOptionalCarbonIntegerSchema('carbonOperationalCostForecast')
 

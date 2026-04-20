@@ -83,10 +83,13 @@ export const computeCarbonResults = (project, fundingValues) => {
     fundingValues
   )
   const summary = calculator.getSummary()
+  const legacyHexdigest = calculator.computeLegacyHexdigest()
   const constructionTotalFunding = calculator._constructionTotalProjectFunding()
   const storedHexdigest = project.carbonValuesHexdigest ?? null
   const hasValuesChanged =
-    storedHexdigest !== null && storedHexdigest !== summary.hexdigest
+    storedHexdigest !== null &&
+    storedHexdigest !== summary.hexdigest &&
+    storedHexdigest !== legacyHexdigest
   return {
     ...summary,
     constructionTotalFunding,

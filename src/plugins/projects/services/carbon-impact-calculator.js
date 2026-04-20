@@ -3,6 +3,11 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const carbonImpactRates = require('../../../config/carbon-impact-rates.json')
+const CARBON_IMPACT_RATES = Array.isArray(carbonImpactRates)
+  ? carbonImpactRates
+  : (carbonImpactRates?.carbon_impact_rates ??
+    carbonImpactRates?.carbon_mpact_rates ??
+    [])
 
 const FINANCIAL_YEAR_START_MONTH = 4 // April
 const CARBON_RATE_DIVISOR = 10000
@@ -26,7 +31,7 @@ export class CarbonImpactCalculator {
   constructor(project, fundingValues = []) {
     this.project = project
     this.fundingValues = fundingValues
-    this.rates = carbonImpactRates
+    this.rates = CARBON_IMPACT_RATES
   }
 
   /**
@@ -253,18 +258,35 @@ export class CarbonImpactCalculator {
   }
 
   /**
-   * Compute a SHA-1 hex digest of the 4 calculated values.
-   * Used to detect when Important Dates or Funding changes cause recalculation drift.
+   * Build digest input from the 4 calculated values.
    */
-  computeHexdigest() {
-    const values = [
+  _hexdigestValues() {
+    return [
       this._round(this.capitalCarbonBaseline()),
       this._round(this.capitalCarbonTarget()),
       this._round(this.operationalCarbonBaseline()),
       this._round(this.operationalCarbonTarget())
     ]
+  }
+
+  /**
+   * Compute the current hexdigest (SHA-256) of the 4 calculated values.
+   * Used for new projects in the Node.js service.
+   */
+  computeHexdigest() {
+    const values = this._hexdigestValues()
     const data = JSON.stringify(values)
     return createHash('sha256').update(data).digest('hex')
+  }
+
+  /**
+   * Compute the legacy hexdigest (SHA-1) of the 4 calculated values.
+   * Used for compatibility with migrated pafs_core projects.
+   */
+  computeLegacyHexdigest() {
+    const values = this._hexdigestValues()
+    const data = JSON.stringify(values)
+    return createHash('sha1').update(data).digest('hex')
   }
 
   /**

@@ -257,10 +257,62 @@ describe('Carbon Impact Helper Functions', () => {
 
       const result = computeCarbonResults(project, fundingValues)
 
-      // If stored hash differs from computed hash, hasValuesChanged should be true
-      expect(result.hasValuesChanged).toBe(
-        result.storedHexdigest !== result.hexdigest
+      // If stored hash differs from both current and legacy hashes, values changed.
+      expect(result.hasValuesChanged).toBe(true)
+    })
+
+    it('should not detect value changes when stored hexdigest matches current SHA-256 digest', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonCostSequestered: null,
+        carbonCostAvoided: null,
+        carbonOperationalCostForecast: null
+      }
+
+      const calc = new CarbonImpactCalculator(project, [])
+      const currentHexdigest = calc.computeHexdigest()
+
+      const result = computeCarbonResults(
+        {
+          ...project,
+          carbonValuesHexdigest: currentHexdigest
+        },
+        []
       )
+
+      expect(result.hasValuesChanged).toBe(false)
+    })
+
+    it('should not detect value changes when stored hexdigest matches legacy SHA-1 digest', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonCostSequestered: null,
+        carbonCostAvoided: null,
+        carbonOperationalCostForecast: null
+      }
+
+      const calc = new CarbonImpactCalculator(project, [])
+      const legacyHexdigest = calc.computeLegacyHexdigest()
+
+      const result = computeCarbonResults(
+        {
+          ...project,
+          carbonValuesHexdigest: legacyHexdigest
+        },
+        []
+      )
+
+      expect(result.hasValuesChanged).toBe(false)
     })
 
     it('should handle null carbonValuesHexdigest', () => {
@@ -401,10 +453,14 @@ describe('Carbon Impact Helper Functions', () => {
 
       const calc = new CarbonImpactCalculator(projectData, fundingValues)
       const hexdigest = calc.computeHexdigest()
+      const legacyHexdigest = calc.computeLegacyHexdigest()
 
       expect(hexdigest).toBeDefined()
       expect(typeof hexdigest).toBe('string')
       expect(hexdigest.length).toBe(64) // SHA-256 produces 64 hex characters
+      expect(legacyHexdigest).toBeDefined()
+      expect(typeof legacyHexdigest).toBe('string')
+      expect(legacyHexdigest.length).toBe(40) // SHA-1 produces 40 hex characters
     })
 
     it('should detect value changes by comparing hexdigests', () => {

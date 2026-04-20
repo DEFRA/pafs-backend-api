@@ -45,10 +45,10 @@ describe('CarbonImpactCalculator', () => {
       const calc = new CarbonImpactCalculator(baseProject, fundingValues)
       const result = calc.capitalCarbonBaseline()
       // Mid-year: floor((2025 + 2027) / 2) = 2026
-      // 2026/27 rate: Cap Do Nothing Intensity = 3.14
+      // 2026/27 rate: Cap Do Nothing Intensity = 2.94
       // TPF = 500000 + 300000 + 200000 = 1000000
-      // Baseline = 1000000 * 3.14 / 10000 = 314
-      expect(result).toBe(314)
+      // Baseline = 1000000 * 2.94 / 10000 = 294
+      expect(result).toBe(294)
     })
 
     it('should return null when rate is not found', () => {
@@ -70,10 +70,10 @@ describe('CarbonImpactCalculator', () => {
     it('should calculate target using mid-year rate with reduction', () => {
       const calc = new CarbonImpactCalculator(baseProject, fundingValues)
       const result = calc.capitalCarbonTarget()
-      // Mid-year: 2026, Cap DN = 3.14, Cap Reduction = -31.50
+      // Mid-year: 2026, Cap DN = 2.94, Cap Reduction = -31.50
       // TPF = 1000000
-      // Target = 1000000 * 3.14 * (1 + (-31.50 / 100)) / 10000 = 1000000 * 3.14 * 0.685 / 10000 = 215.09
-      expect(result).toBeCloseTo(215.09, 1)
+      // Target = 1000000 * 2.94 * (1 + (-31.50 / 100)) / 10000 = 201.39
+      expect(result).toBeCloseTo(201.39, 1)
     })
   })
 
@@ -81,10 +81,10 @@ describe('CarbonImpactCalculator', () => {
     it('should use carbonOperationalCostForecast as TPF', () => {
       const calc = new CarbonImpactCalculator(baseProject, fundingValues)
       const result = calc.operationalCarbonBaseline()
-      // RFS FY: 2027, Ops DN = 3.91
+      // RFS FY: 2027, Ops DN = 2.94
       // TPF = 150000 (carbonOperationalCostForecast)
-      // Baseline = 150000 * 3.91 / 10000 = 58.65
-      expect(result).toBe(58.65)
+      // Baseline = 150000 * 2.94 / 10000 = 44.1
+      expect(result).toBe(44.1)
     })
   })
 
@@ -92,10 +92,10 @@ describe('CarbonImpactCalculator', () => {
     it('should calculate operational target with reduction', () => {
       const calc = new CarbonImpactCalculator(baseProject, fundingValues)
       const result = calc.operationalCarbonTarget()
-      // RFS FY: 2027, Ops DN = 3.91, Ops Reduction = -36.00
+      // RFS FY: 2027, Ops DN = 2.94, Ops Reduction = -36.00
       // TPF = 150000
-      // Target = 150000 * 3.91 * (1 + (-36.00 / 100)) / 10000 = 150000 * 3.91 * 0.64 / 10000 = 37.536
-      expect(result).toBeCloseTo(37.54, 1)
+      // Target = 150000 * 2.94 * (1 + (-36.00 / 100)) / 10000 = 28.224
+      expect(result).toBeCloseTo(28.22, 1)
     })
   })
 
@@ -143,9 +143,9 @@ describe('CarbonImpactCalculator', () => {
       }
       const calc = new CarbonImpactCalculator(project, fundingValues)
       const result = calc.netCarbonWithBlanksCalculated()
-      // capital baseline = 314, operational baseline = 58.65
-      // 314 + 58.65 - 10 - 5 = 357.65
-      expect(result).toBe(357.65)
+      // capital baseline = 294, operational baseline = 44.1
+      // 294 + 44.1 - 10 - 5 = 323.1
+      expect(result).toBe(323.1)
     })
   })
 
@@ -180,8 +180,8 @@ describe('CarbonImpactCalculator', () => {
       // Mid-year would be floor((2035+2037)/2) = 2036
       // 2036/37 not in table, walks back to 2032/33 (last entry)
       const baseline = calc.capitalCarbonBaseline()
-      // 100000 * 3.14 / 10000 = 31.4
-      expect(baseline).toBe(31.4)
+      // 100000 * 2.94 / 10000 = 29.4
+      expect(baseline).toBe(29.4)
     })
   })
 

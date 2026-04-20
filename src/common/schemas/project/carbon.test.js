@@ -146,7 +146,9 @@ describe('Carbon Impact Schemas', () => {
     it('should reject empty string (required)', () => {
       const { error } = carbonOperationalCostForecastRequiredSchema.validate('')
       expect(error).toBeDefined()
-      expect(error.details[0].message).toBe('CARBON_COST_REQUIRED')
+      expect(error.details[0].message).toBe(
+        'CARBON_OPERATIONAL_COST_FORECAST_REQUIRED'
+      )
     })
 
     it('should reject decimal values', () => {
