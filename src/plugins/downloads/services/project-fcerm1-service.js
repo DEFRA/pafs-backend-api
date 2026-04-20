@@ -28,6 +28,8 @@ export class ProjectFcerm1Service {
       floodProtectionOutcomes,
       flood2040Outcomes,
       coastalOutcomes,
+      nfmMeasures,
+      nfmLandUseChanges,
       stateRow,
       areaProject
     ] = await Promise.all([
@@ -41,6 +43,12 @@ export class ProjectFcerm1Service {
         where: { project_id: projectId }
       }),
       this.prisma.pafs_core_coastal_erosion_protection_outcomes.findMany({
+        where: { project_id: projectId }
+      }),
+      this.prisma.pafs_core_nfm_measures.findMany({
+        where: { project_id: projectId }
+      }),
+      this.prisma.pafs_core_nfm_land_use_changes.findMany({
         where: { project_id: projectId }
       }),
       this.prisma.pafs_core_states.findFirst({
@@ -77,6 +85,8 @@ export class ProjectFcerm1Service {
       pafs_core_flood_protection_outcomes: floodProtectionOutcomes,
       pafs_core_flood_protection2040_outcomes: flood2040Outcomes,
       pafs_core_coastal_erosion_protection_outcomes: coastalOutcomes,
+      pafs_core_nfm_measures: nfmMeasures,
+      pafs_core_nfm_land_use_changes: nfmLandUseChanges,
       _state: stateRow?.state ?? null,
       _updatedByName: updatedByUser
         ? `${updatedByUser.first_name} ${updatedByUser.last_name}`.trim()

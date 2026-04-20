@@ -68,7 +68,9 @@ const mocks = vi.hoisted(() => {
 vi.mock('adm-zip', () => ({ default: mocks.AdmZip }))
 vi.mock('node:fs/promises', () => ({ readFile: mocks.fsReadFile }))
 // Use a small fixed year list so dateRange tests are concise and deterministic
-vi.mock('./fcerm1-columns.js', () => ({ FCERM1_YEARS: [2023, 2024, 2025] }))
+vi.mock('./fcerm1-legacy-columns.js', () => ({
+  FCERM1_YEARS: [2023, 2024, 2025]
+}))
 
 // ── Helper: find updateFile call for a given zip entry ────────────────────────
 function getUpdatedXml(entryName) {
@@ -511,7 +513,31 @@ describe('buildSingleWorkbook', () => {
     expect(presenter.annualField).not.toHaveBeenCalled()
   })
 
-  // ── workbook.xml / styleMap edge cases ────────────────────────────────────
+  test('uses explicit years param instead of default FCERM1_YEARS for dateRange columns', async () => {
+    const presenter = {
+      annualField: vi.fn(() => 500),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [
+      { column: 'A', field: 'annualField', scope: 'new', dateRange: true }
+    ]
+    // Pass 2 years explicitly — should produce exactly 2 cells (A7, B7)
+    const customYears = [2026, 2027]
+
+    await buildSingleWorkbook(
+      '/path/template.xlsx',
+      presenter,
+      columns,
+      customYears
+    )
+
+    expect(presenter.annualField).toHaveBeenCalledTimes(2)
+    expect(presenter.annualField).toHaveBeenCalledWith(2026)
+    expect(presenter.annualField).toHaveBeenCalledWith(2027)
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    expect(xml).toContain('<c r="A7"')
+    expect(xml).toContain('<c r="B7"')
+  })
 
   test('does not add fullCalcOnLoad when already present in workbook.xml', async () => {
     const workbookWithCalc = mocks.WORKBOOK_XML.replace(
@@ -579,6 +605,115 @@ describe('buildSingleWorkbook', () => {
     await expect(
       buildSingleWorkbook('/path/template.xlsx', presenter, [])
     ).resolves.toBeInstanceOf(Buffer)
+  })
+
+  // ── Branch-coverage edge cases ────────────────────────────────────────────
+
+  test('lastColumnLetter: skips update when a column ends before the current max', async () => {
+    // Column A (dateRange, 3 years) → endIndex 3. Column B (no dateRange) → endIndex 2.
+    // Second iteration takes the false branch of `if (endIndex > maxIndex)`.
+    const presenter = {
+      annualField: vi.fn(() => 10),
+      nameField: vi.fn(() => 'Name'),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [
+      { column: 'A', field: 'annualField', scope: 'legacy', dateRange: true },
+      { column: 'B', field: 'nameField', scope: 'legacy' }
+    ]
+
+    // Should complete without error — lastColumnLetter correctly picks 'C' (index 3)
+    const result = await buildSingleWorkbook(
+      '/path/template.xlsx',
+      presenter,
+      columns
+    )
+    expect(result).toBeInstanceOf(Buffer)
+  })
+
+  test('nextRid returns rId1 when relationships XML has no existing rIds', async () => {
+    const emptyRels =
+      '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '</Relationships>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return mocks.SHEET_XML
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return emptyRels
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = { fundingContributorsSheetData: vi.fn(() => []) }
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, [])
+
+    // nextRid returns rId1 when nums is empty (false branch of nums.length > 0)
+    const relsXml = getUpdatedXml('xl/_rels/workbook.xml.rels')
+    expect(relsXml).toContain('Id="rId1"')
+  })
+
+  test('extractFormulaCells: skips non-self-closing cells that contain no formula', async () => {
+    // Cell D7 is non-self-closing (<c ...>...</c>) but has no <f> — takes the false branch
+    const sheetWithValueCell =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<dimension ref="A1:NI7"/><sheetData>' +
+      '<row r="7" customFormat="false" ht="15" hidden="false" customHeight="true" outlineLevel="0" collapsed="false">' +
+      '<c r="A7" s="66"/>' +
+      '<c r="D7" s="70"><v>42</v></c>' +
+      '</row>' +
+      '</sheetData></worksheet>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return sheetWithValueCell
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = {
+      nameField: vi.fn(() => 'Project'),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [{ column: 'A', field: 'nameField', scope: 'legacy' }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    // D7 has no formula so it should NOT be propagated as a formula cell
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    expect(xml).not.toContain('<c r="D7"')
+  })
+
+  test('buildDataRowXml: skips formula cell when its column is already written as data', async () => {
+    // Template row has a formula in column A; column A is also in the data column map.
+    // writtenCols.has('A') is true → false branch of `if (!writtenCols.has(col))`
+    const sheetWithFormulaInDataCol =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<dimension ref="A1:NI7"/><sheetData>' +
+      '<row r="7" customFormat="false" ht="15" hidden="false" customHeight="true" outlineLevel="0" collapsed="false">' +
+      '<c r="A7" s="66"><f>SUM(B7:C7)</f><v>0</v></c>' +
+      '</row>' +
+      '</sheetData></worksheet>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return sheetWithFormulaInDataCol
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = {
+      nameField: vi.fn(() => 'Overwritten'),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    // Column A is in the data map — data takes precedence over the template formula
+    const columns = [{ column: 'A', field: 'nameField', scope: 'legacy' }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    // Data value should be present, not the formula
+    expect(xml).toContain('Overwritten')
+    expect(xml).not.toContain('<f>SUM(B7:C7)</f>')
   })
 
   test('contributors sheet uses empty cell tag for null contributor fields', async () => {

@@ -11,6 +11,8 @@ import { ProjectFcerm1Service } from '../services/project-fcerm1-service.js'
 import { FcermPresenter } from '../helpers/fcerm1/fcerm1-presenter.js'
 import { buildSingleWorkbook } from '../helpers/fcerm1/fcerm1-builder.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
+import { FCERM1_YEARS } from '../helpers/fcerm1/fcerm1-legacy-columns.js'
+import { NEW_FCERM1_YEARS } from '../helpers/fcerm1/fcerm1-new-columns.js'
 
 vi.mock('../services/project-fcerm1-service.js')
 vi.mock('../helpers/fcerm1/fcerm1-presenter.js')
@@ -131,13 +133,14 @@ describe('getProjectFcerm1Legacy', () => {
       )
     })
 
-    test('calls buildSingleWorkbook with LEGACY_TEMPLATE_PATH, presenter and LEGACY_COLUMNS', async () => {
+    test('calls buildSingleWorkbook with LEGACY_TEMPLATE_PATH, presenter, LEGACY_COLUMNS and FCERM1_YEARS', async () => {
       await getProjectFcerm1Legacy.handler(mockRequest, mockH)
 
       expect(buildSingleWorkbook).toHaveBeenCalledWith(
         LEGACY_TEMPLATE_PATH,
         expect.any(Object), // FcermPresenter instance (mocked)
-        expect.any(Array) // LEGACY_COLUMNS
+        expect.any(Array), // LEGACY_COLUMNS
+        FCERM1_YEARS
       )
     })
 
@@ -195,6 +198,190 @@ describe('getProjectFcerm1Legacy', () => {
         HTTP_STATUS.INTERNAL_SERVER_ERROR
       )
     })
+  })
+})
+
+describe('getProjectFcerm1New', () => {
+  let mockRequest
+  let mockH
+  let mockLogger
+  let mockResponseChain
+
+  const MOCK_BUFFER = Buffer.from('fake-new-xlsx-content')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+
+    mockLogger = {
+      info: vi.fn(),
+      error: vi.fn()
+    }
+
+    mockResponseChain = {
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis()
+    }
+
+    mockRequest = {
+      params: {
+        referenceNumber: 'AC-2024-00042-000'
+      },
+      prisma: {},
+      server: {
+        logger: mockLogger
+      }
+    }
+
+    mockH = {
+      response: vi.fn(() => mockResponseChain)
+    }
+
+    ProjectFcerm1Service.prototype.getProjectForFcerm1.mockResolvedValue({
+      project: { id: BigInt(2), reference_number: 'AC/2024/00042/000' },
+      contributors: [],
+      areaId: 7
+    })
+    resolveAreaHierarchy.mockResolvedValue({ rmaName: 'New RMA' })
+    buildSingleWorkbook.mockResolvedValue(MOCK_BUFFER)
+  })
+
+  describe('Route configuration', () => {
+    test('has method GET', () => {
+      expect(getProjectFcerm1New.method).toBe('GET')
+    })
+
+    test('has correct path', () => {
+      expect(getProjectFcerm1New.path).toBe(
+        '/api/v1/project/{referenceNumber}/fcerm1/new'
+      )
+    })
+
+    test('requires JWT auth', () => {
+      expect(getProjectFcerm1New.options.auth).toBe('jwt')
+    })
+
+    test('has downloads and fcerm1 in tags', () => {
+      expect(getProjectFcerm1New.options.tags).toContain('downloads')
+      expect(getProjectFcerm1New.options.tags).toContain('fcerm1')
+    })
+  })
+
+  describe('Handler', () => {
+    test('converts hyphens to slashes in the reference number', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(
+        ProjectFcerm1Service.prototype.getProjectForFcerm1
+      ).toHaveBeenCalledWith('AC/2024/00042/000')
+    })
+
+    test('returns 404 when project is not found', async () => {
+      ProjectFcerm1Service.prototype.getProjectForFcerm1.mockResolvedValue(null)
+
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        error: 'Project not found'
+      })
+      expect(mockResponseChain.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
+    })
+
+    test('calls buildSingleWorkbook with NEW_TEMPLATE_PATH, presenter, NEW_COLUMNS and NEW_FCERM1_YEARS', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(buildSingleWorkbook).toHaveBeenCalledWith(
+        NEW_TEMPLATE_PATH,
+        expect.any(Object), // FcermPresenter instance (mocked)
+        expect.any(Array), // NEW_COLUMNS
+        NEW_FCERM1_YEARS
+      )
+    })
+
+    test('returns 200 with XLSX content-type header on success', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith(MOCK_BUFFER)
+      expect(mockResponseChain.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+      expect(mockResponseChain.header).toHaveBeenCalledWith(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+    })
+
+    test('sets Content-Disposition with filename derived from reference number', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockResponseChain.header).toHaveBeenCalledWith(
+        'Content-Disposition',
+        'attachment; filename="AC-2024-00042-000_proposal.xlsx"'
+      )
+    })
+
+    test('returns 500 and logs error when service throws', async () => {
+      const error = new Error('DB connection failed')
+      ProjectFcerm1Service.prototype.getProjectForFcerm1.mockRejectedValue(
+        error
+      )
+
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { error },
+        'Failed to generate FCERM1 new download'
+      )
+      expect(mockH.response).toHaveBeenCalledWith({
+        error: 'Failed to generate FCERM1 download'
+      })
+      expect(mockResponseChain.code).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
+    })
+
+    test('returns 500 and logs error when buildSingleWorkbook throws', async () => {
+      const error = new Error('Template file not found')
+      buildSingleWorkbook.mockRejectedValue(error)
+
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { error },
+        'Failed to generate FCERM1 new download'
+      )
+      expect(mockResponseChain.code).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
+    })
+  })
+})
+
+describe('createFcerm1Route', () => {
+  test('returns 501 when columns array is empty', async () => {
+    const mockResponseChain = {
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis()
+    }
+    const mockH = { response: vi.fn(() => mockResponseChain) }
+    const mockRequest = {
+      params: { referenceNumber: 'AC-2024-00001-000' },
+      prisma: {},
+      server: { logger: { info: vi.fn(), error: vi.fn() } }
+    }
+
+    const route = createFcerm1Route({
+      format: 'test',
+      templatePath: '/tmp/test.xlsx',
+      columns: [],
+      years: FCERM1_YEARS
+    })
+
+    await route.handler(mockRequest, mockH)
+
+    expect(mockH.response).toHaveBeenCalledWith({
+      error: 'FCERM1 test format is not yet available'
+    })
+    expect(mockResponseChain.code).toHaveBeenCalledWith(
+      HTTP_STATUS.NOT_IMPLEMENTED
+    )
   })
 })
 
@@ -267,43 +454,120 @@ describe('getProjectFcerm1New', () => {
     })
   })
 
-  describe('Handler — not-yet-implemented guard', () => {
+  describe('Handler', () => {
     let mockRequest
     let mockH
+    let mockLogger
     let mockResponseChain
 
+    const MOCK_BUFFER = Buffer.from('fake-new-xlsx-content')
+
     beforeEach(() => {
+      vi.clearAllMocks()
+      mockLogger = { info: vi.fn(), error: vi.fn() }
       mockResponseChain = {
         code: vi.fn().mockReturnThis(),
         header: vi.fn().mockReturnThis()
       }
       mockRequest = {
-        params: { referenceNumber: 'AC-2021-00001-000' },
+        params: { referenceNumber: 'AC-2024-00042-000' },
         prisma: {},
-        server: { logger: { info: vi.fn(), error: vi.fn() } }
+        server: { logger: mockLogger }
       }
       mockH = { response: vi.fn(() => mockResponseChain) }
-    })
 
-    test('returns 501 when NEW_COLUMNS is empty (format not yet available)', async () => {
-      // NEW_COLUMNS is empty until scope:"new" columns are defined — this is the
-      // expected state until the new template is ready.
-      await getProjectFcerm1New.handler(mockRequest, mockH)
-
-      expect(mockH.response).toHaveBeenCalledWith({
-        error: 'FCERM1 new format is not yet available'
+      ProjectFcerm1Service.prototype.getProjectForFcerm1.mockResolvedValue({
+        project: { id: BigInt(2), reference_number: 'AC/2024/00042/000' },
+        contributors: [],
+        areaId: 7
       })
-      expect(mockResponseChain.code).toHaveBeenCalledWith(
-        HTTP_STATUS.NOT_IMPLEMENTED
-      )
+      resolveAreaHierarchy.mockResolvedValue({ rmaName: 'New RMA' })
+      buildSingleWorkbook.mockResolvedValue(MOCK_BUFFER)
     })
 
-    test('does not call the data service when columns are empty', async () => {
+    test('converts hyphens to slashes in the reference number', async () => {
       await getProjectFcerm1New.handler(mockRequest, mockH)
 
       expect(
         ProjectFcerm1Service.prototype.getProjectForFcerm1
-      ).not.toHaveBeenCalled()
+      ).toHaveBeenCalledWith('AC/2024/00042/000')
+    })
+
+    test('returns 404 when project is not found', async () => {
+      ProjectFcerm1Service.prototype.getProjectForFcerm1.mockResolvedValue(null)
+
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith({
+        error: 'Project not found'
+      })
+      expect(mockResponseChain.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
+    })
+
+    test('calls buildSingleWorkbook with NEW_TEMPLATE_PATH, presenter, NEW_COLUMNS and NEW_FCERM1_YEARS', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(buildSingleWorkbook).toHaveBeenCalledWith(
+        NEW_TEMPLATE_PATH,
+        expect.any(Object),
+        expect.any(Array),
+        NEW_FCERM1_YEARS
+      )
+    })
+
+    test('returns 200 with XLSX content-type header on success', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockH.response).toHaveBeenCalledWith(MOCK_BUFFER)
+      expect(mockResponseChain.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+      expect(mockResponseChain.header).toHaveBeenCalledWith(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+    })
+
+    test('sets Content-Disposition with filename derived from reference number', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockResponseChain.header).toHaveBeenCalledWith(
+        'Content-Disposition',
+        'attachment; filename="AC-2024-00042-000_proposal.xlsx"'
+      )
+    })
+
+    test('returns 500 and logs error when service throws', async () => {
+      const error = new Error('DB connection failed')
+      ProjectFcerm1Service.prototype.getProjectForFcerm1.mockRejectedValue(
+        error
+      )
+
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { error },
+        'Failed to generate FCERM1 new download'
+      )
+      expect(mockH.response).toHaveBeenCalledWith({
+        error: 'Failed to generate FCERM1 download'
+      })
+      expect(mockResponseChain.code).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
+    })
+
+    test('returns 500 and logs error when buildSingleWorkbook throws', async () => {
+      const error = new Error('Template file not found')
+      buildSingleWorkbook.mockRejectedValue(error)
+
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { error },
+        'Failed to generate FCERM1 new download'
+      )
+      expect(mockResponseChain.code).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
     })
   })
 })

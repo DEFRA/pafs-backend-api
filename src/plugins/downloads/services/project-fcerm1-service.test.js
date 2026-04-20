@@ -34,7 +34,11 @@ describe('ProjectFcerm1Service', () => {
       pafs_core_funding_contributors: {
         findMany: vi.fn().mockResolvedValue([])
       },
-      pafs_core_users: { findFirst: vi.fn().mockResolvedValue(null) }
+      pafs_core_users: { findFirst: vi.fn().mockResolvedValue(null) },
+      pafs_core_nfm_measures: { findMany: vi.fn().mockResolvedValue([]) },
+      pafs_core_nfm_land_use_changes: {
+        findMany: vi.fn().mockResolvedValue([])
+      }
     }
 
     service = new ProjectFcerm1Service(mockPrisma, mockLogger)

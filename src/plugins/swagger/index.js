@@ -28,14 +28,24 @@ const hapiSwaggerOptions = {
       '### Authentication\n\n' +
       '| Mechanism | Header | Format | Routes |\n' +
       '|---|---|---|---|\n' +
-      '| **JWT Bearer** | `Authorization` | `Bearer <accessToken>` | All authenticated routes |\n\n' +
-      'Obtain an access token via `POST /api/v1/auth/login`. ' +
+      '| **JWT Bearer** | `Authorization` | `Bearer <accessToken>` | All authenticated internal routes |\n' +
+      '| **Cognito Bearer** | `Authorization` | `Bearer <cognitoToken>` | External API routes (gateway only) |\n\n' +
+      'Obtain a JWT access token via `POST /api/v1/auth/login`. ' +
       'Refresh via `POST /api/v1/auth/refresh`.\n\n' +
+      'Cognito tokens are obtained via the CDP public API Gateway Cognito endpoint ' +
+      '(`POST https://<service>-<suffix>.auth.eu-west-2.amazoncognito.com/oauth2/token`) ' +
+      'using the `client_credentials` grant. Token validation is handled by the gateway — ' +
+      'not by this service.\n\n' +
+      '---\n\n' +
+      '### External API Access\n\n' +
+      'Routes under `/api/v1/external/` are accessible **only** via the CDP public API Gateway. ' +
+      'Direct calls to the internal service URL are blocked by the gateway-guard middleware.\n\n' +
       '---\n\n' +
       '### Role-Based Access\n\n' +
       '- **Public** - No authentication required.\n' +
       '- **Authenticated** - Valid JWT Bearer token required.\n' +
-      '- **Admin only** - Valid JWT from an account with `admin: true`',
+      '- **Admin only** - Valid JWT from an account with `admin: true`\n' +
+      '- **External (Gateway)** - Cognito client-credentials Bearer token, validated by CDP API Gateway',
     version: config.get('serviceVersion') ?? '1.0.0',
     contact: {
       name: 'Defra DDTS',
@@ -97,6 +107,18 @@ const hapiSwaggerOptions = {
     {
       name: 'email',
       description: 'Email address validation utilities. Public endpoint.'
+    },
+    {
+      name: 'downloads',
+      description:
+        'FCERM1 Excel spreadsheet generation and download endpoints. All endpoints require JWT.'
+    },
+    {
+      name: 'external',
+      description:
+        'Public API endpoints accessible via the CDP public API Gateway only. ' +
+        'Authentication is handled by the gateway using AWS Cognito client-credentials. ' +
+        'All routes under /api/v1/external/ are blocked if accessed directly.'
     },
     {
       name: 'scheduler',

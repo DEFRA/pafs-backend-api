@@ -23,6 +23,8 @@ import schedulerPlugin from './plugins/scheduler/index.js'
 import { loadTasks } from './plugins/scheduler/helpers/task-loader.js'
 import swaggerPlugin from './plugins/swagger/index.js'
 import downloadsPlugin from './plugins/downloads/index.js'
+import gatewayGuardPlugin from './plugins/gateway-guard/index.js'
+import externalPlugin from './plugins/external/index.js'
 
 function createServerConfig() {
   return {
@@ -98,6 +100,7 @@ async function registerCorePlugins(server) {
         apiKey: config.get('auth.apiKey')
       }
     },
+    gatewayGuardPlugin,
     healthPlugin,
     authPlugin,
     areasPlugin,
@@ -105,7 +108,8 @@ async function registerCorePlugins(server) {
     emailValidationPlugin,
     projectsPlugin,
     fileUploadPlugin,
-    downloadsPlugin
+    downloadsPlugin,
+    externalPlugin
   ])
 }
 

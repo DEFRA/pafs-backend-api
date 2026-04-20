@@ -6,6 +6,8 @@ import { fundingStreamsMixin } from './funding-streams.js'
 import { outcomesMixin } from './outcomes.js'
 import { confidenceMixin } from './confidence.js'
 import { adminMixin } from './admin.js'
+import { newTemplateMixin } from './new-template.js'
+import { nfmMixin } from './nfm.js'
 
 export {
   RFCC_CODE_NAMES,
@@ -46,5 +48,7 @@ Object.assign(
   fundingStreamsMixin,
   outcomesMixin,
   confidenceMixin,
-  adminMixin
+  adminMixin,
+  newTemplateMixin,
+  nfmMixin
 )

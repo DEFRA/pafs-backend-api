@@ -1,7 +1,25 @@
 import { readFile } from 'node:fs/promises'
 import AdmZip from 'adm-zip'
-import { FCERM1_YEARS } from './fcerm1-columns.js'
+import { FCERM1_YEARS } from './fcerm1-legacy-columns.js'
 import { SIZE } from '../../../../common/constants/common.js'
+
+// ── Last-column resolution ────────────────────────────────────────────────────
+
+/**
+ * Compute the last column letter written by a columns definition with a given
+ * years array. Used to set the worksheet dimension reference accurately.
+ */
+function lastColumnLetter(columns, years) {
+  let maxIndex = 0
+  for (const col of columns) {
+    const startIndex = columnLetterToIndex(col.column)
+    const endIndex = col.dateRange ? startIndex + years.length - 1 : startIndex
+    if (endIndex > maxIndex) {
+      maxIndex = endIndex
+    }
+  }
+  return columnIndexToLetter(maxIndex)
+}
 
 // ── Named constants ───────────────────────────────────────────────────────────
 
@@ -133,7 +151,8 @@ function buildDataRowXml(
   rowNumber,
   styleMap,
   formulaCells,
-  columns
+  columns,
+  years
 ) {
   const defaultStyle = styleMap.A ?? '66'
   const cellList = []
@@ -147,7 +166,7 @@ function buildDataRowXml(
 
     if (col.dateRange) {
       const startIndex = columnLetterToIndex(col.column)
-      FCERM1_YEARS.forEach((year, offset) => {
+      years.forEach((year, offset) => {
         const colLetter = columnIndexToLetter(startIndex + offset)
         const value = useValue ? (presenter[col.field](year) ?? 0) : 0
         cellList.push({
@@ -196,7 +215,14 @@ function buildDataRowXml(
 
 // ── Inject data rows into sheet1.xml ─────────────────────────────────────────
 
-function injectDataRows(sheetXml, presenters, styleMap, formulaCells, columns) {
+function injectDataRows(
+  sheetXml,
+  presenters,
+  styleMap,
+  formulaCells,
+  columns,
+  years
+) {
   const rows = presenters
     .map((presenter, i) =>
       buildDataRowXml(
@@ -204,15 +230,20 @@ function injectDataRows(sheetXml, presenters, styleMap, formulaCells, columns) {
         FIRST_DATA_ROW + i,
         styleMap,
         formulaCells,
-        columns
+        columns,
+        years
       )
     )
     .join('')
 
   const lastRow = FIRST_DATA_ROW + presenters.length - 1
+  const lastCol = lastColumnLetter(columns, years)
   return sheetXml
     .replace(/<row r="7"[^>]*>.*?<\/row>/s, rows)
-    .replace(/<dimension ref="[^"]+"/, `<dimension ref="A1:NI${lastRow}"`)
+    .replace(
+      /<dimension ref="[^"]+"/,
+      `<dimension ref="A1:${lastCol}${lastRow}"`
+    )
 }
 
 // ── Contributors sheet XML ────────────────────────────────────────────────────
@@ -307,7 +338,12 @@ function addContributorsSheetToZip(
 
 // ── Core builder ──────────────────────────────────────────────────────────────
 
-async function _buildWorkbook(templatePath, presenters, columns) {
+async function _buildWorkbook(
+  templatePath,
+  presenters,
+  columns,
+  years = FCERM1_YEARS
+) {
   const templateBuffer = await readFile(templatePath)
   const zip = new AdmZip(templateBuffer)
 
@@ -321,7 +357,14 @@ async function _buildWorkbook(templatePath, presenters, columns) {
   zip.updateFile(
     'xl/worksheets/sheet1.xml',
     Buffer.from(
-      injectDataRows(sheetXml, presenters, styleMap, formulaCells, columns),
+      injectDataRows(
+        sheetXml,
+        presenters,
+        styleMap,
+        formulaCells,
+        columns,
+        years
+      ),
       'utf8'
     )
   )
@@ -355,10 +398,20 @@ async function _buildWorkbook(templatePath, presenters, columns) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export async function buildSingleWorkbook(templatePath, presenter, columns) {
-  return _buildWorkbook(templatePath, [presenter], columns)
+export async function buildSingleWorkbook(
+  templatePath,
+  presenter,
+  columns,
+  years = FCERM1_YEARS
+) {
+  return _buildWorkbook(templatePath, [presenter], columns, years)
 }
 
-export async function buildMultiWorkbook(templatePath, presenters, columns) {
-  return _buildWorkbook(templatePath, presenters, columns)
+export async function buildMultiWorkbook(
+  templatePath,
+  presenters,
+  columns,
+  years = FCERM1_YEARS
+) {
+  return _buildWorkbook(templatePath, presenters, columns, years)
 }

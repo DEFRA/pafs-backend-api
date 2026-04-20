@@ -312,6 +312,18 @@ const config = convict({
       format: String,
       default: '',
       env: 'NOTIFY_ADMIN_EMAIL'
+    },
+    templateProgrammeDownloadComplete: {
+      doc: 'GOV.UK Notify template ID for area programme download completion notification',
+      format: String,
+      default: 'programme-download-complete-template-id',
+      env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_COMPLETE'
+    },
+    templateProgrammeDownloadFailed: {
+      doc: 'GOV.UK Notify template ID for area programme download failure notification',
+      format: String,
+      default: 'programme-download-failed-template-id',
+      env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_FAILED'
     }
   },
   httpProxy: {
@@ -333,6 +345,14 @@ const config = convict({
       format: String,
       default: 'x-cdp-request-id',
       env: 'TRACING_HEADER'
+    }
+  },
+  gateway: {
+    identityHeader: {
+      doc: 'HTTP header injected by the CDP public API Gateway to identify gateway traffic. Set via requestParameters in the API Gateway OpenAPI spec.',
+      format: String,
+      default: 'x-cdp-from-gateway',
+      env: 'GATEWAY_IDENTITY_HEADER'
     }
   },
   pagination: {

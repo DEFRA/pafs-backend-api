@@ -63,6 +63,14 @@
     {
       "name": "Scheduler",
       "description": "Distributed scheduler task management. All endpoints require JWT with `admin: true`."
+    },
+    {
+      "name": "Downloads",
+      "description": "FCERM1 Excel spreadsheet generation and download endpoints. All endpoints require JWT."
+    },
+    {
+      "name": "External",
+      "description": "Public API endpoints accessible via the CDP public API Gateway. Authentication is handled at the gateway level using AWS Cognito client-credentials (OAuth 2.0 machine-to-machine). These endpoints are NOT accessible via the internal service URL."
     }
   ],
   "components": {
@@ -72,6 +80,12 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "JWT access token obtained from `POST /api/v1/auth/login`. Expires after 15 minutes by default."
+      },
+      "cognitoBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "AWS Cognito OAuth 2.0 access token obtained via the client-credentials flow. Obtain from the Cognito token endpoint: `POST https://<service>-<suffix>.auth.eu-west-2.amazoncognito.com/oauth2/token`. Validated by the CDP public API Gateway — not by this service directly."
       }
     },
     "parameters": {
@@ -131,6 +145,36 @@
       }
     },
     "schemas": {
+      "ProposalStatusResult": {
+        "type": "object",
+        "description": "Per-proposal result from the external status update endpoint",
+        "required": ["referenceNumber", "success"],
+        "properties": {
+          "referenceNumber": {
+            "type": "string",
+            "description": "The proposal reference number as supplied in the request",
+            "example": "2425-YNEJ-01-01"
+          },
+          "success": {
+            "type": "boolean",
+            "description": "`true` if the status was updated successfully"
+          },
+          "status": {
+            "type": "string",
+            "description": "The new status applied (present when `success` is `true`)",
+            "enum": ["draft", "approved"]
+          },
+          "errorCode": {
+            "type": "string",
+            "description": "Machine-readable error code (present when `success` is `false`)",
+            "example": "PROPOSAL_NOT_FOUND"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message (present when `success` is `false`)"
+          }
+        }
+      },
       "ErrorItem": {
         "type": "object",
         "required": ["errorCode"],
@@ -2526,6 +2570,296 @@
           },
           "401": { "$ref": "#/components/responses/UnauthorizedError" },
           "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+
+    "/api/v1/project/{referenceNumber}/fcerm1/legacy": {
+      "get": {
+        "summary": "Download legacy FCERM1 spreadsheet",
+        "description": "Generates and streams the legacy FCERM1 Excel spreadsheet for the given project. Requires JWT authentication.",
+        "operationId": "downloadFcerm1Legacy",
+        "tags": ["Downloads"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "responses": {
+          "200": {
+            "description": "FCERM1 spreadsheet (XLSX)",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "501": {
+            "description": "Format not yet available",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+
+    "/api/v1/project/{referenceNumber}/fcerm1/new": {
+      "get": {
+        "summary": "Download new FCERM1 spreadsheet",
+        "description": "Generates and streams the new-format FCERM1 Excel spreadsheet for the given project. Requires JWT authentication.",
+        "operationId": "downloadFcerm1New",
+        "tags": ["Downloads"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "responses": {
+          "200": {
+            "description": "FCERM1 spreadsheet (XLSX)",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "501": {
+            "description": "Format not yet available",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+
+    "/api/v1/external/proposals/status": {
+      "post": {
+        "summary": "Update proposal status (external)",
+        "description": "Updates the status of one or more FCRM project proposals. Accepts `draft` or `approved` only.\n\n**Authentication:** Handled at the CDP public API Gateway level using AWS Cognito client-credentials (OAuth 2.0). Callers must obtain a Bearer token from the Cognito token endpoint and include it in the `Authorization` header. The gateway validates the token before forwarding the request — the backend does not re-validate it.\n\n**This endpoint must be accessed via the public API Gateway URL only.** Direct calls to the internal service URL will be rejected by the gateway guard middleware.",
+        "operationId": "externalUpdateProposalStatus",
+        "tags": ["External"],
+        "security": [{ "cognitoBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["proposals"],
+                "properties": {
+                  "proposals": {
+                    "type": "array",
+                    "description": "One or more proposal objects. Each item specifies its own reference number and target status, allowing different proposals to be moved to different statuses in a single request.",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "required": ["referenceNumber", "status"],
+                      "properties": {
+                        "referenceNumber": {
+                          "type": "string",
+                          "description": "Proposal reference number. Use hyphens in place of forward slashes (e.g. `2425-YNEJ-01-01` for `2425/YNEJ/01/01`).",
+                          "example": "2425-YNEJ-01-01"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "approved"],
+                          "description": "Target status for this proposal."
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "examples": {
+                "single": {
+                  "summary": "Single proposal",
+                  "value": {
+                    "proposals": [
+                      {
+                        "referenceNumber": "2425-YNEJ-01-01",
+                        "status": "approved"
+                      }
+                    ]
+                  }
+                },
+                "batchSameStatus": {
+                  "summary": "Batch — same status",
+                  "value": {
+                    "proposals": [
+                      {
+                        "referenceNumber": "2425-YNEJ-01-01",
+                        "status": "draft"
+                      },
+                      {
+                        "referenceNumber": "2425-ABCD-02-01",
+                        "status": "draft"
+                      }
+                    ]
+                  }
+                },
+                "batchMixedStatus": {
+                  "summary": "Batch — mixed statuses",
+                  "value": {
+                    "proposals": [
+                      {
+                        "referenceNumber": "2425-YNEJ-01-01",
+                        "status": "approved"
+                      },
+                      {
+                        "referenceNumber": "2425-ABCD-02-01",
+                        "status": "draft"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "All proposals updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProposalStatusResult"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "results": [
+                    {
+                      "referenceNumber": "2425-YNEJ-01-01",
+                      "success": true,
+                      "status": "approved"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success — some proposals updated, some failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProposalStatusResult"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "results": [
+                    {
+                      "referenceNumber": "2425-YNEJ-01-01",
+                      "success": true,
+                      "status": "approved"
+                    },
+                    {
+                      "referenceNumber": "2425-XXXX-99-99",
+                      "success": false,
+                      "errorCode": "PROPOSAL_NOT_FOUND",
+                      "message": "Proposal '2425-XXXX-99-99' was not found"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                "examples": {
+                  "invalidStatus": {
+                    "summary": "Status not allowed",
+                    "value": {
+                      "validationErrors": [
+                        {
+                          "field": "Status",
+                          "errorCode": "Status must be one of: draft, approved"
+                        }
+                      ]
+                    }
+                  },
+                  "emptyArray": {
+                    "summary": "No reference numbers",
+                    "value": {
+                      "validationErrors": [
+                        {
+                          "field": "Reference Numbers",
+                          "errorCode": "At least one reference number is required"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid Cognito Bearer token (rejected by API Gateway before reaching this service)"
+          },
+          "403": {
+            "description": "Request did not arrive via the public API Gateway",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "errors": [
+                    {
+                      "errorCode": "ROUTE_NOT_ACCESSIBLE",
+                      "message": "This endpoint is not accessible via the public API Gateway"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "All proposals failed to update",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
       }

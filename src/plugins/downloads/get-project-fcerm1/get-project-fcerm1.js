@@ -5,9 +5,13 @@ import { ProjectFcerm1Service } from '../services/project-fcerm1-service.js'
 import { FcermPresenter } from '../helpers/fcerm1/fcerm1-presenter.js'
 import { buildSingleWorkbook } from '../helpers/fcerm1/fcerm1-builder.js'
 import {
-  LEGACY_COLUMNS,
+  FCERM1_YEARS,
+  LEGACY_COLUMNS
+} from '../helpers/fcerm1/fcerm1-legacy-columns.js'
+import {
+  NEW_FCERM1_YEARS,
   NEW_COLUMNS
-} from '../helpers/fcerm1/fcerm1-columns.js'
+} from '../helpers/fcerm1/fcerm1-new-columns.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
 
 const directoryName = fileURLToPath(new URL('.', import.meta.url))
@@ -21,7 +25,7 @@ export const NEW_TEMPLATE_PATH = join(TEMPLATES_DIR, 'fcerm1_new_template.xlsx')
 const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
-export function createFcerm1Route({ format, templatePath, columns }) {
+export function createFcerm1Route({ format, templatePath, columns, years }) {
   return {
     method: 'GET',
     path: `/api/v1/project/{referenceNumber}/fcerm1/${format}`,
@@ -69,7 +73,8 @@ export function createFcerm1Route({ format, templatePath, columns }) {
         const buffer = await buildSingleWorkbook(
           templatePath,
           presenter,
-          columns
+          columns,
+          years
         )
 
         const filename = `${referenceNumber.replaceAll('/', '-')}_proposal.xlsx`
@@ -96,14 +101,16 @@ export function createFcerm1Route({ format, templatePath, columns }) {
 export const getProjectFcerm1Legacy = createFcerm1Route({
   format: 'legacy',
   templatePath: LEGACY_TEMPLATE_PATH,
-  columns: LEGACY_COLUMNS
+  columns: LEGACY_COLUMNS,
+  years: FCERM1_YEARS
 })
 
 /** GET /api/v1/project/{referenceNumber}/fcerm1/new */
 export const getProjectFcerm1New = createFcerm1Route({
   format: 'new',
   templatePath: NEW_TEMPLATE_PATH,
-  columns: NEW_COLUMNS
+  columns: NEW_COLUMNS,
+  years: NEW_FCERM1_YEARS
 })
 
 export default getProjectFcerm1Legacy

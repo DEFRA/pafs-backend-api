@@ -3,7 +3,8 @@ import {
   FCERM1_COLUMN_MAP,
   LEGACY_COLUMNS,
   NEW_COLUMNS,
-  FCERM1_YEARS
+  FCERM1_YEARS,
+  NEW_FCERM1_YEARS
 } from './fcerm1-columns.js'
 import { SIZE } from '../../../../common/constants/common.js'
 
@@ -17,6 +18,12 @@ describe('fcerm1-columns', () => {
       expect(FCERM1_YEARS).toHaveLength(10)
       expect(FCERM1_YEARS[0]).toBe(2023)
       expect(FCERM1_YEARS[9]).toBe(2032)
+    })
+
+    test('NEW_FCERM1_YEARS covers 2026 to 2038 (13 years)', () => {
+      expect(NEW_FCERM1_YEARS).toHaveLength(13)
+      expect(NEW_FCERM1_YEARS[0]).toBe(2026)
+      expect(NEW_FCERM1_YEARS[12]).toBe(2038)
     })
   })
 
@@ -106,9 +113,66 @@ describe('fcerm1-columns', () => {
   })
 
   describe('NEW_COLUMNS', () => {
-    test('is empty when no new-scope columns are defined', () => {
-      // All current columns are legacy — new format not yet implemented
-      expect(NEW_COLUMNS).toHaveLength(0)
+    test('is a non-empty array', () => {
+      expect(NEW_COLUMNS.length).toBeGreaterThan(0)
+    })
+
+    test('starts with column A (referenceNumber)', () => {
+      expect(NEW_COLUMNS[0]).toMatchObject({
+        column: 'A',
+        field: 'referenceNumber'
+      })
+    })
+
+    test('ends with column KQ', () => {
+      const last = NEW_COLUMNS.at(-1)
+      expect(last.column).toBe('KQ')
+    })
+
+    test('every entry has column and field properties', () => {
+      for (const col of NEW_COLUMNS) {
+        expect(col).toHaveProperty('column')
+        expect(col).toHaveProperty('field')
+      }
+    })
+
+    test('funding total columns (V-AH) have export: false', () => {
+      const formulaCols = NEW_COLUMNS.filter((c) => c.export === false)
+      expect(formulaCols.length).toBeGreaterThan(0)
+      const letters = formulaCols.map((c) => c.column)
+      expect(letters).toContain('V')
+      expect(letters).toContain('AH')
+    })
+
+    test('GiA dateRange block starts at column AI', () => {
+      const gia = NEW_COLUMNS.find(
+        (c) => c.column === 'AI' && c.dateRange === true
+      )
+      expect(gia).toBeDefined()
+      expect(gia.field).toBe('fcermGia')
+    })
+
+    test('urgency columns IE and IF are present', () => {
+      const ie = NEW_COLUMNS.find((c) => c.column === 'IE')
+      const ifCol = NEW_COLUMNS.find((c) => c.column === 'IF')
+      expect(ie?.field).toBe('urgencyReason')
+      expect(ifCol?.field).toBe('urgencyDetails')
+    })
+
+    test('NHM confidence columns KE-KG are present', () => {
+      const ke = NEW_COLUMNS.find((c) => c.column === 'KE')
+      const kf = NEW_COLUMNS.find((c) => c.column === 'KF')
+      const kg = NEW_COLUMNS.find((c) => c.column === 'KG')
+      expect(ke?.field).toBe('nfmLandownerConsent')
+      expect(kf?.field).toBe('nfmExperienceLevel')
+      expect(kg?.field).toBe('nfmProjectReadiness')
+    })
+
+    test('no duplicate exportable column letters', () => {
+      const exportable = NEW_COLUMNS.filter((c) => c.export !== false)
+      const letters = exportable.map((c) => c.column)
+      const unique = new Set(letters)
+      expect(unique.size).toBe(letters.length)
     })
   })
 
