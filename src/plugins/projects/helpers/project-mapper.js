@@ -22,7 +22,14 @@ const BIGINT_FIELDS = new Set([
   'wlbEstimatedPropertyDamagesAvoided',
   'wlbEstimatedEnvironmentalBenefits',
   'wlbEstimatedRecreationTourismBenefits',
-  'wlbEstimatedLandValueUpliftBenefits'
+  'wlbEstimatedLandValueUpliftBenefits',
+  // Property benefit fields changed to BIGINT in database
+  'maintainingExistingAssets',
+  'reducingFloodRisk50Plus',
+  'reducingFloodRiskLess50',
+  'increasingFloodResilience',
+  'propertiesBenefitMaintainingAssetsCoastal',
+  'propertiesBenefitInvestmentCoastalErosion'
 ])
 
 export class ProjectMapper {

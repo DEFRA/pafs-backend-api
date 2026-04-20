@@ -113,9 +113,9 @@ export const environmentalBenefitsGateSchema = (label) =>
 /**
  * Conditional environmental benefits quantity field schema
  * Only requires the quantity field when the gate field is true
- * Strictly validates maximum 2 decimal places WITHOUT auto-rounding
- * (e.g., 0.01, 1.5, 10.25 are valid; 1.234, 10.999 are rejected)
- * Minimum value: 0.01
+ * Allows up to 16 digits before decimal, 2 digits after decimal
+ * Accepts both string and number inputs for maximum compatibility
+ * Minimum value: 0 (0 allowed as specified)
  * @param {string} label - Field label for error messages
  * @param {string} gateField - Name of the gate field to check
  */
@@ -125,19 +125,58 @@ export const environmentalBenefitsConditionalQuantitySchema = (
 ) =>
   Joi.when(gateField, {
     is: true,
-    then: Joi.number()
-      .min(0.01)
-      .precision(2)
+    then: Joi.alternatives()
+      .try(
+        // String validation - handles all inputs to prevent scientific notation issues
+        Joi.string()
+          .trim()
+          .custom((value, helpers) => {
+            // Check basic format first
+            if (!/^\d+(?:\.\d+)?$/.test(value)) {
+              return helpers.error('number.base')
+            }
+            
+            const [integerPart, decimalPart] = value.split('.')
+            
+            // Check 16 digits before decimal constraint
+            if (integerPart.length > 16) {
+              return helpers.error('number.precision')
+            }
+            
+            // Check decimal places constraint - must be exactly 1 or 2 digits
+            if (decimalPart && decimalPart.length > 2) {
+              return helpers.error('number.precision')
+            }
+            
+            const num = Number.parseFloat(value)
+            if (Number.isNaN(num) || num < 0) {
+              return helpers.error('number.base')
+            }
+            
+            // For very large numbers, check if integer part exceeds JavaScript's safe range
+            const [integerStr] = value.split('.')
+            const integerValue = Number.parseInt(integerStr, 10)
+            if (integerValue > Number.MAX_SAFE_INTEGER) {
+              return helpers.error('number.precision')
+            }
+            
+            // Return the original string value to preserve precision for Decimal database fields
+            return value
+          })
+          .label(label)
+      )
       .required()
-      .prefs({ convert: false })
-      .label(label)
       .messages({
         'any.required':
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_REQUIRED,
         'number.base':
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+        'string.pattern.base':
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
         'number.min':
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
+        'number.max':
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
         'number.precision':
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
       }),

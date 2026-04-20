@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
+
+  <changeSet id="4-001-numeric-field-precision-updates" author="system">
+    <comment>Update numeric fields for improved precision - property benefits to BIGINT and environmental benefits to DECIMAL(18,2)</comment>
+    
+    <!-- Change flooding property benefit columns from INTEGER to BIGINT (already applied) -->
+    <modifyDataType columnName="properties_benefit_maintaining_assets" newDataType="BIGINT" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="properties_benefit_50_percent_reduction" newDataType="BIGINT" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="properties_benefit_less_50_percent_reduction" newDataType="BIGINT" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="properties_benefit_individual_intervention" newDataType="BIGINT" tableName="pafs_core_projects"/>
+    
+    <!-- Change coastal erosion property benefit columns from INTEGER to BIGINT (already applied) -->
+    <modifyDataType columnName="properties_benefit_maintaining_assets_coastal" newDataType="BIGINT" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="properties_benefit_investment_coastal_erosion" newDataType="BIGINT" tableName="pafs_core_projects"/>
+    
+    <!-- Change environmental benefits habitat quantity columns from REAL to DECIMAL(18,2) -->
+    <modifyDataType columnName="hectares_of_intertidal_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_woodland_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_wet_woodland_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_wetland_or_wet_grassland_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_grassland_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_heathland_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_pond_or_lake_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_arable_land_lake_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    
+    <!-- Change watercourse enhancement quantity columns from REAL to DECIMAL(18,2) -->
+    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_comprehensive" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_partial" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_single" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    
+  </changeSet>
+
+</databaseChangeLog>

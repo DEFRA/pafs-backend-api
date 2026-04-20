@@ -272,8 +272,13 @@ describe('project schemas - risk and properties', () => {
   })
 
   describe('percentProperties20PercentDeprivedSchema', () => {
-    it('should validate zero', () => {
+    it('should reject zero', () => {
       const { error } = percentProperties20PercentDeprivedSchema.validate('0')
+      expect(error).toBeDefined()
+    })
+
+    it('should validate 1', () => {
+      const { error } = percentProperties20PercentDeprivedSchema.validate('1')
       expect(error).toBeUndefined()
     })
 
@@ -287,16 +292,16 @@ describe('project schemas - risk and properties', () => {
       expect(error).toBeUndefined()
     })
 
-    it('should validate decimal with 1 decimal place', () => {
+    it('should reject decimal with 1 decimal place', () => {
       const { error } =
         percentProperties20PercentDeprivedSchema.validate('45.5')
-      expect(error).toBeUndefined()
+      expect(error).toBeDefined()
     })
 
-    it('should validate decimal with 2 decimal places', () => {
+    it('should reject decimal with 2 decimal places', () => {
       const { error } =
         percentProperties20PercentDeprivedSchema.validate('67.89')
-      expect(error).toBeUndefined()
+      expect(error).toBeDefined()
     })
 
     it('should allow null', () => {
@@ -316,8 +321,13 @@ describe('project schemas - risk and properties', () => {
   })
 
   describe('percentProperties40PercentDeprivedSchema', () => {
-    it('should validate zero', () => {
+    it('should reject zero', () => {
       const { error } = percentProperties40PercentDeprivedSchema.validate('0')
+      expect(error).toBeDefined()
+    })
+
+    it('should validate 1', () => {
+      const { error } = percentProperties40PercentDeprivedSchema.validate('1')
       expect(error).toBeUndefined()
     })
 
@@ -331,16 +341,16 @@ describe('project schemas - risk and properties', () => {
       expect(error).toBeUndefined()
     })
 
-    it('should validate decimal with 1 decimal place', () => {
+    it('should reject decimal with 1 decimal place', () => {
       const { error } =
         percentProperties40PercentDeprivedSchema.validate('33.3')
-      expect(error).toBeUndefined()
+      expect(error).toBeDefined()
     })
 
-    it('should validate decimal with 2 decimal places', () => {
+    it('should reject decimal with 2 decimal places', () => {
       const { error } =
         percentProperties40PercentDeprivedSchema.validate('88.99')
-      expect(error).toBeUndefined()
+      expect(error).toBeDefined()
     })
 
     it('should allow null', () => {
