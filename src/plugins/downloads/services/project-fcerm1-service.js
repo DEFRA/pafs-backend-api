@@ -4,25 +4,8 @@ export class ProjectFcerm1Service {
     this.logger = logger
   }
 
-  /**
-   * Load everything needed to build an FCERM1 row for one project.
-   *
-   * @param {string} referenceNumber  e.g. 'AC/2021/00001/000' (slashes, not hyphens)
-   * @returns {Promise<{project, contributors, areaId} | null>}
-   */
-  async getProjectForFcerm1(referenceNumber) {
-    const project = await this.prisma.pafs_core_projects.findFirst({
-      where: { reference_number: referenceNumber }
-    })
-
-    if (!project) {
-      return null
-    }
-
-    const projectId = project.id // BigInt — used for child tables that store BigInt
-    const projectIdInt = Number(projectId) // Int   — used for states + area_projects tables
-
-    // Run all lookups in parallel — none depend on each other
+  // Run all child-table lookups in parallel — none depend on each other
+  async _fetchRelatedData(projectId, projectIdInt) {
     const [
       fundingValues,
       floodProtectionOutcomes,
@@ -60,6 +43,46 @@ export class ProjectFcerm1Service {
         select: { area_id: true }
       })
     ])
+    return {
+      fundingValues,
+      floodProtectionOutcomes,
+      flood2040Outcomes,
+      coastalOutcomes,
+      nfmMeasures,
+      nfmLandUseChanges,
+      stateRow,
+      areaProject
+    }
+  }
+
+  /**
+   * Load everything needed to build an FCERM1 row for one project.
+   *
+   * @param {string} referenceNumber  e.g. 'AC/2021/00001/000' (slashes, not hyphens)
+   * @returns {Promise<{project, contributors, areaId} | null>}
+   */
+  async getProjectForFcerm1(referenceNumber) {
+    const project = await this.prisma.pafs_core_projects.findFirst({
+      where: { reference_number: referenceNumber }
+    })
+
+    if (!project) {
+      return null
+    }
+
+    const projectId = project.id // BigInt — used for child tables that store BigInt
+    const projectIdInt = Number(projectId) // Int   — used for states + area_projects tables
+
+    const {
+      fundingValues,
+      floodProtectionOutcomes,
+      flood2040Outcomes,
+      coastalOutcomes,
+      nfmMeasures,
+      nfmLandUseChanges,
+      stateRow,
+      areaProject
+    } = await this._fetchRelatedData(projectId, projectIdInt)
 
     // Load contributors keyed on funding value ids — depends on fundingValues result above
     const fundingValueIds = fundingValues.map((fv) => fv.id)

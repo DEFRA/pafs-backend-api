@@ -220,6 +220,8 @@ describe('getProjectCountsForUser', () => {
       total: 4,
       submitted: 2,
       draft: 1,
+      revise: 0,
+      approved: 0,
       completed: 0,
       archived: 1
     })
@@ -243,6 +245,8 @@ describe('getAllProjectCounts', () => {
       total: 3,
       submitted: 1,
       draft: 1,
+      revise: 0,
+      approved: 0,
       completed: 1,
       archived: 0
     })
@@ -492,6 +496,25 @@ describe('queueAdminGeneration', () => {
       'programme-download-complete'
     )
   })
+
+  test('swallows updateDownloadRecord failure on admin error path', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_states.findMany.mockRejectedValue(new Error('db failure'))
+    prisma.pafs_core_area_downloads.update.mockRejectedValue(
+      new Error('update failed')
+    )
+    prisma.pafs_core_users.findFirst.mockResolvedValue(null)
+
+    queueAdminGeneration({
+      prisma,
+      logger: makeLogger(),
+      downloadId: BigInt(13),
+      s3Bucket: 'bucket',
+      requestingUserId: null
+    })
+    expect(capturedCallback).toBeDefined()
+    await expect(capturedCallback()).resolves.toBeUndefined()
+  })
 })
 
 // â”€â”€ tabulateCounts â€” completed and unknown branches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -508,7 +531,28 @@ describe('tabulateCounts completed and unknown state branches', () => {
       total: 2,
       submitted: 0,
       draft: 0,
+      revise: 0,
+      approved: 0,
       completed: 2,
+      archived: 0
+    })
+  })
+
+  test('counts revise and approved states correctly', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { state: 'revise' },
+      { state: 'revise' },
+      { state: 'approved' }
+    ])
+    const result = await getAllProjectCounts(prisma)
+    expect(result).toEqual({
+      total: 3,
+      submitted: 0,
+      draft: 0,
+      revise: 2,
+      approved: 1,
+      completed: 0,
       archived: 0
     })
   })
@@ -523,6 +567,8 @@ describe('tabulateCounts completed and unknown state branches', () => {
       total: 1,
       submitted: 0,
       draft: 0,
+      revise: 0,
+      approved: 0,
       completed: 0,
       archived: 0
     })

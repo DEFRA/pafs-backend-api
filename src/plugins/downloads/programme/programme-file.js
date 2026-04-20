@@ -45,7 +45,7 @@ export const getUserProgrammeFile = {
     try {
       const record = await getUserDownloadRecord(prisma, userId)
 
-      if (!record || record.status !== DOWNLOAD_STATUS.READY) {
+      if (record?.status !== DOWNLOAD_STATUS.READY) {
         return h
           .response({ error: 'Download not ready' })
           .code(HTTP_STATUS.NOT_FOUND)

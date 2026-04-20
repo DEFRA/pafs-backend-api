@@ -22,7 +22,7 @@ function sumAllYears(fundingValues, field) {
   )
 }
 
-function sumAllContributors(fundingValues, contributors, type) {
+function sumAllContributors(_fundingValues, contributors, type) {
   return (contributors ?? [])
     .filter((c) => c.contributor_type === type)
     .reduce((total, c) => total + Number(c.amount ?? 0), 0)

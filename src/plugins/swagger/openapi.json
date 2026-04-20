@@ -574,7 +574,14 @@
           "name": { "type": "string" },
           "status": {
             "type": "string",
-            "enum": ["revise", "draft", "submitted", "completed", "archived"]
+            "enum": [
+              "revise",
+              "draft",
+              "submitted",
+              "approved",
+              "completed",
+              "archived"
+            ]
           },
           "areaId": { "type": "integer", "nullable": true },
           "rmaName": { "type": "string", "nullable": true },
@@ -601,7 +608,14 @@
           "name": { "type": "string" },
           "status": {
             "type": "string",
-            "enum": ["revise", "draft", "submitted", "completed", "archived"]
+            "enum": [
+              "revise",
+              "draft",
+              "submitted",
+              "approved",
+              "completed",
+              "archived"
+            ]
           },
           "projectType": {
             "type": "string",
@@ -929,7 +943,14 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["revise", "draft", "submitted", "completed", "archived"],
+            "enum": [
+              "revise",
+              "draft",
+              "submitted",
+              "approved",
+              "completed",
+              "archived"
+            ],
             "description": "New project status"
           }
         }
