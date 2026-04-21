@@ -22,6 +22,9 @@ vi.mock('../get-project-fcerm1/get-project-fcerm1.js', () => ({
 vi.mock('../../projects/helpers/area-hierarchy.js', () => ({
   resolveAreaHierarchy: vi.fn().mockResolvedValue({})
 }))
+vi.mock('../../projects/helpers/legacy-file-resolver.js', () => ({
+  resolveLegacyBenefitAreaFile: vi.fn().mockResolvedValue(null)
+}))
 vi.mock('adm-zip', () => ({
   default: vi.fn(function AdmZipMock() {
     return {
@@ -44,7 +47,7 @@ const {
 // ── Shared factory helpers ─────────────────────────────────────────────────────
 
 function makeLogger() {
-  return { info: vi.fn(), error: vi.fn(), warn: vi.fn() }
+  return { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() }
 }
 
 function makePrisma(overrides = {}) {
@@ -328,7 +331,7 @@ describe('buildBenefitAreasZip', () => {
     ]
     const s3Service = { getObject: vi.fn() }
     const result = await buildBenefitAreasZip(projects, s3Service, makeLogger())
-    expect(result).toBeNull()
+    expect(result).toEqual({ buffer: null, count: 0 })
     expect(s3Service.getObject).not.toHaveBeenCalled()
   })
 
@@ -355,10 +358,11 @@ describe('buildBenefitAreasZip', () => {
     )
     const zipInstance = AdmZipModule.default.mock.results.at(-1)?.value
     expect(zipInstance.addFile).toHaveBeenCalledWith(
-      'ref001_benefit.zip',
+      'REF001_ref001_benefit.zip',
       fileBuffer
     )
-    expect(result).toBeInstanceOf(Buffer)
+    expect(result).toMatchObject({ count: 1 })
+    expect(result.buffer).toBeInstanceOf(Buffer)
   })
 
   test('uses default filename (replaces / with -) when benefit_area_file_name is null', async () => {
@@ -405,7 +409,7 @@ describe('buildBenefitAreasZip', () => {
       expect.objectContaining({ err: s3Error, referenceNumber: 'FAIL001' }),
       'Skipping benefit area file'
     )
-    expect(result).toBeNull()
+    expect(result).toEqual({ buffer: null, count: 0 })
   })
 })
 
@@ -489,7 +493,7 @@ describe('uploadUserBenefitAreas', () => {
       makeLogger()
     )
 
-    expect(result).toBeNull()
+    expect(result).toEqual({ filename: null, count: 0 })
     expect(s3Service.putObject).not.toHaveBeenCalled()
   })
 
@@ -524,7 +528,64 @@ describe('uploadUserBenefitAreas', () => {
       expect.any(Buffer),
       'application/zip'
     )
-    expect(result).toBe('programme/user_7/benefit_areas.zip')
+    expect(result).toEqual({
+      filename: 'programme/user_7/benefit_areas.zip',
+      count: 1
+    })
+  })
+
+  test('resolves legacy S3 coordinates and includes them in the benefit zip when bucket/key are null', async () => {
+    const { resolveLegacyBenefitAreaFile } =
+      await import('../../projects/helpers/legacy-file-resolver.js')
+    resolveLegacyBenefitAreaFile.mockResolvedValueOnce({
+      reference_number: 'LEG001',
+      benefit_area_file_s3_bucket: 'pafs-uploads',
+      benefit_area_file_s3_key: 'legacy/LEG001/1/leg001.zip',
+      benefit_area_file_name: 'leg001.zip'
+    })
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      {
+        reference_number: 'LEG001',
+        benefit_area_file_name: 'leg001.zip',
+        benefit_area_file_s3_bucket: null,
+        benefit_area_file_s3_key: null,
+        is_legacy: true,
+        slug: 'LEG001',
+        version: 1
+      }
+    ])
+    const mockPutObject = vi.fn().mockResolvedValue({})
+    const s3Service = {
+      getObject: vi.fn().mockResolvedValue(Buffer.from('legacy-data')),
+      putObject: mockPutObject
+    }
+
+    const result = await uploadUserBenefitAreas(
+      prisma,
+      s3Service,
+      'dest-bucket',
+      5,
+      [99],
+      makeLogger()
+    )
+
+    expect(resolveLegacyBenefitAreaFile).toHaveBeenCalled()
+    expect(s3Service.getObject).toHaveBeenCalledWith(
+      'pafs-uploads',
+      'legacy/LEG001/1/leg001.zip'
+    )
+    expect(mockPutObject).toHaveBeenCalledWith(
+      'dest-bucket',
+      'programme/user_5/benefit_areas.zip',
+      expect.any(Buffer),
+      'application/zip'
+    )
+    expect(result).toEqual({
+      filename: 'programme/user_5/benefit_areas.zip',
+      count: 1
+    })
   })
 
   test('queries projects using BigInt-mapped IDs', async () => {

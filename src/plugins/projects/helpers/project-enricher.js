@@ -3,7 +3,10 @@ import {
   generateDownloadUrl,
   updateBenefitAreaDownloadUrl
 } from './benefit-area-file-helper.js'
-import { buildLegacyS3Key } from './legacy-file-resolver.js'
+import {
+  buildLegacyS3Key,
+  resolveLegacyBenefitAreaFile
+} from './legacy-file-resolver.js'
 import {
   URGENCY_REASONS,
   URGENCY_CODES
@@ -69,6 +72,27 @@ async function enrichBenefitAreaDownloadUrl(
     apiData.benefitAreaFileDownloadUrl = url
     apiData.benefitAreaFileDownloadExpiry = expiry
     return
+  }
+
+  // S3 coordinates may be missing for legacy records migrated before those
+  // columns existed. Resolve the key from the known legacy S3 path structure
+  // and persist it so subsequent calls use the DB cache.
+  if (
+    !rawProject.benefit_area_file_s3_bucket ||
+    !rawProject.benefit_area_file_s3_key
+  ) {
+    const resolved = await resolveLegacyBenefitAreaFile(
+      rawProject,
+      prisma,
+      logger
+    )
+    if (!resolved) {
+      return
+    }
+    // Use the resolved coordinates for the presign below
+    rawProject.benefit_area_file_s3_bucket =
+      resolved.benefit_area_file_s3_bucket
+    rawProject.benefit_area_file_s3_key = resolved.benefit_area_file_s3_key
   }
 
   // URL is missing or stale — regenerate and persist

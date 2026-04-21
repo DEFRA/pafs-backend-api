@@ -239,7 +239,7 @@ function injectDataRows(
   const lastRow = FIRST_DATA_ROW + presenters.length - 1
   const lastCol = lastColumnLetter(columns, years)
   return sheetXml
-    .replace(/<row r="7"[^>]*>.*?<\/row>/s, rows)
+    .replace(/<row r="7"[^>]*>.*?(<\/sheetData>)/s, `${rows}$1`)
     .replace(
       /<dimension ref="[^"]+"/,
       `<dimension ref="A1:${lastCol}${lastRow}"`

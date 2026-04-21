@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="2-007-area-downloads-benefit-count" author="migration-team">
+    <comment>
+            Add number_of_benefit_areas to pafs_core_area_downloads so we can display
+            how many proposal benefit area files were included in the generated ZIP.
+    </comment>
+
+    <addColumn tableName="pafs_core_area_downloads">
+      <column name="number_of_benefit_areas" type="INTEGER"/>
+    </addColumn>
+
+    <rollback>
+      <dropColumn tableName="pafs_core_area_downloads" columnName="number_of_benefit_areas"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

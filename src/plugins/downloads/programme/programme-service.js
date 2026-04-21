@@ -8,203 +8,39 @@ import {
   uploadFcerm1IfAny,
   uploadUserBenefitAreas
 } from './programme-generation-helpers.js'
-
-const DOWNLOAD_STATUS = {
-  EMPTY: 'empty',
-  GENERATING: 'generating',
-  READY: 'ready',
-  FAILED: 'failed'
-}
-
-// Sentinel value: admin system-wide download has user_id = null
-const ADMIN_USER_ID = null
+import {
+  DOWNLOAD_STATUS,
+  ADMIN_USER_ID,
+  getUserDownloadRecord,
+  getAdminDownloadRecord,
+  getUserAreaIds,
+  startUserDownload,
+  startAdminDownload,
+  updateDownloadRecord
+} from './programme-records.js'
+import {
+  getProjectCountsForUser,
+  getAllProjectCounts
+} from './programme-counts.js'
 
 // Frontend download page path — both user and admin land on the same page
-const DOWNLOAD_PATH = '/download'
+const DOWNLOAD_PATH = '/downloads'
 
-/**
- * Get the current download record for a user.
- * Returns null if no record exists yet.
- */
-export async function getUserDownloadRecord(prisma, userId) {
-  return prisma.pafs_core_area_downloads.findFirst({
-    where: { user_id: userId, area_id: null },
-    orderBy: { updated_at: 'desc' }
-  })
+// ── Re-exports — keeps all existing consumers unchanged ──────────────────────
+
+export {
+  DOWNLOAD_STATUS,
+  ADMIN_USER_ID,
+  getUserDownloadRecord,
+  getAdminDownloadRecord,
+  getUserAreaIds,
+  startUserDownload,
+  startAdminDownload,
+  getProjectCountsForUser,
+  getAllProjectCounts
 }
 
-/**
- * Get the shared admin download record (user_id IS NULL).
- */
-export async function getAdminDownloadRecord(prisma) {
-  return prisma.pafs_core_area_downloads.findFirst({
-    where: { user_id: ADMIN_USER_ID, area_id: null },
-    orderBy: { updated_at: 'desc' }
-  })
-}
-
-/**
- * Count proposals in the user's areas, grouped by status.
- */
-export async function getProjectCountsForUser(prisma, userId) {
-  const areaIds = await getUserAreaIds(prisma, userId)
-
-  if (areaIds.length === 0) {
-    return { total: 0, submitted: 0, draft: 0, completed: 0, archived: 0 }
-  }
-
-  const areaProjectRows = await prisma.pafs_core_area_projects.findMany({
-    where: { area_id: { in: areaIds } },
-    select: { project_id: true }
-  })
-
-  const projectIds = areaProjectRows.map((r) => r.project_id)
-
-  if (projectIds.length === 0) {
-    return {
-      total: 0,
-      submitted: 0,
-      draft: 0,
-      revise: 0,
-      approved: 0,
-      completed: 0,
-      archived: 0
-    }
-  }
-
-  const states = await prisma.pafs_core_states.findMany({
-    where: { project_id: { in: projectIds } },
-    select: { state: true }
-  })
-
-  return tabulateCounts(states)
-}
-
-/**
- * Count all proposals system-wide, grouped by status.
- */
-export async function getAllProjectCounts(prisma) {
-  const states = await prisma.pafs_core_states.findMany({
-    select: { state: true }
-  })
-  return tabulateCounts(states)
-}
-
-function tabulateCounts(stateRows) {
-  const counts = {
-    total: 0,
-    submitted: 0,
-    draft: 0,
-    revise: 0,
-    approved: 0,
-    completed: 0,
-    archived: 0
-  }
-  for (const { state } of stateRows) {
-    counts.total++
-    if (state === 'submitted') {
-      counts.submitted++
-    }
-    if (state === 'draft') {
-      counts.draft++
-    }
-    if (state === 'revise') {
-      counts.revise++
-    }
-    if (state === 'approved') {
-      counts.approved++
-    }
-    if (state === 'completed') {
-      counts.completed++
-    }
-    if (state === 'archived') {
-      counts.archived++
-    }
-  }
-  return counts
-}
-
-/**
- * Get the area IDs assigned to a user (direct assignments only — no recursive CTE needed
- * for the prototype; can be extended to traverse the hierarchy later).
- */
-export async function getUserAreaIds(prisma, userId) {
-  const rows = await prisma.pafs_core_user_areas.findMany({
-    where: { user_id: BigInt(userId) },
-    select: { area_id: true }
-  })
-  return rows.map((r) => Number(r.area_id))
-}
-
-/**
- * Create a new generating record for a user, replacing any previous one.
- */
-export async function startUserDownload(prisma, userId, proposalCount) {
-  const now = new Date()
-
-  // Delete any previous record for this user so we have one record per user
-  await prisma.pafs_core_area_downloads.deleteMany({
-    where: { user_id: userId, area_id: null }
-  })
-
-  return prisma.pafs_core_area_downloads.create({
-    data: {
-      user_id: userId,
-      area_id: null,
-      status: DOWNLOAD_STATUS.GENERATING,
-      requested_on: now,
-      number_of_proposals: proposalCount,
-      progress_current: 0,
-      progress_total: proposalCount,
-      progress_message: 'Starting generation...',
-      created_at: now,
-      updated_at: now
-    }
-  })
-}
-
-/**
- * Create or replace the shared admin generating record.
- * requestingUserId is stored in number_of_proposals_with_moderation as a
- * temporary carrier (repurposed) — we look it up at generation time for email.
- * A cleaner approach would add a dedicated column, but this avoids a migration.
- */
-export async function startAdminDownload(
-  prisma,
-  requestingUserId,
-  proposalCount
-) {
-  const now = new Date()
-
-  await prisma.pafs_core_area_downloads.deleteMany({
-    where: { user_id: ADMIN_USER_ID, area_id: null }
-  })
-
-  return prisma.pafs_core_area_downloads.create({
-    data: {
-      user_id: ADMIN_USER_ID,
-      area_id: null,
-      status: DOWNLOAD_STATUS.GENERATING,
-      requested_on: now,
-      number_of_proposals: proposalCount,
-      // Repurpose this nullable field to carry the requesting admin's user ID
-      // so the background job can look up their email address.
-      number_of_proposals_with_moderation: requestingUserId,
-      progress_current: 0,
-      progress_total: proposalCount,
-      progress_message: 'Starting generation...',
-      created_at: now,
-      updated_at: now
-    }
-  })
-}
-
-async function updateDownloadRecord(prisma, id, updates) {
-  return prisma.pafs_core_area_downloads.update({
-    where: { id },
-    data: { ...updates, updated_at: new Date() }
-  })
-}
+// ── Email helpers ─────────────────────────────────────────────────────────────
 
 /**
  * Lookup a user's email and name from the database.
@@ -268,41 +104,6 @@ async function sendDownloadEmail(
   }
 }
 
-async function loadAllProjectsInBatches(
-  prisma,
-  projectIds,
-  downloadId,
-  total,
-  logger
-) {
-  const presenters = []
-  const BATCH = 50
-  for (let i = 0; i < projectIds.length; i += BATCH) {
-    const batch = projectIds.slice(i, i + BATCH)
-    const batchPresenters = await loadProjectsForFcerm1(prisma, batch, logger)
-    presenters.push(...batchPresenters)
-    await updateDownloadRecord(prisma, downloadId, {
-      progress_current: Math.min(i + BATCH, total),
-      progress_message: `Processing projects ${Math.min(i + BATCH, total)} of ${total}...`
-    })
-  }
-  return presenters
-}
-
-// ── Shared generation helpers ─────────────────────────────────────────────────
-
-async function fetchUserProjectIds(prisma, userId) {
-  const areaIds = await getUserAreaIds(prisma, userId)
-  if (areaIds.length === 0) {
-    return []
-  }
-  const rows = await prisma.pafs_core_area_projects.findMany({
-    where: { area_id: { in: areaIds } },
-    select: { project_id: true }
-  })
-  return rows.map((r) => r.project_id)
-}
-
 async function notifyByEmail(
   prisma,
   logger,
@@ -326,6 +127,41 @@ async function notifyByEmail(
       isSuccess
     )
   }
+}
+
+// ── Shared generation helpers ─────────────────────────────────────────────────
+
+async function fetchUserProjectIds(prisma, userId) {
+  const areaIds = await getUserAreaIds(prisma, userId)
+  if (areaIds.length === 0) {
+    return []
+  }
+  const rows = await prisma.pafs_core_area_projects.findMany({
+    where: { area_id: { in: areaIds } },
+    select: { project_id: true }
+  })
+  return rows.map((r) => r.project_id)
+}
+
+async function loadAllProjectsInBatches(
+  prisma,
+  projectIds,
+  downloadId,
+  total,
+  logger
+) {
+  const presenters = []
+  const BATCH = 50
+  for (let i = 0; i < projectIds.length; i += BATCH) {
+    const batch = projectIds.slice(i, i + BATCH)
+    const batchPresenters = await loadProjectsForFcerm1(prisma, batch, logger)
+    presenters.push(...batchPresenters)
+    await updateDownloadRecord(prisma, downloadId, {
+      progress_current: Math.min(i + BATCH, total),
+      progress_message: `Processing projects ${Math.min(i + BATCH, total)} of ${total}...`
+    })
+  }
+  return presenters
 }
 
 // ── User programme generation (runs in background via setImmediate) ───────────
@@ -363,18 +199,20 @@ async function runUserGeneration({
       fcerm1Key,
       presenters
     )
-    const benefitAreasFilename = await uploadUserBenefitAreas(
-      prisma,
-      s3Service,
-      s3Bucket,
-      userId,
-      projectIds,
-      logger
-    )
+    const { filename: benefitAreasFilename, count: benefitAreasCount } =
+      await uploadUserBenefitAreas(
+        prisma,
+        s3Service,
+        s3Bucket,
+        userId,
+        projectIds,
+        logger
+      )
 
     await updateDownloadRecord(prisma, downloadId, {
       status: DOWNLOAD_STATUS.READY,
       number_of_proposals: presenters.length,
+      number_of_benefit_areas: benefitAreasCount,
       fcerm1_filename: fcerm1Filename,
       benefit_areas_filename: benefitAreasFilename,
       progress_current: presenters.length,
@@ -514,5 +352,3 @@ async function runAdminGeneration({
 export function queueAdminGeneration(params) {
   setImmediate(() => runAdminGeneration(params))
 }
-
-export { DOWNLOAD_STATUS, ADMIN_USER_ID }

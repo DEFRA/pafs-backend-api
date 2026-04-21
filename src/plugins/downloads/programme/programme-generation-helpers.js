@@ -7,6 +7,7 @@ import {
 } from '../helpers/fcerm1/fcerm1-new-columns.js'
 import { NEW_TEMPLATE_PATH } from '../get-project-fcerm1/get-project-fcerm1.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
+import { resolveLegacyBenefitAreaFile } from '../../projects/helpers/legacy-file-resolver.js'
 
 // ── S3 path helpers ────────────────────────────────────────────────────────────
 
@@ -120,11 +121,20 @@ export async function buildBenefitAreasZip(projects, s3Service, logger) {
   const zip = new AdmZip()
   let count = 0
 
+  logger?.info({ total: projects.length }, 'Building benefit areas zip')
+
   for (const project of projects) {
     if (
       !project.benefit_area_file_s3_bucket ||
       !project.benefit_area_file_s3_key
     ) {
+      logger?.debug(
+        {
+          referenceNumber: project.reference_number,
+          hasFilename: !!project.benefit_area_file_name
+        },
+        'Skipping project — no S3 coordinates for benefit area file'
+      )
       continue
     }
 
@@ -133,10 +143,14 @@ export async function buildBenefitAreasZip(projects, s3Service, logger) {
         project.benefit_area_file_s3_bucket,
         project.benefit_area_file_s3_key
       )
-      const filename =
-        project.benefit_area_file_name ||
-        `${project.reference_number}_benefit_area.zip`
-      zip.addFile(filename.replaceAll('/', '-'), fileBuffer)
+      const basename = (
+        project.benefit_area_file_name || 'benefit_area.zip'
+      ).replaceAll('/', '-')
+      // Sanitise reference_number (can contain '/') and prefix so entries are
+      // unique even when projects share an identical filename.
+      const refPrefix = project.reference_number.replaceAll('/', '-')
+      const filename = `${refPrefix}_${basename}`
+      zip.addFile(filename, fileBuffer)
       count++
     } catch (err) {
       logger.warn(
@@ -146,7 +160,11 @@ export async function buildBenefitAreasZip(projects, s3Service, logger) {
     }
   }
 
-  return count > 0 ? zip.toBuffer() : null
+  logger?.info(
+    { count, totalProjects: projects.length },
+    'Benefit areas zip built'
+  )
+  return { buffer: count > 0 ? zip.toBuffer() : null, count }
 }
 
 // ── S3 upload helpers ─────────────────────────────────────────────────────────
@@ -189,14 +207,64 @@ export async function uploadUserBenefitAreas(
       reference_number: true,
       benefit_area_file_s3_bucket: true,
       benefit_area_file_s3_key: true,
-      benefit_area_file_name: true
+      benefit_area_file_name: true,
+      // Fields needed by resolveLegacyBenefitAreaFile for legacy projects
+      is_legacy: true,
+      slug: true,
+      version: true,
+      benefit_area_file_size: true,
+      benefit_area_content_type: true
     }
   })
-  const benefitZip = await buildBenefitAreasZip(rawProjects, s3Service, logger)
-  if (!benefitZip) {
-    return null
+
+  const withFiles = rawProjects.filter((p) => p.benefit_area_file_name)
+  logger?.info(
+    {
+      totalProjects: rawProjects.length,
+      projectsWithBenefitFile: withFiles.length,
+      projectsWithS3Coords: withFiles.filter(
+        (p) => p.benefit_area_file_s3_bucket && p.benefit_area_file_s3_key
+      ).length,
+      legacyProjectsNeedingResolution: withFiles.filter(
+        (p) =>
+          p.is_legacy &&
+          (!p.benefit_area_file_s3_bucket || !p.benefit_area_file_s3_key)
+      ).length
+    },
+    'uploadUserBenefitAreas: project scan'
+  )
+
+  // For legacy projects whose S3 coordinates were not populated at upload time,
+  // resolve the key from the known legacy path structure and persist it.
+  const resolvedProjects = await Promise.all(
+    rawProjects.map(async (project) => {
+      if (
+        project.benefit_area_file_name &&
+        (!project.benefit_area_file_s3_bucket ||
+          !project.benefit_area_file_s3_key)
+      ) {
+        const resolved = await resolveLegacyBenefitAreaFile(
+          project,
+          prisma,
+          logger
+        )
+        return resolved ?? project
+      }
+      return project
+    })
+  )
+
+  const { buffer: benefitBuffer, count: benefitCount } =
+    await buildBenefitAreasZip(resolvedProjects, s3Service, logger)
+  if (!benefitBuffer) {
+    return { filename: null, count: 0 }
   }
   const benefitKey = userS3Key(userId, 'benefit_areas.zip')
-  await s3Service.putObject(s3Bucket, benefitKey, benefitZip, 'application/zip')
-  return benefitKey
+  await s3Service.putObject(
+    s3Bucket,
+    benefitKey,
+    benefitBuffer,
+    'application/zip'
+  )
+  return { filename: benefitKey, count: benefitCount }
 }

@@ -11,7 +11,8 @@ vi.mock('./benefit-area-file-helper.js', () => ({
 }))
 
 vi.mock('./legacy-file-resolver.js', () => ({
-  buildLegacyS3Key: vi.fn()
+  buildLegacyS3Key: vi.fn(),
+  resolveLegacyBenefitAreaFile: vi.fn()
 }))
 
 vi.mock('../../../config.js', () => ({
@@ -50,7 +51,10 @@ import {
   generateDownloadUrl,
   updateBenefitAreaDownloadUrl
 } from './benefit-area-file-helper.js'
-import { buildLegacyS3Key } from './legacy-file-resolver.js'
+import {
+  buildLegacyS3Key,
+  resolveLegacyBenefitAreaFile
+} from './legacy-file-resolver.js'
 import { config } from '../../../config.js'
 
 // ---------------------------------------------------------------------------
@@ -106,6 +110,8 @@ describe('enrichProjectResponse', () => {
     })
     updateBenefitAreaDownloadUrl.mockResolvedValue(undefined)
     buildLegacyS3Key.mockReturnValue('legacy/SLUG/1/calc.xlsx')
+    // Default mock: resolveLegacyBenefitAreaFile returns null (non-legacy / no file)
+    resolveLegacyBenefitAreaFile.mockResolvedValue(null)
     config.get.mockReturnValue('mock-s3-bucket')
   })
 
@@ -415,6 +421,57 @@ describe('enrichProjectResponse', () => {
 
       expect(generateDownloadUrl).not.toHaveBeenCalled()
       expect(api.benefitAreaFileDownloadUrl).toBeUndefined()
+    })
+
+    test('Should skip S3 call when benefit_area_file_name is set but s3 bucket/key are null and not resolvable (non-legacy)', async () => {
+      resolveLegacyBenefitAreaFile.mockResolvedValue(null)
+      const raw = buildRawProject({
+        benefit_area_file_name: 'map.zip',
+        benefit_area_file_s3_bucket: null,
+        benefit_area_file_s3_key: null,
+        benefit_area_file_download_url: null,
+        benefit_area_file_download_expiry: null
+      })
+      const api = buildApiData()
+
+      await enrichProjectResponse(prisma, raw, api)
+
+      expect(generateDownloadUrl).not.toHaveBeenCalled()
+      expect(api.benefitAreaFileDownloadUrl).toBeUndefined()
+    })
+
+    test('Should resolve legacy S3 key and generate presigned URL when bucket/key are null but project is legacy', async () => {
+      resolveLegacyBenefitAreaFile.mockResolvedValue({
+        benefit_area_file_s3_bucket: 'pafs-uploads',
+        benefit_area_file_s3_key: 'legacy/YOC501E-000A-005A/1/map.zip'
+      })
+      const raw = buildRawProject({
+        reference_number: 'YOC501E/000A/005A',
+        benefit_area_file_name: 'map.zip',
+        benefit_area_file_s3_bucket: null,
+        benefit_area_file_s3_key: null,
+        benefit_area_file_download_url: null,
+        benefit_area_file_download_expiry: null,
+        is_legacy: true
+      })
+      const api = buildApiData()
+
+      await enrichProjectResponse(prisma, raw, api)
+
+      expect(resolveLegacyBenefitAreaFile).toHaveBeenCalledWith(
+        raw,
+        prisma,
+        undefined
+      )
+      expect(generateDownloadUrl).toHaveBeenCalledWith(
+        'pafs-uploads',
+        'legacy/YOC501E-000A-005A/1/map.zip',
+        undefined,
+        'map.zip'
+      )
+      expect(api.benefitAreaFileDownloadUrl).toBe(
+        'https://mock-signed.example.com/file.zip'
+      )
     })
 
     test('Should use cached URL when unexpired and not call S3', async () => {

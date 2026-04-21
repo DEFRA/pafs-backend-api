@@ -135,8 +135,7 @@ describe('benefit-area-file-helper', () => {
           benefit_area_file_s3_key: 'test-key',
           benefit_area_file_download_url: 'https://s3.amazonaws.com/test',
           benefit_area_file_download_expiry: fileMetadata.downloadExpiry,
-          benefit_area_file_updated_at: expect.any(Date),
-          updated_at: expect.any(Date)
+          benefit_area_file_updated_at: expect.any(Date)
         })
       })
     })
@@ -321,8 +320,7 @@ describe('benefit-area-file-helper', () => {
           benefit_area_file_s3_key: null,
           benefit_area_file_download_url: null,
           benefit_area_file_download_expiry: null,
-          benefit_area_file_updated_at: null,
-          updated_at: expect.any(Date)
+          benefit_area_file_updated_at: null
         }
       })
     })
@@ -336,17 +334,13 @@ describe('benefit-area-file-helper', () => {
       ).rejects.toThrow('Clear failed')
     })
 
-    it('should update the updated_at timestamp', async () => {
-      const beforeTime = Date.now()
+    it('should set benefit_area_file_updated_at to null', async () => {
       mockPrisma.pafs_core_projects.update.mockResolvedValue({})
 
       await clearBenefitAreaFile(mockPrisma, 'TEST/001/001')
 
       const updateCall = mockPrisma.pafs_core_projects.update.mock.calls[0][0]
-      const updatedAt = updateCall.data.updated_at
-
-      expect(updatedAt).toBeInstanceOf(Date)
-      expect(updatedAt.getTime()).toBeGreaterThanOrEqual(beforeTime)
+      expect(updateCall.data.benefit_area_file_updated_at).toBeNull()
     })
   })
 

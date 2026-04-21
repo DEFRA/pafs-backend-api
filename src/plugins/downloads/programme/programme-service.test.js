@@ -101,7 +101,7 @@ function makePrisma(overrides = {}) {
 }
 
 function makeLogger() {
-  return { info: vi.fn(), error: vi.fn(), warn: vi.fn() }
+  return { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() }
 }
 
 // â”€â”€ getUserDownloadRecord â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -208,11 +208,13 @@ describe('getProjectCountsForUser', () => {
       { project_id: 4 }
     ])
     prisma.pafs_core_states.findMany.mockResolvedValue([
-      { state: 'submitted' },
-      { state: 'submitted' },
-      { state: 'draft' },
-      { state: 'archived' }
+      { state: 'submitted', project_id: 1 },
+      { state: 'submitted', project_id: 2 },
+      { state: 'draft', project_id: 3 },
+      { state: 'archived', project_id: 4 }
     ])
+    // No legacy/revised draft projects
+    prisma.pafs_core_projects.findMany.mockResolvedValue([])
 
     const result = await getProjectCountsForUser(prisma, 5)
 
@@ -226,6 +228,89 @@ describe('getProjectCountsForUser', () => {
       archived: 1
     })
   })
+
+  test('reclassifies draft as revise when project is_legacy=true', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
+      { area_id: BigInt(1) }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 10 },
+      { project_id: 11 }
+    ])
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { state: 'draft', project_id: 10 },
+      { state: 'draft', project_id: 11 }
+    ])
+    // Project 10 is legacy — should become 'revise'
+    prisma.pafs_core_projects.findMany.mockResolvedValue([{ id: BigInt(10) }])
+
+    const result = await getProjectCountsForUser(prisma, 5)
+
+    expect(result.draft).toBe(1)
+    expect(result.revise).toBe(1)
+    expect(result.total).toBe(2)
+  })
+
+  test('reclassifies draft as revise when project is_revised=true', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
+      { area_id: BigInt(1) }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 20 }
+    ])
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { state: 'draft', project_id: 20 }
+    ])
+    prisma.pafs_core_projects.findMany.mockResolvedValue([{ id: BigInt(20) }])
+
+    const result = await getProjectCountsForUser(prisma, 5)
+
+    expect(result.draft).toBe(0)
+    expect(result.revise).toBe(1)
+  })
+
+  test('queries pafs_core_projects with OR is_legacy/is_revised filter for draft projects', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
+      { area_id: BigInt(1) }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 5 }
+    ])
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { state: 'draft', project_id: 5 }
+    ])
+    prisma.pafs_core_projects.findMany.mockResolvedValue([])
+
+    await getProjectCountsForUser(prisma, 1)
+
+    expect(prisma.pafs_core_projects.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ is_legacy: true }, { is_revised: true }]
+        })
+      })
+    )
+  })
+
+  test('does not query pafs_core_projects when there are no draft states', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
+      { area_id: BigInt(1) }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 1 }
+    ])
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { state: 'submitted', project_id: 1 }
+    ])
+
+    await getProjectCountsForUser(prisma, 5)
+
+    expect(prisma.pafs_core_projects.findMany).not.toHaveBeenCalled()
+  })
 })
 
 // â”€â”€ getAllProjectCounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -234,10 +319,11 @@ describe('getAllProjectCounts', () => {
   test('counts all state rows system-wide', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([
-      { state: 'submitted' },
-      { state: 'completed' },
-      { state: 'draft' }
+      { state: 'submitted', project_id: 1 },
+      { state: 'completed', project_id: 2 },
+      { state: 'draft', project_id: 3 }
     ])
+    prisma.pafs_core_projects.findMany.mockResolvedValue([])
 
     const result = await getAllProjectCounts(prisma)
 
@@ -251,8 +337,26 @@ describe('getAllProjectCounts', () => {
       archived: 0
     })
     expect(prisma.pafs_core_states.findMany).toHaveBeenCalledWith({
-      select: { state: true }
+      select: { state: true, project_id: true }
     })
+  })
+
+  test('reclassifies legacy draft projects as revise system-wide', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { state: 'draft', project_id: 1 },
+      { state: 'draft', project_id: 2 },
+      { state: 'submitted', project_id: 3 }
+    ])
+    // Project 1 is legacy, project 2 is not
+    prisma.pafs_core_projects.findMany.mockResolvedValue([{ id: BigInt(1) }])
+
+    const result = await getAllProjectCounts(prisma)
+
+    expect(result.draft).toBe(1)
+    expect(result.revise).toBe(1)
+    expect(result.submitted).toBe(1)
+    expect(result.total).toBe(3)
   })
 })
 

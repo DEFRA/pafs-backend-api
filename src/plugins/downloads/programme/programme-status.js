@@ -35,6 +35,7 @@ export const getProgrammeStatus = {
           numberOfProposals: record?.number_of_proposals ?? null,
           numberOfProposalsWithModeration:
             record?.number_of_proposals_with_moderation ?? null,
+          numberOfBenefitAreas: record?.number_of_benefit_areas ?? null,
           hasFcerm1: !!record?.fcerm1_filename,
           hasBenefitAreas: !!record?.benefit_areas_filename,
           hasModerations: !!record?.moderation_filename,

@@ -88,8 +88,7 @@ export async function updateBenefitAreaFile(
       benefit_area_file_s3_key: fileMetadata.s3Key,
       benefit_area_file_download_url: fileMetadata.downloadUrl,
       benefit_area_file_download_expiry: fileMetadata.downloadExpiry,
-      benefit_area_file_updated_at: new Date(),
-      updated_at: new Date()
+      benefit_area_file_updated_at: new Date()
     }
   })
 }
@@ -136,8 +135,7 @@ export async function clearBenefitAreaFile(prisma, referenceNumber) {
       benefit_area_file_s3_key: null,
       benefit_area_file_download_url: null,
       benefit_area_file_download_expiry: null,
-      benefit_area_file_updated_at: null,
-      updated_at: new Date()
+      benefit_area_file_updated_at: null
     }
   })
 }

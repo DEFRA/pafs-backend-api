@@ -94,6 +94,7 @@ describe('getProgrammeStatus route', () => {
     expect(h._body).toMatchObject({
       status: 'ready',
       numberOfProposals: 42,
+      numberOfBenefitAreas: null,
       hasFcerm1: true,
       hasBenefitAreas: true,
       hasModerations: false,
