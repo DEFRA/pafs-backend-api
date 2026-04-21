@@ -350,7 +350,7 @@ function injectDataRows(
 // ── Contributors sheet XML ────────────────────────────────────────────────────
 
 const CONTRIBUTORS_SHEET_NAME = 'Funding Contributors'
-const CONTRIBUTORS_HEADERS = [
+const CONTRIBUTORS_HEADERS_FULL = [
   'Project',
   'Name',
   'Type',
@@ -359,7 +359,9 @@ const CONTRIBUTORS_HEADERS = [
   'Secured',
   'Constrained'
 ]
-const CONTRIBUTORS_COLS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+const CONTRIBUTORS_HEADERS_SLIM = ['Project', 'Name', 'Type', 'Year', 'Amount']
+const CONTRIBUTORS_COLS_FULL = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+const CONTRIBUTORS_COLS_SLIM = ['A', 'B', 'C', 'D', 'E']
 
 function buildContributorCellXml(col, row, value) {
   const ref = `${col}${row}`
@@ -372,22 +374,31 @@ function buildContributorCellXml(col, row, value) {
   return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`
 }
 
-function buildContributorsSheetXml(rows) {
-  const headerRow = `<row r="1">${CONTRIBUTORS_HEADERS.map((h, i) => buildContributorCellXml(CONTRIBUTORS_COLS[i], 1, h)).join('')}</row>`
+function buildContributorsSheetXml(rows, includeSecuredConstrained = true) {
+  const headers = includeSecuredConstrained
+    ? CONTRIBUTORS_HEADERS_FULL
+    : CONTRIBUTORS_HEADERS_SLIM
+  const cols = includeSecuredConstrained
+    ? CONTRIBUTORS_COLS_FULL
+    : CONTRIBUTORS_COLS_SLIM
+
+  const headerRow = `<row r="1">${headers.map((h, i) => buildContributorCellXml(cols[i], 1, h)).join('')}</row>`
 
   const dataRows = rows
     .map((row, i) => {
       const r = i + SIZE.LENGTH_2
-      const vals = [
-        row.project,
-        row.name,
-        row.type,
-        row.year,
-        row.amount,
-        row.secured,
-        row.constrained
-      ]
-      return `<row r="${r}">${vals.map((v, j) => buildContributorCellXml(CONTRIBUTORS_COLS[j], r, v)).join('')}</row>`
+      const vals = includeSecuredConstrained
+        ? [
+            row.project,
+            row.name,
+            row.type,
+            row.year,
+            row.amount,
+            row.secured,
+            row.constrained
+          ]
+        : [row.project, row.name, row.type, row.year, row.amount]
+      return `<row r="${r}">${vals.map((v, j) => buildContributorCellXml(cols[j], r, v)).join('')}</row>`
     })
     .join('')
 
@@ -403,11 +414,15 @@ function addContributorsSheetToZip(
   zip,
   allContributorRows,
   contributorsRid,
-  relsXml
+  relsXml,
+  includeSecuredConstrained = true
 ) {
   zip.addFile(
     'xl/worksheets/sheet2.xml',
-    Buffer.from(buildContributorsSheetXml(allContributorRows), ENCODING)
+    Buffer.from(
+      buildContributorsSheetXml(allContributorRows, includeSecuredConstrained),
+      ENCODING
+    )
   )
 
   zip.updateFile(
@@ -443,8 +458,10 @@ async function buildWorkbook(
   templatePath,
   presenters,
   columns,
-  years = FCERM1_YEARS
+  years = FCERM1_YEARS,
+  options = {}
 ) {
+  const { includeSecuredConstrained = true } = options
   const templateBuffer = await readFile(templatePath)
   const zip = new AdmZip(templateBuffer)
 
@@ -490,7 +507,8 @@ async function buildWorkbook(
     zip,
     presenters.flatMap((p) => p.fundingContributorsSheetData()),
     contributorsRid,
-    relsXml
+    relsXml,
+    includeSecuredConstrained
   )
   zip.deleteFile('xl/calcChain.xml')
 
@@ -503,16 +521,18 @@ export async function buildSingleWorkbook(
   templatePath,
   presenter,
   columns,
-  years = FCERM1_YEARS
+  years = FCERM1_YEARS,
+  options = {}
 ) {
-  return buildWorkbook(templatePath, [presenter], columns, years)
+  return buildWorkbook(templatePath, [presenter], columns, years, options)
 }
 
 export async function buildMultiWorkbook(
   templatePath,
   presenters,
   columns,
-  years = FCERM1_YEARS
+  years = FCERM1_YEARS,
+  options = {}
 ) {
-  return buildWorkbook(templatePath, presenters, columns, years)
+  return buildWorkbook(templatePath, presenters, columns, years, options)
 }

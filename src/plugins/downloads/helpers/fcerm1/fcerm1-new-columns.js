@@ -27,6 +27,9 @@ export const NEW_FCERM1_YEARS = [
   SIZE.LENGTH_2038
 ]
 
+/** The last year bucket — financial_year >= this value rolls up into the 2038/39 column */
+export const NEW_FCERM1_LAST_YEAR = SIZE.LENGTH_2038
+
 // ── New FCERM1 template columns (2026/27 onwards) ────────────────────────────
 //
 // Column letters match the "Master local choices" sheet in fcerm1_new_template.xlsx.
@@ -37,226 +40,228 @@ export const NEW_COLUMNS = [
   { column: 'A', field: 'referenceNumber' },
   { column: 'B', field: 'name' },
 
-  // ── Project details (C–O) ────────────────────────────────────────────────
+  // ── Project details (C–P) ────────────────────────────────────────────────
   { column: 'C', field: 'projectStatus' },
   { column: 'D', field: 'lastUpdated' },
   { column: 'E', field: 'lastUpdatedBy' },
-  { column: 'F', field: 'rmaName' },
-  { column: 'G', field: 'authorityCode' },
-  { column: 'H', field: 'rfccCode' },
-  { column: 'I', field: 'psoName' },
-  { column: 'J', field: 'eaArea' },
-  { column: 'K', field: 'projectType' },
-  { column: 'L', field: 'interventionFeature' },
-  { column: 'M', field: 'primaryIntervention' },
-  { column: 'N', field: 'financialStartYear' },
-  { column: 'O', field: 'financialStopYear' },
+  { column: 'F', field: 'lastUpdatedByEmail' },
+  { column: 'G', field: 'rmaName' },
+  { column: 'H', field: 'authorityCode' },
+  { column: 'I', field: 'rfccCode' },
+  { column: 'J', field: 'psoName' },
+  { column: 'K', field: 'eaArea' },
+  { column: 'L', field: 'projectType' },
+  { column: 'M', field: 'interventionFeature' },
+  { column: 'N', field: 'primaryIntervention' },
+  { column: 'O', field: 'financialStartYear' },
+  { column: 'P', field: 'financialStopYear' },
 
   // ── Important dates (P–U) ─────────────────────────────────────────────────
-  { column: 'P', field: 'startBusinessCaseDate' },
-  { column: 'Q', field: 'completeBusinessCaseDate' },
-  { column: 'R', field: 'awardContractDate' },
-  { column: 'S', field: 'startConstructionDate' },
-  { column: 'T', field: 'readyForServiceDate' },
-  { column: 'U', field: 'earliestStartDateWithGiaAvailable' },
+  { column: 'Q', field: 'startBusinessCaseDate' },
+  { column: 'R', field: 'completeBusinessCaseDate' },
+  { column: 'S', field: 'awardContractDate' },
+  { column: 'T', field: 'startConstructionDate' },
+  { column: 'U', field: 'readyForServiceDate' },
+  { column: 'V', field: 'earliestStartDateWithGiaAvailable' },
 
-  // ── Funding totals across all years (V–AH) ────────────────────────────────
+  // ── Funding totals across all years (V–AJ) ────────────────────────────────
   // These are write-once total columns (not per-year; formula cells handle totals)
-  { column: 'V', field: 'fcermGiaTotal', export: false },
-  { column: 'W', field: 'localLevyTotal', export: false },
-  { column: 'X', field: 'araTotal', export: false },
-  { column: 'Y', field: 'esfTotal', export: false },
-  { column: 'Z', field: 'ffcTotal', export: false },
-  { column: 'AA', field: 'otherGiaTotal', export: false },
-  { column: 'AB', field: 'ogdTotal', export: false },
-  { column: 'AC', field: 'recoveryTotal', export: false },
-  { column: 'AD', field: 'sefTotal', export: false },
-  { column: 'AE', field: 'notYetIdentifiedTotal', export: false },
-  { column: 'AF', field: 'publicContributionsTotal', export: false },
-  { column: 'AG', field: 'privateContributionsTotal', export: false },
-  { column: 'AH', field: 'otherEaContributionsTotal', export: false },
+  { column: 'W', field: 'fcermGiaTotal' },
+  { column: 'X', field: 'localLevyTotal' },
+  { column: 'Y', field: 'additionalFcermGiaTotal' },
+  { column: 'Z', field: 'araTotal' },
+  { column: 'AA', field: 'esfTotal' },
+  { column: 'AB', field: 'ffcTotal' },
+  { column: 'AC', field: 'otherGiaTotal' },
+  { column: 'AD', field: 'ogdTotal' },
+  { column: 'AE', field: 'recoveryTotal' },
+  { column: 'AF', field: 'sefTotal' },
+  { column: 'AG', field: 'notYetIdentifiedTotal' },
+  { column: 'AH', field: 'publicContributionsTotal' },
+  { column: 'AI', field: 'privateContributionsTotal' },
+  { column: 'AJ', field: 'otherEaContributionsTotal' },
 
-  // ── FCRM Grant in Aid — 13 years (AI–AU) ─────────────────────────────────
-  { column: 'AI', field: 'fcermGia', dateRange: true },
+  // ── FCRM Grant in Aid — 13 years (AK–AW) ─────────────────────────────────
+  { column: 'AK', field: 'fcermGia', dateRange: true },
 
   // ── Local Levy — 13 years (AV–BH) ────────────────────────────────────────
-  { column: 'AV', field: 'localLevy', dateRange: true },
+  { column: 'AX', field: 'localLevy', dateRange: true },
 
   // ── Asset Replacement Allowance — 13 years (BI–BU) ───────────────────────
-  { column: 'BI', field: 'assetReplacementAllowance', dateRange: true },
+  { column: 'BK', field: 'assetReplacementAllowance', dateRange: true },
 
   // ── Environment Statutory Funding — 13 years (BV–CH) ─────────────────────
-  { column: 'BV', field: 'environmentStatutoryFunding', dateRange: true },
+  { column: 'BX', field: 'environmentStatutoryFunding', dateRange: true },
 
   // ── Frequently Flooded Communities — 13 years (CI–CU) ────────────────────
-  { column: 'CI', field: 'frequentlyFloodedCommunities', dateRange: true },
+  { column: 'CK', field: 'frequentlyFloodedCommunities', dateRange: true },
 
   // ── Other Additional GiA — 13 years (CV–DH) ──────────────────────────────
-  { column: 'CV', field: 'otherAdditionalGrantInAid', dateRange: true },
+  { column: 'CX', field: 'otherAdditionalGrantInAid', dateRange: true },
 
   // ── Other Government Department — 13 years (DI–DU) ───────────────────────
-  { column: 'DI', field: 'otherGovernmentDepartment', dateRange: true },
+  { column: 'DK', field: 'otherGovernmentDepartment', dateRange: true },
 
   // ── Recovery — 13 years (DV–EH) ──────────────────────────────────────────
-  { column: 'DV', field: 'recovery', dateRange: true },
+  { column: 'DX', field: 'recovery', dateRange: true },
 
   // ── Summer Economic Fund — 13 years (EI–EU) ──────────────────────────────
-  { column: 'EI', field: 'summerEconomicFund', dateRange: true },
+  { column: 'EK', field: 'summerEconomicFund', dateRange: true },
 
   // ── Publicly Funded Contributions — 13 years (EV–FH) ─────────────────────
-  { column: 'EV', field: 'publicContributions', dateRange: true },
+  { column: 'EX', field: 'publicContributions', dateRange: true },
 
   // ── Privately Funded Contributions — 13 years (FI–FU) ────────────────────
-  { column: 'FI', field: 'privateContributions', dateRange: true },
+  { column: 'FK', field: 'privateContributions', dateRange: true },
 
   // ── Other EA Contributions — 13 years (FV–GH) ────────────────────────────
-  { column: 'FV', field: 'otherEaContributions', dateRange: true },
+  { column: 'FX', field: 'otherEaContributions', dateRange: true },
 
   // ── Future Funding Not Yet Identified — 13 years (GI–GU) ─────────────────
-  { column: 'GI', field: 'notYetIdentified', dateRange: true },
+  { column: 'GK', field: 'notYetIdentified', dateRange: true },
 
   // ── Risk & properties benefitting (GV–HF) ────────────────────────────────
-  { column: 'GV', field: 'secondaryRiskSources' },
-  { column: 'GW', field: 'mainRisk' },
-  { column: 'GX', field: 'maintainingFloodProtection' },
-  { column: 'GY', field: 'reducingFloodRiskMajor' },
-  { column: 'GZ', field: 'reducingFloodRiskMinor' },
-  { column: 'HA', field: 'increasingFloodResilience' },
-  { column: 'HB', field: 'maintainingCoastalAssets' },
-  { column: 'HC', field: 'reducingCoastalErosionRisk' },
-  { column: 'HD', field: 'currentFloodFluvialRisk' },
-  { column: 'HE', field: 'currentFloodSurfaceWaterRisk' },
-  { column: 'HF', field: 'currentCoastalErosionRisk' },
+  { column: 'GX', field: 'secondaryRiskSources' },
+  { column: 'GY', field: 'mainRisk' },
+  { column: 'GZ', field: 'maintainingFloodProtection' },
+  { column: 'HA', field: 'reducingFloodRiskMajor' },
+  { column: 'HB', field: 'reducingFloodRiskMinor' },
+  { column: 'HC', field: 'increasingFloodResilience' },
+  { column: 'HD', field: 'maintainingCoastalAssets' },
+  { column: 'HE', field: 'reducingCoastalErosionRisk' },
+  { column: 'HF', field: 'currentFloodFluvialRisk' },
+  { column: 'HG', field: 'currentFloodSurfaceWaterRisk' },
+  { column: 'HH', field: 'currentCoastalErosionRisk' },
 
   // ── Whole life costs (HG–HJ) ──────────────────────────────────────────────
-  { column: 'HG', field: 'wlcWholeLifeCosts' },
-  { column: 'HH', field: 'wlcDesignConstructionCosts' },
-  { column: 'HI', field: 'wlcRiskContingencyCosts' },
-  { column: 'HJ', field: 'wlcFutureCosts' },
+  { column: 'HI', field: 'wlcWholeLifeCosts' },
+  { column: 'HJ', field: 'wlcDesignConstructionCosts' },
+  { column: 'HK', field: 'wlcRiskContingencyCosts' },
+  { column: 'HL', field: 'wlcFutureCosts' },
 
   // ── Whole life benefits (HK–HO) ───────────────────────────────────────────
-  { column: 'HK', field: 'wlcWholeLifeBenefits' },
-  { column: 'HL', field: 'wlcPropertyDamagesAvoided' },
-  { column: 'HM', field: 'wlcEnvironmentalBenefits' },
-  { column: 'HN', field: 'wlcRecreationTourismBenefits' },
-  { column: 'HO', field: 'wlcLandValueUpliftBenefits' },
+  { column: 'HM', field: 'wlcWholeLifeBenefits' },
+  { column: 'HN', field: 'wlcPropertyDamagesAvoided' },
+  { column: 'HO', field: 'wlcEnvironmentalBenefits' },
+  { column: 'HP', field: 'wlcRecreationTourismBenefits' },
+  { column: 'HQ', field: 'wlcLandValueUpliftBenefits' },
 
   // ── Confidence assessment (HP–HR) ─────────────────────────────────────────
-  { column: 'HP', field: 'confidenceHomesBetterProtected' },
-  { column: 'HQ', field: 'confidenceHomesByGatewayFour' },
-  { column: 'HR', field: 'confidenceSecuredPartnershipFunding' },
+  { column: 'HR', field: 'confidenceHomesBetterProtected' },
+  { column: 'HS', field: 'confidenceHomesByGatewayFour' },
+  { column: 'HT', field: 'confidenceSecuredPartnershipFunding' },
 
   // ── Environment benefits — habitats (HS–IC) ───────────────────────────────
-  { column: 'HS', field: 'hectaresOfIntertidalHabitatCreatedOrEnhanced' },
-  { column: 'HT', field: 'hectaresOfWoodlandHabitatCreatedOrEnhanced' },
-  { column: 'HU', field: 'hectaresOfWetWoodlandHabitatCreatedOrEnhanced' },
+  { column: 'HU', field: 'hectaresOfIntertidalHabitatCreatedOrEnhanced' },
+  { column: 'HV', field: 'hectaresOfWoodlandHabitatCreatedOrEnhanced' },
+  { column: 'HW', field: 'hectaresOfWetWoodlandHabitatCreatedOrEnhanced' },
   {
-    column: 'HV',
+    column: 'HX',
     field: 'hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced'
   },
-  { column: 'HW', field: 'hectaresOfGrasslandHabitatCreatedOrEnhanced' },
-  { column: 'HX', field: 'hectaresOfHeathlandCreatedOrEnhanced' },
-  { column: 'HY', field: 'hectaresOfPondOrLakeHabitatCreatedOrEnhanced' },
+  { column: 'HY', field: 'hectaresOfGrasslandHabitatCreatedOrEnhanced' },
+  { column: 'HZ', field: 'hectaresOfHeathlandCreatedOrEnhanced' },
+  { column: 'IA', field: 'hectaresOfPondOrLakeHabitatCreatedOrEnhanced' },
   {
-    column: 'HZ',
+    column: 'IB',
     field: 'hectaresOfArableLandLakeHabitatCreatedOrEnhanced'
   },
   {
-    column: 'IA',
+    column: 'IC',
     field: 'kilometresOfWatercourseEnhancedOrCreatedComprehensive'
   },
-  { column: 'IB', field: 'kilometresOfWatercourseEnhancedOrCreatedPartial' },
-  { column: 'IC', field: 'kilometresOfWatercourseEnhancedOrCreatedSingle' },
+  { column: 'ID', field: 'kilometresOfWatercourseEnhancedOrCreatedPartial' },
+  { column: 'IE', field: 'kilometresOfWatercourseEnhancedOrCreatedSingle' },
 
   // ── Project goals (ID) ────────────────────────────────────────────────────
-  { column: 'ID', field: 'approach' },
+  { column: 'IF', field: 'approach' },
 
   // ── Project urgency (IE–IF) ───────────────────────────────────────────────
-  { column: 'IE', field: 'urgencyReason' },
-  { column: 'IF', field: 'urgencyDetails' },
+  { column: 'IG', field: 'urgencyReason' },
+  { column: 'IH', field: 'urgencyDetails' },
 
   // ── River and floodplain restoration (IG–IJ) ─────────────────────────────
-  { column: 'IG', field: 'riverFloodplainArea' },
-  { column: 'IH', field: 'riverFloodplainVolume' },
-  { column: 'II', field: 'riverFloodplainLength' },
-  { column: 'IJ', field: 'riverFloodplainWidth' },
+  { column: 'II', field: 'riverFloodplainArea' },
+  { column: 'IJ', field: 'riverFloodplainVolume' },
+  { column: 'IK', field: 'riverFloodplainLength' },
+  { column: 'IL', field: 'riverFloodplainWidth' },
 
   // ── Leaky barriers and in-channel storage (IK–IN) ────────────────────────
-  { column: 'IK', field: 'leakyBarriersArea' },
-  { column: 'IL', field: 'leakyBarriersVolume' },
-  { column: 'IM', field: 'leakyBarriersLength' },
-  { column: 'IN', field: 'leakyBarriersWidth' },
+  { column: 'IM', field: 'leakyBarriersArea' },
+  { column: 'IN', field: 'leakyBarriersVolume' },
+  { column: 'IO', field: 'leakyBarriersLength' },
+  { column: 'IP', field: 'leakyBarriersWidth' },
 
   // ── Offline storage areas (IO–IR) ─────────────────────────────────────────
-  { column: 'IO', field: 'offlineStorageArea' },
-  { column: 'IP', field: 'offlineStorageVolume' },
-  { column: 'IQ', field: 'offlineStorageLength' },
-  { column: 'IR', field: 'offlineStorageWidth' },
+  { column: 'IQ', field: 'offlineStorageArea' },
+  { column: 'IR', field: 'offlineStorageVolume' },
+  { column: 'IS', field: 'offlineStorageLength' },
+  { column: 'IT', field: 'offlineStorageWidth' },
 
   // ── Woodland NFM (IS–IV) ──────────────────────────────────────────────────
-  { column: 'IS', field: 'woodlandNfmArea' },
-  { column: 'IT', field: 'woodlandNfmVolume' },
-  { column: 'IU', field: 'woodlandNfmLength' },
-  { column: 'IV', field: 'woodlandNfmWidth' },
+  { column: 'IU', field: 'woodlandNfmArea' },
+  { column: 'IV', field: 'woodlandNfmVolume' },
+  { column: 'IW', field: 'woodlandNfmLength' },
+  { column: 'IX', field: 'woodlandNfmWidth' },
 
   // ── Headwater drainage management (IW–IZ) ────────────────────────────────
-  { column: 'IW', field: 'headwaterDrainageArea' },
-  { column: 'IX', field: 'headwaterDrainageVolume' },
-  { column: 'IY', field: 'headwaterDrainageLength' },
-  { column: 'IZ', field: 'headwaterDrainageWidth' },
+  { column: 'IY', field: 'headwaterDrainageArea' },
+  { column: 'IZ', field: 'headwaterDrainageVolume' },
+  { column: 'JA', field: 'headwaterDrainageLength' },
+  { column: 'JB', field: 'headwaterDrainageWidth' },
 
   // ── Runoff attenuation or management (JA–JD) ─────────────────────────────
-  { column: 'JA', field: 'runoffAttenuationArea' },
-  { column: 'JB', field: 'runoffAttenuationVolume' },
-  { column: 'JC', field: 'runoffAttenuationLength' },
-  { column: 'JD', field: 'runoffAttenuationWidth' },
+  { column: 'JC', field: 'runoffAttenuationArea' },
+  { column: 'JD', field: 'runoffAttenuationVolume' },
+  { column: 'JE', field: 'runoffAttenuationLength' },
+  { column: 'JF', field: 'runoffAttenuationWidth' },
 
   // ── Saltmarsh or mudflat management (JE–JH) ──────────────────────────────
-  { column: 'JE', field: 'saltmarshArea' },
-  { column: 'JF', field: 'saltmarshVolume' },
-  { column: 'JG', field: 'saltmarshLength' },
-  { column: 'JH', field: 'saltmarshWidth' },
+  { column: 'JG', field: 'saltmarshArea' },
+  { column: 'JH', field: 'saltmarshVolume' },
+  { column: 'JI', field: 'saltmarshLength' },
+  { column: 'JJ', field: 'saltmarshWidth' },
 
   // ── Sand and dune management (JI–JL) ─────────────────────────────────────
-  { column: 'JI', field: 'sandDuneArea' },
-  { column: 'JJ', field: 'sandDuneVolume' },
-  { column: 'JK', field: 'sandDuneLength' },
-  { column: 'JL', field: 'sandDuneWidth' },
+  { column: 'JK', field: 'sandDuneArea' },
+  { column: 'JL', field: 'sandDuneVolume' },
+  { column: 'JM', field: 'sandDuneLength' },
+  { column: 'JN', field: 'sandDuneWidth' },
 
   // ── Land-use changes — before/after areas (JM–KD) ────────────────────────
-  { column: 'JM', field: 'enclosedArableBefore' },
-  { column: 'JN', field: 'enclosedArableAfter' },
-  { column: 'JO', field: 'enclosedLivestockBefore' },
-  { column: 'JP', field: 'enclosedLivestockAfter' },
-  { column: 'JQ', field: 'enclosedDairyingBefore' },
-  { column: 'JR', field: 'enclosedDairyingAfter' },
-  { column: 'JS', field: 'semiNaturalGrasslandBefore' },
-  { column: 'JT', field: 'semiNaturalGrasslandAfter' },
-  { column: 'JU', field: 'woodlandLandUseBefore' },
-  { column: 'JV', field: 'woodlandLandUseAfter' },
-  { column: 'JW', field: 'mountainMoorsHeathBefore' },
-  { column: 'JX', field: 'mountainMoorsHeathAfter' },
-  { column: 'JY', field: 'peatlandRestorationBefore' },
-  { column: 'JZ', field: 'peatlandRestorationAfter' },
-  { column: 'KA', field: 'riversWetlandsBefore' },
-  { column: 'KB', field: 'riversWetlandsAfter' },
-  { column: 'KC', field: 'coastalMarginsBefore' },
-  { column: 'KD', field: 'coastalMarginsAfter' },
+  { column: 'JO', field: 'enclosedArableBefore' },
+  { column: 'JP', field: 'enclosedArableAfter' },
+  { column: 'JQ', field: 'enclosedLivestockBefore' },
+  { column: 'JR', field: 'enclosedLivestockAfter' },
+  { column: 'JS', field: 'enclosedDairyingBefore' },
+  { column: 'JT', field: 'enclosedDairyingAfter' },
+  { column: 'JU', field: 'semiNaturalGrasslandBefore' },
+  { column: 'JV', field: 'semiNaturalGrasslandAfter' },
+  { column: 'JW', field: 'woodlandLandUseBefore' },
+  { column: 'JX', field: 'woodlandLandUseAfter' },
+  { column: 'JY', field: 'mountainMoorsHeathBefore' },
+  { column: 'JZ', field: 'mountainMoorsHeathAfter' },
+  { column: 'KA', field: 'peatlandRestorationBefore' },
+  { column: 'KB', field: 'peatlandRestorationAfter' },
+  { column: 'KC', field: 'riversWetlandsBefore' },
+  { column: 'KD', field: 'riversWetlandsAfter' },
+  { column: 'KE', field: 'coastalMarginsBefore' },
+  { column: 'KF', field: 'coastalMarginsAfter' },
 
   // ── NHM confidence fields (KE–KG) ────────────────────────────────────────
-  { column: 'KE', field: 'nfmLandownerConsent' },
-  { column: 'KF', field: 'nfmExperienceLevel' },
-  { column: 'KG', field: 'nfmProjectReadiness' },
+  { column: 'KG', field: 'nfmLandownerConsent' },
+  { column: 'KH', field: 'nfmExperienceLevel' },
+  { column: 'KI', field: 'nfmProjectReadiness' },
 
   // ── Carbon impact (KH–KQ) ─────────────────────────────────────────────────
-  { column: 'KH', field: 'carbonCostBuild' },
-  { column: 'KI', field: 'carbonCostOperation' },
-  { column: 'KJ', field: 'carbonCostSequestered' },
-  { column: 'KK', field: 'carbonCostAvoided' },
-  { column: 'KL', field: 'carbonSavingsNetEconomicBenefit' },
-  { column: 'KM', field: 'carbonOperationalCostForecast' },
-  { column: 'KN', field: 'carbonCapitalBaseline' },
-  { column: 'KO', field: 'carbonCapitalTarget' },
-  { column: 'KP', field: 'carbonOmBaseline' },
-  { column: 'KQ', field: 'carbonOmTarget' }
+  { column: 'KJ', field: 'carbonCostBuild' },
+  { column: 'KK', field: 'carbonCostOperation' },
+  { column: 'KL', field: 'carbonCostSequestered' },
+  { column: 'KM', field: 'carbonCostAvoided' },
+  { column: 'KN', field: 'carbonSavingsNetEconomicBenefit' },
+  { column: 'KO', field: 'carbonOperationalCostForecast' },
+  { column: 'KP', field: 'carbonCapitalBaseline' },
+  { column: 'KQ', field: 'carbonCapitalTarget' },
+  { column: 'KR', field: 'carbonOmBaseline' },
+  { column: 'KS', field: 'carbonOmTarget' }
 ]

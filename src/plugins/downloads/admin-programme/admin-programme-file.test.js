@@ -113,12 +113,12 @@ describe('getAdminProgrammeFile route', () => {
       'test-bucket',
       'programme/admin/all_proposals.xlsx',
       3600,
-      'All_Projects_FCERM1.xlsx'
+      'All_Proposals.xlsx'
     )
     expect(h._status).toBe(200)
     expect(h._body).toMatchObject({
       downloadUrl: 'https://s3.example.com/admin.xlsx',
-      filename: 'All_Projects_FCERM1.xlsx'
+      filename: 'All_Proposals.xlsx'
     })
     expect(h._body.expiresAt).toBeDefined()
   })

@@ -133,14 +133,15 @@ describe('getProjectFcerm1Legacy', () => {
       )
     })
 
-    test('calls buildSingleWorkbook with LEGACY_TEMPLATE_PATH, presenter, LEGACY_COLUMNS and FCERM1_YEARS', async () => {
+    test('calls buildSingleWorkbook with LEGACY_TEMPLATE_PATH, presenter, LEGACY_COLUMNS, FCERM1_YEARS and legacy options', async () => {
       await getProjectFcerm1Legacy.handler(mockRequest, mockH)
 
       expect(buildSingleWorkbook).toHaveBeenCalledWith(
         LEGACY_TEMPLATE_PATH,
         expect.any(Object), // FcermPresenter instance (mocked)
         expect.any(Array), // LEGACY_COLUMNS
-        FCERM1_YEARS
+        FCERM1_YEARS,
+        {} // legacy keeps secured/constrained
       )
     })
 
@@ -155,12 +156,12 @@ describe('getProjectFcerm1Legacy', () => {
       )
     })
 
-    test('sets Content-Disposition with filename derived from reference number', async () => {
+    test('sets Content-Disposition with legacy filename (includes _legacy_ infix)', async () => {
       await getProjectFcerm1Legacy.handler(mockRequest, mockH)
 
       expect(mockResponseChain.header).toHaveBeenCalledWith(
         'Content-Disposition',
-        'attachment; filename="AC-2021-00001-000_proposal.xlsx"'
+        'attachment; filename="AC-2021-00001-000_legacy_proposal.xlsx"'
       )
     })
 
@@ -286,14 +287,15 @@ describe('getProjectFcerm1New', () => {
       expect(mockResponseChain.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
     })
 
-    test('calls buildSingleWorkbook with NEW_TEMPLATE_PATH, presenter, NEW_COLUMNS and NEW_FCERM1_YEARS', async () => {
+    test('calls buildSingleWorkbook with NEW_TEMPLATE_PATH, presenter, NEW_COLUMNS, NEW_FCERM1_YEARS and slim options', async () => {
       await getProjectFcerm1New.handler(mockRequest, mockH)
 
       expect(buildSingleWorkbook).toHaveBeenCalledWith(
         NEW_TEMPLATE_PATH,
         expect.any(Object), // FcermPresenter instance (mocked)
         expect.any(Array), // NEW_COLUMNS
-        NEW_FCERM1_YEARS
+        NEW_FCERM1_YEARS,
+        { includeSecuredConstrained: false }
       )
     })
 
@@ -308,7 +310,7 @@ describe('getProjectFcerm1New', () => {
       )
     })
 
-    test('sets Content-Disposition with filename derived from reference number', async () => {
+    test('sets Content-Disposition without _legacy_ infix in filename', async () => {
       await getProjectFcerm1New.handler(mockRequest, mockH)
 
       expect(mockResponseChain.header).toHaveBeenCalledWith(
@@ -504,14 +506,15 @@ describe('getProjectFcerm1New', () => {
       expect(mockResponseChain.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
     })
 
-    test('calls buildSingleWorkbook with NEW_TEMPLATE_PATH, presenter, NEW_COLUMNS and NEW_FCERM1_YEARS', async () => {
+    test('calls buildSingleWorkbook with NEW_TEMPLATE_PATH, presenter, NEW_COLUMNS, NEW_FCERM1_YEARS and slim options', async () => {
       await getProjectFcerm1New.handler(mockRequest, mockH)
 
       expect(buildSingleWorkbook).toHaveBeenCalledWith(
         NEW_TEMPLATE_PATH,
         expect.any(Object),
         expect.any(Array),
-        NEW_FCERM1_YEARS
+        NEW_FCERM1_YEARS,
+        { includeSecuredConstrained: false }
       )
     })
 
@@ -526,7 +529,7 @@ describe('getProjectFcerm1New', () => {
       )
     })
 
-    test('sets Content-Disposition with filename derived from reference number', async () => {
+    test('sets Content-Disposition without _legacy_ infix in filename', async () => {
       await getProjectFcerm1New.handler(mockRequest, mockH)
 
       expect(mockResponseChain.header).toHaveBeenCalledWith(

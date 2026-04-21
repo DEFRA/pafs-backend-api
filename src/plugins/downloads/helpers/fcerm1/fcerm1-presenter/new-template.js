@@ -3,7 +3,8 @@
  *
  * Covers:
  *   - New project-identity fields (C, G, H, I, L, M, N, O)
- *   - Funding totals across all years (V–AH)
+ *   - Funding totals within project year range (W–AJ)
+ *   - Per-year funding overrides: year >= 2038 rolls up into the 2038 column
  *   - Risk & properties benefitting (GX–HF)
  *   - Whole-life cost/benefit breakdowns (HG–HO)
  *   - Urgency fields (IE–IF)
@@ -11,22 +12,14 @@
  */
 
 import { RISK_LABELS } from '../fcerm1-labels.js'
-import { toNumber } from '../fcerm1-presenter-utils.js'
-
-// ── Total-across-all-years helper ─────────────────────────────────────────────
-
-function sumAllYears(fundingValues, field) {
-  return (fundingValues ?? []).reduce(
-    (total, fv) => total + Number(fv[field] ?? 0),
-    0
-  )
-}
-
-function sumAllContributors(_fundingValues, contributors, type) {
-  return (contributors ?? [])
-    .filter((c) => c.contributor_type === type)
-    .reduce((total, c) => total + Number(c.amount ?? 0), 0)
-}
+import {
+  toNumber,
+  sumFunding,
+  sumFundingInRange,
+  sumContributorsInRange,
+  currentFinancialYear
+} from '../fcerm1-presenter-utils.js'
+import { NEW_FCERM1_LAST_YEAR } from '../fcerm1-new-columns.js'
 
 // ── Mixin ─────────────────────────────────────────────────────────────────────
 
@@ -42,7 +35,14 @@ export const newTemplateMixin = {
     return this._area.rmaSubType ?? null
   },
   interventionFeature() {
-    return this._p.project_intervention_types ?? null
+    const value = this._p.project_intervention_types
+    if (!value) {
+      return null
+    }
+    return value
+      .split(',')
+      .map((v) => v.trim())
+      .join(' | ')
   },
   primaryIntervention() {
     return this._p.main_intervention_type ?? null
@@ -54,72 +54,246 @@ export const newTemplateMixin = {
     return this._p.project_end_financial_year ?? null
   },
 
-  // ── Funding totals (V–AH) ─────────────────────────────────────────────────
+  // ── Year-range helpers ────────────────────────────────────────────────────
+  // Used by per-year methods to skip years outside the project's life.
+  // Falls back to the current financial year when earliest_start_year is unset.
+
+  _effectiveStartYear() {
+    return this._p.earliest_start_year ?? currentFinancialYear()
+  },
+  _inYearRange(year) {
+    const end = this._p.project_end_financial_year
+    return year >= this._effectiveStartYear() && (end == null || year <= end)
+  },
+
+  // ── Funding totals within project year range (W–AJ) ──────────────────────
+  // Sums only financial_year rows within [earliest_start_year, project_end_financial_year].
 
   fcermGiaTotal() {
-    return sumAllYears(this._p.pafs_core_funding_values, 'fcerm_gia')
+    return sumFundingInRange(
+      this._p.pafs_core_funding_values,
+      'fcerm_gia',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
+    )
   },
   localLevyTotal() {
-    return sumAllYears(this._p.pafs_core_funding_values, 'local_levy')
+    return sumFundingInRange(
+      this._p.pafs_core_funding_values,
+      'local_levy',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
+    )
+  },
+  additionalFcermGiaTotal() {
+    const fv = this._p.pafs_core_funding_values
+    const start = this._p.earliest_start_year
+    const end = this._p.project_end_financial_year
+    return (
+      sumFundingInRange(fv, 'asset_replacement_allowance', start, end) +
+      sumFundingInRange(fv, 'environment_statutory_funding', start, end) +
+      sumFundingInRange(fv, 'frequently_flooded_communities', start, end) +
+      sumFundingInRange(fv, 'other_additional_grant_in_aid', start, end) +
+      sumFundingInRange(fv, 'other_government_department', start, end) +
+      sumFundingInRange(fv, 'recovery', start, end) +
+      sumFundingInRange(fv, 'summer_economic_fund', start, end)
+    )
   },
   araTotal() {
-    return sumAllYears(
+    return sumFundingInRange(
       this._p.pafs_core_funding_values,
-      'asset_replacement_allowance'
+      'asset_replacement_allowance',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
     )
   },
   esfTotal() {
-    return sumAllYears(
+    return sumFundingInRange(
       this._p.pafs_core_funding_values,
-      'environment_statutory_funding'
+      'environment_statutory_funding',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
     )
   },
   ffcTotal() {
-    return sumAllYears(
+    return sumFundingInRange(
       this._p.pafs_core_funding_values,
-      'frequently_flooded_communities'
+      'frequently_flooded_communities',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
     )
   },
   otherGiaTotal() {
-    return sumAllYears(
+    return sumFundingInRange(
       this._p.pafs_core_funding_values,
-      'other_additional_grant_in_aid'
+      'other_additional_grant_in_aid',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
     )
   },
   ogdTotal() {
-    return sumAllYears(
+    return sumFundingInRange(
       this._p.pafs_core_funding_values,
-      'other_government_department'
+      'other_government_department',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
     )
   },
   recoveryTotal() {
-    return sumAllYears(this._p.pafs_core_funding_values, 'recovery')
+    return sumFundingInRange(
+      this._p.pafs_core_funding_values,
+      'recovery',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
+    )
   },
   sefTotal() {
-    return sumAllYears(this._p.pafs_core_funding_values, 'summer_economic_fund')
+    return sumFundingInRange(
+      this._p.pafs_core_funding_values,
+      'summer_economic_fund',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
+    )
   },
   notYetIdentifiedTotal() {
-    return sumAllYears(this._p.pafs_core_funding_values, 'not_yet_identified')
+    return sumFundingInRange(
+      this._p.pafs_core_funding_values,
+      'not_yet_identified',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
+    )
   },
   publicContributionsTotal() {
-    return sumAllContributors(
+    return sumContributorsInRange(
       this._p.pafs_core_funding_values,
       this._contributors,
-      'public_contributions'
+      'public_contributions',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
     )
   },
   privateContributionsTotal() {
-    return sumAllContributors(
+    return sumContributorsInRange(
       this._p.pafs_core_funding_values,
       this._contributors,
-      'private_contributions'
+      'private_contributions',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
     )
   },
   otherEaContributionsTotal() {
-    return sumAllContributors(
+    return sumContributorsInRange(
       this._p.pafs_core_funding_values,
       this._contributors,
-      'other_ea_contributions'
+      'other_ea_contributions',
+      this._p.earliest_start_year,
+      this._p.project_end_financial_year
+    )
+  },
+
+  // ── Per-year funding overrides (2038+ roll-up + year-range guard) ──────────
+  // Returns 0 for years outside [effectiveStartYear, project_end_financial_year].
+  // financial_year >= NEW_FCERM1_LAST_YEAR (2038) is summed into the 2038 column,
+  // capped at project_end_financial_year so out-of-range FVs are excluded.
+
+  fcermGia(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'fcerm_gia',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  assetReplacementAllowance(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'asset_replacement_allowance',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  environmentStatutoryFunding(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'environment_statutory_funding',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  frequentlyFloodedCommunities(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'frequently_flooded_communities',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  otherAdditionalGrantInAid(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'other_additional_grant_in_aid',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  otherGovernmentDepartment(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'other_government_department',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  recovery(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'recovery',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  summerEconomicFund(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'summer_economic_fund',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  localLevy(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'local_levy',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
+    )
+  },
+  notYetIdentified(year) {
+    if (!this._inYearRange(year)) return 0
+    return sumFunding(
+      this._p.pafs_core_funding_values,
+      year,
+      'not_yet_identified',
+      year >= NEW_FCERM1_LAST_YEAR,
+      this._p.project_end_financial_year
     )
   },
 

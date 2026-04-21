@@ -45,14 +45,14 @@ export const getAdminProgrammeFile = {
         s3Bucket,
         record?.fcerm1_filename,
         expiresIn,
-        'All_Projects_FCERM1.xlsx'
+        'All_Proposals.xlsx'
       )
 
       return h
         .response({
           downloadUrl,
           expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
-          filename: 'All_Projects_FCERM1.xlsx'
+          filename: 'All_Proposals.xlsx'
         })
         .code(HTTP_STATUS.OK)
     } catch (error) {

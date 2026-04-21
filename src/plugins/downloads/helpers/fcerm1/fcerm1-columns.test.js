@@ -116,9 +116,9 @@ describe('fcerm1-columns', () => {
       })
     })
 
-    test('ends with column KQ', () => {
+    test('ends with column KS', () => {
       const last = NEW_COLUMNS.at(-1)
-      expect(last.column).toBe('KQ')
+      expect(last.column).toBe('KS')
     })
 
     test('every entry has column and field properties', () => {
@@ -128,36 +128,34 @@ describe('fcerm1-columns', () => {
       }
     })
 
-    test('funding total columns (V-AH) have export: false', () => {
-      const formulaCols = NEW_COLUMNS.filter((c) => c.export === false)
-      expect(formulaCols.length).toBeGreaterThan(0)
-      const letters = formulaCols.map((c) => c.column)
-      expect(letters).toContain('V')
-      expect(letters).toContain('AH')
+    test('additionalFcermGiaTotal column is at Y', () => {
+      const col = NEW_COLUMNS.find((c) => c.column === 'Y')
+      expect(col).toBeDefined()
+      expect(col.field).toBe('additionalFcermGiaTotal')
     })
 
-    test('GiA dateRange block starts at column AI', () => {
+    test('GiA dateRange block starts at column AK', () => {
       const gia = NEW_COLUMNS.find(
-        (c) => c.column === 'AI' && c.dateRange === true
+        (c) => c.column === 'AK' && c.dateRange === true
       )
       expect(gia).toBeDefined()
       expect(gia.field).toBe('fcermGia')
     })
 
-    test('urgency columns IE and IF are present', () => {
-      const ie = NEW_COLUMNS.find((c) => c.column === 'IE')
-      const ifCol = NEW_COLUMNS.find((c) => c.column === 'IF')
-      expect(ie?.field).toBe('urgencyReason')
-      expect(ifCol?.field).toBe('urgencyDetails')
+    test('urgency columns IG and IH are present', () => {
+      const ig = NEW_COLUMNS.find((c) => c.column === 'IG')
+      const ih = NEW_COLUMNS.find((c) => c.column === 'IH')
+      expect(ig?.field).toBe('urgencyReason')
+      expect(ih?.field).toBe('urgencyDetails')
     })
 
-    test('NHM confidence columns KE-KG are present', () => {
-      const ke = NEW_COLUMNS.find((c) => c.column === 'KE')
-      const kf = NEW_COLUMNS.find((c) => c.column === 'KF')
+    test('NHM confidence columns KG-KI are present', () => {
       const kg = NEW_COLUMNS.find((c) => c.column === 'KG')
-      expect(ke?.field).toBe('nfmLandownerConsent')
-      expect(kf?.field).toBe('nfmExperienceLevel')
-      expect(kg?.field).toBe('nfmProjectReadiness')
+      const kh = NEW_COLUMNS.find((c) => c.column === 'KH')
+      const ki = NEW_COLUMNS.find((c) => c.column === 'KI')
+      expect(kg?.field).toBe('nfmLandownerConsent')
+      expect(kh?.field).toBe('nfmExperienceLevel')
+      expect(ki?.field).toBe('nfmProjectReadiness')
     })
 
     test('no duplicate exportable column letters', () => {

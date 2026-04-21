@@ -26,6 +26,8 @@ const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 export function createFcerm1Route({ format, templatePath, columns, years }) {
+  const buildOptions =
+    format === 'new' ? { includeSecuredConstrained: false } : {}
   return {
     method: 'GET',
     path: `/api/v1/project/{referenceNumber}/fcerm1/${format}`,
@@ -74,10 +76,15 @@ export function createFcerm1Route({ format, templatePath, columns, years }) {
           templatePath,
           presenter,
           columns,
-          years
+          years,
+          buildOptions
         )
 
-        const filename = `${referenceNumber.replaceAll('/', '-')}_proposal.xlsx`
+        const baseName = referenceNumber.replaceAll('/', '-')
+        const filename =
+          format === 'legacy'
+            ? `${baseName}_legacy_proposal.xlsx`
+            : `${baseName}_proposal.xlsx`
 
         return h
           .response(buffer)

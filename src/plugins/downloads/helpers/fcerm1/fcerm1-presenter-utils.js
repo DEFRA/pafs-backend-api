@@ -35,10 +35,46 @@ export function formatDate(project, monthField, yearField) {
 
 // ── Aggregation helpers ───────────────────────────────────────────────────────
 
-/** Sums a single funding field across all funding_values for the given year. */
-export function sumFunding(fundingValues, year, field) {
+/**
+ * Sums a single funding field for the given year.
+ * When includeGte is true, includes all rows where financial_year >= year
+ * (used to roll future years into the last template bucket, e.g. 2038+).
+ * maxYear caps the upper bound when includeGte is true (respects project end year).
+ */
+export function sumFunding(
+  fundingValues,
+  year,
+  field,
+  includeGte = false,
+  maxYear = null
+) {
   return (fundingValues ?? [])
-    .filter((fv) => fv.financial_year === year)
+    .filter((fv) => {
+      if (includeGte) {
+        return (
+          fv.financial_year >= year &&
+          (maxYear == null || fv.financial_year <= maxYear)
+        )
+      }
+      return fv.financial_year === year
+    })
+    .reduce((total, fv) => total + Number(fv[field] ?? 0), 0)
+}
+
+/**
+ * Sums a single funding field across rows where financial_year is within
+ * [startYear, endYear] inclusive.  Used for new-template total columns.
+ * When startYear is null, falls back to currentFinancialYear().
+ * When endYear is null, there is no upper bound.
+ */
+export function sumFundingInRange(fundingValues, field, startYear, endYear) {
+  const effectiveStart = startYear ?? currentFinancialYear()
+  return (fundingValues ?? [])
+    .filter(
+      (fv) =>
+        fv.financial_year >= effectiveStart &&
+        (endYear == null || fv.financial_year <= endYear)
+    )
     .reduce((total, fv) => total + Number(fv[field] ?? 0), 0)
 }
 
@@ -47,6 +83,34 @@ export function sumContributors(fundingValues, contributors, year, type) {
   const fvIds = new Set(
     (fundingValues ?? [])
       .filter((fv) => fv.financial_year === year)
+      .map((fv) => fv.id)
+  )
+  return (contributors ?? [])
+    .filter((c) => fvIds.has(c.funding_value_id) && c.contributor_type === type)
+    .reduce((total, c) => total + Number(c.amount ?? 0), 0)
+}
+
+/**
+ * Sums contributor amounts for a contributor_type where the linked funding_value
+ * falls within [startYear, endYear] inclusive.
+ * When startYear is null, falls back to currentFinancialYear().
+ * When endYear is null, there is no upper bound.
+ */
+export function sumContributorsInRange(
+  fundingValues,
+  contributors,
+  type,
+  startYear,
+  endYear
+) {
+  const effectiveStart = startYear ?? currentFinancialYear()
+  const fvIds = new Set(
+    (fundingValues ?? [])
+      .filter(
+        (fv) =>
+          fv.financial_year >= effectiveStart &&
+          (endYear == null || fv.financial_year <= endYear)
+      )
       .map((fv) => fv.id)
   )
   return (contributors ?? [])

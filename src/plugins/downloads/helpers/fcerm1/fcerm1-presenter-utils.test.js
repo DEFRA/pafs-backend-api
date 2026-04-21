@@ -136,6 +136,23 @@ describe('sumFunding', () => {
   test('returns 0 when fundingValues is undefined', () => {
     expect(sumFunding(undefined, 2023, 'amount')).toBe(0)
   })
+
+  test('with includeGte: sums all rows where financial_year >= year', () => {
+    expect(sumFunding(fvs, 2023, 'amount', true)).toBe(3500)
+  })
+
+  test('with includeGte and maxYear: caps at maxYear', () => {
+    expect(sumFunding(fvs, 2023, 'amount', true, 2023)).toBe(1500)
+  })
+
+  test('with includeGte and maxYear: excludes rows beyond maxYear', () => {
+    const rows = [
+      { financial_year: 2038, amount: 100 },
+      { financial_year: 2040, amount: 200 },
+      { financial_year: 2042, amount: 999 }
+    ]
+    expect(sumFunding(rows, 2038, 'amount', true, 2040)).toBe(300)
+  })
 })
 
 describe('sumContributors', () => {

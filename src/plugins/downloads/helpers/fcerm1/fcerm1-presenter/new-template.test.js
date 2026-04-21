@@ -11,6 +11,8 @@ function makePresenter(
   return new FcermPresenter(
     {
       pafs_core_funding_values: [],
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038,
       ...projectOverrides
     },
     {
@@ -23,6 +25,8 @@ function makePresenter(
 
 function fundingValue(overrides = {}) {
   return {
+    id: 1,
+    financial_year: 2026,
     fcerm_gia: 0,
     local_levy: 0,
     asset_replacement_allowance: 0,
@@ -78,15 +82,38 @@ describe('authorityCode', () => {
 // ── interventionFeature ───────────────────────────────────────────────────────
 
 describe('interventionFeature', () => {
-  test('returns project_intervention_types', () => {
+  test('returns single value unchanged', () => {
     const p = makePresenter({
       project_intervention_types: 'Raised Flood Embankment'
     })
     expect(p.interventionFeature()).toBe('Raised Flood Embankment')
   })
 
+  test('joins multiple comma-separated values with " | "', () => {
+    const p = makePresenter({
+      project_intervention_types: 'Raised Flood Embankment,Flood Storage Area'
+    })
+    expect(p.interventionFeature()).toBe(
+      'Raised Flood Embankment | Flood Storage Area'
+    )
+  })
+
+  test('trims whitespace around commas', () => {
+    const p = makePresenter({
+      project_intervention_types: 'Raised Flood Embankment , Flood Storage Area'
+    })
+    expect(p.interventionFeature()).toBe(
+      'Raised Flood Embankment | Flood Storage Area'
+    )
+  })
+
   test('returns null when absent', () => {
     const p = makePresenter()
+    expect(p.interventionFeature()).toBeNull()
+  })
+
+  test('returns null when null', () => {
+    const p = makePresenter({ project_intervention_types: null })
     expect(p.interventionFeature()).toBeNull()
   })
 })
@@ -114,7 +141,7 @@ describe('financialStartYear', () => {
   })
 
   test('returns null when absent', () => {
-    const p = makePresenter()
+    const p = makePresenter({ earliest_start_year: null })
     expect(p.financialStartYear()).toBeNull()
   })
 })
@@ -126,78 +153,98 @@ describe('financialStopYear', () => {
   })
 
   test('returns null when absent', () => {
-    const p = makePresenter()
+    const p = makePresenter({ project_end_financial_year: null })
     expect(p.financialStopYear()).toBeNull()
   })
 })
 
-// ── Funding totals (V–AH) ─────────────────────────────────────────────────────
+// ── Funding totals (W–AJ) ─────────────────────────────────────────────────────
 
 describe('funding totals', () => {
-  test('fcermGiaTotal sums fcerm_gia across all years', () => {
+  test('fcermGiaTotal sums fcerm_gia within project year range', () => {
     const fvs = [
-      fundingValue({ fcerm_gia: 100 }),
-      fundingValue({ fcerm_gia: 200 })
+      fundingValue({ fcerm_gia: 100, financial_year: 2026 }),
+      fundingValue({ fcerm_gia: 200, financial_year: 2030 }),
+      fundingValue({ fcerm_gia: 999, financial_year: 2040 }) // outside range → excluded
     ]
-    const p = makePresenter({ pafs_core_funding_values: fvs })
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
     expect(p.fcermGiaTotal()).toBe(300)
   })
 
-  test('localLevyTotal sums local_levy across all years', () => {
+  test('localLevyTotal sums local_levy within project year range', () => {
     const fvs = [
-      fundingValue({ local_levy: 50 }),
-      fundingValue({ local_levy: 75 })
+      fundingValue({ local_levy: 50, financial_year: 2026 }),
+      fundingValue({ local_levy: 75, financial_year: 2028 }),
+      fundingValue({ local_levy: 999, financial_year: 2025 }) // outside range → excluded
     ]
-    const p = makePresenter({ pafs_core_funding_values: fvs })
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
     expect(p.localLevyTotal()).toBe(125)
   })
 
-  test('araTotal sums asset_replacement_allowance', () => {
+  test('araTotal sums asset_replacement_allowance within year range', () => {
     const fvs = [fundingValue({ asset_replacement_allowance: 40 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.araTotal()).toBe(40)
   })
 
-  test('esfTotal sums environment_statutory_funding', () => {
+  test('esfTotal sums environment_statutory_funding within year range', () => {
     const fvs = [fundingValue({ environment_statutory_funding: 30 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.esfTotal()).toBe(30)
   })
 
-  test('ffcTotal sums frequently_flooded_communities', () => {
+  test('ffcTotal sums frequently_flooded_communities within year range', () => {
     const fvs = [fundingValue({ frequently_flooded_communities: 20 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.ffcTotal()).toBe(20)
   })
 
-  test('otherGiaTotal sums other_additional_grant_in_aid', () => {
+  test('otherGiaTotal sums other_additional_grant_in_aid within year range', () => {
     const fvs = [fundingValue({ other_additional_grant_in_aid: 10 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.otherGiaTotal()).toBe(10)
   })
 
-  test('ogdTotal sums other_government_department', () => {
+  test('ogdTotal sums other_government_department within year range', () => {
     const fvs = [fundingValue({ other_government_department: 15 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.ogdTotal()).toBe(15)
   })
 
-  test('recoveryTotal sums recovery', () => {
+  test('recoveryTotal sums recovery within year range', () => {
     const fvs = [fundingValue({ recovery: 5 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.recoveryTotal()).toBe(5)
   })
 
-  test('sefTotal sums summer_economic_fund', () => {
+  test('sefTotal sums summer_economic_fund within year range', () => {
     const fvs = [fundingValue({ summer_economic_fund: 8 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.sefTotal()).toBe(8)
   })
 
-  test('notYetIdentifiedTotal sums not_yet_identified', () => {
+  test('notYetIdentifiedTotal sums not_yet_identified within year range', () => {
     const fvs = [fundingValue({ not_yet_identified: 25 })]
     const p = makePresenter({ pafs_core_funding_values: fvs })
     expect(p.notYetIdentifiedTotal()).toBe(25)
+  })
+
+  test('returns 0 when funding values outside year range are excluded', () => {
+    const fvs = [fundingValue({ fcerm_gia: 999, financial_year: 2025 })]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
+    expect(p.fcermGiaTotal()).toBe(0)
   })
 
   test('returns 0 when pafs_core_funding_values is empty', () => {
@@ -209,42 +256,228 @@ describe('funding totals', () => {
     const p = makePresenter({ pafs_core_funding_values: null })
     expect(p.fcermGiaTotal()).toBe(0)
   })
+
+  test('uses current financial year as start when earliest_start_year is missing', () => {
+    const currentFY =
+      new Date().getMonth() >= 3
+        ? new Date().getFullYear()
+        : new Date().getFullYear() - 1
+    const fvs = [
+      fundingValue({ fcerm_gia: 100, financial_year: currentFY }),
+      fundingValue({ fcerm_gia: 999, financial_year: currentFY - 1 }) // before current FY → excluded
+    ]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: undefined,
+      project_end_financial_year: undefined
+    })
+    expect(p.fcermGiaTotal()).toBe(100)
+  })
+})
+
+// ── Per-year funding (range-filtered) ────────────────────────────────────────
+
+describe('per-year funding methods', () => {
+  test('fcermGia returns value for a year within range', () => {
+    const fvs = [fundingValue({ fcerm_gia: 500, financial_year: 2030 })]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
+    expect(p.fcermGia(2030)).toBe(500)
+  })
+
+  test('fcermGia returns 0 for a year before the project start', () => {
+    const fvs = [fundingValue({ fcerm_gia: 999, financial_year: 2025 })]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
+    expect(p.fcermGia(2025)).toBe(0)
+  })
+
+  test('fcermGia returns 0 for a year after the project end', () => {
+    const fvs = [fundingValue({ fcerm_gia: 999, financial_year: 2039 })]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2035
+    })
+    expect(p.fcermGia(2039)).toBe(0)
+  })
+
+  test('fcermGia uses current financial year as start when earliest_start_year is absent', () => {
+    const currentFY =
+      new Date().getMonth() >= 3
+        ? new Date().getFullYear()
+        : new Date().getFullYear() - 1
+    const fvs = [fundingValue({ fcerm_gia: 200, financial_year: currentFY })]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: null,
+      project_end_financial_year: null
+    })
+    expect(p.fcermGia(currentFY)).toBe(200)
+  })
+
+  test('fcermGia returns 0 for a year before current FY when no start year set', () => {
+    const currentFY =
+      new Date().getMonth() >= 3
+        ? new Date().getFullYear()
+        : new Date().getFullYear() - 1
+    const fvs = [
+      fundingValue({ fcerm_gia: 999, financial_year: currentFY - 1 })
+    ]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: null,
+      project_end_financial_year: null
+    })
+    expect(p.fcermGia(currentFY - 1)).toBe(0)
+  })
+
+  test('fcermGia 2038 bucket sums all years >= 2038 up to project end', () => {
+    const fvs = [
+      fundingValue({ fcerm_gia: 100, financial_year: 2038 }),
+      fundingValue({ fcerm_gia: 200, financial_year: 2040 }),
+      fundingValue({ fcerm_gia: 999, financial_year: 2041 }) // beyond project end → excluded
+    ]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2040
+    })
+    expect(p.fcermGia(2038)).toBe(300)
+  })
+
+  test('fcermGia 2038 bucket returns 0 when project ends before 2038', () => {
+    const fvs = [fundingValue({ fcerm_gia: 100, financial_year: 2038 })]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2035
+    })
+    expect(p.fcermGia(2038)).toBe(0)
+  })
+
+  test('localLevy respects year range like fcermGia', () => {
+    const fvs = [
+      fundingValue({ local_levy: 150, financial_year: 2028 }),
+      fundingValue({ local_levy: 999, financial_year: 2025 }) // before start
+    ]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
+    expect(p.localLevy(2028)).toBe(150)
+    expect(p.localLevy(2025)).toBe(0)
+  })
+})
+
+describe('additionalFcermGiaTotal', () => {
+  test('sums ARA + ESF + FFC + OtherGIA + OGD + Recovery + SEF within year range', () => {
+    const fvs = [
+      fundingValue({
+        asset_replacement_allowance: 10,
+        environment_statutory_funding: 20,
+        frequently_flooded_communities: 30,
+        other_additional_grant_in_aid: 40,
+        other_government_department: 50,
+        recovery: 60,
+        summer_economic_fund: 70,
+        financial_year: 2030
+      })
+    ]
+    const p = makePresenter({ pafs_core_funding_values: fvs })
+    expect(p.additionalFcermGiaTotal()).toBe(280)
+  })
+
+  test('excludes funding values outside project year range', () => {
+    const fvs = [
+      fundingValue({ asset_replacement_allowance: 500, financial_year: 2025 })
+    ]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
+    expect(p.additionalFcermGiaTotal()).toBe(0)
+  })
+
+  test('does not include fcerm_gia or local_levy in the sum', () => {
+    const fvs = [
+      fundingValue({ fcerm_gia: 1000, local_levy: 2000, recovery: 50 })
+    ]
+    const p = makePresenter({ pafs_core_funding_values: fvs })
+    expect(p.additionalFcermGiaTotal()).toBe(50)
+  })
 })
 
 describe('contributor totals', () => {
-  function makeContributor(type, amount) {
-    return { contributor_type: type, amount }
+  function makeContributor(type, amount, fvId = 1) {
+    return { contributor_type: type, amount, funding_value_id: fvId }
   }
 
-  test('publicContributionsTotal sums public_contributions contributors', () => {
+  function fvWithId(id = 1, year = 2030) {
+    return { id, financial_year: year }
+  }
+
+  test('publicContributionsTotal sums public_contributions contributors within year range', () => {
     const contributors = [
       makeContributor('public_contributions', 500),
       makeContributor('public_contributions', 300),
       makeContributor('private_contributions', 999)
     ]
-    const p = makePresenter({}, {}, contributors)
+    const p = makePresenter(
+      { pafs_core_funding_values: [fvWithId()] },
+      {},
+      contributors
+    )
     expect(p.publicContributionsTotal()).toBe(800)
   })
 
-  test('privateContributionsTotal sums private_contributions contributors', () => {
+  test('privateContributionsTotal sums private_contributions contributors within year range', () => {
     const contributors = [makeContributor('private_contributions', 1000)]
-    const p = makePresenter({}, {}, contributors)
+    const p = makePresenter(
+      { pafs_core_funding_values: [fvWithId()] },
+      {},
+      contributors
+    )
     expect(p.privateContributionsTotal()).toBe(1000)
   })
 
-  test('otherEaContributionsTotal sums other_ea_contributions contributors', () => {
+  test('otherEaContributionsTotal sums other_ea_contributions contributors within year range', () => {
     const contributors = [makeContributor('other_ea_contributions', 200)]
-    const p = makePresenter({}, {}, contributors)
+    const p = makePresenter(
+      { pafs_core_funding_values: [fvWithId()] },
+      {},
+      contributors
+    )
     expect(p.otherEaContributionsTotal()).toBe(200)
   })
 
+  test('excludes contributors linked to funding values outside year range', () => {
+    const contributors = [makeContributor('public_contributions', 999)]
+    const p = makePresenter(
+      {
+        pafs_core_funding_values: [fvWithId(1, 2025)], // outside range
+        earliest_start_year: 2026,
+        project_end_financial_year: 2038
+      },
+      {},
+      contributors
+    )
+    expect(p.publicContributionsTotal()).toBe(0)
+  })
+
   test('returns 0 when contributors list is empty', () => {
-    const p = makePresenter({}, {}, [])
+    const p = makePresenter({ pafs_core_funding_values: [fvWithId()] }, {}, [])
     expect(p.publicContributionsTotal()).toBe(0)
   })
 })
-
-// ── Risk & properties benefitting ─────────────────────────────────────────────
 
 describe('risk and properties benefitting', () => {
   test('maintainingFloodProtection returns properties_benefit_maintaining_assets', () => {

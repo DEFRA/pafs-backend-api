@@ -243,7 +243,7 @@ describe('FcermPresenter — funding streams (year-ranged)', () => {
   const fundingValues = [
     {
       id: 1n,
-      financial_year: 2023,
+      financial_year: 2024,
       fcerm_gia: 100000n,
       asset_replacement_allowance: null,
       environment_statutory_funding: null,
@@ -258,7 +258,7 @@ describe('FcermPresenter — funding streams (year-ranged)', () => {
     },
     {
       id: 2n,
-      financial_year: 2024,
+      financial_year: 2025,
       fcerm_gia: 50000n,
       local_levy: null,
       not_yet_identified: null,
@@ -279,9 +279,9 @@ describe('FcermPresenter — funding streams (year-ranged)', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.fcermGia(2023)).toBe(100000)
-    expect(p.fcermGia(2024)).toBe(50000)
-    expect(p.fcermGia(2025)).toBe(0)
+    expect(p.fcermGia(2024)).toBe(100000)
+    expect(p.fcermGia(2025)).toBe(50000)
+    expect(p.fcermGia(2026)).toBe(0)
   })
 
   test('localLevy sums local_levy for the given year', () => {
@@ -290,8 +290,8 @@ describe('FcermPresenter — funding streams (year-ranged)', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.localLevy(2023)).toBe(20000)
-    expect(p.localLevy(2024)).toBe(0)
+    expect(p.localLevy(2024)).toBe(20000)
+    expect(p.localLevy(2025)).toBe(0)
   })
 
   test('notYetIdentified returns 0 when no rows for year', () => {
@@ -300,7 +300,7 @@ describe('FcermPresenter — funding streams (year-ranged)', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.notYetIdentified(2023)).toBe(0)
+    expect(p.notYetIdentified(2024)).toBe(0)
   })
 })
 
@@ -564,7 +564,7 @@ describe('FcermPresenter — remaining funding streams', () => {
   const fundingValues = [
     {
       id: 1n,
-      financial_year: 2023,
+      financial_year: 2025,
       asset_replacement_allowance: 10000n,
       environment_statutory_funding: 5000n,
       frequently_flooded_communities: 3000n,
@@ -582,7 +582,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.assetReplacementAllowance(2023)).toBe(10000)
+    expect(p.assetReplacementAllowance(2025)).toBe(10000)
     expect(p.assetReplacementAllowance(2024)).toBe(0)
   })
 
@@ -592,7 +592,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.environmentStatutoryFunding(2023)).toBe(5000)
+    expect(p.environmentStatutoryFunding(2025)).toBe(5000)
   })
 
   test('frequentlyFloodedCommunities sums for the given year', () => {
@@ -601,7 +601,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.frequentlyFloodedCommunities(2023)).toBe(3000)
+    expect(p.frequentlyFloodedCommunities(2025)).toBe(3000)
   })
 
   test('otherAdditionalGrantInAid sums for the given year', () => {
@@ -610,7 +610,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.otherAdditionalGrantInAid(2023)).toBe(2000)
+    expect(p.otherAdditionalGrantInAid(2025)).toBe(2000)
   })
 
   test('otherGovernmentDepartment sums for the given year', () => {
@@ -619,7 +619,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.otherGovernmentDepartment(2023)).toBe(1500)
+    expect(p.otherGovernmentDepartment(2025)).toBe(1500)
   })
 
   test('recovery sums for the given year', () => {
@@ -628,7 +628,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.recovery(2023)).toBe(8000)
+    expect(p.recovery(2025)).toBe(8000)
   })
 
   test('summerEconomicFund sums for the given year', () => {
@@ -637,7 +637,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.summerEconomicFund(2023)).toBe(4000)
+    expect(p.summerEconomicFund(2025)).toBe(4000)
   })
 
   test('internalDrainageBoards sums for the given year', () => {
@@ -646,7 +646,7 @@ describe('FcermPresenter — remaining funding streams', () => {
       makeAreaHierarchy(),
       []
     )
-    expect(p.internalDrainageBoards(2023)).toBe(6000)
+    expect(p.internalDrainageBoards(2025)).toBe(6000)
   })
 })
 

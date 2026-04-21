@@ -5,7 +5,9 @@ export const adminMixin = {
 
   projectStatus() {
     const state = this._p._state
-    if (!state) return null
+    if (!state) {
+      return null
+    }
     return state.charAt(0).toUpperCase() + state.slice(1)
   },
 
