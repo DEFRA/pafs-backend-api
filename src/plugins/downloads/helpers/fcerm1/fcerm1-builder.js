@@ -117,15 +117,47 @@ function hasMeaningfulFormula(cellXml) {
 }
 
 // Strips t="shared", ref="...", si="..." attrs so each copied row gets a standalone formula.
+// Each attribute is always preceded by a single space in OOXML; using literal prefixes
+// avoids leading-quantifier backtracking flagged by static-analysis tools.
 function stripSharedFormulaAttrs(cellXml) {
-  return cellXml.replace(
-    /<f([^>]*)>/,
-    (_, attrs) =>
-      `<f${attrs
-        .replaceAll(/\s*t="shared"/g, '')
-        .replaceAll(/\s*ref="[^"]*"/g, '')
-        .replaceAll(/\s*si="\d+"/g, '')}>`
-  )
+  return cellXml.replace(/<f([^>]*)>/, (_, attrs) => {
+    let cleaned = attrs
+    // Literal string split — no regex needed for an exact-match removal
+    cleaned = cleaned.split(' t="shared"').join('')
+    // Cell range is always column letters, digits, colon, dollar — no ambiguous chars
+    cleaned = cleaned.replace(/ ref="[A-Z0-9:$]+"/, '')
+    // si value is always a non-negative integer
+    cleaned = cleaned.replace(/ si="\d+"/, '')
+    return `<f${cleaned}>`
+  })
+}
+
+// Locate the next cell element in rowXml starting from pos.
+// Returns { cellXml, nextPos } where cellXml is null for self-closing cells,
+// or null when there are no more cells / the XML is malformed.
+// Uses indexOf only — no regex — to avoid backtracking hotspots.
+function findCellBounds(rowXml, pos) {
+  const CELL_END = '</c>'
+  const cellStart = rowXml.indexOf('<c ', pos)
+  if (cellStart === -1) {
+    return null
+  }
+  const tagEnd = rowXml.indexOf('>', cellStart)
+  if (tagEnd === -1) {
+    return null
+  }
+  // Self-closing cell (<c ... />) — carries no formula; advance past it
+  if (rowXml[tagEnd - 1] === '/') {
+    return { cellXml: null, nextPos: tagEnd + 1 }
+  }
+  const cellEnd = rowXml.indexOf(CELL_END, tagEnd)
+  if (cellEnd === -1) {
+    return null
+  }
+  return {
+    cellXml: rowXml.slice(cellStart, cellEnd + CELL_END.length),
+    nextPos: cellEnd + CELL_END.length
+  }
 }
 
 // Returns a map of column letter → full cell XML for cells that contain formulas.
@@ -134,14 +166,20 @@ function stripSharedFormulaAttrs(cellXml) {
 // copied row carries a standalone, independently-shiftable formula.
 function extractFormulaCells(rowXml) {
   const formulas = {}
-  // [^>]*(?<!/)> excludes self-closing tags; unrolled loop avoids backtracking
-  for (const m of rowXml.matchAll(
-    /<c r="([A-Z]+)\d+"[^>]*(?<!\/)>(?:[^<]|<(?!\/c>))*<\/c>/g
-  )) {
-    if (hasMeaningfulFormula(m[0])) {
-      formulas[m[1]] = stripSharedFormulaAttrs(m[0])
+  let pos = 0
+  let bounds = findCellBounds(rowXml, pos)
+
+  while (bounds !== null) {
+    if (bounds.cellXml !== null) {
+      const colMatch = /^<c r="([A-Z]+)\d+"/.exec(bounds.cellXml)
+      if (colMatch && hasMeaningfulFormula(bounds.cellXml)) {
+        formulas[colMatch[1]] = stripSharedFormulaAttrs(bounds.cellXml)
+      }
     }
+    pos = bounds.nextPos
+    bounds = findCellBounds(rowXml, pos)
   }
+
   return formulas
 }
 
