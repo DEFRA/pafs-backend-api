@@ -142,3 +142,37 @@ export async function resolveUserAreaIds(prisma, logger, credentials) {
 function _extractAreaIds(areas, areaType) {
   return areas.filter((a) => a.areaType === areaType).map((a) => a.areaId)
 }
+
+/**
+ * Resolve accessible RMA area IDs for a user by fetching their areas from the DB.
+ *
+ * Mirrors the hierarchy logic of resolveUserAreaIds but sources areas from the DB
+ * rather than from JWT credentials. Use this in background jobs and download pipeline
+ * code where credentials are not in scope.
+ *
+ * - RMA user  → returns their directly-assigned RMA area IDs (main + additional)
+ * - PSO user  → traverses one level: all RMAs whose parent is one of their PSO areas
+ * - EA user   → traverses two levels: all PSOs under their EA areas, then all RMAs
+ * - Admin     → never called here; admins have their own download path (returns [])
+ *
+ * @param {Object} prisma
+ * @param {Object} logger
+ * @param {number} userId
+ * @returns {Promise<number[]>} Accessible RMA area IDs (never null)
+ */
+export async function resolveAccessibleAreaIdsForUser(prisma, logger, userId) {
+  const areas = await fetchUserAreas(prisma, userId)
+  if (!areas.length) {
+    return []
+  }
+  const { isRma, isPso, isEa } = getAreaTypeFlags(areas)
+  const resolved = await resolveUserAreaIds(prisma, logger, {
+    areas,
+    isRma,
+    isPso,
+    isEa,
+    isAdmin: false
+  })
+  // resolveUserAreaIds returns null only for admins — guard defensively
+  return resolved ?? []
+}

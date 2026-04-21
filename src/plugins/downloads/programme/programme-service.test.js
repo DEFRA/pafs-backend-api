@@ -49,7 +49,6 @@ vi.mock('adm-zip', () => ({
 const {
   getUserDownloadRecord,
   getAdminDownloadRecord,
-  getUserAreaIds,
   getProjectCountsForUser,
   getAllProjectCounts,
   startUserDownload,
@@ -70,6 +69,7 @@ function makePrisma(overrides = {}) {
       update: vi.fn().mockResolvedValue({})
     },
     pafs_core_user_areas: { findMany: vi.fn().mockResolvedValue([]) },
+    pafs_core_areas: { findMany: vi.fn().mockResolvedValue([]) },
     pafs_core_area_projects: {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue(null)
@@ -148,35 +148,24 @@ describe('getAdminDownloadRecord', () => {
 
 // â”€â”€ getUserAreaIds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe('getUserAreaIds', () => {
-  test('returns array of numeric area IDs for a user', async () => {
-    const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10) },
-      { area_id: BigInt(20) }
-    ])
-
-    const result = await getUserAreaIds(prisma, 5)
-
-    expect(prisma.pafs_core_user_areas.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { user_id: BigInt(5) } })
-    )
-    expect(result).toEqual([10, 20])
-  })
-
-  test('returns empty array when user has no areas', async () => {
-    const prisma = makePrisma()
-    const result = await getUserAreaIds(prisma, 5)
-    expect(result).toEqual([])
-  })
-})
-
 // â”€â”€ getProjectCountsForUser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('getProjectCountsForUser', () => {
+  // Helper: set up an RMA user with area_id=1 in the prisma mocks.
+  // getProjectCountsForUser now resolves area hierarchy (RMA → direct IDs),
+  // which requires both pafs_core_user_areas and pafs_core_areas to be mocked.
+  function mockRmaUser(prisma, areaId = BigInt(1)) {
+    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
+      { area_id: areaId, primary: true }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValue([
+      { id: areaId, name: 'Test RMA', area_type: 'RMA' }
+    ])
+  }
+
   test('returns zero counts when user has no areas', async () => {
     const prisma = makePrisma()
-    const result = await getProjectCountsForUser(prisma, 5)
+    const result = await getProjectCountsForUser(prisma, 5, makeLogger())
     expect(result).toEqual({
       total: 0,
       submitted: 0,
@@ -188,19 +177,15 @@ describe('getProjectCountsForUser', () => {
 
   test('returns zero counts when areas have no projects', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(1) }
-    ])
+    mockRmaUser(prisma)
     // area_projects returns nothing
-    const result = await getProjectCountsForUser(prisma, 5)
+    const result = await getProjectCountsForUser(prisma, 5, makeLogger())
     expect(result.total).toBe(0)
   })
 
   test('tabulates state counts correctly', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(1) }
-    ])
+    mockRmaUser(prisma)
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 },
       { project_id: 2 },
@@ -216,7 +201,7 @@ describe('getProjectCountsForUser', () => {
     // No legacy/revised draft projects
     prisma.pafs_core_projects.findMany.mockResolvedValue([])
 
-    const result = await getProjectCountsForUser(prisma, 5)
+    const result = await getProjectCountsForUser(prisma, 5, makeLogger())
 
     expect(result).toEqual({
       total: 4,
@@ -231,9 +216,7 @@ describe('getProjectCountsForUser', () => {
 
   test('reclassifies draft as revise when project is_legacy=true', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(1) }
-    ])
+    mockRmaUser(prisma)
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 10 },
       { project_id: 11 }
@@ -245,7 +228,7 @@ describe('getProjectCountsForUser', () => {
     // Project 10 is legacy — should become 'revise'
     prisma.pafs_core_projects.findMany.mockResolvedValue([{ id: BigInt(10) }])
 
-    const result = await getProjectCountsForUser(prisma, 5)
+    const result = await getProjectCountsForUser(prisma, 5, makeLogger())
 
     expect(result.draft).toBe(1)
     expect(result.revise).toBe(1)
@@ -254,9 +237,7 @@ describe('getProjectCountsForUser', () => {
 
   test('reclassifies draft as revise when project is_revised=true', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(1) }
-    ])
+    mockRmaUser(prisma)
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 20 }
     ])
@@ -265,7 +246,7 @@ describe('getProjectCountsForUser', () => {
     ])
     prisma.pafs_core_projects.findMany.mockResolvedValue([{ id: BigInt(20) }])
 
-    const result = await getProjectCountsForUser(prisma, 5)
+    const result = await getProjectCountsForUser(prisma, 5, makeLogger())
 
     expect(result.draft).toBe(0)
     expect(result.revise).toBe(1)
@@ -273,9 +254,7 @@ describe('getProjectCountsForUser', () => {
 
   test('queries pafs_core_projects with OR is_legacy/is_revised filter for draft projects', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(1) }
-    ])
+    mockRmaUser(prisma)
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 5 }
     ])
@@ -284,7 +263,7 @@ describe('getProjectCountsForUser', () => {
     ])
     prisma.pafs_core_projects.findMany.mockResolvedValue([])
 
-    await getProjectCountsForUser(prisma, 1)
+    await getProjectCountsForUser(prisma, 1, makeLogger())
 
     expect(prisma.pafs_core_projects.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -297,9 +276,7 @@ describe('getProjectCountsForUser', () => {
 
   test('does not query pafs_core_projects when there are no draft states', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(1) }
-    ])
+    mockRmaUser(prisma)
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
     ])
@@ -307,7 +284,7 @@ describe('getProjectCountsForUser', () => {
       { state: 'submitted', project_id: 1 }
     ])
 
-    await getProjectCountsForUser(prisma, 5)
+    await getProjectCountsForUser(prisma, 5, makeLogger())
 
     expect(prisma.pafs_core_projects.findMany).not.toHaveBeenCalled()
   })
@@ -798,7 +775,10 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     const mockProject = { id: BigInt(1), reference_number: 'ABC001' }
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10) }
+      { area_id: BigInt(10), primary: true }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValue([
+      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -834,7 +814,10 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
   test('skips project (continue) when findFirst returns null for that project', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10) }
+      { area_id: BigInt(10), primary: true }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValue([
+      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -865,7 +848,10 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     const mockFundingValues = [{ id: BigInt(100) }, { id: BigInt(101) }]
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10) }
+      { area_id: BigInt(10), primary: true }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValue([
+      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -906,7 +892,10 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
 
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10) }
+      { area_id: BigInt(10), primary: true }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValue([
+      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -937,7 +926,10 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     const loadError = new Error('DB query failed')
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10) }
+      { area_id: BigInt(10), primary: true }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValue([
+      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -1170,7 +1162,10 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
     const mockProject = { id: BigInt(1), reference_number: 'XLX001' }
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10) }
+      { area_id: BigInt(10), primary: true }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValue([
+      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }

@@ -1,12 +1,12 @@
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { config } from '../../../config.js'
 import {
-  getUserAreaIds,
   getProjectCountsForUser,
   startUserDownload,
   queueUserGeneration,
   DOWNLOAD_STATUS
 } from './programme-service.js'
+import { resolveAccessibleAreaIdsForUser } from '../../areas/helpers/user-areas.js'
 
 /**
  * POST /api/v1/downloads/programme/generate
@@ -30,7 +30,11 @@ export const generateUserProgramme = {
     const userId = Number(request.auth.credentials.userId)
 
     try {
-      const areaIds = await getUserAreaIds(prisma, userId)
+      const areaIds = await resolveAccessibleAreaIdsForUser(
+        prisma,
+        logger,
+        userId
+      )
 
       if (areaIds.length === 0) {
         return h
@@ -38,7 +42,11 @@ export const generateUserProgramme = {
           .code(HTTP_STATUS.UNPROCESSABLE_ENTITY)
       }
 
-      const projectCounts = await getProjectCountsForUser(prisma, userId)
+      const projectCounts = await getProjectCountsForUser(
+        prisma,
+        userId,
+        logger
+      )
       const record = await startUserDownload(
         prisma,
         userId,

@@ -10,9 +10,9 @@ import {
 } from './programme-generation-helpers.js'
 import {
   DOWNLOAD_STATUS as DownloadStatus,
-  getUserAreaIds,
   updateDownloadRecord
 } from './programme-records.js'
+import { resolveAccessibleAreaIdsForUser } from '../../areas/helpers/user-areas.js'
 
 // Frontend download page path — both user and admin land on the same page
 const DOWNLOAD_PATH = '/downloads'
@@ -24,7 +24,6 @@ export {
   ADMIN_USER_ID,
   getUserDownloadRecord,
   getAdminDownloadRecord,
-  getUserAreaIds,
   startUserDownload,
   startAdminDownload
 } from './programme-records.js'
@@ -124,8 +123,8 @@ async function notifyByEmail(
 
 // ── Shared generation helpers ─────────────────────────────────────────────────
 
-async function fetchUserProjectIds(prisma, userId) {
-  const areaIds = await getUserAreaIds(prisma, userId)
+async function fetchUserProjectIds(prisma, userId, logger) {
+  const areaIds = await resolveAccessibleAreaIdsForUser(prisma, logger, userId)
   if (areaIds.length === 0) {
     return []
   }
@@ -170,7 +169,7 @@ async function runUserGeneration({
   try {
     logger.info({ userId, downloadId }, 'Starting user programme generation')
 
-    const projectIds = await fetchUserProjectIds(prisma, userId)
+    const projectIds = await fetchUserProjectIds(prisma, userId, logger)
 
     await updateDownloadRecord(prisma, downloadId, {
       progress_message: `Loading ${projectIds.length} projects...`,

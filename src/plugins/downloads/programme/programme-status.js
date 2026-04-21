@@ -25,7 +25,7 @@ export const getProgrammeStatus = {
     try {
       const [record, projectCounts] = await Promise.all([
         getUserDownloadRecord(prisma, userId),
-        getProjectCountsForUser(prisma, userId)
+        getProjectCountsForUser(prisma, userId, logger)
       ])
 
       return h

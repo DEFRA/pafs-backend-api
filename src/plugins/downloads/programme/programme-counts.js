@@ -1,10 +1,13 @@
-import { getUserAreaIds } from './programme-records.js'
+import { resolveAccessibleAreaIdsForUser } from '../../areas/helpers/user-areas.js'
 
 /**
- * Count proposals in the user's areas, grouped by status.
+ * Count proposals accessible to the user, grouped by status.
+ *
+ * Uses the same role-aware hierarchy as the Your Proposals page:
+ * RMA → their own areas; PSO → all child RMAs; EA → all grandchild RMAs.
  */
-export async function getProjectCountsForUser(prisma, userId) {
-  const areaIds = await getUserAreaIds(prisma, userId)
+export async function getProjectCountsForUser(prisma, userId, logger) {
+  const areaIds = await resolveAccessibleAreaIdsForUser(prisma, logger, userId)
 
   if (areaIds.length === 0) {
     return { total: 0, submitted: 0, draft: 0, completed: 0, archived: 0 }

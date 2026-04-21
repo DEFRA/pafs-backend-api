@@ -8,7 +8,6 @@ vi.mock('../../../config.js', () => ({
 }))
 
 vi.mock('./programme-service.js', () => ({
-  getUserAreaIds: vi.fn(),
   getProjectCountsForUser: vi.fn(),
   startUserDownload: vi.fn(),
   queueUserGeneration: vi.fn(),
@@ -20,12 +19,15 @@ vi.mock('./programme-service.js', () => ({
   }
 }))
 
-const {
-  getUserAreaIds,
-  getProjectCountsForUser,
-  startUserDownload,
-  queueUserGeneration
-} = await import('./programme-service.js')
+vi.mock('../../areas/helpers/user-areas.js', () => ({
+  resolveAccessibleAreaIdsForUser: vi.fn()
+}))
+
+const { getProjectCountsForUser, startUserDownload, queueUserGeneration } =
+  await import('./programme-service.js')
+
+const { resolveAccessibleAreaIdsForUser } =
+  await import('../../areas/helpers/user-areas.js')
 
 const { generateUserProgramme } = await import('./programme-generate.js')
 
@@ -70,8 +72,8 @@ describe('generateUserProgramme route', () => {
     )
   })
 
-  test('returns 422 when user has no areas assigned', async () => {
-    getUserAreaIds.mockResolvedValue([])
+  test('returns 422 when user has no accessible RMA areas', async () => {
+    resolveAccessibleAreaIdsForUser.mockResolvedValue([])
 
     const request = makeRequest()
     const h = makeH()
@@ -85,7 +87,7 @@ describe('generateUserProgramme route', () => {
   })
 
   test('returns 202, creates record, and queues generation when user has areas', async () => {
-    getUserAreaIds.mockResolvedValue([1, 2])
+    resolveAccessibleAreaIdsForUser.mockResolvedValue([1, 2])
     getProjectCountsForUser.mockResolvedValue({
       total: 10,
       submitted: 5,
@@ -115,7 +117,7 @@ describe('generateUserProgramme route', () => {
   })
 
   test('returns 500 when service throws', async () => {
-    getUserAreaIds.mockRejectedValue(new Error('db down'))
+    resolveAccessibleAreaIdsForUser.mockRejectedValue(new Error('db down'))
 
     const request = makeRequest()
     const h = makeH()
