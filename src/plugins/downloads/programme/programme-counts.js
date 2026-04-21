@@ -74,6 +74,15 @@ async function fetchReviseProjectIds(prisma, stateRows) {
   return new Set(revised.map((p) => Number(p.id)))
 }
 
+const TRACKED_STATES = new Set([
+  'submitted',
+  'draft',
+  'revise',
+  'approved',
+  'completed',
+  'archived'
+])
+
 function tabulateCounts(stateRows, reviseProjectIds = new Set()) {
   const counts = {
     total: 0,
@@ -90,12 +99,9 @@ function tabulateCounts(stateRows, reviseProjectIds = new Set()) {
       state === 'draft' && projectId != null && reviseProjectIds.has(projectId)
         ? 'revise'
         : state
-    if (effectiveState === 'submitted') counts.submitted++
-    else if (effectiveState === 'draft') counts.draft++
-    else if (effectiveState === 'revise') counts.revise++
-    else if (effectiveState === 'approved') counts.approved++
-    else if (effectiveState === 'completed') counts.completed++
-    else if (effectiveState === 'archived') counts.archived++
+    if (TRACKED_STATES.has(effectiveState)) {
+      counts[effectiveState]++
+    }
   }
   return counts
 }

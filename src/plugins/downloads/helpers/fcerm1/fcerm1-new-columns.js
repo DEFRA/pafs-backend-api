@@ -1,15 +1,11 @@
 /**
- * FCERM1 new template — column definitions
- *
- * Column letters match the "Master local choices" sheet in fcerm1_new_template.xlsx.
- * Row 7 is the first data row; columns A through KQ (303 columns).
+ * FCERM1 new template — column definitions (2026/27 onwards)
  *
  * Each entry has:
  *   column    {string}   Excel column letter(s)
  *   field     {string}   Presenter method name to call
  *   export    {boolean}  If false the column is formula-only; skip writing (default true)
- *   dateRange {boolean}  If true, write N values starting at `column` for each year
- *                        in NEW_FCERM1_YEARS passed to the builder (default false)
+ *   dateRange {boolean}  If true, write N values for each year in NEW_FCERM1_YEARS (default false)
  */
 
 import { SIZE } from '../../../../common/constants/common.js'
@@ -30,6 +26,11 @@ export const NEW_FCERM1_YEARS = [
   SIZE.LENGTH_2037,
   SIZE.LENGTH_2038
 ]
+
+// ── New FCERM1 template columns (2026/27 onwards) ────────────────────────────
+//
+// Column letters match the "Master local choices" sheet in fcerm1_new_template.xlsx.
+// dateRange:true entries use NEW_FCERM1_YEARS (13 years) via the builder's years param.
 
 export const NEW_COLUMNS = [
   // ── Reference (A–B) ──────────────────────────────────────────────────────
@@ -60,7 +61,7 @@ export const NEW_COLUMNS = [
   { column: 'U', field: 'earliestStartDateWithGiaAvailable' },
 
   // ── Funding totals across all years (V–AH) ────────────────────────────────
-  // Formula cells handle totals — skip writing
+  // These are write-once total columns (not per-year; formula cells handle totals)
   { column: 'V', field: 'fcermGiaTotal', export: false },
   { column: 'W', field: 'localLevyTotal', export: false },
   { column: 'X', field: 'araTotal', export: false },
@@ -149,11 +150,17 @@ export const NEW_COLUMNS = [
   { column: 'HS', field: 'hectaresOfIntertidalHabitatCreatedOrEnhanced' },
   { column: 'HT', field: 'hectaresOfWoodlandHabitatCreatedOrEnhanced' },
   { column: 'HU', field: 'hectaresOfWetWoodlandHabitatCreatedOrEnhanced' },
-  { column: 'HV', field: 'hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced' },
+  {
+    column: 'HV',
+    field: 'hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced'
+  },
   { column: 'HW', field: 'hectaresOfGrasslandHabitatCreatedOrEnhanced' },
   { column: 'HX', field: 'hectaresOfHeathlandCreatedOrEnhanced' },
   { column: 'HY', field: 'hectaresOfPondOrLakeHabitatCreatedOrEnhanced' },
-  { column: 'HZ', field: 'hectaresOfArableLandLakeHabitatCreatedOrEnhanced' },
+  {
+    column: 'HZ',
+    field: 'hectaresOfArableLandLakeHabitatCreatedOrEnhanced'
+  },
   {
     column: 'IA',
     field: 'kilometresOfWatercourseEnhancedOrCreatedComprehensive'

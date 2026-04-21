@@ -9,19 +9,10 @@ import {
   uploadUserBenefitAreas
 } from './programme-generation-helpers.js'
 import {
-  DOWNLOAD_STATUS,
-  ADMIN_USER_ID,
-  getUserDownloadRecord,
-  getAdminDownloadRecord,
+  DOWNLOAD_STATUS as DownloadStatus,
   getUserAreaIds,
-  startUserDownload,
-  startAdminDownload,
   updateDownloadRecord
 } from './programme-records.js'
-import {
-  getProjectCountsForUser,
-  getAllProjectCounts
-} from './programme-counts.js'
 
 // Frontend download page path — both user and admin land on the same page
 const DOWNLOAD_PATH = '/downloads'
@@ -35,10 +26,12 @@ export {
   getAdminDownloadRecord,
   getUserAreaIds,
   startUserDownload,
-  startAdminDownload,
+  startAdminDownload
+} from './programme-records.js'
+export {
   getProjectCountsForUser,
   getAllProjectCounts
-}
+} from './programme-counts.js'
 
 // ── Email helpers ─────────────────────────────────────────────────────────────
 
@@ -210,7 +203,7 @@ async function runUserGeneration({
       )
 
     await updateDownloadRecord(prisma, downloadId, {
-      status: DOWNLOAD_STATUS.READY,
+      status: DownloadStatus.READY,
       number_of_proposals: presenters.length,
       number_of_benefit_areas: benefitAreasCount,
       fcerm1_filename: fcerm1Filename,
@@ -233,7 +226,7 @@ async function runUserGeneration({
     )
 
     await updateDownloadRecord(prisma, downloadId, {
-      status: DOWNLOAD_STATUS.FAILED,
+      status: DownloadStatus.FAILED,
       progress_message: 'Generation failed'
     }).catch(() => {})
 
@@ -287,7 +280,7 @@ async function generateAdminSpreadsheet({
   )
 
   await updateDownloadRecord(prisma, downloadId, {
-    status: DOWNLOAD_STATUS.READY,
+    status: DownloadStatus.READY,
     number_of_proposals: presenters.length,
     fcerm1_filename: fcerm1Filename,
     progress_current: total,
@@ -333,7 +326,7 @@ async function runAdminGeneration({
     logger.error({ err, downloadId }, 'Admin programme generation failed')
 
     await updateDownloadRecord(prisma, downloadId, {
-      status: DOWNLOAD_STATUS.FAILED,
+      status: DownloadStatus.FAILED,
       progress_message: 'Generation failed'
     }).catch(() => {})
 
