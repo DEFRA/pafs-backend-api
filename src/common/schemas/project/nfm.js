@@ -25,11 +25,12 @@ const maxTwoDecimalPlaces = (value, helpers) => {
   if (value === null || value === undefined) {
     return value
   }
-  // Convert to string to check decimal places accurately
-  const valueStr = String(value)
-  // Allow integers and up to 2 decimal places
-  if (/^\d+(\.\d{1,2})?$/.test(valueStr)) {
-    return value
+  // Use helpers.original (raw string before Joi coercion) to validate accurately.
+  // String(value) would use the coerced JS float which loses precision for large numbers.
+  const rawStr = String(helpers.original ?? value)
+  if (/^\d{1,16}(\.\d{1,2})?$/.test(rawStr)) {
+    // Return the raw string so Prisma Decimal fields receive the full-precision value.
+    return rawStr
   }
   return helpers.error('number.precision')
 }
@@ -83,6 +84,7 @@ const createRequiredNonNegativeSchema = (
   { required, invalid, precision }
 ) =>
   Joi.number()
+    .unsafe()
     .min(0)
     .custom(maxTwoDecimalPlaces)
     .required()
@@ -100,6 +102,7 @@ const createRequiredPositiveSchema = (
   { required, invalid, precision }
 ) =>
   Joi.number()
+    .unsafe()
     .positive()
     .custom(maxTwoDecimalPlaces)
     .required()
@@ -116,6 +119,7 @@ const createRequiredPositiveSchema = (
  */
 const createOptionalPositiveSchema = (label, { invalid, precision }) =>
   Joi.number()
+    .unsafe()
     .positive()
     .custom(maxTwoDecimalPlaces)
     .allow(null)

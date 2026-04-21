@@ -71,13 +71,15 @@ export const noPropertiesAtFloodRiskSchema = Joi.boolean()
 export const propertiesBenefitMaintainingAssetsSchema = Joi.alternatives()
   .try(
     Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string().pattern(/^\d{1,18}$/).custom((value) => {
-      const num = BigInt(value)
-      if (num > BigInt('999999999999999999')) {
-        throw new Error('Value too large')
-      }
-      return value
-    })
+    Joi.string()
+      .pattern(/^\d{1,18}$/)
+      .custom((value) => {
+        const num = BigInt(value)
+        if (num > BigInt('999999999999999999')) {
+          throw new Error('Value too large')
+        }
+        return value
+      })
   )
   .optional()
   .allow(null, '')
@@ -98,13 +100,15 @@ export const propertiesBenefitMaintainingAssetsSchema = Joi.alternatives()
 export const propertiesBenefit50PercentReductionSchema = Joi.alternatives()
   .try(
     Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string().pattern(/^\d{1,18}$/).custom((value) => {
-      const num = BigInt(value)
-      if (num > BigInt('999999999999999999')) {
-        throw new Error('Value too large')
-      }
-      return value
-    })
+    Joi.string()
+      .pattern(/^\d{1,18}$/)
+      .custom((value) => {
+        const num = BigInt(value)
+        if (num > BigInt('999999999999999999')) {
+          throw new Error('Value too large')
+        }
+        return value
+      })
   )
   .optional()
   .allow(null, '')
@@ -125,13 +129,15 @@ export const propertiesBenefit50PercentReductionSchema = Joi.alternatives()
 export const propertiesBenefitLess50PercentReductionSchema = Joi.alternatives()
   .try(
     Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string().pattern(/^\d{1,18}$/).custom((value) => {
-      const num = BigInt(value)
-      if (num > BigInt('999999999999999999')) {
-        throw new Error('Value too large')
-      }
-      return value
-    })
+    Joi.string()
+      .pattern(/^\d{1,18}$/)
+      .custom((value) => {
+        const num = BigInt(value)
+        if (num > BigInt('999999999999999999')) {
+          throw new Error('Value too large')
+        }
+        return value
+      })
   )
   .optional()
   .allow(null, '')
@@ -152,13 +158,15 @@ export const propertiesBenefitLess50PercentReductionSchema = Joi.alternatives()
 export const propertiesBenefitIndividualInterventionSchema = Joi.alternatives()
   .try(
     Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string().pattern(/^\d{1,18}$/).custom((value) => {
-      const num = BigInt(value)
-      if (num > BigInt('999999999999999999')) {
-        throw new Error('Value too large')
-      }
-      return value
-    })
+    Joi.string()
+      .pattern(/^\d{1,18}$/)
+      .custom((value) => {
+        const num = BigInt(value)
+        if (num > BigInt('999999999999999999')) {
+          throw new Error('Value too large')
+        }
+        return value
+      })
   )
   .optional()
   .allow(null, '')
@@ -190,55 +198,61 @@ export const noPropertiesAtCoastalErosionRiskSchema = Joi.boolean()
  * Properties benefit maintaining assets coastal schema (API format)
  * Database field: properties_benefit_maintaining_assets_coastal (BigInt)
  */
-export const propertiesBenefitMaintainingAssetsCoastalSchema = Joi.alternatives()
-  .try(
-    Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string().pattern(/^\d{1,18}$/).custom((value) => {
-      const num = BigInt(value)
-      if (num > BigInt('999999999999999999')) {
-        throw new Error('Value too large')
-      }
-      return value
+export const propertiesBenefitMaintainingAssetsCoastalSchema =
+  Joi.alternatives()
+    .try(
+      Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
+      Joi.string()
+        .pattern(/^\d{1,18}$/)
+        .custom((value) => {
+          const num = BigInt(value)
+          if (num > BigInt('999999999999999999')) {
+            throw new Error('Value too large')
+          }
+          return value
+        })
+    )
+    .optional()
+    .allow(null, '')
+    .label('propertiesBenefitMaintainingAssetsCoastal')
+    .messages({
+      'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
     })
-  )
-  .optional()
-  .allow(null, '')
-  .label('propertiesBenefitMaintainingAssetsCoastal')
-  .messages({
-    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-  })
 
 /**
  * Properties benefit investment coastal erosion schema (API format)
  * Database field: properties_benefit_investment_coastal_erosion (BigInt)
  */
-export const propertiesBenefitInvestmentCoastalErosionSchema = Joi.alternatives()
-  .try(
-    Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string().pattern(/^\d{1,18}$/).custom((value) => {
-      const num = BigInt(value)
-      if (num > BigInt('999999999999999999')) {
-        throw new Error('Value too large')
-      }
-      return value
+export const propertiesBenefitInvestmentCoastalErosionSchema =
+  Joi.alternatives()
+    .try(
+      Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
+      Joi.string()
+        .pattern(/^\d{1,18}$/)
+        .custom((value) => {
+          const num = BigInt(value)
+          if (num > BigInt('999999999999999999')) {
+            throw new Error('Value too large')
+          }
+          return value
+        })
+    )
+    .optional()
+    .allow(null, '')
+    .label('propertiesBenefitInvestmentCoastalErosion')
+    .messages({
+      'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
     })
-  )
-  .optional()
-  .allow(null, '')
-  .label('propertiesBenefitInvestmentCoastalErosion')
-  .messages({
-    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-  })
 /**
  * Percent properties 20 percent deprived schema (API format)
  * Database field: percent_properties_20_percent_deprived (Int)

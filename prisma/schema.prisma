@@ -248,8 +248,8 @@ model pafs_core_nfm_land_use_changes {
   id                   BigInt   @id @default(autoincrement())
   project_id           BigInt
   land_use_type        String   @db.VarChar(50)
-  area_before_hectares Float
-  area_after_hectares  Float
+  area_before_hectares Decimal  @db.Decimal(18, 2)
+  area_after_hectares  Decimal  @db.Decimal(18, 2)
   created_at           DateTime @db.Timestamp(6)
   updated_at           DateTime @db.Timestamp(6)
 
@@ -261,10 +261,10 @@ model pafs_core_nfm_measures {
   id                BigInt   @id @default(autoincrement())
   project_id        BigInt
   measure_type      String   @db.VarChar(100)
-  area_hectares     Float?
-  storage_volume_m3 Float?
-  length_km         Float?
-  width_m           Float?
+  area_hectares     Decimal? @db.Decimal(18, 2)
+  storage_volume_m3 Decimal? @db.Decimal(18, 2)
+  length_km         Decimal? @db.Decimal(18, 2)
+  width_m           Decimal? @db.Decimal(18, 2)
   created_at        DateTime @db.Timestamp(6)
   updated_at        DateTime @db.Timestamp(6)
 

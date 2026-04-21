@@ -31,6 +31,6 @@
   <include file="3-007-bootstraps-legacy-table.xml" relativeToChangelogFile="true"/>
 
   <!-- Schema changes for validation updates -->
-  <include file="4-001-numeric-field-precision-updates.xml" relativeToChangelogFile="true"/>
+  <include file="4-001-numeric-precision.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
