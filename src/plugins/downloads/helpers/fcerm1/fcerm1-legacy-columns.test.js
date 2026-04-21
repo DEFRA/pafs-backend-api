@@ -23,9 +23,9 @@ describe('fcerm1-legacy-columns', () => {
       })
     })
 
-    test('ends with column NI (psoName)', () => {
+    test('ends with column NJ (psoName)', () => {
       expect(LEGACY_COLUMNS.at(-1)).toMatchObject({
-        column: 'NI',
+        column: 'NJ',
         field: 'psoName'
       })
     })

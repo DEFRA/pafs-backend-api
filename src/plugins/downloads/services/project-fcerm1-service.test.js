@@ -263,7 +263,7 @@ describe('ProjectFcerm1Service', () => {
 
       expect(mockPrisma.pafs_core_users.findFirst).toHaveBeenCalledWith({
         where: { id: userId },
-        select: { first_name: true, last_name: true }
+        select: { email: true, first_name: true, last_name: true }
       })
       expect(result.project._updatedByName).toBe('Jane Smith')
     })

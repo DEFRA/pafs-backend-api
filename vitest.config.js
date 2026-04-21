@@ -27,7 +27,8 @@ export default defineConfig({
         '**/validate-mongo-uri.js',
         '**/prisma-db-pull.js',
         '**/.DS_Store',
-        'src/plugins/swagger/**'
+        'src/plugins/swagger/**',
+        '**/*.xlsx'
       ]
     },
     setupFiles: ['.vite/setup-files.js']

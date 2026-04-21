@@ -3,6 +3,8 @@ import AdmZip from 'adm-zip'
 import { FCERM1_YEARS } from './fcerm1-legacy-columns.js'
 import { SIZE } from '../../../../common/constants/common.js'
 
+const ENCODING = 'utf8'
+
 // ── Last-column resolution ────────────────────────────────────────────────────
 
 /**
@@ -104,16 +106,40 @@ function buildCellXml(ref, value, styleIndex) {
 
 // ── Extract and propagate formula cells from template row ────────────────────
 
-// Returns a map of column letter → full cell XML for cells that contain <f> formulas
+// Returns true only if a cell XML contains a formula with a non-empty body.
+// Shared-formula participants have <f .../> (self-closing, no body) and are excluded.
+function hasMeaningfulFormula(cellXml) {
+  if (!cellXml.includes('<f')) {
+    return false
+  }
+  const fContent = (cellXml.match(/<f[^>]*>([^<]*)<\/f>/) ?? [])[1] ?? ''
+  return Boolean(fContent.trim())
+}
+
+// Strips t="shared", ref="...", si="..." attrs so each copied row gets a standalone formula.
+function stripSharedFormulaAttrs(cellXml) {
+  return cellXml.replace(
+    /<f([^>]*)>/,
+    (_, attrs) =>
+      `<f${attrs
+        .replaceAll(/\s*t="shared"/g, '')
+        .replaceAll(/\s*ref="[^"]*"/g, '')
+        .replaceAll(/\s*si="\d+"/g, '')}>`
+  )
+}
+
+// Returns a map of column letter → full cell XML for cells that contain formulas.
+// Shared-formula participants (<f t="shared" si="N"/> with no body) are skipped.
+// Shared-formula primary cells have the shared-formula attrs stripped so each
+// copied row carries a standalone, independently-shiftable formula.
 function extractFormulaCells(rowXml) {
   const formulas = {}
-  // [^>]*(?<!/)> matches the opening tag, excluding self-closing tags (which end with "/>")
-  // (?:[^<]|<(?!\/c>))* is an unrolled loop that matches cell content without backtracking
+  // [^>]*(?<!/)> excludes self-closing tags; unrolled loop avoids backtracking
   for (const m of rowXml.matchAll(
     /<c r="([A-Z]+)\d+"[^>]*(?<!\/)>(?:[^<]|<(?!\/c>))*<\/c>/g
   )) {
-    if (m[0].includes('<f')) {
-      formulas[m[1]] = m[0]
+    if (hasMeaningfulFormula(m[0])) {
+      formulas[m[1]] = stripSharedFormulaAttrs(m[0])
     }
   }
   return formulas
@@ -149,6 +175,45 @@ function parseRowStyleMap(rowXml) {
 
 // ── Build one data row as XML ─────────────────────────────────────────────────
 
+function buildDateRangeCells(
+  col,
+  presenter,
+  rowNumber,
+  styleMap,
+  defaultStyle,
+  years
+) {
+  const startIndex = columnLetterToIndex(col.column)
+  const useValue = !col.condition || col.condition(presenter)
+  const cells = []
+  for (const [offset, year] of years.entries()) {
+    const colLetter = columnIndexToLetter(startIndex + offset)
+    const value = useValue ? (presenter[col.field](year) ?? 0) : 0
+    cells.push({
+      colIndex: startIndex + offset,
+      xml: buildCellXml(
+        `${colLetter}${rowNumber}`,
+        value,
+        styleMap[colLetter] ?? defaultStyle
+      )
+    })
+  }
+  return cells
+}
+
+function buildStaticCell(col, presenter, rowNumber, styleMap, defaultStyle) {
+  const useValue = !col.condition || col.condition(presenter)
+  const value = useValue ? presenter[col.field]() : 0
+  return {
+    colIndex: columnLetterToIndex(col.column),
+    xml: buildCellXml(
+      `${col.column}${rowNumber}`,
+      value,
+      styleMap[col.column] ?? defaultStyle
+    )
+  }
+}
+
 function buildDataRowXml(
   presenter,
   rowNumber,
@@ -165,33 +230,28 @@ function buildDataRowXml(
     if (col.export === false) {
       continue
     }
-    const useValue = !col.condition || col.condition(presenter)
-
     if (col.dateRange) {
-      const startIndex = columnLetterToIndex(col.column)
-      years.forEach((year, offset) => {
-        const colLetter = columnIndexToLetter(startIndex + offset)
-        const value = useValue ? (presenter[col.field](year) ?? 0) : 0
-        cellList.push({
-          colIndex: startIndex + offset,
-          xml: buildCellXml(
-            `${colLetter}${rowNumber}`,
-            value,
-            styleMap[colLetter] ?? defaultStyle
-          )
-        })
-        writtenCols.add(colLetter)
-      })
+      const rangeCells = buildDateRangeCells(
+        col,
+        presenter,
+        rowNumber,
+        styleMap,
+        defaultStyle,
+        years
+      )
+      for (const cell of rangeCells) {
+        cellList.push(cell)
+        writtenCols.add(columnIndexToLetter(cell.colIndex))
+      }
     } else {
-      const value = useValue ? presenter[col.field]() : 0
-      cellList.push({
-        colIndex: columnLetterToIndex(col.column),
-        xml: buildCellXml(
-          `${col.column}${rowNumber}`,
-          value,
-          styleMap[col.column] ?? defaultStyle
-        )
-      })
+      const cell = buildStaticCell(
+        col,
+        presenter,
+        rowNumber,
+        styleMap,
+        defaultStyle
+      )
+      cellList.push(cell)
       writtenCols.add(col.column)
     }
   }
@@ -279,7 +339,7 @@ function buildContributorsSheetXml(rows) {
 
   const dataRows = rows
     .map((row, i) => {
-      const r = i + 2
+      const r = i + SIZE.LENGTH_2
       const vals = [
         row.project,
         row.name,
@@ -309,7 +369,7 @@ function addContributorsSheetToZip(
 ) {
   zip.addFile(
     'xl/worksheets/sheet2.xml',
-    Buffer.from(buildContributorsSheetXml(allContributorRows), 'utf8')
+    Buffer.from(buildContributorsSheetXml(allContributorRows), ENCODING)
   )
 
   zip.updateFile(
@@ -321,7 +381,7 @@ function addContributorsSheetToZip(
           `Type="${WORKSHEET_REL_TYPE}" Target="worksheets/sheet2.xml"/>` +
           '</Relationships>'
       ),
-      'utf8'
+      ENCODING
     )
   )
 
@@ -334,14 +394,14 @@ function addContributorsSheetToZip(
           `ContentType="${WORKSHEET_CONTENT_TYPE}"/>` +
           '</Types>'
       ),
-      'utf8'
+      ENCODING
     )
   )
 }
 
 // ── Core builder ──────────────────────────────────────────────────────────────
 
-async function _buildWorkbook(
+async function buildWorkbook(
   templatePath,
   presenters,
   columns,
@@ -368,7 +428,7 @@ async function _buildWorkbook(
         columns,
         years
       ),
-      'utf8'
+      ENCODING
     )
   )
 
@@ -385,7 +445,7 @@ async function _buildWorkbook(
     '</sheets>',
     `<sheet name="${CONTRIBUTORS_SHEET_NAME}" sheetId="2" r:id="${contributorsRid}"/></sheets>`
   )
-  zip.updateFile('xl/workbook.xml', Buffer.from(workbookXml, 'utf8'))
+  zip.updateFile('xl/workbook.xml', Buffer.from(workbookXml, ENCODING))
 
   // Add contributors sheet XML, rels entry, and content-type registration
   addContributorsSheetToZip(
@@ -407,7 +467,7 @@ export async function buildSingleWorkbook(
   columns,
   years = FCERM1_YEARS
 ) {
-  return _buildWorkbook(templatePath, [presenter], columns, years)
+  return buildWorkbook(templatePath, [presenter], columns, years)
 }
 
 export async function buildMultiWorkbook(
@@ -416,5 +476,5 @@ export async function buildMultiWorkbook(
   columns,
   years = FCERM1_YEARS
 ) {
-  return _buildWorkbook(templatePath, presenters, columns, years)
+  return buildWorkbook(templatePath, presenters, columns, years)
 }

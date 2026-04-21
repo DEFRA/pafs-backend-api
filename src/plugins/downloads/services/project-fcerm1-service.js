@@ -97,7 +97,7 @@ export class ProjectFcerm1Service {
     const updatedByUser = project.updated_by_id
       ? await this.prisma.pafs_core_users.findFirst({
           where: { id: project.updated_by_id },
-          select: { first_name: true, last_name: true }
+          select: { first_name: true, last_name: true, email: true }
         })
       : null
 
@@ -113,7 +113,8 @@ export class ProjectFcerm1Service {
       _state: stateRow?.state ?? null,
       _updatedByName: updatedByUser
         ? `${updatedByUser.first_name} ${updatedByUser.last_name}`.trim()
-        : null
+        : null,
+      _updatedByEmail: updatedByUser?.email ?? null
     }
 
     return {

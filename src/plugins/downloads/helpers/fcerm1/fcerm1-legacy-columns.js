@@ -332,10 +332,11 @@ export const FCERM1_COLUMN_MAP = [
   { column: 'NE', field: 'carbonSavingsNetEconomicBenefit' },
   { column: 'NF', field: 'carbonOperationalCostForecast' },
 
-  // ── Admin columns NG-NI ──────────────────────────────────────────────────
+  // ── Admin columns NG-NJ ──────────────────────────────────────────────────
   { column: 'NG', field: 'lastUpdated' },
   { column: 'NH', field: 'lastUpdatedBy' },
-  { column: 'NI', field: 'psoName' }
+  { column: 'NI', field: 'lastUpdatedByEmail' },
+  { column: 'NJ', field: 'psoName' }
 ]
 
 /** All columns for the legacy FCERM1 template */

@@ -463,7 +463,7 @@ describe('FcermPresenter — admin columns', () => {
 describe('FcermPresenter — project status', () => {
   test('projectStatus returns _state from project', () => {
     const p = new FcermPresenter(makeProject(), makeAreaHierarchy(), [])
-    expect(p.projectStatus()).toBe('submitted')
+    expect(p.projectStatus()).toBe('Submitted')
   })
 
   test('projectStatus returns null when _state is not set', () => {

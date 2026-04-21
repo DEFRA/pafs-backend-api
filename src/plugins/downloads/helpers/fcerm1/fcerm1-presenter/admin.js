@@ -4,7 +4,9 @@ export const adminMixin = {
   // ── Project status ────────────────────────────────────────────────────────
 
   projectStatus() {
-    return this._p._state ?? null
+    const state = this._p._state
+    if (!state) return null
+    return state.charAt(0).toUpperCase() + state.slice(1)
   },
 
   // ── Carbon impact ─────────────────────────────────────────────────────────
@@ -35,6 +37,9 @@ export const adminMixin = {
   },
   lastUpdatedBy() {
     return this._p._updatedByName ?? null
+  },
+  lastUpdatedByEmail() {
+    return this._p._updatedByEmail ?? null
   },
   psoName() {
     return this._area.psoName ?? null

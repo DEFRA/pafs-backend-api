@@ -18,7 +18,6 @@ import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
 import jwtAuthPlugin from './plugins/jwt/jwt-auth.js'
-import apiKeyAuthPlugin from './plugins/api-key/api-key-auth.js'
 import schedulerPlugin from './plugins/scheduler/index.js'
 import { loadTasks } from './plugins/scheduler/helpers/task-loader.js'
 import swaggerPlugin from './plugins/swagger/index.js'
@@ -92,12 +91,6 @@ async function registerCorePlugins(server) {
         accessSecret: config.get('auth.jwt.accessSecret'),
         issuer: config.get('auth.jwt.issuer'),
         audience: config.get('auth.jwt.audience')
-      }
-    },
-    {
-      plugin: apiKeyAuthPlugin,
-      options: {
-        apiKey: config.get('auth.apiKey')
       }
     },
     gatewayGuardPlugin,

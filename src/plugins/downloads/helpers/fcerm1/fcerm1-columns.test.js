@@ -35,9 +35,9 @@ describe('fcerm1-columns', () => {
       })
     })
 
-    test('ends with column NI (psoName)', () => {
+    test('ends with column NJ (psoName)', () => {
       const last = FCERM1_COLUMN_MAP.at(-1)
-      expect(last).toMatchObject({ column: 'NI', field: 'psoName' })
+      expect(last).toMatchObject({ column: 'NJ', field: 'psoName' })
     })
 
     test('every entry has required fields: column and field', () => {
