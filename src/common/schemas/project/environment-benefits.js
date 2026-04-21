@@ -111,6 +111,55 @@ export const environmentalBenefitsGateSchema = (label) =>
   })
 
 /**
+ * Shared custom validator for environmental benefit quantity fields.
+ * Accepts string inputs with up to 16 digits before the decimal and 2 after.
+ * Returns the original string to preserve precision for Decimal database fields.
+ */
+const ERR_PRECISION = 'number.precision'
+const ERR_BASE = 'number.base'
+
+const validateQuantityString = (value, helpers) => {
+  if (!/^\d+(?:\.\d+)?$/.test(value)) {
+    return helpers.error(ERR_BASE)
+  }
+
+  const [integerPart, decimalPart] = value.split('.')
+
+  if (integerPart.length > 16) {
+    return helpers.error(ERR_PRECISION)
+  }
+
+  if (decimalPart && decimalPart.length > 2) {
+    return helpers.error(ERR_PRECISION)
+  }
+
+  const num = Number.parseFloat(value)
+  if (Number.isNaN(num) || num < 0) {
+    return helpers.error(ERR_BASE)
+  }
+
+  // For very large numbers, check if integer part exceeds JavaScript's safe range
+  const integerValue = Number.parseInt(integerPart, 10)
+  if (integerValue > Number.MAX_SAFE_INTEGER) {
+    return helpers.error(ERR_PRECISION)
+  }
+
+  return value
+}
+
+const QUANTITY_MESSAGES = {
+  'number.base':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+  'string.pattern.base':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+  'number.min': PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
+  'number.max':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
+  'number.precision':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
+}
+
+/**
  * Conditional environmental benefits quantity field schema
  * Only requires the quantity field when the gate field is true
  * Allows up to 16 digits before decimal, 2 digits after decimal
@@ -126,59 +175,12 @@ export const environmentalBenefitsConditionalQuantitySchema = (
   Joi.when(gateField, {
     is: true,
     then: Joi.alternatives()
-      .try(
-        // String validation - handles all inputs to prevent scientific notation issues
-        Joi.string()
-          .trim()
-          .custom((value, helpers) => {
-            // Check basic format first
-            if (!/^\d+(?:\.\d+)?$/.test(value)) {
-              return helpers.error('number.base')
-            }
-
-            const [integerPart, decimalPart] = value.split('.')
-
-            // Check 16 digits before decimal constraint
-            if (integerPart.length > 16) {
-              return helpers.error('number.precision')
-            }
-
-            // Check decimal places constraint - must be exactly 1 or 2 digits
-            if (decimalPart && decimalPart.length > 2) {
-              return helpers.error('number.precision')
-            }
-
-            const num = Number.parseFloat(value)
-            if (Number.isNaN(num) || num < 0) {
-              return helpers.error('number.base')
-            }
-
-            // For very large numbers, check if integer part exceeds JavaScript's safe range
-            const [integerStr] = value.split('.')
-            const integerValue = Number.parseInt(integerStr, 10)
-            if (integerValue > Number.MAX_SAFE_INTEGER) {
-              return helpers.error('number.precision')
-            }
-
-            // Return the original string value to preserve precision for Decimal database fields
-            return value
-          })
-          .label(label)
-      )
+      .try(Joi.string().trim().custom(validateQuantityString).label(label))
       .required()
       .messages({
         'any.required':
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_REQUIRED,
-        'number.base':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
-        'string.pattern.base':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
-        'number.min':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
-        'number.max':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
-        'number.precision':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
+        ...QUANTITY_MESSAGES
       }),
     otherwise: Joi.any().strip()
   })
@@ -191,57 +193,8 @@ export const environmentalBenefitsConditionalQuantitySchema = (
  */
 const environmentalBenefitQuantitySchema = (label) =>
   Joi.alternatives()
-    .try(
-      // String validation - handles all inputs to prevent scientific notation issues
-      Joi.string()
-        .trim()
-        .custom((value, helpers) => {
-          // Check basic format first
-          if (!/^\d+(?:\.\d+)?$/.test(value)) {
-            return helpers.error('number.base')
-          }
-
-          const [integerPart, decimalPart] = value.split('.')
-
-          // Check 16 digits before decimal constraint
-          if (integerPart.length > 16) {
-            return helpers.error('number.precision')
-          }
-
-          // Check decimal places constraint - must be exactly 1 or 2 digits
-          if (decimalPart && decimalPart.length > 2) {
-            return helpers.error('number.precision')
-          }
-
-          const num = Number.parseFloat(value)
-          if (Number.isNaN(num) || num < 0) {
-            return helpers.error('number.base')
-          }
-
-          // For very large numbers, check if integer part exceeds JavaScript's safe range
-          const [integerStr] = value.split('.')
-          const integerValue = Number.parseInt(integerStr, 10)
-          if (integerValue > Number.MAX_SAFE_INTEGER) {
-            return helpers.error('number.precision')
-          }
-
-          // Return the original string value to preserve precision for Decimal database fields
-          return value
-        })
-        .label(label)
-    )
-    .messages({
-      'number.base':
-        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
-      'string.pattern.base':
-        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
-      'number.min':
-        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
-      'number.max':
-        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
-      'number.precision':
-        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
-    })
+    .try(Joi.string().trim().custom(validateQuantityString).label(label))
+    .messages(QUANTITY_MESSAGES)
 
 /**
  * WFD (Water Framework Directive) environmental benefit amount schemas

@@ -8,9 +8,14 @@ import {
 import { SIZE } from '../../constants/common.js'
 
 /**
- * Maximum digits allowed for property values
+ * Maximum digits allowed for property values (used in PROPERTY_DIGITS_PATTERN)
  */
 const MAX_PROPERTY_DIGITS = 18
+
+/**
+ * Regex pattern for digit-only strings up to MAX_PROPERTY_DIGITS (18) characters
+ */
+const PROPERTY_DIGITS_PATTERN = /^\d{1,18}$/
 
 /**
  * Regex pattern for whole number percentage values 1-100
@@ -26,7 +31,7 @@ function createPropertyBenefitSchema(label) {
     .try(
       Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
       Joi.string()
-        .pattern(new RegExp(String.raw`^\d{1,${MAX_PROPERTY_DIGITS}}$`))
+        .pattern(PROPERTY_DIGITS_PATTERN)
         .custom((value) => value)
     )
     .optional()
