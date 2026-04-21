@@ -197,7 +197,9 @@ export const newTemplateMixin = {
   // capped at project_end_financial_year so out-of-range FVs are excluded.
 
   fcermGia(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -207,7 +209,9 @@ export const newTemplateMixin = {
     )
   },
   assetReplacementAllowance(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -217,7 +221,9 @@ export const newTemplateMixin = {
     )
   },
   environmentStatutoryFunding(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -227,7 +233,9 @@ export const newTemplateMixin = {
     )
   },
   frequentlyFloodedCommunities(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -237,7 +245,9 @@ export const newTemplateMixin = {
     )
   },
   otherAdditionalGrantInAid(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -247,7 +257,9 @@ export const newTemplateMixin = {
     )
   },
   otherGovernmentDepartment(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -257,7 +269,9 @@ export const newTemplateMixin = {
     )
   },
   recovery(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -267,7 +281,9 @@ export const newTemplateMixin = {
     )
   },
   summerEconomicFund(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -277,7 +293,9 @@ export const newTemplateMixin = {
     )
   },
   localLevy(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
@@ -287,7 +305,9 @@ export const newTemplateMixin = {
     )
   },
   notYetIdentified(year) {
-    if (!this._inYearRange(year)) return 0
+    if (!this._inYearRange(year)) {
+      return 0
+    }
     return sumFunding(
       this._p.pafs_core_funding_values,
       year,
