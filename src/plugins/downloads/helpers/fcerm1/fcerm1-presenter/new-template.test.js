@@ -665,3 +665,85 @@ describe('carbon calculated fields', () => {
     expect(makePresenter().carbonOmTarget()).toBeNull()
   })
 })
+
+// ── Additional per-year funding methods ───────────────────────────────────────
+// Each method shares the same year-range guard and 2038+ roll-up logic as
+// fcermGia. We test the in-range, out-of-range and 2038-bucket variants for
+// each remaining field to lift their branch coverage.
+
+const PER_YEAR_CASES = [
+  ['assetReplacementAllowance', 'asset_replacement_allowance'],
+  ['environmentStatutoryFunding', 'environment_statutory_funding'],
+  ['frequentlyFloodedCommunities', 'frequently_flooded_communities'],
+  ['otherAdditionalGrantInAid', 'other_additional_grant_in_aid'],
+  ['otherGovernmentDepartment', 'other_government_department'],
+  ['recovery', 'recovery'],
+  ['summerEconomicFund', 'summer_economic_fund'],
+  ['notYetIdentified', 'not_yet_identified']
+]
+
+for (const [method, field] of PER_YEAR_CASES) {
+  describe(`${method}(year)`, () => {
+    test('returns value for a year within the project range', () => {
+      const fvs = [fundingValue({ [field]: 250, financial_year: 2030 })]
+      const p = makePresenter({
+        pafs_core_funding_values: fvs,
+        earliest_start_year: 2026,
+        project_end_financial_year: 2038
+      })
+      expect(p[method](2030)).toBe(250)
+    })
+
+    test('returns 0 for a year before the project start', () => {
+      const fvs = [fundingValue({ [field]: 999, financial_year: 2025 })]
+      const p = makePresenter({
+        pafs_core_funding_values: fvs,
+        earliest_start_year: 2026,
+        project_end_financial_year: 2038
+      })
+      expect(p[method](2025)).toBe(0)
+    })
+
+    test('returns 0 for a year after the project end', () => {
+      const fvs = [fundingValue({ [field]: 999, financial_year: 2039 })]
+      const p = makePresenter({
+        pafs_core_funding_values: fvs,
+        earliest_start_year: 2026,
+        project_end_financial_year: 2035
+      })
+      expect(p[method](2039)).toBe(0)
+    })
+
+    test('2038 bucket sums all years >= 2038 up to project end', () => {
+      const fvs = [
+        fundingValue({ [field]: 100, financial_year: 2038 }),
+        fundingValue({ [field]: 150, financial_year: 2040 }),
+        fundingValue({ [field]: 999, financial_year: 2041 }) // beyond end → excluded
+      ]
+      const p = makePresenter({
+        pafs_core_funding_values: fvs,
+        earliest_start_year: 2026,
+        project_end_financial_year: 2040
+      })
+      expect(p[method](2038)).toBe(250)
+    })
+  })
+}
+
+// ── Unknown risk key fallback for surface-water and coastal-erosion ───────────
+
+describe('currentFloodSurfaceWaterRisk — unknown key fallback', () => {
+  test('returns the raw value when the key is not in RISK_LABELS', () => {
+    const p = makePresenter({
+      current_flood_surface_water_risk: 'unknown_risk'
+    })
+    expect(p.currentFloodSurfaceWaterRisk()).toBe('unknown_risk')
+  })
+})
+
+describe('currentCoastalErosionRisk — unknown key fallback', () => {
+  test('returns the raw value when the key is not in RISK_LABELS', () => {
+    const p = makePresenter({ current_coastal_erosion_risk: 'unknown_risk' })
+    expect(p.currentCoastalErosionRisk()).toBe('unknown_risk')
+  })
+})

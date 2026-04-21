@@ -5,7 +5,9 @@ import {
   lookupLabel,
   formatDate,
   sumFunding,
+  sumFundingInRange,
   sumContributors,
+  sumContributorsInRange,
   sumOutcomes,
   hasRisk,
   currentFinancialYear,
@@ -446,5 +448,241 @@ describe('buildContributorRows', () => {
 
   test('returns empty array when fundingValues is null', () => {
     expect(buildContributorRows(null, contributors, 'REF/001')).toEqual([])
+  })
+
+  test('sets name to empty string when contributor name is null', () => {
+    const custom = [
+      {
+        funding_value_id: 2n,
+        contributor_type: 'public_contributions',
+        name: null,
+        amount: 100n,
+        secured: true,
+        constrained: false
+      }
+    ]
+    const rows = buildContributorRows(fundingValues, custom, 'REF/001')
+    expect(rows[0].name).toBe('')
+  })
+
+  test('sets type to empty string when contributor_type is null', () => {
+    const custom = [
+      {
+        funding_value_id: 2n,
+        contributor_type: null,
+        name: 'Test',
+        amount: 100n,
+        secured: false,
+        constrained: false
+      }
+    ]
+    const rows = buildContributorRows(fundingValues, custom, 'REF/001')
+    expect(rows[0].type).toBe('')
+  })
+
+  test('displays "Previous years" for a funding value with financial_year -1', () => {
+    // Set system time to a January date in year 0 so currentFinancialYear() returns -1,
+    // which allows fy === -1 to pass the >= currentFY filter.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('0000-01-15'))
+    try {
+      const fvs = [{ id: 1n, financial_year: -1 }]
+      const cs = [
+        {
+          funding_value_id: 1n,
+          contributor_type: 'public_contributions',
+          name: 'Historic',
+          amount: 500n,
+          secured: true,
+          constrained: false
+        }
+      ]
+      const rows = buildContributorRows(fvs, cs, 'REF/001')
+      expect(rows[0].year).toBe('Previous years')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('sumFundingInRange', () => {
+  const fvs = [
+    { financial_year: 2024, amount: 100 },
+    { financial_year: 2025, amount: 200 },
+    { financial_year: 2026, amount: 300 }
+  ]
+
+  test('sums rows within [startYear, endYear] inclusive', () => {
+    expect(sumFundingInRange(fvs, 'amount', 2024, 2025)).toBe(300)
+  })
+
+  test('includes only the exact boundary years', () => {
+    expect(sumFundingInRange(fvs, 'amount', 2025, 2025)).toBe(200)
+  })
+
+  test('excludes rows before startYear', () => {
+    expect(sumFundingInRange(fvs, 'amount', 2025, 2026)).toBe(500)
+  })
+
+  test('when endYear is null there is no upper bound', () => {
+    expect(sumFundingInRange(fvs, 'amount', 2025, null)).toBe(500)
+  })
+
+  test('falls back to currentFinancialYear() when startYear is null', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-01')) // FY = 2025
+    try {
+      const rows = [
+        { financial_year: 2024, amount: 999 }, // before currentFY → excluded
+        { financial_year: 2025, amount: 50 }
+      ]
+      expect(sumFundingInRange(rows, 'amount', null, null)).toBe(50)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('treats null field value as 0', () => {
+    const rows = [{ financial_year: 2025, amount: null }]
+    expect(sumFundingInRange(rows, 'amount', 2025, 2026)).toBe(0)
+  })
+
+  test('returns 0 when fundingValues is null', () => {
+    expect(sumFundingInRange(null, 'amount', 2025, 2026)).toBe(0)
+  })
+
+  test('returns 0 when fundingValues is undefined', () => {
+    expect(sumFundingInRange(undefined, 'amount', 2025, 2026)).toBe(0)
+  })
+
+  test('returns 0 when no rows fall within the range', () => {
+    expect(sumFundingInRange(fvs, 'amount', 2030, 2035)).toBe(0)
+  })
+})
+
+describe('sumContributorsInRange', () => {
+  const fvs = [
+    { id: 1n, financial_year: 2025 },
+    { id: 2n, financial_year: 2026 },
+    { id: 3n, financial_year: 2024 } // before range
+  ]
+  const contributors = [
+    {
+      funding_value_id: 1n,
+      contributor_type: 'public_contributions',
+      amount: 300n
+    },
+    {
+      funding_value_id: 2n,
+      contributor_type: 'public_contributions',
+      amount: 500n
+    },
+    {
+      funding_value_id: 2n,
+      contributor_type: 'private_contributions',
+      amount: 200n
+    },
+    {
+      funding_value_id: 3n,
+      contributor_type: 'public_contributions',
+      amount: 999n
+    } // outside range
+  ]
+
+  test('sums contributors of a given type within [startYear, endYear]', () => {
+    expect(
+      sumContributorsInRange(
+        fvs,
+        contributors,
+        'public_contributions',
+        2025,
+        2026
+      )
+    ).toBe(800)
+  })
+
+  test('excludes contributors whose funding value is outside the year range', () => {
+    expect(
+      sumContributorsInRange(
+        fvs,
+        contributors,
+        'public_contributions',
+        2025,
+        2026
+      )
+    ).toBe(800) // fv id=3 (year 2024) excluded
+  })
+
+  test('returns 0 when no contributors match the type', () => {
+    expect(
+      sumContributorsInRange(
+        fvs,
+        contributors,
+        'other_ea_contributions',
+        2025,
+        2026
+      )
+    ).toBe(0)
+  })
+
+  test('when endYear is null there is no upper bound', () => {
+    expect(
+      sumContributorsInRange(
+        fvs,
+        contributors,
+        'public_contributions',
+        2025,
+        null
+      )
+    ).toBe(800)
+  })
+
+  test('falls back to currentFinancialYear() when startYear is null', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-01')) // FY = 2025
+    try {
+      expect(
+        sumContributorsInRange(
+          fvs,
+          contributors,
+          'public_contributions',
+          null,
+          null
+        )
+      ).toBe(800)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('treats null contributor amount as 0', () => {
+    const rows = [
+      {
+        funding_value_id: 1n,
+        contributor_type: 'public_contributions',
+        amount: null
+      }
+    ]
+    expect(
+      sumContributorsInRange(fvs, rows, 'public_contributions', 2025, 2026)
+    ).toBe(0)
+  })
+
+  test('returns 0 when fundingValues is null', () => {
+    expect(
+      sumContributorsInRange(
+        null,
+        contributors,
+        'public_contributions',
+        2025,
+        2026
+      )
+    ).toBe(0)
+  })
+
+  test('returns 0 when contributors is null', () => {
+    expect(
+      sumContributorsInRange(fvs, null, 'public_contributions', 2025, 2026)
+    ).toBe(0)
   })
 })

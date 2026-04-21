@@ -3,7 +3,8 @@ import {
   fetchUserAreas,
   fetchAccountAreas,
   getAreaTypeFlags,
-  resolveUserAreaIds
+  resolveUserAreaIds,
+  resolveAccessibleAreaIdsForUser
 } from './user-areas.js'
 import { AreaService } from '../services/area-service.js'
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
@@ -683,6 +684,141 @@ describe('user-areas helpers', () => {
         [30, 31],
         AREA_TYPE_MAP.PSO
       )
+    })
+  })
+
+  describe('resolveAccessibleAreaIdsForUser', () => {
+    let mockPrisma
+    let mockLogger
+    let mockGetDescendantRmaAreaIds
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+
+      mockPrisma = {
+        pafs_core_user_areas: { findMany: vi.fn() },
+        pafs_core_areas: { findMany: vi.fn() }
+      }
+
+      mockLogger = { info: vi.fn(), error: vi.fn(), warn: vi.fn() }
+
+      mockGetDescendantRmaAreaIds = vi.fn()
+      AreaService.mockImplementation(function () {
+        this.getDescendantRmaAreaIds = mockGetDescendantRmaAreaIds
+      })
+    })
+
+    test('Should return empty array when user has no areas in the DB', async () => {
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
+
+      const result = await resolveAccessibleAreaIdsForUser(
+        mockPrisma,
+        mockLogger,
+        42
+      )
+
+      expect(result).toEqual([])
+      expect(mockPrisma.pafs_core_areas.findMany).not.toHaveBeenCalled()
+    })
+
+    test('Should return RMA area IDs directly for an RMA user', async () => {
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt(10), primary: true },
+        { area_id: BigInt(11), primary: false }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(10), name: 'RMA 1', area_type: AREA_TYPE_MAP.RMA },
+        { id: BigInt(11), name: 'RMA 2', area_type: AREA_TYPE_MAP.RMA }
+      ])
+
+      const result = await resolveAccessibleAreaIdsForUser(
+        mockPrisma,
+        mockLogger,
+        42
+      )
+
+      expect(result).toEqual([10, 11])
+    })
+
+    test('Should return descendant RMA IDs for a PSO user', async () => {
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt(30), primary: true }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(30), name: 'PSO 1', area_type: AREA_TYPE_MAP.PSO }
+      ])
+      mockGetDescendantRmaAreaIds.mockResolvedValue([100, 101])
+
+      const result = await resolveAccessibleAreaIdsForUser(
+        mockPrisma,
+        mockLogger,
+        7
+      )
+
+      expect(result).toEqual([100, 101])
+      expect(mockGetDescendantRmaAreaIds).toHaveBeenCalledWith(
+        [30],
+        AREA_TYPE_MAP.PSO
+      )
+    })
+
+    test('Should return descendant RMA IDs for an EA user', async () => {
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt(5), primary: true }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(5), name: 'EA 1', area_type: AREA_TYPE_MAP.EA }
+      ])
+      mockGetDescendantRmaAreaIds.mockResolvedValue([200, 201, 202])
+
+      const result = await resolveAccessibleAreaIdsForUser(
+        mockPrisma,
+        mockLogger,
+        3
+      )
+
+      expect(result).toEqual([200, 201, 202])
+      expect(mockGetDescendantRmaAreaIds).toHaveBeenCalledWith(
+        [5],
+        AREA_TYPE_MAP.EA
+      )
+    })
+
+    test('Should return empty array (not null) when no role matches', async () => {
+      // A user whose primary area type doesn't match RMA/PSO/EA
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt(99), primary: true }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(99), name: 'Unknown', area_type: 'UNKNOWN_TYPE' }
+      ])
+
+      const result = await resolveAccessibleAreaIdsForUser(
+        mockPrisma,
+        mockLogger,
+        1
+      )
+
+      expect(result).toEqual([])
+    })
+
+    test('Should never return null even when resolveUserAreaIds would return null defensively', async () => {
+      // Simulate a user with areas where getAreaTypeFlags returns all false
+      // (edge case: all areas have an unrecognised type)
+      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
+        { area_id: BigInt(1), primary: false }
+      ])
+      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
+        { id: BigInt(1), name: 'X', area_type: null }
+      ])
+
+      const result = await resolveAccessibleAreaIdsForUser(
+        mockPrisma,
+        mockLogger,
+        1
+      )
+
+      expect(Array.isArray(result)).toBe(true)
     })
   })
 })
