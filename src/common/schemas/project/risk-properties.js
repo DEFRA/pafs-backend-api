@@ -8,12 +8,7 @@ import {
 import { SIZE } from '../../constants/common.js'
 
 /**
- * Maximum digits allowed for property values (used in PROPERTY_DIGITS_PATTERN)
- */
-const MAX_PROPERTY_DIGITS = 18
-
-/**
- * Regex pattern for digit-only strings up to MAX_PROPERTY_DIGITS (18) characters
+ * Regex pattern for digit-only strings — accepts 1 to 18 digits, no sign or decimal
  */
 const PROPERTY_DIGITS_PATTERN = /^\d{1,18}$/
 
@@ -24,7 +19,7 @@ const PERCENTAGE_PATTERN = /^([1-9]\d?|100)$/
 
 /**
  * Creates a Joi schema for optional BigInt-compatible property count fields.
- * Accepts either a safe integer or a digit-string up to MAX_PROPERTY_DIGITS.
+ * Accepts either a safe integer or a digit-string up to 18 digits.
  */
 function createPropertyBenefitSchema(label) {
   return Joi.alternatives()
