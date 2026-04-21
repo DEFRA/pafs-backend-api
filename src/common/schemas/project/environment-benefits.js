@@ -182,3 +182,99 @@ export const environmentalBenefitsConditionalQuantitySchema = (
       }),
     otherwise: Joi.any().strip()
   })
+
+/**
+ * Base environmental benefit quantity schema
+ * Handles numeric fields with 16 digits before decimal, 2 digits after
+ * Minimum value: 0 (0 allowed as specified)
+ * @param {string} label - Field label for error messages
+ */
+const environmentalBenefitQuantitySchema = (label) =>
+  Joi.alternatives()
+    .try(
+      // String validation - handles all inputs to prevent scientific notation issues
+      Joi.string()
+        .trim()
+        .custom((value, helpers) => {
+          // Check basic format first
+          if (!/^\d+(?:\.\d+)?$/.test(value)) {
+            return helpers.error('number.base')
+          }
+
+          const [integerPart, decimalPart] = value.split('.')
+
+          // Check 16 digits before decimal constraint
+          if (integerPart.length > 16) {
+            return helpers.error('number.precision')
+          }
+
+          // Check decimal places constraint - must be exactly 1 or 2 digits
+          if (decimalPart && decimalPart.length > 2) {
+            return helpers.error('number.precision')
+          }
+
+          const num = Number.parseFloat(value)
+          if (Number.isNaN(num) || num < 0) {
+            return helpers.error('number.base')
+          }
+
+          // For very large numbers, check if integer part exceeds JavaScript's safe range
+          const [integerStr] = value.split('.')
+          const integerValue = Number.parseInt(integerStr, 10)
+          if (integerValue > Number.MAX_SAFE_INTEGER) {
+            return helpers.error('number.precision')
+          }
+
+          // Return the original string value to preserve precision for Decimal database fields
+          return value
+        })
+        .label(label)
+    )
+    .messages({
+      'number.base':
+        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+      'string.pattern.base':
+        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+      'number.min':
+        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
+      'number.max':
+        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
+      'number.precision':
+        PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
+    })
+
+/**
+ * WFD (Water Framework Directive) environmental benefit amount schemas
+ */
+export const improveSurfaceOrGroundwaterAmountSchema =
+  environmentalBenefitQuantitySchema('improveSurfaceOrGroundwaterAmount')
+export const improveHabitatAmountSchema = environmentalBenefitQuantitySchema(
+  'improveHabitatAmount'
+)
+export const improveRiverAmountSchema =
+  environmentalBenefitQuantitySchema('improveRiverAmount')
+export const createHabitatAmountSchema = environmentalBenefitQuantitySchema(
+  'createHabitatAmount'
+)
+export const fishOrEelAmountSchema =
+  environmentalBenefitQuantitySchema('fishOrEelAmount')
+
+/**
+ * NFM cost schema
+ */
+export const naturalFloodRiskMeasuresCostSchema =
+  environmentalBenefitQuantitySchema('naturalFloodRiskMeasuresCost')
+
+/**
+ * Additional environmental benefit quantity schemas
+ */
+export const hectaresOfNetWaterDependentHabitatCreatedSchema =
+  environmentalBenefitQuantitySchema(
+    'hectaresOfNetWaterDependentHabitatCreated'
+  )
+export const hectaresOfNetWaterIntertidalHabitatCreatedSchema =
+  environmentalBenefitQuantitySchema(
+    'hectaresOfNetWaterIntertidalHabitatCreated'
+  )
+export const kilometresOfProtectedRiverImprovedSchema =
+  environmentalBenefitQuantitySchema('kilometresOfProtectedRiverImproved')

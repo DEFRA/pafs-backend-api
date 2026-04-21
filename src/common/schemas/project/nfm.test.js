@@ -472,6 +472,11 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
+    test('should reject comma-only string (empty after filtering)', () => {
+      const result = nfmLandUseChangeSchema.validate(',')
+      expect(result.error).toBeDefined()
+    })
+
     test('should reject missing value', () => {
       const result = nfmLandUseChangeSchema.validate(undefined)
       expect(result.error).toBeDefined()

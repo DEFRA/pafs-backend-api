@@ -13,11 +13,6 @@ import { SIZE } from '../../constants/common.js'
 const MAX_PROPERTY_DIGITS = 18
 
 /**
- * Maximum BigInt value for MAX_PROPERTY_DIGITS digits (10^18 - 1)
- */
-const MAX_PROPERTY_VALUE = BigInt('9'.repeat(MAX_PROPERTY_DIGITS))
-
-/**
  * Regex pattern for whole number percentage values 1-100
  */
 const PERCENTAGE_PATTERN = /^([1-9]\d?|100)$/
@@ -31,13 +26,8 @@ function createPropertyBenefitSchema(label) {
     .try(
       Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
       Joi.string()
-        .pattern(new RegExp(`^\\d{1,${MAX_PROPERTY_DIGITS}}$`))
-        .custom((value) => {
-          if (BigInt(value) > MAX_PROPERTY_VALUE) {
-            throw new Error('Value too large')
-          }
-          return value
-        })
+        .pattern(new RegExp(String.raw`^\d{1,${MAX_PROPERTY_DIGITS}}$`))
+        .custom((value) => value)
     )
     .optional()
     .allow(null, '')

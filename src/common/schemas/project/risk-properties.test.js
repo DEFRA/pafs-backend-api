@@ -125,6 +125,24 @@ describe('project schemas - risk and properties', () => {
       const { error } = propertiesBenefitMaintainingAssetsSchema.validate(10.5)
       expect(error).toBeDefined()
     })
+
+    it('should validate 18-digit string', () => {
+      const { error } =
+        propertiesBenefitMaintainingAssetsSchema.validate('999999999999999999')
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject 19-digit string', () => {
+      const { error } = propertiesBenefitMaintainingAssetsSchema.validate(
+        '9999999999999999999'
+      )
+      expect(error).toBeDefined()
+    })
+
+    it('should reject non-numeric string', () => {
+      const { error } = propertiesBenefitMaintainingAssetsSchema.validate('abc')
+      expect(error).toBeDefined()
+    })
   })
 
   describe('propertiesBenefit50PercentReductionSchema', () => {
