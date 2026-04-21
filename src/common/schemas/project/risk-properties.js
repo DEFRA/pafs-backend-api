@@ -13,9 +13,44 @@ import { SIZE } from '../../constants/common.js'
 const MAX_PROPERTY_DIGITS = 18
 
 /**
+ * Maximum BigInt value for MAX_PROPERTY_DIGITS digits (10^18 - 1)
+ */
+const MAX_PROPERTY_VALUE = BigInt('9'.repeat(MAX_PROPERTY_DIGITS))
+
+/**
  * Regex pattern for whole number percentage values 1-100
  */
 const PERCENTAGE_PATTERN = /^([1-9]\d?|100)$/
+
+/**
+ * Creates a Joi schema for optional BigInt-compatible property count fields.
+ * Accepts either a safe integer or a digit-string up to MAX_PROPERTY_DIGITS.
+ */
+function createPropertyBenefitSchema(label) {
+  return Joi.alternatives()
+    .try(
+      Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
+      Joi.string()
+        .pattern(new RegExp(`^\\d{1,${MAX_PROPERTY_DIGITS}}$`))
+        .custom((value) => {
+          if (BigInt(value) > MAX_PROPERTY_VALUE) {
+            throw new Error('Value too large')
+          }
+          return value
+        })
+    )
+    .optional()
+    .allow(null, '')
+    .label(label)
+    .messages({
+      'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
+      'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
+    })
+}
 
 /**
  * Project risks protected against schema (API format)
@@ -68,117 +103,29 @@ export const noPropertiesAtFloodRiskSchema = Joi.boolean()
  * Properties benefit maintaining assets schema (API format)
  * Database field: properties_benefit_maintaining_assets (BigInt)
  */
-export const propertiesBenefitMaintainingAssetsSchema = Joi.alternatives()
-  .try(
-    Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string()
-      .pattern(/^\d{1,18}$/)
-      .custom((value) => {
-        const num = BigInt(value)
-        if (num > BigInt('999999999999999999')) {
-          throw new Error('Value too large')
-        }
-        return value
-      })
-  )
-  .optional()
-  .allow(null, '')
-  .label('maintainingExistingAssets')
-  .messages({
-    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-  })
+export const propertiesBenefitMaintainingAssetsSchema =
+  createPropertyBenefitSchema('maintainingExistingAssets')
 
 /**
  * Properties benefit 50 percent reduction schema (API format)
  * Database field: properties_benefit_50_percent_reduction (BigInt)
  */
-export const propertiesBenefit50PercentReductionSchema = Joi.alternatives()
-  .try(
-    Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string()
-      .pattern(/^\d{1,18}$/)
-      .custom((value) => {
-        const num = BigInt(value)
-        if (num > BigInt('999999999999999999')) {
-          throw new Error('Value too large')
-        }
-        return value
-      })
-  )
-  .optional()
-  .allow(null, '')
-  .label('reducingFloodRisk50Plus')
-  .messages({
-    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-  })
+export const propertiesBenefit50PercentReductionSchema =
+  createPropertyBenefitSchema('reducingFloodRisk50Plus')
 
 /**
  * Properties benefit less 50 percent reduction schema (API format)
  * Database field: properties_benefit_less_50_percent_reduction (BigInt)
  */
-export const propertiesBenefitLess50PercentReductionSchema = Joi.alternatives()
-  .try(
-    Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string()
-      .pattern(/^\d{1,18}$/)
-      .custom((value) => {
-        const num = BigInt(value)
-        if (num > BigInt('999999999999999999')) {
-          throw new Error('Value too large')
-        }
-        return value
-      })
-  )
-  .optional()
-  .allow(null, '')
-  .label('reducingFloodRiskLess50')
-  .messages({
-    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-  })
+export const propertiesBenefitLess50PercentReductionSchema =
+  createPropertyBenefitSchema('reducingFloodRiskLess50')
 
 /**
  * Properties benefit individual intervention schema (API format)
  * Database field: properties_benefit_individual_intervention (BigInt)
  */
-export const propertiesBenefitIndividualInterventionSchema = Joi.alternatives()
-  .try(
-    Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-    Joi.string()
-      .pattern(/^\d{1,18}$/)
-      .custom((value) => {
-        const num = BigInt(value)
-        if (num > BigInt('999999999999999999')) {
-          throw new Error('Value too large')
-        }
-        return value
-      })
-  )
-  .optional()
-  .allow(null, '')
-  .label('increasingFloodResilience')
-  .messages({
-    'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-    'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-  })
+export const propertiesBenefitIndividualInterventionSchema =
+  createPropertyBenefitSchema('increasingFloodResilience')
 
 /**
  * No properties at coastal erosion risk schema (API format)
@@ -199,60 +146,14 @@ export const noPropertiesAtCoastalErosionRiskSchema = Joi.boolean()
  * Database field: properties_benefit_maintaining_assets_coastal (BigInt)
  */
 export const propertiesBenefitMaintainingAssetsCoastalSchema =
-  Joi.alternatives()
-    .try(
-      Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-      Joi.string()
-        .pattern(/^\d{1,18}$/)
-        .custom((value) => {
-          const num = BigInt(value)
-          if (num > BigInt('999999999999999999')) {
-            throw new Error('Value too large')
-          }
-          return value
-        })
-    )
-    .optional()
-    .allow(null, '')
-    .label('propertiesBenefitMaintainingAssetsCoastal')
-    .messages({
-      'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-    })
+  createPropertyBenefitSchema('propertiesBenefitMaintainingAssetsCoastal')
 
 /**
  * Properties benefit investment coastal erosion schema (API format)
  * Database field: properties_benefit_investment_coastal_erosion (BigInt)
  */
 export const propertiesBenefitInvestmentCoastalErosionSchema =
-  Joi.alternatives()
-    .try(
-      Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
-      Joi.string()
-        .pattern(/^\d{1,18}$/)
-        .custom((value) => {
-          const num = BigInt(value)
-          if (num > BigInt('999999999999999999')) {
-            throw new Error('Value too large')
-          }
-          return value
-        })
-    )
-    .optional()
-    .allow(null, '')
-    .label('propertiesBenefitInvestmentCoastalErosion')
-    .messages({
-      'number.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'number.integer': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'number.min': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'number.max': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'string.pattern.base': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID,
-      'any.custom': PROJECT_VALIDATION_MESSAGES.PROPERTY_VALUE_INVALID
-    })
+  createPropertyBenefitSchema('propertiesBenefitInvestmentCoastalErosion')
 /**
  * Percent properties 20 percent deprived schema (API format)
  * Database field: percent_properties_20_percent_deprived (Int)
