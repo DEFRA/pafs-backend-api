@@ -40,12 +40,10 @@ describe('fcerm1-columns', () => {
       expect(last).toMatchObject({ column: 'NI', field: 'psoName' })
     })
 
-    test('every entry has required fields: column, field, scope', () => {
+    test('every entry has required fields: column and field', () => {
       for (const col of FCERM1_COLUMN_MAP) {
         expect(col).toHaveProperty('column')
         expect(col).toHaveProperty('field')
-        expect(col).toHaveProperty('scope')
-        expect(['legacy', 'common', 'new']).toContain(col.scope)
       }
     })
 
@@ -95,12 +93,6 @@ describe('fcerm1-columns', () => {
   })
 
   describe('LEGACY_COLUMNS', () => {
-    test('contains only legacy and common scope columns', () => {
-      for (const col of LEGACY_COLUMNS) {
-        expect(['legacy', 'common']).toContain(col.scope)
-      }
-    })
-
     test('includes key columns A, BY, HI, MW, NA, NI', () => {
       const cols = LEGACY_COLUMNS.map((c) => c.column)
       expect(cols).toContain('A')

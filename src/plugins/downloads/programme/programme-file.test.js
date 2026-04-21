@@ -116,12 +116,12 @@ describe('getUserProgrammeFile route', () => {
       'test-bucket',
       'programme/user_5/fcerm1.xlsx',
       3600,
-      'FCERM1_Proposals.xlsx'
+      'All_Proposals.xlsx'
     )
     expect(h._status).toBe(200)
     expect(h._body).toMatchObject({
       downloadUrl: 'https://s3.example.com/fcerm1.xlsx',
-      filename: 'FCERM1_Proposals.xlsx'
+      filename: 'All_Proposals.xlsx'
     })
   })
 

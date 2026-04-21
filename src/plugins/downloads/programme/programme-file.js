@@ -5,7 +5,7 @@ import { getS3Service } from '../../../common/services/file-upload/s3-service.js
 import { getUserDownloadRecord, DOWNLOAD_STATUS } from './programme-service.js'
 
 const FILE_TYPE_LABELS = {
-  fcerm1: 'FCERM1_Proposals.xlsx',
+  fcerm1: 'All_Proposals.xlsx',
   'benefit-areas': 'Benefit_Areas.zip',
   moderations: 'Moderations.zip'
 }

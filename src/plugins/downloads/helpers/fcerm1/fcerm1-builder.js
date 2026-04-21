@@ -107,8 +107,11 @@ function buildCellXml(ref, value, styleIndex) {
 // Returns a map of column letter → full cell XML for cells that contain <f> formulas
 function extractFormulaCells(rowXml) {
   const formulas = {}
-  // [^/]*> matches only non-self-closing tags (self-closing ones end with "/>")
-  for (const m of rowXml.matchAll(/<c r="([A-Z]+)\d+"[^/]*>.*?<\/c>/gs)) {
+  // [^>]*(?<!/)> matches the opening tag, excluding self-closing tags (which end with "/>")
+  // (?:[^<]|<(?!\/c>))* is an unrolled loop that matches cell content without backtracking
+  for (const m of rowXml.matchAll(
+    /<c r="([A-Z]+)\d+"[^>]*(?<!\/)>(?:[^<]|<(?!\/c>))*<\/c>/g
+  )) {
     if (m[0].includes('<f')) {
       formulas[m[1]] = m[0]
     }
