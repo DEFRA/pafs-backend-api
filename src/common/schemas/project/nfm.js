@@ -21,6 +21,19 @@ const NFM_LAND_USE_TYPES = new Set([
   'coastal_margins'
 ])
 
+/**
+ * Maximum digits allowed for whole-number values — matches Decimal(20,2) DB column
+ */
+const MAX_WHOLE_NUMBER_DIGITS = 18
+
+/**
+ * Maximum digits allowed before the decimal point for decimal values
+ * (leaves 2 digits for the fractional part within Decimal(20,2))
+ */
+const MAX_INTEGER_PART_DIGITS = 16
+
+const ERR_PRECISION = 'number.precision'
+
 const maxTwoDecimalPlaces = (value, helpers) => {
   if (value === null || value === undefined) {
     return value
@@ -30,19 +43,24 @@ const maxTwoDecimalPlaces = (value, helpers) => {
   const rawStr = String(helpers.original ?? value)
 
   if (!/^\d+(\.\d+)?$/.test(rawStr)) {
-    return helpers.error('number.precision')
+    return helpers.error(ERR_PRECISION)
   }
 
   const [integerPart, decimalPart] = rawStr.split('.')
 
   if (decimalPart === undefined) {
     // Whole number: max 18 digits
-    if (integerPart.length > 18) {
-      return helpers.error('number.precision')
+    if (integerPart.length > MAX_WHOLE_NUMBER_DIGITS) {
+      return helpers.error(ERR_PRECISION)
     }
-  } else if (integerPart.length > 16 || decimalPart.length > 2) {
+  } else if (
+    integerPart.length > MAX_INTEGER_PART_DIGITS ||
+    decimalPart.length > 2
+  ) {
     // Decimal: max 16 digits before decimal, max 2 after
-    return helpers.error('number.precision')
+    return helpers.error(ERR_PRECISION)
+  } else {
+    // Decimal is within precision limits — no error
   }
 
   // Return the raw string so Prisma Decimal fields receive the full-precision value.

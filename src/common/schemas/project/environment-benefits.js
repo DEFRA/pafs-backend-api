@@ -120,6 +120,17 @@ const ERR_PRECISION = 'number.precision'
 const ERR_WHOLE_NUMBER_PRECISION = 'number.integer.max'
 const ERR_BASE = 'number.base'
 
+/**
+ * Maximum digits allowed for whole-number values — matches Decimal(20,2) DB column
+ */
+const MAX_WHOLE_NUMBER_DIGITS = 18
+
+/**
+ * Maximum digits allowed before the decimal point for decimal values
+ * (leaves 2 digits for the fractional part within Decimal(20,2))
+ */
+const MAX_INTEGER_PART_DIGITS = 16
+
 const validateQuantityString = (value, helpers) => {
   if (!/^\d+(?:\.\d+)?$/.test(value)) {
     return helpers.error(ERR_BASE)
@@ -129,12 +140,12 @@ const validateQuantityString = (value, helpers) => {
 
   if (decimalPart === undefined) {
     // Whole number: max 18 digits
-    if (integerPart.length > 18) {
+    if (integerPart.length > MAX_WHOLE_NUMBER_DIGITS) {
       return helpers.error(ERR_WHOLE_NUMBER_PRECISION)
     }
   } else {
     // Decimal number: max 16 digits before decimal, max 2 after
-    if (integerPart.length > 16) {
+    if (integerPart.length > MAX_INTEGER_PART_DIGITS) {
       return helpers.error(ERR_PRECISION)
     }
     if (decimalPart.length > 2) {
