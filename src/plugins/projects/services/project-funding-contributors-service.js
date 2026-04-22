@@ -433,7 +433,7 @@ export class ProjectFundingContributorsService {
   /**
    * Delete stale contributor rows that are no longer in the desired set.
    * @private
-   * @returns {number} Number of deleted rows
+   * @returns {Promise<number>} Number of deleted rows
    */
   async _deleteStaleContributors(desiredEntries, fundingValueId) {
     const desiredKeys = new Set(
