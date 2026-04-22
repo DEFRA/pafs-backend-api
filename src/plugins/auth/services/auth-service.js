@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto'
+import bcrypt from 'bcrypt'
 import { verifyPassword } from '../helpers/password.js'
 import {
   verifyRefreshToken,
@@ -18,8 +20,18 @@ import {
 import { config } from '../../../config.js'
 import {
   AUTH_ERROR_CODES,
-  ACCOUNT_STATUS
+  ACCOUNT_STATUS,
+  SIZE
 } from '../../../common/constants/index.js'
+
+// Generated once at module load from a cryptographically random value.
+// Never hardcoded — rotates on every server restart. Used solely to
+// equalise bcrypt response time when a login email is not found, preventing
+// user enumeration via timing differences. The result of compare is discarded.
+const TIMING_ATTACK_DUMMY_HASH = await bcrypt.hash(
+  randomBytes(32).toString('hex'),
+  SIZE.LENGTH_12
+)
 
 export class AuthService {
   constructor(prisma, logger) {
@@ -30,6 +42,10 @@ export class AuthService {
   async login(email, password, ipAddress) {
     const user = await this.findUserByEmail(email)
     if (!user) {
+      // Always perform a full bcrypt comparison to equalise response time and
+      // prevent user enumeration via timing differences. The dummy hash never
+      // matches any real password; the comparison result is intentionally discarded.
+      await bcrypt.compare(password, TIMING_ATTACK_DUMMY_HASH)
       this.logger.info({ email }, 'Login attempt for non-existent user')
       return { success: false, errorCode: AUTH_ERROR_CODES.INVALID_CREDENTIALS }
     }

@@ -550,7 +550,7 @@ model pafs_core_users {
   invitations_count          Int?           @default(0)
   admin                      Boolean        @default(false)
   disabled                   Boolean        @default(false)
-  unique_session_id          String?        @db.VarChar(20)
+  unique_session_id          String?        @db.VarChar(36)
   file_uploads               file_uploads[]
 
   @@index([disabled], map: "index_pafs_core_users_on_disabled")

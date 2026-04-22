@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="2-008-widen-unique-session-id" author="migration-team">
+    <comment>
+      The previous VARCHAR(20) was too short and caused P2000 errors on login.
+    </comment>
+
+    <modifyDataType tableName="pafs_core_users" columnName="unique_session_id" newDataType="VARCHAR(36)"/>
+
+    <rollback>
+      <modifyDataType tableName="pafs_core_users" columnName="unique_session_id" newDataType="VARCHAR(20)"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

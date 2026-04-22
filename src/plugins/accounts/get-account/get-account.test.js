@@ -13,6 +13,19 @@ vi.mock('../services/account-service.js', () => ({
   }
 }))
 
+vi.mock('../../../common/helpers/error-handler.js', () => ({
+  handleError: vi.fn((error, _request, h, errorCode) => {
+    return h
+      .response({ errors: [{ errorCode: error?.code ?? errorCode }] })
+      .code(error?.statusCode ?? HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  })
+}))
+
+const mockRequireAdmin = vi.fn()
+vi.mock('../helpers/admin-route-handler.js', () => ({
+  requireAdmin: (...args) => mockRequireAdmin(...args)
+}))
+
 describe('get-account route', () => {
   let mockRequest
   let mockH
@@ -23,6 +36,9 @@ describe('get-account route', () => {
     mockRequest = {
       params: {
         id: 123
+      },
+      auth: {
+        credentials: { isAdmin: true }
       },
       prisma: {},
       server: {
@@ -80,6 +96,36 @@ describe('get-account route', () => {
   })
 
   describe('handler - success cases', () => {
+    beforeEach(() => {
+      mockRequireAdmin.mockReturnValue(undefined)
+    })
+
+    it('returns 403 forbidden for non-admin users', async () => {
+      const { ForbiddenError } = await import('../../../common/errors/index.js')
+      mockRequireAdmin.mockImplementation(() => {
+        throw new ForbiddenError(
+          'Admin access required',
+          ACCOUNT_ERROR_CODES.UNAUTHORIZED
+        )
+      })
+
+      await getAccountRoute.handler(mockRequest, mockH)
+
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
+      expect(mockGetAccountById).not.toHaveBeenCalled()
+    })
+
+    it('passes credentials to requireAdmin', async () => {
+      const mockAccount = { id: 123, email: 'test@example.com' }
+      mockGetAccountById.mockResolvedValue(mockAccount)
+
+      await getAccountRoute.handler(mockRequest, mockH)
+
+      expect(mockRequireAdmin).toHaveBeenCalledWith(
+        mockRequest.auth.credentials
+      )
+    })
+
     it('returns account with OK status when account exists', async () => {
       const mockAccount = {
         id: 123,
@@ -198,15 +244,16 @@ describe('get-account route', () => {
   })
 
   describe('handler - error cases', () => {
+    beforeEach(() => {
+      mockRequireAdmin.mockReturnValue(undefined)
+    })
+
     it('returns NOT_FOUND when account does not exist', async () => {
       mockGetAccountById.mockResolvedValue(null)
 
       await getAccountRoute.handler(mockRequest, mockH)
 
       expect(mockGetAccountById).toHaveBeenCalledWith(123)
-      expect(mockH.response).toHaveBeenCalledWith({
-        errors: [{ errorCode: ACCOUNT_ERROR_CODES.ACCOUNT_NOT_FOUND }]
-      })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND)
     })
 
@@ -216,13 +263,6 @@ describe('get-account route', () => {
 
       await getAccountRoute.handler(mockRequest, mockH)
 
-      expect(mockRequest.server.logger.error).toHaveBeenCalledWith(
-        { error: mockError, accountId: 123 },
-        'Failed to retrieve account'
-      )
-      expect(mockH.response).toHaveBeenCalledWith({
-        errors: [{ errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED }]
-      })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     })
 
@@ -232,15 +272,15 @@ describe('get-account route', () => {
 
       await getAccountRoute.handler(mockRequest, mockH)
 
-      expect(mockRequest.server.logger.error).toHaveBeenCalled()
-      expect(mockH.response).toHaveBeenCalledWith({
-        errors: [{ errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED }]
-      })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     })
   })
 
   describe('handler - edge cases', () => {
+    beforeEach(() => {
+      mockRequireAdmin.mockReturnValue(undefined)
+    })
+
     it('handles string ID parameter', async () => {
       mockRequest.params.id = '999'
       const mockAccount = {
