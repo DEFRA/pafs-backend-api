@@ -166,8 +166,21 @@ describe('environment-benefits schemas', () => {
         )
       })
 
-      it('should reject value with more than 16 digits before decimal', () => {
-        const { error } = validate(true, '12345678901234567')
+      it('should reject value with more than 18 digits (whole number)', () => {
+        const { error } = validate(true, '1234567890123456789') // 19 digits
+        expect(error).toBeDefined()
+        expect(error.details[0].message).toBe(
+          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_WHOLE_NUMBER_PRECISION
+        )
+      })
+
+      it('should accept whole number with exactly 18 digits', () => {
+        const { error } = validate(true, '123456789012345678')
+        expect(error).toBeUndefined()
+      })
+
+      it('should reject decimal with more than 16 digits before decimal', () => {
+        const { error } = validate(true, '12345678901234567.1') // 17 before decimal
         expect(error).toBeDefined()
         expect(error.details[0].message).toBe(
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
@@ -190,13 +203,9 @@ describe('environment-benefits schemas', () => {
         )
       })
 
-      it('should reject value where integer part exceeds MAX_SAFE_INTEGER', () => {
-        // 17 nines exceeds Number.MAX_SAFE_INTEGER (9007199254740991)
-        const { error } = validate(true, '99999999999999999')
-        expect(error).toBeDefined()
-        expect(error.details[0].message).toBe(
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
-        )
+      it('should accept whole number with 17 digits (within 18 digit limit)', () => {
+        const { error } = validate(true, '99999999999999999') // 17 digits, valid whole number
+        expect(error).toBeUndefined()
       })
     })
 
@@ -269,8 +278,16 @@ describe('environment-benefits schemas', () => {
           )
         })
 
-        it('should reject more than 16 digits before decimal', () => {
-          const { error } = schema.validate('12345678901234567')
+        it('should reject more than 18 digits (whole number)', () => {
+          const { error } = schema.validate('1234567890123456789') // 19 digits
+          expect(error).toBeDefined()
+          expect(error.details[0].message).toBe(
+            PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_WHOLE_NUMBER_PRECISION
+          )
+        })
+
+        it('should reject decimal with more than 16 digits before decimal', () => {
+          const { error } = schema.validate('12345678901234567.1') // 17 before decimal
           expect(error).toBeDefined()
           expect(error.details[0].message).toBe(
             PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION

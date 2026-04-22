@@ -28,11 +28,25 @@ const maxTwoDecimalPlaces = (value, helpers) => {
   // Use helpers.original (raw string before Joi coercion) to validate accurately.
   // String(value) would use the coerced JS float which loses precision for large numbers.
   const rawStr = String(helpers.original ?? value)
-  if (/^\d{1,16}(\.\d{1,2})?$/.test(rawStr)) {
-    // Return the raw string so Prisma Decimal fields receive the full-precision value.
-    return rawStr
+
+  if (!/^\d+(\.\d+)?$/.test(rawStr)) {
+    return helpers.error('number.precision')
   }
-  return helpers.error('number.precision')
+
+  const [integerPart, decimalPart] = rawStr.split('.')
+
+  if (decimalPart === undefined) {
+    // Whole number: max 18 digits
+    if (integerPart.length > 18) {
+      return helpers.error('number.precision')
+    }
+  } else if (integerPart.length > 16 || decimalPart.length > 2) {
+    // Decimal: max 16 digits before decimal, max 2 after
+    return helpers.error('number.precision')
+  }
+
+  // Return the raw string so Prisma Decimal fields receive the full-precision value.
+  return rawStr
 }
 
 /**

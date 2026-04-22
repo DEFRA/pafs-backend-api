@@ -6,7 +6,13 @@
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
 
   <changeSet id="4-001-numeric-precision" author="system">
-    <comment>Update numeric fields for improved precision - property benefits to BIGINT and environmental benefits to DECIMAL(18,2)</comment>
+    <comment>
+      Update numeric fields for improved precision:
+      - Property benefit columns: INTEGER to BIGINT
+      - Environmental benefits habitat/watercourse columns: REAL to DECIMAL(20,2)
+        DECIMAL(20,2) supports whole numbers up to 18 digits and decimals up to 16 digits before the point with 2 after
+      - NFM measure and land use change columns: DOUBLE PRECISION to DECIMAL(20,2)
+    </comment>
 
     <!-- Change flooding property benefit columns from INTEGER to BIGINT -->
     <modifyDataType columnName="properties_benefit_maintaining_assets" newDataType="BIGINT" tableName="pafs_core_projects"/>
@@ -18,31 +24,32 @@
     <modifyDataType columnName="properties_benefit_maintaining_assets_coastal" newDataType="BIGINT" tableName="pafs_core_projects"/>
     <modifyDataType columnName="properties_benefit_investment_coastal_erosion" newDataType="BIGINT" tableName="pafs_core_projects"/>
 
-    <!-- Change habitat quantity columns from REAL to DECIMAL(18,2) -->
-    <modifyDataType columnName="hectares_of_intertidal_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="hectares_of_woodland_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="hectares_of_wet_woodland_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="hectares_of_wetland_or_wet_grassland_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="hectares_of_grassland_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="hectares_of_heathland_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="hectares_of_pond_or_lake_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="hectares_of_arable_land_lake_habitat_created_or_enhanced" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <!-- Change habitat quantity columns from REAL to DECIMAL(20,2) -->
+    <modifyDataType columnName="hectares_of_intertidal_habitat_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_woodland_habitat_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_wet_woodland_habitat_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_wetland_or_wet_grassland_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_grassland_habitat_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_heathland_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_pond_or_lake_habitat_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="hectares_of_arable_land_lake_habitat_created_or_enhanced" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
 
-    <!-- Restore watercourse enhancement columns from REAL to DECIMAL(18,2) -->
-    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_comprehensive" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_partial" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
-    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_single" newDataType="DECIMAL(18,2)" tableName="pafs_core_projects"/>
+    <!-- Change watercourse enhancement columns from REAL to DECIMAL(20,2) -->
+    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_comprehensive" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_partial" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
+    <modifyDataType columnName="kilometres_of_watercourse_enhanced_or_created_single" newDataType="DECIMAL(20,2)" tableName="pafs_core_projects"/>
 
-    <!-- Change NFM measure numeric fields from DOUBLE PRECISION to DECIMAL(18,2) -->
-    <modifyDataType columnName="area_hectares" newDataType="DECIMAL(18,2)" tableName="pafs_core_nfm_measures"/>
-    <modifyDataType columnName="storage_volume_m3" newDataType="DECIMAL(18,2)" tableName="pafs_core_nfm_measures"/>
-    <modifyDataType columnName="length_km" newDataType="DECIMAL(18,2)" tableName="pafs_core_nfm_measures"/>
-    <modifyDataType columnName="width_m" newDataType="DECIMAL(18,2)" tableName="pafs_core_nfm_measures"/>
+    <!-- Change NFM measure numeric fields from DOUBLE PRECISION to DECIMAL(20,2) -->
+    <modifyDataType columnName="area_hectares" newDataType="DECIMAL(20,2)" tableName="pafs_core_nfm_measures"/>
+    <modifyDataType columnName="storage_volume_m3" newDataType="DECIMAL(20,2)" tableName="pafs_core_nfm_measures"/>
+    <modifyDataType columnName="length_km" newDataType="DECIMAL(20,2)" tableName="pafs_core_nfm_measures"/>
+    <modifyDataType columnName="width_m" newDataType="DECIMAL(20,2)" tableName="pafs_core_nfm_measures"/>
 
-    <!-- Change NFM land use change numeric fields from DOUBLE PRECISION to DECIMAL(18,2) -->
-    <modifyDataType columnName="area_before_hectares" newDataType="DECIMAL(18,2)" tableName="pafs_core_nfm_land_use_changes"/>
-    <modifyDataType columnName="area_after_hectares" newDataType="DECIMAL(18,2)" tableName="pafs_core_nfm_land_use_changes"/>
+    <!-- Change NFM land use change numeric fields from DOUBLE PRECISION to DECIMAL(20,2) -->
+    <modifyDataType columnName="area_before_hectares" newDataType="DECIMAL(20,2)" tableName="pafs_core_nfm_land_use_changes"/>
+    <modifyDataType columnName="area_after_hectares" newDataType="DECIMAL(20,2)" tableName="pafs_core_nfm_land_use_changes"/>
 
   </changeSet>
 
 </databaseChangeLog>
+

@@ -112,10 +112,12 @@ export const environmentalBenefitsGateSchema = (label) =>
 
 /**
  * Shared custom validator for environmental benefit quantity fields.
- * Accepts string inputs with up to 16 digits before the decimal and 2 after.
+ * - Whole numbers (no decimal): up to 18 digits — matches Decimal(20,2) DB column
+ * - Decimal numbers: up to 16 digits before the decimal, up to 2 digits after
  * Returns the original string to preserve precision for Decimal database fields.
  */
 const ERR_PRECISION = 'number.precision'
+const ERR_WHOLE_NUMBER_PRECISION = 'number.integer.max'
 const ERR_BASE = 'number.base'
 
 const validateQuantityString = (value, helpers) => {
@@ -125,23 +127,19 @@ const validateQuantityString = (value, helpers) => {
 
   const [integerPart, decimalPart] = value.split('.')
 
-  if (integerPart.length > 16) {
-    return helpers.error(ERR_PRECISION)
-  }
-
-  if (decimalPart && decimalPart.length > 2) {
-    return helpers.error(ERR_PRECISION)
-  }
-
-  const num = Number.parseFloat(value)
-  if (Number.isNaN(num) || num < 0) {
-    return helpers.error(ERR_BASE)
-  }
-
-  // For very large numbers, check if integer part exceeds JavaScript's safe range
-  const integerValue = Number.parseInt(integerPart, 10)
-  if (integerValue > Number.MAX_SAFE_INTEGER) {
-    return helpers.error(ERR_PRECISION)
+  if (decimalPart === undefined) {
+    // Whole number: max 18 digits
+    if (integerPart.length > 18) {
+      return helpers.error(ERR_WHOLE_NUMBER_PRECISION)
+    }
+  } else {
+    // Decimal number: max 16 digits before decimal, max 2 after
+    if (integerPart.length > 16) {
+      return helpers.error(ERR_PRECISION)
+    }
+    if (decimalPart.length > 2) {
+      return helpers.error(ERR_PRECISION)
+    }
   }
 
   return value
@@ -156,7 +154,9 @@ const QUANTITY_MESSAGES = {
   'number.max':
     PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
   'number.precision':
-    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
+  'number.integer.max':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_WHOLE_NUMBER_PRECISION
 }
 
 /**
