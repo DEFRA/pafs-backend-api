@@ -260,7 +260,9 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
 
       for (const fv of fundingValues) {
         const remaining = allAmountDbCols.reduce((sum, col) => {
-          if (nulledDbCols.has(col)) return sum
+          if (nulledDbCols.has(col)) {
+            return sum
+          }
           return sum + (fv[col] ?? 0n)
         }, 0n)
 
