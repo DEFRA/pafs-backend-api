@@ -1173,4 +1173,278 @@ describe('ProjectFundingSourcesService', () => {
       expect(mockLogger.error).toHaveBeenCalled()
     })
   })
+
+  // ─── nullSpecificFundingColumns ───────────────────────────────────────────
+
+  describe('nullSpecificFundingColumns', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
+    })
+
+    test('should null specified columns and recalculate total', async () => {
+      const fundingValue = {
+        id: 100n,
+        fcerm_gia: 1000n,
+        local_levy: 500n,
+        internal_drainage_boards: null,
+        public_contributions: 200n,
+        private_contributions: null,
+        other_ea_contributions: null,
+        not_yet_identified: 100n,
+        asset_replacement_allowance: null,
+        environment_statutory_funding: null,
+        frequently_flooded_communities: null,
+        other_additional_grant_in_aid: null,
+        other_government_department: null,
+        recovery: null,
+        summer_economic_fund: null,
+        total: 1800n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullSpecificFundingColumns(referenceNumber, [
+        'localLevy',
+        'notYetIdentified'
+      ])
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: {
+          local_levy: null,
+          not_yet_identified: null,
+          total: 1200n // 1000 + 200 remaining
+        }
+      })
+    })
+
+    test('should handle contributor spend columns (publicContributions etc.)', async () => {
+      const fundingValue = {
+        id: 200n,
+        fcerm_gia: 500n,
+        local_levy: null,
+        internal_drainage_boards: null,
+        public_contributions: 300n,
+        private_contributions: 100n,
+        other_ea_contributions: null,
+        not_yet_identified: null,
+        asset_replacement_allowance: null,
+        environment_statutory_funding: null,
+        frequently_flooded_communities: null,
+        other_additional_grant_in_aid: null,
+        other_government_department: null,
+        recovery: null,
+        summer_economic_fund: null,
+        total: 900n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullSpecificFundingColumns(referenceNumber, [
+        'publicContributions'
+      ])
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 200n },
+        data: {
+          public_contributions: null,
+          total: 600n // 500 + 100 remaining
+        }
+      })
+    })
+
+    test('should null GIA sub-source columns (Screen 2 deselections)', async () => {
+      const fundingValue = {
+        id: 300n,
+        fcerm_gia: 2000n,
+        local_levy: null,
+        internal_drainage_boards: null,
+        public_contributions: null,
+        private_contributions: null,
+        other_ea_contributions: null,
+        not_yet_identified: null,
+        asset_replacement_allowance: 400n,
+        environment_statutory_funding: null,
+        frequently_flooded_communities: 200n,
+        other_additional_grant_in_aid: null,
+        other_government_department: null,
+        recovery: 100n,
+        summer_economic_fund: null,
+        total: 2700n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullSpecificFundingColumns(referenceNumber, [
+        'assetReplacementAllowance',
+        'recovery'
+      ])
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 300n },
+        data: {
+          asset_replacement_allowance: null,
+          recovery: null,
+          total: 2200n // 2000 + 200 remaining
+        }
+      })
+    })
+
+    test('should handle multiple funding value rows', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        {
+          id: 100n,
+          fcerm_gia: 1000n,
+          local_levy: 500n,
+          internal_drainage_boards: null,
+          public_contributions: null,
+          private_contributions: null,
+          other_ea_contributions: null,
+          not_yet_identified: null,
+          asset_replacement_allowance: null,
+          environment_statutory_funding: null,
+          frequently_flooded_communities: null,
+          other_additional_grant_in_aid: null,
+          other_government_department: null,
+          recovery: null,
+          summer_economic_fund: null,
+          total: 1500n
+        },
+        {
+          id: 101n,
+          fcerm_gia: 2000n,
+          local_levy: 300n,
+          internal_drainage_boards: null,
+          public_contributions: null,
+          private_contributions: null,
+          other_ea_contributions: null,
+          not_yet_identified: null,
+          asset_replacement_allowance: null,
+          environment_statutory_funding: null,
+          frequently_flooded_communities: null,
+          other_additional_grant_in_aid: null,
+          other_government_department: null,
+          recovery: null,
+          summer_economic_fund: null,
+          total: 2300n
+        }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullSpecificFundingColumns(referenceNumber, ['localLevy'])
+
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledTimes(
+        2
+      )
+      expect(
+        mockPrisma.pafs_core_funding_values.update
+      ).toHaveBeenNthCalledWith(1, {
+        where: { id: 100n },
+        data: { local_levy: null, total: 1000n }
+      })
+      expect(
+        mockPrisma.pafs_core_funding_values.update
+      ).toHaveBeenNthCalledWith(2, {
+        where: { id: 101n },
+        data: { local_levy: null, total: 2000n }
+      })
+    })
+
+    test('should do nothing when no funding values exist', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([])
+
+      await service.nullSpecificFundingColumns(referenceNumber, ['fcermGia'])
+
+      expect(mockPrisma.pafs_core_funding_values.update).not.toHaveBeenCalled()
+      expect(mockLogger.info).toHaveBeenCalled()
+    })
+
+    test('should ignore unknown field names gracefully', async () => {
+      const fundingValue = {
+        id: 100n,
+        fcerm_gia: 1000n,
+        local_levy: null,
+        internal_drainage_boards: null,
+        public_contributions: null,
+        private_contributions: null,
+        other_ea_contributions: null,
+        not_yet_identified: null,
+        asset_replacement_allowance: null,
+        environment_statutory_funding: null,
+        frequently_flooded_communities: null,
+        other_additional_grant_in_aid: null,
+        other_government_department: null,
+        recovery: null,
+        summer_economic_fund: null,
+        total: 1000n
+      }
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        fundingValue
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+
+      await service.nullSpecificFundingColumns(referenceNumber, [
+        'unknownField'
+      ])
+
+      // nullData is empty so only total is written (unchanged since no cols nulled)
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 100n },
+        data: { total: 1000n }
+      })
+    })
+
+    test('should throw and log error when project lookup fails', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.nullSpecificFundingColumns(referenceNumber, ['fcermGia'])
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber }),
+        'Error nulling specific funding columns'
+      )
+    })
+
+    test('should throw when database update fails', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        {
+          id: 100n,
+          fcerm_gia: 1000n,
+          local_levy: null,
+          internal_drainage_boards: null,
+          public_contributions: null,
+          private_contributions: null,
+          other_ea_contributions: null,
+          not_yet_identified: null,
+          asset_replacement_allowance: null,
+          environment_statutory_funding: null,
+          frequently_flooded_communities: null,
+          other_additional_grant_in_aid: null,
+          other_government_department: null,
+          recovery: null,
+          summer_economic_fund: null,
+          total: 1000n
+        }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockRejectedValue(
+        new Error('Update failed')
+      )
+
+      await expect(
+        service.nullSpecificFundingColumns(referenceNumber, ['fcermGia'])
+      ).rejects.toThrow('Update failed')
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
+  })
 })

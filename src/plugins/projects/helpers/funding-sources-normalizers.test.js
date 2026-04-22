@@ -6,6 +6,7 @@ import {
   handleFundingSourcesData,
   clearDeselectedAdditionalGiaData,
   clearDeselectedContributorData,
+  clearDeselectedFundingSourceColumns,
   cleanupRemovedContributors
 } from './funding-sources-normalizers.js'
 
@@ -975,6 +976,164 @@ describe('funding-sources-normalizers', () => {
         contributorType: 'public_contributions',
         currentNames: []
       })
+    })
+  })
+
+  describe('clearDeselectedFundingSourceColumns', () => {
+    let projectService
+
+    beforeEach(() => {
+      projectService = {
+        nullSpecificFundingColumns: vi.fn().mockResolvedValue(undefined)
+      }
+    })
+
+    it('does nothing at unrelated validation levels', async () => {
+      const payload = { fcermGia: false, referenceNumber: 'REF' }
+
+      await clearDeselectedFundingSourceColumns(
+        payload,
+        PROJECT_VALIDATION_LEVELS.APPROACH,
+        projectService
+      )
+
+      expect(projectService.nullSpecificFundingColumns).not.toHaveBeenCalled()
+    })
+
+    it('does nothing when all Screen 1 main sources are true', async () => {
+      const payload = {
+        referenceNumber: 'REF',
+        fcermGia: true,
+        localLevy: true,
+        notYetIdentified: true,
+        publicContributions: true,
+        privateContributions: true,
+        otherEaContributions: true
+      }
+
+      await clearDeselectedFundingSourceColumns(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED,
+        projectService
+      )
+
+      expect(projectService.nullSpecificFundingColumns).not.toHaveBeenCalled()
+    })
+
+    it('nulls only the deselected Screen 1 main sources', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fcermGia: true,
+        localLevy: false,
+        notYetIdentified: false,
+        publicContributions: true,
+        privateContributions: true,
+        otherEaContributions: true
+      }
+
+      await clearDeselectedFundingSourceColumns(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED,
+        projectService
+      )
+
+      expect(projectService.nullSpecificFundingColumns).toHaveBeenCalledWith(
+        'ANC501E/000A/001A',
+        ['localLevy', 'notYetIdentified']
+      )
+    })
+
+    it('nulls contributor spend columns when deselected on Screen 1', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fcermGia: true,
+        localLevy: true,
+        notYetIdentified: true,
+        publicContributions: false,
+        privateContributions: true,
+        otherEaContributions: false
+      }
+
+      await clearDeselectedFundingSourceColumns(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED,
+        projectService
+      )
+
+      expect(projectService.nullSpecificFundingColumns).toHaveBeenCalledWith(
+        'ANC501E/000A/001A',
+        ['publicContributions', 'otherEaContributions']
+      )
+    })
+
+    it('does nothing when all Screen 2 GIA sub-sources are true', async () => {
+      const payload = {
+        referenceNumber: 'REF',
+        assetReplacementAllowance: true,
+        environmentStatutoryFunding: true,
+        frequentlyFloodedCommunities: true,
+        otherAdditionalGrantInAid: true,
+        otherGovernmentDepartment: true,
+        recovery: true,
+        summerEconomicFund: true
+      }
+
+      await clearDeselectedFundingSourceColumns(
+        payload,
+        PROJECT_VALIDATION_LEVELS.ADDITIONAL_FUNDING_SOURCES_GIA_SELECTED,
+        projectService
+      )
+
+      expect(projectService.nullSpecificFundingColumns).not.toHaveBeenCalled()
+    })
+
+    it('nulls only the deselected Screen 2 GIA sub-sources', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        assetReplacementAllowance: false,
+        environmentStatutoryFunding: true,
+        frequentlyFloodedCommunities: false,
+        otherAdditionalGrantInAid: true,
+        otherGovernmentDepartment: true,
+        recovery: false,
+        summerEconomicFund: true
+      }
+
+      await clearDeselectedFundingSourceColumns(
+        payload,
+        PROJECT_VALIDATION_LEVELS.ADDITIONAL_FUNDING_SOURCES_GIA_SELECTED,
+        projectService
+      )
+
+      expect(projectService.nullSpecificFundingColumns).toHaveBeenCalledWith(
+        'ANC501E/000A/001A',
+        [
+          'assetReplacementAllowance',
+          'frequentlyFloodedCommunities',
+          'recovery'
+        ]
+      )
+    })
+
+    it('does not include additionalFcermGia in Screen 1 checks (handled separately)', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        additionalFcermGia: false,
+        fcermGia: true,
+        localLevy: true,
+        notYetIdentified: true,
+        publicContributions: true,
+        privateContributions: true,
+        otherEaContributions: true
+      }
+
+      await clearDeselectedFundingSourceColumns(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED,
+        projectService
+      )
+
+      expect(projectService.nullSpecificFundingColumns).not.toHaveBeenCalled()
     })
   })
 })

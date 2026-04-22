@@ -349,6 +349,59 @@ const processFundingValueRow = async ({
   })
 }
 
+// Fields to check per validation level for premature spend column cleanup.
+// Screen 1 main sources (excluding additionalFcermGia which is handled separately by
+// clearDeselectedAdditionalGiaData, and contributors which keep their own row-level cleanup).
+const DESELECTED_SPEND_FIELDS_BY_LEVEL = {
+  [PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED]: [
+    'fcermGia',
+    'localLevy',
+    'notYetIdentified',
+    'publicContributions',
+    'privateContributions',
+    'otherEaContributions'
+  ],
+  [PROJECT_VALIDATION_LEVELS.ADDITIONAL_FUNDING_SOURCES_GIA_SELECTED]: [
+    'assetReplacementAllowance',
+    'environmentStatutoryFunding',
+    'frequentlyFloodedCommunities',
+    'otherAdditionalGrantInAid',
+    'otherGovernmentDepartment',
+    'recovery',
+    'summerEconomicFund'
+  ]
+}
+
+/**
+ * Eagerly nulls spend columns in pafs_core_funding_values when individual
+ * funding sources are deselected on Screen 1 (main sources) or Screen 2
+ * (additional GIA sub-sources).
+ *
+ * Runs for FUNDING_SOURCES_SELECTED and ADDITIONAL_FUNDING_SOURCES_GIA_SELECTED
+ * levels. Does not replace the estimated-spend page submission which also writes
+ * null for these fields — both paths are intentional.
+ */
+export const clearDeselectedFundingSourceColumns = async (
+  enrichedPayload,
+  validationLevel,
+  projectService
+) => {
+  const fields = DESELECTED_SPEND_FIELDS_BY_LEVEL[validationLevel]
+  if (!fields) {
+    return
+  }
+
+  const deselected = fields.filter((f) => enrichedPayload[f] === false)
+  if (!deselected.length) {
+    return
+  }
+
+  await projectService.nullSpecificFundingColumns(
+    enrichedPayload.referenceNumber,
+    deselected
+  )
+}
+
 /**
  * Clears all additional FCRM GIA boolean flags in the payload and nulls their
  * spend columns in pafs_core_funding_values when additionalFcermGia is deselected.

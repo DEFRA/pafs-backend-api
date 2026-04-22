@@ -23,6 +23,7 @@ import {
   handleFundingSourcesData,
   clearDeselectedContributorData,
   clearDeselectedAdditionalGiaData,
+  clearDeselectedFundingSourceColumns,
   cleanupRemovedContributors,
   handleNfmMeasureData,
   sanitizeWlbFields,
@@ -113,6 +114,13 @@ const applyPayloadNormalizers = async (
 
   // Handle NFM measure data - save to separate table if applicable
   await handleNfmMeasureData(enrichedPayload, validationLevel, projectService)
+
+  // Eagerly null spend columns for individually deselected funding sources (Screen 1 & 2)
+  await clearDeselectedFundingSourceColumns(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
 
   // Clear additional GIA boolean flags + spend columns when additionalFcermGia is deselected
   await clearDeselectedAdditionalGiaData(

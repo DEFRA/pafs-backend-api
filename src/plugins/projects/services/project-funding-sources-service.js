@@ -222,6 +222,68 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
   }
 
   /**
+   * Null out specific funding source columns in all pafs_core_funding_values rows
+   * for a project, and recalculate the total from the remaining non-nulled columns.
+   * Called when individual funding sources are deselected on Screen 1 or Screen 2.
+   * @param {string} referenceNumber - Project reference number
+   * @param {string[]} fields - Array of camelCase field names to null (e.g. ['fcermGia', 'localLevy'])
+   */
+  async nullSpecificFundingColumns(referenceNumber, fields) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
+        {
+          where: { project_id: projectId }
+        }
+      )
+
+      if (!fundingValues.length) {
+        this.logger.info(
+          { projectId, referenceNumber },
+          'No funding values found, nothing to null'
+        )
+        return
+      }
+
+      const fieldToDb = Object.fromEntries(FUNDING_VALUE_AMOUNT_FIELD_MAP)
+      const allAmountDbCols = FUNDING_VALUE_AMOUNT_FIELD_MAP.map(([, db]) => db)
+
+      const nullData = {}
+      for (const field of fields) {
+        const dbCol = fieldToDb[field]
+        if (dbCol) {
+          nullData[dbCol] = null
+        }
+      }
+      const nulledDbCols = new Set(Object.keys(nullData))
+
+      for (const fv of fundingValues) {
+        const remaining = allAmountDbCols.reduce((sum, col) => {
+          if (nulledDbCols.has(col)) return sum
+          return sum + (fv[col] ?? 0n)
+        }, 0n)
+
+        await this.prisma.pafs_core_funding_values.update({
+          where: { id: fv.id },
+          data: { ...nullData, total: remaining }
+        })
+      }
+
+      this.logger.info(
+        { projectId, referenceNumber, fields },
+        'Specific funding columns nulled successfully'
+      )
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, fields },
+        'Error nulling specific funding columns'
+      )
+      throw error
+    }
+  }
+
+  /**
    * Null out additional FCRM GIA columns in all pafs_core_funding_values rows
    * for a project, and recalculate the total.
    * Called when additionalFcermGia is deselected.
