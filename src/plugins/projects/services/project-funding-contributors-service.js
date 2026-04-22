@@ -411,6 +411,62 @@ export class ProjectFundingContributorsService {
   }
 
   /**
+   * Upsert all desired contributor entries for a year.
+   * @private
+   */
+  async _upsertDesiredContributors(
+    desiredEntries,
+    referenceNumber,
+    financialYear
+  ) {
+    for (const contributor of desiredEntries) {
+      await this.upsertFundingContributor({
+        referenceNumber,
+        financialYear,
+        contributorType: contributor.contributorType,
+        name: contributor.name,
+        amount: contributor.amount
+      })
+    }
+  }
+
+  /**
+   * Delete stale contributor rows that are no longer in the desired set.
+   * @private
+   * @returns {number} Number of deleted rows
+   */
+  async _deleteStaleContributors(desiredEntries, fundingValueId) {
+    const desiredKeys = new Set(
+      desiredEntries.map((c) => `${c.contributorType}::${c.name}`)
+    )
+
+    const existingContributors =
+      await this.prisma.pafs_core_funding_contributors.findMany({
+        where: { funding_value_id: fundingValueId },
+        select: {
+          id: true,
+          contributor_type: true,
+          name: true
+        }
+      })
+
+    const staleIds = existingContributors
+      .filter((c) => !desiredKeys.has(`${c.contributor_type}::${c.name}`))
+      .map((c) => c.id)
+
+    if (staleIds.length > 0) {
+      await this.prisma.pafs_core_funding_contributors.deleteMany({
+        where: {
+          funding_value_id: fundingValueId,
+          id: { in: staleIds }
+        }
+      })
+    }
+
+    return staleIds.length
+  }
+
+  /**
    * Sync contributor rows for a single financial year without resetting
    * legacy secured/constrained values.
    *
@@ -453,51 +509,24 @@ export class ProjectFundingContributorsService {
       const desiredEntries = Array.isArray(contributorEntries)
         ? contributorEntries.filter(
             (c) =>
-              c &&
-              c.name &&
-              c.contributorType &&
-              c.amount !== null &&
-              c.amount !== undefined &&
-              c.amount !== ''
+              c?.name &&
+              c?.contributorType &&
+              c?.amount !== null &&
+              c?.amount !== undefined &&
+              c?.amount !== ''
           )
         : []
 
-      for (const contributor of desiredEntries) {
-        await this.upsertFundingContributor({
-          referenceNumber,
-          financialYear,
-          contributorType: contributor.contributorType,
-          name: contributor.name,
-          amount: contributor.amount
-        })
-      }
-
-      const desiredKeys = new Set(
-        desiredEntries.map((c) => `${c.contributorType}::${c.name}`)
+      await this._upsertDesiredContributors(
+        desiredEntries,
+        referenceNumber,
+        financialYear
       )
 
-      const existingContributors =
-        await this.prisma.pafs_core_funding_contributors.findMany({
-          where: { funding_value_id: fundingValue.id },
-          select: {
-            id: true,
-            contributor_type: true,
-            name: true
-          }
-        })
-
-      const staleIds = existingContributors
-        .filter((c) => !desiredKeys.has(`${c.contributor_type}::${c.name}`))
-        .map((c) => c.id)
-
-      if (staleIds.length > 0) {
-        await this.prisma.pafs_core_funding_contributors.deleteMany({
-          where: {
-            funding_value_id: fundingValue.id,
-            id: { in: staleIds }
-          }
-        })
-      }
+      const deletedCount = await this._deleteStaleContributors(
+        desiredEntries,
+        fundingValue.id
+      )
 
       this.logger.info(
         {
@@ -505,7 +534,7 @@ export class ProjectFundingContributorsService {
           financialYear,
           referenceNumber,
           desiredCount: desiredEntries.length,
-          deletedCount: staleIds.length
+          deletedCount
         },
         'Funding contributors synced successfully for year'
       )
