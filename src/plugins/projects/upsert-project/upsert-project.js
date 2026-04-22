@@ -18,6 +18,13 @@ import {
   normalizeConfidenceFields,
   sanitizeWlcFields,
   normalizeWlcFields,
+  sanitizeFundingSourceFields,
+  normalizeFundingSourceFields,
+  handleFundingSourcesData,
+  clearDeselectedContributorData,
+  clearDeselectedAdditionalGiaData,
+  clearDeselectedFundingSourceColumns,
+  cleanupRemovedContributors,
   handleNfmMeasureData,
   sanitizeWlbFields,
   normalizeWlbFields,
@@ -54,6 +61,7 @@ const createServices = (request) => {
 const sanitizePayloadForValidation = (proposalPayload, validationLevel) => {
   sanitizeWlcFields(proposalPayload, validationLevel)
   sanitizeWlbFields(proposalPayload, validationLevel)
+  sanitizeFundingSourceFields(proposalPayload, validationLevel)
 }
 
 const applyPayloadNormalizers = async (
@@ -93,6 +101,9 @@ const applyPayloadNormalizers = async (
   // Normalize WLB cost fields: convert empty strings to null
   normalizeWlbFields(enrichedPayload, validationLevel)
 
+  // Normalize funding source spend fields: convert empty strings to null
+  normalizeFundingSourceFields(enrichedPayload, validationLevel)
+
   // Clear NFM fields when intervention type changes away from NFM/SUDS
   await clearNfmFieldsOnInterventionTypeChange(
     enrichedPayload,
@@ -103,6 +114,41 @@ const applyPayloadNormalizers = async (
 
   // Handle NFM measure data - save to separate table if applicable
   await handleNfmMeasureData(enrichedPayload, validationLevel, projectService)
+
+  // Eagerly null spend columns for individually deselected funding sources (Screen 1 & 2)
+  await clearDeselectedFundingSourceColumns(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
+
+  // Clear additional GIA boolean flags + spend columns when additionalFcermGia is deselected
+  await clearDeselectedAdditionalGiaData(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
+
+  // Remove contributor DB rows that are no longer in the saved names list
+  await cleanupRemovedContributors(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
+
+  // Clear contributor names + DB rows when a contributor type is deselected
+  await clearDeselectedContributorData(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
+
+  // Handle funding source estimated spend rows in joined funding tables
+  await handleFundingSourcesData(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
 }
 
 const setAreaNameIfPresent = async (enrichedPayload, areaId, areaService) => {
