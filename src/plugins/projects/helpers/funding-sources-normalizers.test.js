@@ -284,6 +284,7 @@ describe('funding-sources-normalizers', () => {
       projectService = {
         upsertFundingValue: vi.fn().mockResolvedValue({}),
         upsertFundingContributor: vi.fn().mockResolvedValue({}),
+        syncFundingContributorsForYear: vi.fn().mockResolvedValue(undefined),
         deleteFundingValue: vi.fn().mockResolvedValue(null),
         deleteAllFundingContributors: vi.fn().mockResolvedValue(0)
       }
@@ -374,32 +375,24 @@ describe('funding-sources-normalizers', () => {
         })
       })
 
-      expect(projectService.deleteAllFundingContributors).toHaveBeenCalledWith({
+      expect(
+        projectService.syncFundingContributorsForYear
+      ).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
-        financialYear: 2026
+        financialYear: 2026,
+        contributorEntries: [
+          {
+            contributorType: 'public_contributions',
+            name: 'Public Org',
+            amount: '2000'
+          },
+          {
+            contributorType: 'private_contributions',
+            name: 'Private Org',
+            amount: '3000'
+          }
+        ]
       })
-
-      expect(projectService.upsertFundingContributor).toHaveBeenCalledTimes(2)
-      expect(projectService.upsertFundingContributor).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          referenceNumber: 'ANC501E/000A/001A',
-          financialYear: 2026,
-          contributorType: 'public_contributions',
-          name: 'Public Org',
-          amount: '2000'
-        })
-      )
-      expect(projectService.upsertFundingContributor).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          referenceNumber: 'ANC501E/000A/001A',
-          financialYear: 2026,
-          contributorType: 'private_contributions',
-          name: 'Private Org',
-          amount: '3000'
-        })
-      )
     })
 
     it('deletes funding value and contributors when all row amounts are null', async () => {

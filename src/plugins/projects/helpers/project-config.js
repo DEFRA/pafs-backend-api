@@ -54,6 +54,7 @@ export const PROJECT_JOIN_TABLES = {
     joinField: 'project_id',
     isArray: true,
     fields: {
+      id: 'id',
       financialYear: 'financial_year',
       fcermGia: 'fcerm_gia',
       localLevy: 'local_levy',

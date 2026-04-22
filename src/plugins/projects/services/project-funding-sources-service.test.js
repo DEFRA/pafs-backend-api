@@ -313,11 +313,13 @@ describe('ProjectFundingSourcesService', () => {
           funding_value_id: 100n,
           contributor_type: contributorType,
           name,
-          amount: BigInt('100000'),
-          secured: true,
-          constrained: false
+          amount: BigInt('100000')
         })
       })
+      const createCall =
+        mockPrisma.pafs_core_funding_contributors.create.mock.calls[0][0]
+      expect(createCall.data).not.toHaveProperty('secured')
+      expect(createCall.data).not.toHaveProperty('constrained')
       expect(
         mockPrisma.pafs_core_funding_contributors.update
       ).not.toHaveBeenCalled()
@@ -350,11 +352,14 @@ describe('ProjectFundingSourcesService', () => {
       ).toHaveBeenCalledWith({
         where: { id: existing.id },
         data: expect.objectContaining({
-          amount: BigInt('100000'),
-          secured: true,
-          constrained: false
+          amount: BigInt('100000')
         })
       })
+      // Verify secured/constrained are NOT updated on existing records
+      const updateCall =
+        mockPrisma.pafs_core_funding_contributors.update.mock.calls[0][0]
+      expect(updateCall.data).not.toHaveProperty('secured')
+      expect(updateCall.data).not.toHaveProperty('constrained')
       expect(
         mockPrisma.pafs_core_funding_contributors.create
       ).not.toHaveBeenCalled()
@@ -372,7 +377,7 @@ describe('ProjectFundingSourcesService', () => {
       )
     })
 
-    test('should use default values for secured and constrained', async () => {
+    test('should not write secured and constrained on create', async () => {
       mockPrisma.pafs_core_funding_contributors.findFirst.mockResolvedValue(
         null
       )
@@ -388,14 +393,10 @@ describe('ProjectFundingSourcesService', () => {
         amount: '50000'
       })
 
-      expect(
-        mockPrisma.pafs_core_funding_contributors.create
-      ).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          secured: false,
-          constrained: false
-        })
-      })
+      const createCall =
+        mockPrisma.pafs_core_funding_contributors.create.mock.calls[0][0]
+      expect(createCall.data).not.toHaveProperty('secured')
+      expect(createCall.data).not.toHaveProperty('constrained')
     })
   })
 

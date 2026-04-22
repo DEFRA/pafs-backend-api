@@ -231,9 +231,7 @@ const getContributorEntries = (row) => {
         .map((contributor) => ({
           name: contributor.name,
           contributorType: contributor.contributorType || contributorType,
-          amount: contributor.amount,
-          secured: contributor.secured ?? false,
-          constrained: contributor.constrained ?? false
+          amount: contributor.amount
         }))
     }
   )
@@ -302,22 +300,11 @@ const upsertFundingContributors = async ({
   financialYear,
   contributorEntries
 }) => {
-  await projectService.deleteAllFundingContributors({
+  await projectService.syncFundingContributorsForYear({
     referenceNumber,
-    financialYear
+    financialYear,
+    contributorEntries
   })
-
-  for (const contributor of contributorEntries) {
-    await projectService.upsertFundingContributor({
-      referenceNumber,
-      financialYear,
-      contributorType: contributor.contributorType,
-      name: contributor.name,
-      amount: contributor.amount,
-      secured: contributor.secured,
-      constrained: contributor.constrained
-    })
-  }
 }
 
 const processFundingValueRow = async ({

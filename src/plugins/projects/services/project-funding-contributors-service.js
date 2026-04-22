@@ -38,8 +38,6 @@ export class ProjectFundingContributorsService {
    * @param {string} data.contributorType - Type of contributor (e.g., 'partner_funding', 'recovery_fund')
    * @param {string} data.name - Name of contributor
    * @param {string|number} data.amount - Amount contributed
-   * @param {boolean} [data.secured=false] - Whether funding is secured
-   * @param {boolean} [data.constrained=false] - Whether funding is constrained
    * @returns {Promise<Object>} Created or updated contributor record
    */
   async upsertFundingContributor({
@@ -47,9 +45,7 @@ export class ProjectFundingContributorsService {
     financialYear,
     contributorType,
     name,
-    amount,
-    secured = false,
-    constrained = false
+    amount
   }) {
     try {
       const projectId = await this._getProjectIdByReference(referenceNumber)
@@ -80,18 +76,14 @@ export class ProjectFundingContributorsService {
           }
         })
 
-      const updateData = {
-        amount: BigInt(amount),
-        secured,
-        constrained,
-        updated_at: new Date()
-      }
-
       let contributor
       if (existingContributor) {
         contributor = await this.prisma.pafs_core_funding_contributors.update({
           where: { id: existingContributor.id },
-          data: updateData
+          data: {
+            amount: BigInt(amount),
+            updated_at: new Date()
+          }
         })
       } else {
         contributor = await this.prisma.pafs_core_funding_contributors.create({
@@ -99,8 +91,9 @@ export class ProjectFundingContributorsService {
             funding_value_id: fundingValue.id,
             contributor_type: contributorType,
             name,
-            ...updateData,
-            created_at: new Date()
+            amount: BigInt(amount),
+            created_at: new Date(),
+            updated_at: new Date()
           }
         })
       }
@@ -412,6 +405,118 @@ export class ProjectFundingContributorsService {
       this.logger.error(
         { error: error.message, referenceNumber, contributorType },
         'Error deleting funding contributors by type'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Sync contributor rows for a single financial year without resetting
+   * legacy secured/constrained values.
+   *
+   * Behaviour:
+   * - Existing matching rows (same type + name) are updated for amount only
+   * - Missing rows are created (secured/constrained left to DB defaults)
+   * - Stale rows not present in contributorEntries are deleted
+   *
+   * @param {Object} data
+   * @param {string} data.referenceNumber
+   * @param {number} data.financialYear
+   * @param {Array<{name:string, contributorType:string, amount:string|number}>} data.contributorEntries
+   */
+  async syncFundingContributorsForYear({
+    referenceNumber,
+    financialYear,
+    contributorEntries
+  }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
+        {
+          where: {
+            project_id: projectId,
+            financial_year: financialYear
+          },
+          select: { id: true }
+        }
+      )
+
+      if (!fundingValue) {
+        this.logger.info(
+          { projectId, financialYear, referenceNumber },
+          'Funding value not found, cannot sync contributors'
+        )
+        return
+      }
+
+      const desiredEntries = Array.isArray(contributorEntries)
+        ? contributorEntries.filter(
+            (c) =>
+              c &&
+              c.name &&
+              c.contributorType &&
+              c.amount !== null &&
+              c.amount !== undefined &&
+              c.amount !== ''
+          )
+        : []
+
+      for (const contributor of desiredEntries) {
+        await this.upsertFundingContributor({
+          referenceNumber,
+          financialYear,
+          contributorType: contributor.contributorType,
+          name: contributor.name,
+          amount: contributor.amount
+        })
+      }
+
+      const desiredKeys = new Set(
+        desiredEntries.map((c) => `${c.contributorType}::${c.name}`)
+      )
+
+      const existingContributors =
+        await this.prisma.pafs_core_funding_contributors.findMany({
+          where: { funding_value_id: fundingValue.id },
+          select: {
+            id: true,
+            contributor_type: true,
+            name: true
+          }
+        })
+
+      const staleIds = existingContributors
+        .filter((c) => !desiredKeys.has(`${c.contributor_type}::${c.name}`))
+        .map((c) => c.id)
+
+      if (staleIds.length > 0) {
+        await this.prisma.pafs_core_funding_contributors.deleteMany({
+          where: {
+            funding_value_id: fundingValue.id,
+            id: { in: staleIds }
+          }
+        })
+      }
+
+      this.logger.info(
+        {
+          projectId,
+          financialYear,
+          referenceNumber,
+          desiredCount: desiredEntries.length,
+          deletedCount: staleIds.length
+        },
+        'Funding contributors synced successfully for year'
+      )
+    } catch (error) {
+      this.logger.error(
+        {
+          error: error.message,
+          referenceNumber,
+          financialYear
+        },
+        'Error syncing funding contributors for year'
       )
       throw error
     }

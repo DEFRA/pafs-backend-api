@@ -52,8 +52,13 @@ const isFundingValuesBigIntField = (field, sourceTable) => {
   )
 }
 
+const FUNDING_VALUES_NUMBER_FIELDS = new Set(['financialYear', 'id'])
+
 const isFundingValuesNumberField = (field, sourceTable) => {
-  return sourceTable === 'pafs_core_funding_values' && field === 'financialYear'
+  return (
+    sourceTable === 'pafs_core_funding_values' &&
+    FUNDING_VALUES_NUMBER_FIELDS.has(field)
+  )
 }
 
 const isFundingContributorsBigIntField = (field, sourceTable) => {
