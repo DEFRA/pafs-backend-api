@@ -28,7 +28,14 @@ const BIGINT_FIELDS = new Set([
   'wlbEstimatedEnvironmentalBenefits',
   'wlbEstimatedRecreationTourismBenefits',
   'wlbEstimatedLandValueUpliftBenefits',
-  'carbonOperationalCostForecast'
+  'carbonOperationalCostForecast',
+  // Property benefit fields — BigInt in database
+  'maintainingExistingAssets',
+  'reducingFloodRisk50Plus',
+  'reducingFloodRiskLess50',
+  'increasingFloodResilience',
+  'propertiesBenefitMaintainingAssetsCoastal',
+  'propertiesBenefitInvestmentCoastalErosion'
 ])
 const DECIMAL_FIELDS = new Set([
   'carbonCostBuild',

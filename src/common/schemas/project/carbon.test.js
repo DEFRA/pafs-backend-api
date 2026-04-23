@@ -69,8 +69,17 @@ describe('Carbon Impact Schemas', () => {
           expect(error.details[0].message).toBe('CARBON_EMISSION_INVALID')
         })
 
-        it('should reject values with more than 16 digits in integer part', () => {
-          const oversized = '12345678901234567'
+        it('should reject whole numbers with more than 18 digits', () => {
+          const oversized = '1'.repeat(19)
+          const { error } = schema.validate(oversized)
+          expect(error).toBeDefined()
+          expect(error.details[0].message).toBe(
+            'CARBON_EMISSION_WHOLE_NUMBER_PRECISION'
+          )
+        })
+
+        it('should reject decimal values with more than 16 digits before the decimal', () => {
+          const oversized = '1'.repeat(17) + '.99'
           const { error } = schema.validate(oversized)
           expect(error).toBeDefined()
           expect(error.details[0].message).toBe('CARBON_EMISSION_INVALID')

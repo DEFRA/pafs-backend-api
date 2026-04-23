@@ -2,21 +2,30 @@ import Joi from 'joi'
 import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
 const MAX_EMISSION_DIGITS = 16
+const MAX_WHOLE_NUMBER_DIGITS = 18
 const MAX_COST_DIGITS = 18
 const MAX_HEXDIGEST_LENGTH = 255
-const DECIMAL_REGEX = /^\d+(\.\d{1,2})?$/
+const DECIMAL_REGEX = /^\d+(\.(\d{1,2}))?$/
 const INTEGER_REGEX = /^\d+$/
 
 /**
  * Validates a carbon decimal field value (up to 2 decimal places).
  * Used for tCO₂ fields: build, operation, sequestered, avoided.
+ * - Whole number (no decimal): up to 18 digits
+ * - Decimal: up to 16 digits before decimal, up to 2 digits after
  */
 const validateCarbonDecimalString = (value, helpers) => {
   if (!DECIMAL_REGEX.test(value)) {
     return helpers.error('string.pattern.base')
   }
-  const intPart = value.split('.')[0]
-  if (intPart.length > MAX_EMISSION_DIGITS) {
+  const [intPart, decPart] = value.split('.')
+  if (decPart === undefined) {
+    // Whole number: max 18 digits
+    if (intPart.length > MAX_WHOLE_NUMBER_DIGITS) {
+      return helpers.error('string.whole_number_max')
+    }
+  } else if (intPart.length > MAX_EMISSION_DIGITS) {
+    // Decimal: max 16 digits before decimal point
     return helpers.error('string.max')
   }
   return value
@@ -54,7 +63,9 @@ const createOptionalCarbonDecimalSchema = (label) =>
       'string.base': PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_INVALID,
       'string.pattern.base':
         PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_INVALID,
-      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_INVALID
+      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_INVALID,
+      'string.whole_number_max':
+        PROJECT_VALIDATION_MESSAGES.CARBON_EMISSION_WHOLE_NUMBER_PRECISION
     })
 
 // --- Integer field schemas (£ fields) ---
