@@ -68,9 +68,16 @@ function makePrisma(overrides = {}) {
     },
     pafs_core_nfm_measures: { findMany: vi.fn().mockResolvedValue([]) },
     pafs_core_nfm_land_use_changes: { findMany: vi.fn().mockResolvedValue([]) },
-    pafs_core_states: { findFirst: vi.fn().mockResolvedValue(null) },
-    pafs_core_area_projects: { findFirst: vi.fn().mockResolvedValue(null) },
+    pafs_core_states: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([])
+    },
+    pafs_core_area_projects: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([])
+    },
     pafs_core_funding_contributors: { findMany: vi.fn().mockResolvedValue([]) },
+    pafs_core_areas: { findMany: vi.fn().mockResolvedValue([]) },
     ...overrides
   }
 }
@@ -114,10 +121,9 @@ describe('loadSingleProjectPresenter', () => {
     FcermPresenter.mockClear()
 
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'ABC001'
-    })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'ABC001' }
+    ])
 
     const result = await loadSingleProjectPresenter(prisma, 1)
 
@@ -127,38 +133,36 @@ describe('loadSingleProjectPresenter', () => {
 
   test('runs all parallel child queries for a found project', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(10),
-      reference_number: 'REF010'
-    })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(10), reference_number: 'REF010' }
+    ])
 
     await loadSingleProjectPresenter(prisma, 10)
 
     expect(prisma.pafs_core_funding_values.findMany).toHaveBeenCalledWith({
-      where: { project_id: BigInt(10) }
+      where: { project_id: { in: [BigInt(10)] } }
     })
     expect(
       prisma.pafs_core_flood_protection_outcomes.findMany
-    ).toHaveBeenCalledWith({ where: { project_id: BigInt(10) } })
-    expect(prisma.pafs_core_states.findFirst).toHaveBeenCalledWith({
-      where: { project_id: 10 },
-      select: { state: true }
+    ).toHaveBeenCalledWith({ where: { project_id: { in: [BigInt(10)] } } })
+    expect(prisma.pafs_core_states.findMany).toHaveBeenCalledWith({
+      where: { project_id: { in: [10] } },
+      select: { project_id: true, state: true }
     })
-    expect(prisma.pafs_core_area_projects.findFirst).toHaveBeenCalledWith({
-      where: { project_id: 10 },
-      select: { area_id: true }
+    expect(prisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
+      where: { project_id: { in: [10] } },
+      select: { project_id: true, area_id: true }
     })
   })
 
   test('queries contributors when project has funding values', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'REF001'
-    })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' }
+    ])
     prisma.pafs_core_funding_values.findMany.mockResolvedValue([
-      { id: BigInt(100) },
-      { id: BigInt(101) }
+      { id: BigInt(100), project_id: BigInt(1) },
+      { id: BigInt(101), project_id: BigInt(1) }
     ])
 
     await loadSingleProjectPresenter(prisma, 1)
@@ -170,10 +174,9 @@ describe('loadSingleProjectPresenter', () => {
 
   test('skips contributor query when project has no funding values', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'REF001'
-    })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' }
+    ])
 
     await loadSingleProjectPresenter(prisma, 1)
 
@@ -188,11 +191,12 @@ describe('loadSingleProjectPresenter', () => {
     FcermPresenter.mockClear()
 
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'REF001'
-    })
-    prisma.pafs_core_states.findFirst.mockResolvedValue({ state: 'submitted' })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' }
+    ])
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { project_id: 1, state: 'submitted' }
+    ])
 
     await loadSingleProjectPresenter(prisma, 1)
 
@@ -206,10 +210,9 @@ describe('loadSingleProjectPresenter', () => {
     FcermPresenter.mockClear()
 
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'REF001'
-    })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' }
+    ])
 
     await loadSingleProjectPresenter(prisma, 1)
 
@@ -223,11 +226,12 @@ describe('loadSingleProjectPresenter', () => {
     resolveAreaHierarchy.mockResolvedValue({ rmaName: 'Test RMA' })
 
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'REF001'
-    })
-    prisma.pafs_core_area_projects.findFirst.mockResolvedValue({ area_id: 55 })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 1, area_id: 55 }
+    ])
 
     await loadSingleProjectPresenter(prisma, 1)
 
@@ -243,10 +247,9 @@ describe('loadSingleProjectPresenter', () => {
     resolveAreaHierarchy.mockResolvedValue({})
 
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'REF001'
-    })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' }
+    ])
 
     await loadSingleProjectPresenter(prisma, 1)
 
@@ -265,7 +268,7 @@ describe('loadProjectsForFcerm1', () => {
     const prisma = makePrisma()
     const result = await loadProjectsForFcerm1(prisma, [], makeLogger())
     expect(result).toEqual([])
-    expect(prisma.pafs_core_projects.findFirst).not.toHaveBeenCalled()
+    expect(prisma.pafs_core_projects.findMany).not.toHaveBeenCalled()
   })
 
   test('returns a presenter for each found project', async () => {
@@ -274,10 +277,10 @@ describe('loadProjectsForFcerm1', () => {
     FcermPresenter.mockClear()
 
     const prisma = makePrisma()
-    prisma.pafs_core_projects.findFirst.mockResolvedValue({
-      id: BigInt(1),
-      reference_number: 'REF001'
-    })
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' },
+      { id: BigInt(2), reference_number: 'REF002' }
+    ])
 
     const result = await loadProjectsForFcerm1(prisma, [1, 2], makeLogger())
 
@@ -285,34 +288,201 @@ describe('loadProjectsForFcerm1', () => {
     expect(result).toHaveLength(2)
   })
 
-  test('warns and skips project when loadSingleProjectPresenter throws', async () => {
+  test('warns and skips project when assembly throws', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    const assemblyError = new Error('Assembly error')
+    FcermPresenter.mockImplementationOnce(function () {
+      throw assemblyError
+    })
+
     const prisma = makePrisma()
-    const loadError = new Error('DB crash')
-    prisma.pafs_core_projects.findFirst.mockRejectedValue(loadError)
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001' }
+    ])
 
     const logger = makeLogger()
     const result = await loadProjectsForFcerm1(prisma, [1], logger)
 
     expect(result).toHaveLength(0)
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: loadError, projectId: 1 }),
+      expect.objectContaining({ err: assemblyError, projectId: 1 }),
       'Skipping project due to load error'
     )
   })
 
-  test('skips null presenters (project not found)', async () => {
+  test('skips projects not returned by bulk query', async () => {
     const { FcermPresenter } =
       await import('../helpers/fcerm1/fcerm1-presenter.js')
     FcermPresenter.mockClear()
 
     const prisma = makePrisma()
-    // findFirst returns null → loadSingleProjectPresenter returns null
-    prisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+    // findMany returns empty — requested project IDs not found in DB
+    prisma.pafs_core_projects.findMany.mockResolvedValue([])
 
     const result = await loadProjectsForFcerm1(prisma, [1], makeLogger())
 
     expect(result).toHaveLength(0)
     expect(FcermPresenter).not.toHaveBeenCalled()
+  })
+
+  test('resolves full RMA→PSO→EA area hierarchy chain', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'HIER001' }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 1, area_id: 10 }
+    ])
+    prisma.pafs_core_areas.findMany
+      .mockResolvedValueOnce([
+        { id: BigInt(10), name: 'Test RMA', sub_type: 'RMA', parent_id: 20 }
+      ])
+      .mockResolvedValueOnce([
+        { id: BigInt(20), name: 'Test PSO', parent_id: 30 }
+      ])
+      .mockResolvedValueOnce([{ id: BigInt(30), name: 'EA Area' }])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    const [, hierarchy] = FcermPresenter.mock.calls[0]
+    expect(hierarchy).toEqual({
+      rmaName: 'Test RMA',
+      rmaSubType: 'RMA',
+      psoName: 'Test PSO',
+      rfccName: 'Test PSO',
+      eaAreaName: 'EA Area'
+    })
+  })
+
+  test('assigns empty PSO and EA fields when RMA area has no parent_id', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'RMA001' }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 1, area_id: 5 }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValueOnce([
+      { id: BigInt(5), name: 'Solo RMA', sub_type: 'RMA', parent_id: null }
+    ])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    // Only the RMA query fires — no PSO or EA query
+    expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledTimes(1)
+    const [, hierarchy] = FcermPresenter.mock.calls[0]
+    expect(hierarchy).toMatchObject({
+      rmaName: 'Solo RMA',
+      psoName: null,
+      eaAreaName: null
+    })
+  })
+
+  test('resolves RMA→PSO hierarchy without EA when PSO has no parent_id', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'HIER002' }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 1, area_id: 10 }
+    ])
+    prisma.pafs_core_areas.findMany
+      .mockResolvedValueOnce([
+        { id: BigInt(10), name: 'Test RMA', sub_type: null, parent_id: 20 }
+      ])
+      .mockResolvedValueOnce([
+        { id: BigInt(20), name: 'Test PSO', parent_id: null }
+      ])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    // RMA + PSO queries fire, but no EA query
+    expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledTimes(2)
+    const [, hierarchy] = FcermPresenter.mock.calls[0]
+    expect(hierarchy).toMatchObject({
+      psoName: 'Test PSO',
+      rfccName: 'Test PSO',
+      eaAreaName: null
+    })
+  })
+
+  test('attaches funding contributors to FcermPresenter via bulk lookup', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'CONTRIB001' }
+    ])
+    prisma.pafs_core_funding_values.findMany.mockResolvedValue([
+      { id: BigInt(100), project_id: BigInt(1) }
+    ])
+    prisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+      { id: BigInt(1), funding_value_id: BigInt(100), name: 'Partner A' }
+    ])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    const [, , contributors] = FcermPresenter.mock.calls[0]
+    expect(contributors).toHaveLength(1)
+    expect(contributors[0]).toMatchObject({ name: 'Partner A' })
+  })
+
+  test('uses empty contributors when funding value has no matching contributors', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'NOCTRIB001' }
+    ])
+    // Funding values exist but no contributors reference their IDs
+    prisma.pafs_core_funding_values.findMany.mockResolvedValue([
+      { id: BigInt(200), project_id: BigInt(1) }
+    ])
+    prisma.pafs_core_funding_contributors.findMany.mockResolvedValue([])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    const [, , contributors] = FcermPresenter.mock.calls[0]
+    expect(contributors).toEqual([])
+  })
+
+  test('uses null for rmaName and rmaSubType when RMA area has no name', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'NULL001' }
+    ])
+    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
+      { project_id: 1, area_id: 7 }
+    ])
+    prisma.pafs_core_areas.findMany.mockResolvedValueOnce([
+      { id: BigInt(7), name: null, sub_type: null, parent_id: null }
+    ])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    const [, hierarchy] = FcermPresenter.mock.calls[0]
+    expect(hierarchy).toMatchObject({ rmaName: null, rmaSubType: null })
   })
 })
 
@@ -606,6 +776,78 @@ describe('uploadUserBenefitAreas', () => {
       expect.objectContaining({
         where: { id: { in: [BigInt(10), BigInt(20)] } }
       })
+    )
+  })
+
+  test('falls back to original project when resolveLegacyBenefitAreaFile returns null', async () => {
+    const { resolveLegacyBenefitAreaFile } =
+      await import('../../projects/helpers/legacy-file-resolver.js')
+    resolveLegacyBenefitAreaFile.mockResolvedValueOnce(null)
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      {
+        reference_number: 'LEG002',
+        benefit_area_file_name: 'leg002.zip',
+        benefit_area_file_s3_bucket: null,
+        benefit_area_file_s3_key: null,
+        is_legacy: true,
+        slug: 'LEG002',
+        version: 1
+      }
+    ])
+    const s3Service = { getObject: vi.fn(), putObject: vi.fn() }
+
+    const result = await uploadUserBenefitAreas(
+      prisma,
+      s3Service,
+      'bucket',
+      1,
+      [1],
+      makeLogger()
+    )
+
+    expect(resolveLegacyBenefitAreaFile).toHaveBeenCalled()
+    // resolver returned null → original project (no S3 coords) used → ZIP skipped
+    expect(s3Service.getObject).not.toHaveBeenCalled()
+    expect(result).toEqual({ filename: null, count: 0 })
+  })
+
+  test('does not call resolveLegacyBenefitAreaFile when is_legacy project already has S3 coordinates', async () => {
+    const { resolveLegacyBenefitAreaFile } =
+      await import('../../projects/helpers/legacy-file-resolver.js')
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      {
+        reference_number: 'LEG003',
+        benefit_area_file_name: 'leg003.zip',
+        benefit_area_file_s3_bucket: 'pafs-uploads',
+        benefit_area_file_s3_key: 'legacy/LEG003/1/leg003.zip',
+        is_legacy: true,
+        slug: 'LEG003',
+        version: 1
+      }
+    ])
+    const s3Service = {
+      getObject: vi.fn().mockResolvedValue(Buffer.from('data')),
+      putObject: vi.fn().mockResolvedValue({})
+    }
+
+    await uploadUserBenefitAreas(
+      prisma,
+      s3Service,
+      'dest-bucket',
+      1,
+      [1],
+      makeLogger()
+    )
+
+    // S3 coords already set — no legacy resolution needed
+    expect(resolveLegacyBenefitAreaFile).not.toHaveBeenCalled()
+    expect(s3Service.getObject).toHaveBeenCalledWith(
+      'pafs-uploads',
+      'legacy/LEG003/1/leg003.zip'
     )
   })
 })

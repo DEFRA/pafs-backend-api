@@ -10,6 +10,7 @@ import {
 } from './programme-generation-helpers.js'
 import {
   DOWNLOAD_STATUS as DownloadStatus,
+  getAdminDownloadRecord,
   updateDownloadRecord
 } from './programme-records.js'
 import { resolveAccessibleAreaIdsForUser } from '../../areas/helpers/user-areas.js'
@@ -297,6 +298,20 @@ async function runAdminGeneration({
   requestingUserId,
   requestedOn
 }) {
+  // Guard against duplicate concurrent jobs — if another job already moved the
+  // record to GENERATING after this one was queued, abort silently.
+  const current = await getAdminDownloadRecord(prisma)
+  if (
+    current?.status === DownloadStatus.GENERATING &&
+    current.id !== downloadId
+  ) {
+    logger.warn(
+      { downloadId, existingId: current.id },
+      'Admin generation already in progress — skipping duplicate job'
+    )
+    return
+  }
+
   try {
     logger.info(
       { downloadId, requestingUserId },

@@ -600,6 +600,36 @@ describe('queueAdminGeneration', () => {
     expect(capturedCallback).toBeDefined()
     await expect(capturedCallback()).resolves.toBeUndefined()
   })
+
+  test('skips generation when a different job is already GENERATING', async () => {
+    const prisma = makePrisma()
+    // Simulate a different job (id=99) already running
+    prisma.pafs_core_area_downloads.findFirst.mockResolvedValue({
+      id: BigInt(99),
+      status: DOWNLOAD_STATUS.GENERATING
+    })
+
+    const logger = makeLogger()
+    queueAdminGeneration({
+      prisma,
+      logger,
+      downloadId: BigInt(14),
+      s3Bucket: 'bucket',
+      requestingUserId: null
+    })
+    await capturedCallback()
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        downloadId: BigInt(14),
+        existingId: BigInt(99)
+      }),
+      'Admin generation already in progress — skipping duplicate job'
+    )
+    // Generation must not have started — no states query, no update to READY/FAILED
+    expect(prisma.pafs_core_states.findMany).not.toHaveBeenCalled()
+    expect(prisma.pafs_core_area_downloads.update).not.toHaveBeenCalled()
+  })
 })
 
 // â”€â”€ tabulateCounts â€” completed and unknown branches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -783,7 +813,7 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
     ])
-    prisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+    prisma.pafs_core_projects.findMany.mockResolvedValue([mockProject])
 
     const { FcermPresenter } =
       await import('../helpers/fcerm1/fcerm1-presenter.js')
@@ -806,7 +836,7 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
 
     expect(FcermPresenter).toHaveBeenCalledWith(
       expect.objectContaining({ id: BigInt(1) }),
-      {},
+      expect.any(Object),
       []
     )
   })
@@ -886,22 +916,26 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
 
   test('resolves area hierarchy when areaProject has an area_id', async () => {
     const mockProject = { id: BigInt(1), reference_number: 'ABC003' }
-    const { resolveAreaHierarchy } =
-      await import('../../projects/helpers/area-hierarchy.js')
-    resolveAreaHierarchy.mockResolvedValue({ rmaName: 'Test RMA' })
 
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
       { area_id: BigInt(10), primary: true }
     ])
-    prisma.pafs_core_areas.findMany.mockResolvedValue([
-      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
-    ])
-    prisma.pafs_core_area_projects.findMany.mockResolvedValue([
-      { project_id: 1 }
-    ])
-    prisma.pafs_core_area_projects.findFirst.mockResolvedValue({ area_id: 99 })
-    prisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+    // First call: resolveAccessibleAreaIdsForUser fetches area metadata for area_id 10
+    // Second call: resolveAreaHierarchiesBulk fetches RMA area for area_id 99
+    prisma.pafs_core_areas.findMany
+      .mockResolvedValueOnce([
+        { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
+      ])
+      .mockResolvedValueOnce([
+        { id: BigInt(99), name: 'Area 99', sub_type: 'RMA', parent_id: null }
+      ])
+    // First call: fetchUserProjectIds (area_id IN [10]) → project_id 1
+    // Second call: fetchBulkProjectData (project_id IN [1]) → area_id 99
+    prisma.pafs_core_area_projects.findMany
+      .mockResolvedValueOnce([{ project_id: 1 }])
+      .mockResolvedValueOnce([{ project_id: 1, area_id: 99 }])
+    prisma.pafs_core_projects.findMany.mockResolvedValue([mockProject])
 
     const { buildMultiWorkbook } =
       await import('../helpers/fcerm1/fcerm1-builder.js')
@@ -919,10 +953,13 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     })
     await capturedCallback()
 
-    expect(resolveAreaHierarchy).toHaveBeenCalledWith(prisma, 99)
+    // Bulk hierarchy resolver queries pafs_core_areas for area_id 99
+    expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: [BigInt(99)] } } })
+    )
   })
 
-  test('warns and skips project when findFirst throws an error', async () => {
+  test('warns and skips project when assembly throws an error', async () => {
     const loadError = new Error('DB query failed')
     const prisma = makePrisma()
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([
@@ -934,7 +971,16 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
     ])
-    prisma.pafs_core_projects.findFirst.mockRejectedValue(loadError)
+    // Provide a project so we enter the assembly loop
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'ERR001' }
+    ])
+
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockImplementationOnce(function () {
+      throw loadError
+    })
 
     const { getS3Service } =
       await import('../../../common/services/file-upload/s3-service.js')
@@ -1170,7 +1216,7 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
     ])
-    prisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+    prisma.pafs_core_projects.findMany.mockResolvedValue([mockProject])
 
     const xlsxBuf = Buffer.from('xlsx-data')
     const { buildMultiWorkbook } =
@@ -1450,7 +1496,7 @@ describe('queueAdminGeneration — projects, batching, and email paths', () => {
     const mockProject = { id: BigInt(1), reference_number: 'ADM001' }
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([{ project_id: 1 }])
-    prisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+    prisma.pafs_core_projects.findMany.mockResolvedValue([mockProject])
 
     const xlsxBuf = Buffer.from('admin-xlsx')
     const { buildMultiWorkbook } =
