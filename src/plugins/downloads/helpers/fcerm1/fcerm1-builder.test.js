@@ -559,9 +559,92 @@ describe('buildSingleWorkbook', () => {
     expect((xml.match(/fullCalcOnLoad/g) ?? []).length).toBe(1)
   })
 
+  test('normalises <cols>: adds dominant style to <col> elements missing a style attribute', async () => {
+    // Simulates the FCERM1 template where columns A–IH have style="1" but
+    // some columns in the II–KS range have a <col> entry without a style attribute.
+    const sheetWithMixedColStyles =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<cols>' +
+      '<col min="1" max="242" width="14" style="1" customWidth="1"/>' +
+      '<col min="243" max="244" width="11" customWidth="1"/>' +
+      '</cols>' +
+      '<dimension ref="A1:NI7"/><sheetData>' +
+      '<row r="7" customFormat="false" ht="15" hidden="false" customHeight="true" outlineLevel="0" collapsed="false">' +
+      '<c r="A7" s="66"/><c r="B7" s="67"/>' +
+      '</row>' +
+      '</sheetData></worksheet>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return sheetWithMixedColStyles
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = { fundingContributorsSheetData: vi.fn(() => []) }
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, [])
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    // The entry for 243–244 that had no style should now have style="1"
+    expect(xml).toContain(
+      '<col min="243" max="244" width="11" customWidth="1" style="1"/>'
+    )
+    // The already-styled entry should be unchanged
+    expect(xml).toContain(
+      '<col min="1" max="242" width="14" style="1" customWidth="1"/>'
+    )
+  })
+
+  test('normalises <cols>: inserts entries for columns entirely absent from the col section', async () => {
+    // Simulates the pattern seen in the FCERM1 template where some columns in the
+    // II–KS range (e.g. IU=255, IW=257) have NO <col> element at all.
+    // Those columns fall through to Excel's default style (which has borders).
+    // buildSingleWorkbook is called with columns covering index 255 and 257 so
+    // normaliseColStyles fills the gaps.
+    const sheetWithGaps =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<cols>' +
+      '<col min="1" max="254" width="14" style="1" customWidth="1"/>' +
+      '<col min="256" max="256" width="11" style="1" customWidth="1"/>' +
+      '</cols>' +
+      '<dimension ref="A1:NI7"/><sheetData>' +
+      '<row r="7" customFormat="false" ht="15" hidden="false" customHeight="true" outlineLevel="0" collapsed="false">' +
+      '<c r="A7" s="66"/><c r="B7" s="67"/>' +
+      '</row>' +
+      '</sheetData></worksheet>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return sheetWithGaps
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = { fundingContributorsSheetData: vi.fn(() => []) }
+    // IU=255 (index 255) and IW=257 (index 257) are in the data range but missing from cols
+    // columnLetterToIndex('IW') = 257 → maxColIndex=257 covers both gaps
+    const columns = [{ column: 'IW', field: 'f', export: false }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    // Both missing columns should now have explicit <col> entries with style="1"
+    // and carry the last-seen width from the preceding col entry (width="11" from col 256)
+    expect(xml).toContain(
+      '<col min="255" max="255" width="11" customWidth="1" style="1"/>'
+    )
+    expect(xml).toContain(
+      '<col min="257" max="257" width="11" customWidth="1" style="1"/>'
+    )
+    // The existing entries should be preserved (potentially reordered but present)
+    expect(xml).toContain('min="1" max="254"')
+    expect(xml).toContain('min="256" max="256"')
+  })
+
   test('uses default style 66 when template row 7 has no styled cells', async () => {
-    // Row 7 exists (so regex matches and rows ARE injected) but has no <c s="..."> cells,
-    // which means parseRowStyleMap returns {} and defaultStyle falls back to '66'.
+    // Row 7 exists but has no <c s="..."> cells — parseRowStyleMap returns {}
+    // and defaultStyle falls back to '66'.
     const sheetEmptyRow7 =
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
@@ -607,7 +690,144 @@ describe('buildSingleWorkbook', () => {
     ).resolves.toBeInstanceOf(Buffer)
   })
 
+  test('removes pre-populated template rows beyond the data area', async () => {
+    // Simulates the new FCERM1 template which has styled placeholder rows 8–10
+    // (with e.g. borders in II–KS columns).  Only the one data row (row 7) and
+    // any header rows (< 7) should appear in the output.
+    const sheetWithExtraRows =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<dimension ref="A1:NI10"/><sheetData>' +
+      '<row r="7" customFormat="false" ht="15" hidden="false" customHeight="true" outlineLevel="0" collapsed="false">' +
+      '<c r="A7" s="66"/><c r="B7" s="67"/>' +
+      '</row>' +
+      '<row r="8"><c r="II8" s="99"/></row>' +
+      '<row r="9"><c r="II9" s="99"/></row>' +
+      '<row r="10"><c r="II10" s="99"/></row>' +
+      '</sheetData></worksheet>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return sheetWithExtraRows
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = {
+      nameField: vi.fn(() => 'Single Project'),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [{ column: 'A', field: 'nameField' }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    // Only the one injected data row should exist — template rows 8–10 must be gone
+    expect(xml).toContain('<row r="7"')
+    expect(xml).not.toContain('<row r="8"')
+    expect(xml).not.toContain('<row r="9"')
+    expect(xml).not.toContain('<row r="10"')
+    // The styled cells from the template placeholder rows must not appear
+    expect(xml).not.toContain('s="99"')
+  })
+
+  test('preserves template header rows before the data area', async () => {
+    const sheetWithHeaders =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<dimension ref="A1:NI7"/><sheetData>' +
+      '<row r="1"><c r="A1" t="inlineStr"><is><t>Title Row</t></is></c></row>' +
+      '<row r="6"><c r="A6" t="inlineStr"><is><t>Column Labels</t></is></c></row>' +
+      '<row r="7" customFormat="false" ht="15" hidden="false" customHeight="true" outlineLevel="0" collapsed="false">' +
+      '<c r="A7" s="66"/><c r="B7" s="67"/>' +
+      '</row>' +
+      '</sheetData></worksheet>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return sheetWithHeaders
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = {
+      nameField: vi.fn(() => 'Project'),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [{ column: 'A', field: 'nameField' }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    // Header rows 1 and 6 must be preserved
+    expect(xml).toContain('<row r="1"')
+    expect(xml).toContain('Title Row')
+    expect(xml).toContain('<row r="6"')
+    expect(xml).toContain('Column Labels')
+    // Data is in row 7
+    expect(xml).toContain('<row r="7"')
+    expect(xml).toContain('Project')
+  })
+
   // ── Branch-coverage edge cases ────────────────────────────────────────────
+
+  test('null value in a column absent from template row 7 is not written to XML', async () => {
+    // Row 7 has A=66, B=67 but no entry for C.
+    // When the presenter returns null for column C (no data), no <c> element should
+    // appear in the output — matching the template's own blank appearance for that column.
+    const presenter = {
+      nullField: vi.fn(() => null),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [{ column: 'C', field: 'nullField' }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    expect(xml).not.toContain('<c r="C7"')
+  })
+
+  test('non-null value in a column absent from template row 7 uses defaultStyle', async () => {
+    // Row 7 has A=66 only. Column C has no style entry → uses defaultStyle (66).
+    // Data is still written (only null is suppressed).
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return mocks.SHEET_XML
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = {
+      valueField: vi.fn(() => 42),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [{ column: 'C', field: 'valueField' }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    expect(xml).toContain('<c r="C7" s="66">')
+    expect(xml).toContain('<v>42</v>')
+  })
+
+  test('null value in a column present in template row 7 is still written as empty styled cell', async () => {
+    // A is in the template styleMap — a null value should produce an empty styled cell.
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return mocks.SHEET_XML
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenter = {
+      nullField: vi.fn(() => null),
+      fundingContributorsSheetData: vi.fn(() => [])
+    }
+    const columns = [{ column: 'A', field: 'nullField' }]
+
+    await buildSingleWorkbook('/path/template.xlsx', presenter, columns)
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    expect(xml).toContain('<c r="A7" s="66"/>')
+  })
 
   test('lastColumnLetter: skips update when a column ends before the current max', async () => {
     // Column A (dateRange, 3 years) → endIndex 3. Column B (no dateRange) → endIndex 2.
