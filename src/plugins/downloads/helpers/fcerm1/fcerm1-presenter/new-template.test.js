@@ -528,9 +528,24 @@ describe('risk and properties benefitting', () => {
 })
 
 describe('currentFloodFluvialRisk', () => {
-  test('maps DB key to human-readable label', () => {
-    const p = makePresenter({ current_flood_fluvial_risk: 'fluvial_flooding' })
-    expect(p.currentFloodFluvialRisk()).toBe('River Flooding')
+  test('maps high to High', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'high' })
+    expect(p.currentFloodFluvialRisk()).toBe('High')
+  })
+
+  test('maps medium to Medium', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'medium' })
+    expect(p.currentFloodFluvialRisk()).toBe('Medium')
+  })
+
+  test('maps low to Low', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'low' })
+    expect(p.currentFloodFluvialRisk()).toBe('Low')
+  })
+
+  test('maps very_low to Very Low', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'very_low' })
+    expect(p.currentFloodFluvialRisk()).toBe('Very Low')
   })
 
   test('returns null when field is absent', () => {
@@ -538,18 +553,21 @@ describe('currentFloodFluvialRisk', () => {
     expect(p.currentFloodFluvialRisk()).toBeNull()
   })
 
-  test('returns raw value when key is not in RISK_LABELS', () => {
+  test('returns raw value when key is not in FLOOD_RISK_LEVEL_LABELS', () => {
     const p = makePresenter({ current_flood_fluvial_risk: 'unknown_risk' })
     expect(p.currentFloodFluvialRisk()).toBe('unknown_risk')
   })
 })
 
 describe('currentFloodSurfaceWaterRisk', () => {
-  test('maps DB key to human-readable label', () => {
-    const p = makePresenter({
-      current_flood_surface_water_risk: 'surface_water_flooding'
-    })
-    expect(p.currentFloodSurfaceWaterRisk()).toBe('Surface Water Flooding')
+  test('maps high to High', () => {
+    const p = makePresenter({ current_flood_surface_water_risk: 'high' })
+    expect(p.currentFloodSurfaceWaterRisk()).toBe('High')
+  })
+
+  test('maps very_low to Very Low', () => {
+    const p = makePresenter({ current_flood_surface_water_risk: 'very_low' })
+    expect(p.currentFloodSurfaceWaterRisk()).toBe('Very Low')
   })
 
   test('returns null when field is absent', () => {
@@ -559,9 +577,14 @@ describe('currentFloodSurfaceWaterRisk', () => {
 })
 
 describe('currentCoastalErosionRisk', () => {
-  test('maps DB key to human-readable label', () => {
-    const p = makePresenter({ current_coastal_erosion_risk: 'coastal_erosion' })
-    expect(p.currentCoastalErosionRisk()).toBe('Coastal Erosion')
+  test('maps medium_term to Medium term loss', () => {
+    const p = makePresenter({ current_coastal_erosion_risk: 'medium_term' })
+    expect(p.currentCoastalErosionRisk()).toBe('Medium term loss')
+  })
+
+  test('maps longer_term to Longer term loss', () => {
+    const p = makePresenter({ current_coastal_erosion_risk: 'longer_term' })
+    expect(p.currentCoastalErosionRisk()).toBe('Longer term loss')
   })
 
   test('returns null when field is absent', () => {
@@ -623,9 +646,24 @@ describe('whole-life benefit breakdown', () => {
 // ── Urgency ───────────────────────────────────────────────────────────────────
 
 describe('urgencyReason', () => {
-  test('returns urgency_reason', () => {
+  test('maps statutory_need to Statutory Requirement', () => {
     const p = makePresenter({ urgency_reason: 'statutory_need' })
-    expect(p.urgencyReason()).toBe('statutory_need')
+    expect(p.urgencyReason()).toBe('Statutory Requirement')
+  })
+
+  test('maps not_urgent to Not Urgent', () => {
+    const p = makePresenter({ urgency_reason: 'not_urgent' })
+    expect(p.urgencyReason()).toBe('Not Urgent')
+  })
+
+  test('maps health_and_safety to Health and Safety', () => {
+    const p = makePresenter({ urgency_reason: 'health_and_safety' })
+    expect(p.urgencyReason()).toBe('Health and Safety')
+  })
+
+  test('returns raw value when key is not in MODERATION_LABELS', () => {
+    const p = makePresenter({ urgency_reason: 'unknown_reason' })
+    expect(p.urgencyReason()).toBe('unknown_reason')
   })
 
   test('returns null when absent', () => {
@@ -733,7 +771,7 @@ for (const [method, field] of PER_YEAR_CASES) {
 // ── Unknown risk key fallback for surface-water and coastal-erosion ───────────
 
 describe('currentFloodSurfaceWaterRisk — unknown key fallback', () => {
-  test('returns the raw value when the key is not in RISK_LABELS', () => {
+  test('returns the raw value when the key is not in FLOOD_RISK_LEVEL_LABELS', () => {
     const p = makePresenter({
       current_flood_surface_water_risk: 'unknown_risk'
     })
@@ -742,7 +780,7 @@ describe('currentFloodSurfaceWaterRisk — unknown key fallback', () => {
 })
 
 describe('currentCoastalErosionRisk — unknown key fallback', () => {
-  test('returns the raw value when the key is not in RISK_LABELS', () => {
+  test('returns the raw value when the key is not in COASTAL_EROSION_RISK_LABELS', () => {
     const p = makePresenter({ current_coastal_erosion_risk: 'unknown_risk' })
     expect(p.currentCoastalErosionRisk()).toBe('unknown_risk')
   })

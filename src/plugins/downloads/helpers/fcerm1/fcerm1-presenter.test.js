@@ -188,7 +188,7 @@ describe('FcermPresenter', () => {
     })
 
     test('mainRisk returns the RISK_LABELS label', () => {
-      expect(presenter.mainRisk()).toBe('River Flooding')
+      expect(presenter.mainRisk()).toBe('Fluvial Flooding')
     })
 
     test('mainRisk returns null when not set', () => {

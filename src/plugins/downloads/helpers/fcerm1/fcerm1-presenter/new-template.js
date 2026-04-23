@@ -11,7 +11,11 @@
  *   - Carbon calculated fields (KN–KQ)
  */
 
-import { RISK_LABELS } from '../fcerm1-labels.js'
+import {
+  FLOOD_RISK_LEVEL_LABELS,
+  COASTAL_EROSION_RISK_LABELS,
+  MODERATION_LABELS
+} from '../fcerm1-labels.js'
 import {
   toNumber,
   sumFunding,
@@ -339,15 +343,15 @@ export const newTemplateMixin = {
   },
   currentFloodFluvialRisk() {
     const raw = this._p.current_flood_fluvial_risk
-    return raw ? (RISK_LABELS[raw] ?? raw) : null
+    return raw ? (FLOOD_RISK_LEVEL_LABELS[raw] ?? raw) : null
   },
   currentFloodSurfaceWaterRisk() {
     const raw = this._p.current_flood_surface_water_risk
-    return raw ? (RISK_LABELS[raw] ?? raw) : null
+    return raw ? (FLOOD_RISK_LEVEL_LABELS[raw] ?? raw) : null
   },
   currentCoastalErosionRisk() {
     const raw = this._p.current_coastal_erosion_risk
-    return raw ? (RISK_LABELS[raw] ?? raw) : null
+    return raw ? (COASTAL_EROSION_RISK_LABELS[raw] ?? raw) : null
   },
 
   // ── Whole-life costs breakdown (HG–HJ) ───────────────────────────────────
@@ -386,7 +390,8 @@ export const newTemplateMixin = {
   // ── Urgency (IE–IF) ───────────────────────────────────────────────────────
 
   urgencyReason() {
-    return this._p.urgency_reason ?? null
+    const raw = this._p.urgency_reason
+    return raw ? (MODERATION_LABELS[raw] ?? raw) : null
   },
   urgencyDetails() {
     return this._p.urgency_details ?? null

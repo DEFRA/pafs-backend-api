@@ -1,9 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import {
-  columnLetterToIndex,
-  buildSingleWorkbook,
-  buildMultiWorkbook
-} from './fcerm1-builder.js'
+import { columnLetterToIndex } from './fcerm1-xml-utils.js'
+import { buildSingleWorkbook, buildMultiWorkbook } from './fcerm1-builder.js'
 
 // ── adm-zip + fs/promises mocks ───────────────────────────────────────────────
 // vi.hoisted ensures these are available before vi.mock is processed.

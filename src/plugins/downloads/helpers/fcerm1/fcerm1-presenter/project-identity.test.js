@@ -238,7 +238,7 @@ describe('projectType', () => {
 describe('mainRisk', () => {
   test('returns the RISK_LABELS display label for a known risk type', () => {
     const p = new FcermPresenter(makeProject({ main_risk: 'fluvial_flooding' }))
-    expect(p.mainRisk()).toBe('River Flooding')
+    expect(p.mainRisk()).toBe('Fluvial Flooding')
   })
 
   test('returns the raw risk key when not present in RISK_LABELS', () => {
