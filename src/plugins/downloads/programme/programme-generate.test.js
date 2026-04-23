@@ -36,7 +36,8 @@ const { generateUserProgramme } = await import('./programme-generate.js')
 function makeServer() {
   return {
     logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
-    prisma: {}
+    prisma: {},
+    sqs: { send: vi.fn().mockResolvedValue({}) }
   }
 }
 
@@ -107,7 +108,8 @@ describe('generateUserProgramme route', () => {
         userId: 42,
         downloadId: BigInt(99),
         s3Bucket: 'test-bucket'
-      })
+      }),
+      expect.objectContaining({ send: expect.any(Function) })
     )
     expect(h._status).toBe(202)
     expect(h._body).toMatchObject({

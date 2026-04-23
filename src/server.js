@@ -24,6 +24,8 @@ import swaggerPlugin from './plugins/swagger/index.js'
 import downloadsPlugin from './plugins/downloads/index.js'
 import gatewayGuardPlugin from './plugins/gateway-guard/index.js'
 import externalPlugin from './plugins/external/index.js'
+import { sqsClientPlugin } from './common/helpers/sqs/sqs-client.js'
+import { sqsProgrammeConsumerPlugin } from './plugins/sqs-consumer/index.js'
 
 function createServerConfig() {
   return {
@@ -124,6 +126,8 @@ async function createServer() {
   setupProxy()
   const server = Hapi.server(createServerConfig())
   await registerCorePlugins(server)
+  await server.register(sqsClientPlugin)
+  await server.register(sqsProgrammeConsumerPlugin)
   await registerScheduler(server)
   await registerSwagger(server)
   return server

@@ -32,6 +32,9 @@ vi.mock('../../../config.js', () => ({
         return 'tpl-complete'
       }
       if (key === 'notify.templateProgrammeDownloadFailed') return 'tpl-failed'
+      if (key === 'sqsProgrammeGeneration.queueUrl') {
+        return 'http://localhost:4566/000000000000/pafs_programme_generation'
+      }
       return null
     })
   }
@@ -55,6 +58,8 @@ const {
   startAdminDownload,
   queueUserGeneration,
   queueAdminGeneration,
+  runUserGeneration,
+  runAdminGeneration,
   DOWNLOAD_STATUS
 } = await import('./programme-service.js')
 
@@ -398,21 +403,35 @@ describe('startAdminDownload', () => {
 // of its internal async operations without relying on fake timer flushing.
 
 describe('queueUserGeneration', () => {
-  let capturedCallback
+  test('sends SQS message with correct user payload', async () => {
+    const mockSend = vi.fn().mockResolvedValue({})
+    const sqs = { send: mockSend }
+    const requestedOn = new Date('2026-01-15T10:00:00.000Z')
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
+    await queueUserGeneration(
+      { userId: 5, downloadId: BigInt(1), s3Bucket: 'bucket', requestedOn },
+      sqs
+    )
+
+    expect(mockSend).toHaveBeenCalledOnce()
+    const body = JSON.parse(mockSend.mock.calls[0][0].input.MessageBody)
+    expect(body).toMatchObject({
+      type: 'user',
+      downloadId: '1',
+      userId: 5,
+      s3Bucket: 'bucket'
+    })
+    expect(mockSend.mock.calls[0][0].input.QueueUrl).toBe(
+      'http://localhost:4566/000000000000/pafs_programme_generation'
     )
   })
+})
 
-  afterEach(() => {
-    vi.unstubAllGlobals()
+// ── runUserGeneration ─────────────────────────────────────────────────────────
+
+describe('runUserGeneration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
   test('marks record as READY after successful generation with no projects', async () => {
@@ -428,15 +447,13 @@ describe('queueUserGeneration', () => {
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
     const logger = makeLogger()
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger,
       userId: 5,
       downloadId: BigInt(1),
       s3Bucket: 'bucket'
     })
-    expect(capturedCallback).toBeDefined()
-    await capturedCallback()
 
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
       (c) => c[0].data
@@ -452,15 +469,13 @@ describe('queueUserGeneration', () => {
     )
 
     const logger = makeLogger()
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger,
       userId: 5,
       downloadId: BigInt(2),
       s3Bucket: 'bucket'
     })
-    expect(capturedCallback).toBeDefined()
-    await capturedCallback()
 
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
       (c) => c[0].data
@@ -475,21 +490,40 @@ describe('queueUserGeneration', () => {
 // â”€â”€ queueAdminGeneration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('queueAdminGeneration', () => {
-  let capturedCallback
+  test('sends SQS message with correct admin payload', async () => {
+    const mockSend = vi.fn().mockResolvedValue({})
+    const sqs = { send: mockSend }
+    const requestedOn = new Date('2026-01-15T10:00:00.000Z')
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
+    await queueAdminGeneration(
+      {
+        downloadId: BigInt(10),
+        s3Bucket: 'bucket',
+        requestingUserId: 99,
+        requestedOn
+      },
+      sqs
+    )
+
+    expect(mockSend).toHaveBeenCalledOnce()
+    const body = JSON.parse(mockSend.mock.calls[0][0].input.MessageBody)
+    expect(body).toMatchObject({
+      type: 'admin',
+      downloadId: '10',
+      s3Bucket: 'bucket',
+      requestingUserId: 99
+    })
+    expect(mockSend.mock.calls[0][0].input.QueueUrl).toBe(
+      'http://localhost:4566/000000000000/pafs_programme_generation'
     )
   })
+})
 
-  afterEach(() => {
-    vi.unstubAllGlobals()
+// ── runAdminGeneration ────────────────────────────────────────────────────────
+
+describe('runAdminGeneration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
   test('marks record as READY with all projects when generation succeeds', async () => {
@@ -500,15 +534,13 @@ describe('queueAdminGeneration', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(10),
       s3Bucket: 'bucket',
       requestingUserId: 99
     })
-    expect(capturedCallback).toBeDefined()
-    await capturedCallback()
 
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
       (c) => c[0].data
@@ -524,15 +556,13 @@ describe('queueAdminGeneration', () => {
     )
 
     const logger = makeLogger()
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger,
       downloadId: BigInt(11),
       s3Bucket: 'bucket',
       requestingUserId: 99
     })
-    expect(capturedCallback).toBeDefined()
-    await capturedCallback()
 
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
       (c) => c[0].data
@@ -561,15 +591,13 @@ describe('queueAdminGeneration', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(12),
       s3Bucket: 'bucket',
       requestingUserId: 99
     })
-    expect(capturedCallback).toBeDefined()
-    await capturedCallback()
 
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-complete',
@@ -590,34 +618,32 @@ describe('queueAdminGeneration', () => {
     )
     prisma.pafs_core_users.findFirst.mockResolvedValue(null)
 
-    queueAdminGeneration({
-      prisma,
-      logger: makeLogger(),
-      downloadId: BigInt(13),
-      s3Bucket: 'bucket',
-      requestingUserId: null
-    })
-    expect(capturedCallback).toBeDefined()
-    await expect(capturedCallback()).resolves.toBeUndefined()
+    await expect(
+      runAdminGeneration({
+        prisma,
+        logger: makeLogger(),
+        downloadId: BigInt(13),
+        s3Bucket: 'bucket',
+        requestingUserId: null
+      })
+    ).resolves.toBeUndefined()
   })
 
   test('skips generation when a different job is already GENERATING', async () => {
     const prisma = makePrisma()
-    // Simulate a different job (id=99) already running
     prisma.pafs_core_area_downloads.findFirst.mockResolvedValue({
       id: BigInt(99),
       status: DOWNLOAD_STATUS.GENERATING
     })
 
     const logger = makeLogger()
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger,
       downloadId: BigInt(14),
       s3Bucket: 'bucket',
       requestingUserId: null
     })
-    await capturedCallback()
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -626,7 +652,6 @@ describe('queueAdminGeneration', () => {
       }),
       'Admin generation already in progress — skipping duplicate job'
     )
-    // Generation must not have started — no states query, no update to READY/FAILED
     expect(prisma.pafs_core_states.findMany).not.toHaveBeenCalled()
     expect(prisma.pafs_core_area_downloads.update).not.toHaveBeenCalled()
   })
@@ -696,21 +721,8 @@ describe('tabulateCounts completed and unknown state branches', () => {
 // â”€â”€ sendDownloadEmail edge cases (via queueAdminGeneration) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('sendDownloadEmail edge cases', () => {
-  let capturedCallback
-
   beforeEach(() => {
     vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
-    )
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   test('uses "User" as full_name fallback when both names are null', async () => {
@@ -730,14 +742,13 @@ describe('sendDownloadEmail edge cases', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(50),
       s3Bucket: 'bucket',
       requestingUserId: 1
     })
-    await capturedCallback()
 
     expect(mockSend).toHaveBeenCalledWith(
       expect.any(String),
@@ -766,14 +777,13 @@ describe('sendDownloadEmail edge cases', () => {
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
     const logger = makeLogger()
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger,
       downloadId: BigInt(51),
       s3Bucket: 'bucket',
       requestingUserId: 1
     })
-    await capturedCallback()
 
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ emailErr: smtpError }),
@@ -784,21 +794,8 @@ describe('sendDownloadEmail edge cases', () => {
 // ── loadProjectsForFcerm1 (via queueUserGeneration with actual projects) ──────
 
 describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () => {
-  let capturedCallback
-
   beforeEach(() => {
     vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
-    )
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   test('builds a FcermPresenter for each found project', async () => {
@@ -825,14 +822,13 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(60),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(FcermPresenter).toHaveBeenCalledWith(
       expect.objectContaining({ id: BigInt(1) }),
@@ -861,14 +857,13 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(61),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(FcermPresenter).not.toHaveBeenCalled()
   })
@@ -898,14 +893,13 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(62),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(prisma.pafs_core_funding_contributors.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -944,14 +938,13 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(63),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     // Bulk hierarchy resolver queries pafs_core_areas for area_id 99
     expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledWith(
@@ -987,14 +980,13 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
     const logger = makeLogger()
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger,
       userId: 5,
       downloadId: BigInt(64),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: loadError, projectId: 1 }),
@@ -1012,21 +1004,8 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
 // ── buildBenefitAreasZip (via queueUserGeneration) ────────────────────────────
 
 describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () => {
-  let capturedCallback
-
   beforeEach(() => {
     vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
-    )
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   test('fetches S3 file and uploads benefit zip when project has a benefit area', async () => {
@@ -1050,14 +1029,13 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     })
 
     const logger = makeLogger()
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger,
       userId: 5,
       downloadId: BigInt(70),
       s3Bucket: 'dest-bucket'
     })
-    await capturedCallback()
 
     expect(mockGetObject).toHaveBeenCalledWith(
       'source-bucket',
@@ -1097,14 +1075,13 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     })
 
     const AdmZipModule = await import('adm-zip')
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(71),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     // Retrieve the zip instance Vitest created via new AdmZip() — avoids arrow-function constructor issue
     const zipInstance = AdmZipModule.default.mock.results.at(-1)?.value
@@ -1134,14 +1111,13 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     })
 
     const logger = makeLogger()
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger,
       userId: 5,
       downloadId: BigInt(72),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: s3Error, referenceNumber: 'FAIL001' }),
@@ -1165,14 +1141,13 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: mockPutObject })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(73),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
       (c) => c[0].data
@@ -1186,22 +1161,9 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
 
 // ── queueUserGeneration — FCERM1 upload and email paths ──────────────────────
 
-describe('queueUserGeneration — FCERM1 upload and email paths', () => {
-  let capturedCallback
-
+describe('runUserGeneration — FCERM1 upload and email paths', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
-    )
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   test('builds and uploads FCERM1 workbook when presenters exist', async () => {
@@ -1227,14 +1189,13 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: mockPutObject })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 7,
       downloadId: BigInt(80),
       s3Bucket: 'test-bucket'
     })
-    await capturedCallback()
 
     expect(buildMultiWorkbook).toHaveBeenCalled()
     expect(mockPutObject).toHaveBeenCalledWith(
@@ -1269,14 +1230,13 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(81),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-complete',
@@ -1302,14 +1262,13 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(82),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(mockSend).not.toHaveBeenCalled()
   })
@@ -1330,14 +1289,13 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
       await import('../../../common/services/email/notify-service.js')
     getEmailService.mockReturnValue({ send: mockSend })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(83),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-failed',
@@ -1362,14 +1320,13 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
       await import('../../../common/services/email/notify-service.js')
     getEmailService.mockReturnValue({ send: mockSend })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(84),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(mockSend).not.toHaveBeenCalled()
   })
@@ -1388,35 +1345,23 @@ describe('queueUserGeneration — FCERM1 upload and email paths', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn() })
 
-    queueUserGeneration({
-      prisma,
-      logger: makeLogger(),
-      userId: 5,
-      downloadId: BigInt(85),
-      s3Bucket: 'bucket'
-    })
-    await expect(capturedCallback()).resolves.toBeUndefined()
+    await expect(
+      runUserGeneration({
+        prisma,
+        logger: makeLogger(),
+        userId: 5,
+        downloadId: BigInt(85),
+        s3Bucket: 'bucket'
+      })
+    ).resolves.toBeUndefined()
   })
 })
 
 // ── getUserEmailDetails — DB error path ────────────────────────────────────────
 
 describe('getUserEmailDetails — DB throws returns null', () => {
-  let capturedCallback
-
   beforeEach(() => {
     vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
-    )
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   test('returns null (no email sent) when user DB lookup throws', async () => {
@@ -1434,14 +1379,13 @@ describe('getUserEmailDetails — DB throws returns null', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: 5,
       downloadId: BigInt(90),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(mockSend).not.toHaveBeenCalled()
   })
@@ -1458,14 +1402,13 @@ describe('getUserEmailDetails — DB throws returns null', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueUserGeneration({
+    await runUserGeneration({
       prisma,
       logger: makeLogger(),
       userId: null,
       downloadId: BigInt(91),
       s3Bucket: 'bucket'
     })
-    await capturedCallback()
 
     expect(mockSend).not.toHaveBeenCalled()
     expect(prisma.pafs_core_users.findFirst).not.toHaveBeenCalled()
@@ -1474,22 +1417,9 @@ describe('getUserEmailDetails — DB throws returns null', () => {
 
 // ── queueAdminGeneration — projects, batching, and email paths ────────────────
 
-describe('queueAdminGeneration — projects, batching, and email paths', () => {
-  let capturedCallback
-
+describe('runAdminGeneration — projects, batching, and email paths', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    capturedCallback = null
-    vi.stubGlobal(
-      'setImmediate',
-      vi.fn((fn) => {
-        capturedCallback = fn
-      })
-    )
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   test('builds and uploads FCERM1 workbook when projects exist', async () => {
@@ -1507,14 +1437,13 @@ describe('queueAdminGeneration — projects, batching, and email paths', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: mockPutObject })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(100),
       s3Bucket: 'admin-bucket',
       requestingUserId: null
     })
-    await capturedCallback()
 
     expect(buildMultiWorkbook).toHaveBeenCalled()
     expect(mockPutObject).toHaveBeenCalledWith(
@@ -1544,14 +1473,13 @@ describe('queueAdminGeneration — projects, batching, and email paths', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(101),
       s3Bucket: 'bucket',
       requestingUserId: null
     })
-    await capturedCallback()
 
     expect(mockSend).not.toHaveBeenCalled()
     expect(prisma.pafs_core_users.findFirst).not.toHaveBeenCalled()
@@ -1573,14 +1501,13 @@ describe('queueAdminGeneration — projects, batching, and email paths', () => {
       await import('../../../common/services/email/notify-service.js')
     getEmailService.mockReturnValue({ send: mockSend })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(102),
       s3Bucket: 'bucket',
       requestingUserId: 99
     })
-    await capturedCallback()
 
     expect(mockSend).toHaveBeenCalledWith(
       'tpl-failed',
@@ -1602,14 +1529,13 @@ describe('queueAdminGeneration — projects, batching, and email paths', () => {
       await import('../../../common/services/email/notify-service.js')
     getEmailService.mockReturnValue({ send: mockSend })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(103),
       s3Bucket: 'bucket',
       requestingUserId: null
     })
-    await capturedCallback()
 
     expect(mockSend).not.toHaveBeenCalled()
   })
@@ -1628,14 +1554,13 @@ describe('queueAdminGeneration — projects, batching, and email paths', () => {
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({ putObject: vi.fn().mockResolvedValue({}) })
 
-    queueAdminGeneration({
+    await runAdminGeneration({
       prisma,
       logger: makeLogger(),
       downloadId: BigInt(104),
       s3Bucket: 'bucket',
       requestingUserId: null
     })
-    await capturedCallback()
 
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
       (c) => c[0].data

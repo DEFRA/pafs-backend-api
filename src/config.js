@@ -481,6 +481,33 @@ const config = convict({
       default: 30000,
       env: 'CDP_UPLOADER_TIMEOUT'
     }
+  },
+  sqsEndpoint: {
+    doc: 'SQS endpoint URL (http://localhost:4566 for LocalStack local development)',
+    format: String,
+    nullable: true,
+    default: isProduction ? null : 'http://localhost:4566',
+    env: 'SQS_ENDPOINT'
+  },
+  sqsProgrammeGeneration: {
+    queueUrl: {
+      doc: 'SQS queue URL for programme generation jobs',
+      format: String,
+      default: 'http://localhost:4566/000000000000/pafs_programme_generation',
+      env: 'SQS_PROGRAMME_GENERATION_QUEUE_URL'
+    },
+    visibilityTimeout: {
+      doc: 'Visibility timeout in seconds — must cover worst-case generation time',
+      format: Number,
+      default: 900,
+      env: 'SQS_PROGRAMME_GENERATION_VISIBILITY_TIMEOUT'
+    },
+    waitTimeSeconds: {
+      doc: 'SQS long-poll wait time in seconds (max 20)',
+      format: Number,
+      default: 20,
+      env: 'SQS_PROGRAMME_GENERATION_WAIT_TIME_SECONDS'
+    }
   }
 })
 

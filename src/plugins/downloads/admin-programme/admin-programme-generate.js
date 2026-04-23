@@ -36,14 +36,15 @@ export const generateAdminProgramme = {
 
       const s3Bucket = config.get('cdpUploader.s3Bucket')
 
-      queueAdminGeneration({
-        prisma,
-        logger,
-        downloadId: record.id,
-        s3Bucket,
-        requestingUserId,
-        requestedOn: record.requested_on
-      })
+      await queueAdminGeneration(
+        {
+          downloadId: record.id,
+          s3Bucket,
+          requestingUserId,
+          requestedOn: record.requested_on
+        },
+        request.server.sqs
+      )
 
       logger.info(
         { requestingUserId, downloadId: record.id },

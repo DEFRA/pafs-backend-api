@@ -55,14 +55,15 @@ export const generateUserProgramme = {
 
       const s3Bucket = config.get('cdpUploader.s3Bucket')
 
-      queueUserGeneration({
-        prisma,
-        logger,
-        userId,
-        downloadId: record.id,
-        s3Bucket,
-        requestedOn: record.requested_on
-      })
+      await queueUserGeneration(
+        {
+          userId,
+          downloadId: record.id,
+          s3Bucket,
+          requestedOn: record.requested_on
+        },
+        request.server.sqs
+      )
 
       logger.info(
         { userId, downloadId: record.id },
