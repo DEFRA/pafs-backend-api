@@ -141,10 +141,16 @@ describe('project-config', () => {
         carbonValuesHexdigest: 'carbon_values_hexdigest',
         fcermGia: 'fcerm_gia',
         localLevy: 'local_levy',
+        internalDrainageBoards: 'internal_drainage_boards',
         publicContributions: 'public_contributions',
+        publicContributorNames: 'public_contributor_names',
         privateContributions: 'private_contributions',
+        privateContributorNames: 'private_contributor_names',
         otherEaContributions: 'other_ea_contributions',
+        otherEaContributorNames: 'other_ea_contributor_names',
+        growthFunding: 'growth_funding',
         notYetIdentified: 'not_yet_identified',
+        fundingSourcesVisited: 'funding_sources_visited',
         assetReplacementAllowance: 'asset_replacement_allowance',
         environmentStatutoryFunding: 'environment_statutory_funding',
         frequentlyFloodedCommunities: 'frequently_flooded_communities',
@@ -228,8 +234,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 113 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(113)
+    it('should have 120 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(120)
     })
   })
 
@@ -296,9 +302,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 113 fields', () => {
+    it('should return an object with 120 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(113)
+      expect(Object.keys(result)).toHaveLength(120)
     })
 
     it('should return a new object each time', () => {

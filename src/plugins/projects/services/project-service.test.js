@@ -1143,8 +1143,23 @@ describe('ProjectService', () => {
           carbon_operational_cost_forecast: true,
           carbon_values_hexdigest: true,
           fcerm_gia: true,
+          local_levy: true,
+          internal_drainage_boards: true,
           public_contributions: true,
+          public_contributor_names: true,
+          private_contributions: true,
+          private_contributor_names: true,
+          other_ea_contributions: true,
+          other_ea_contributor_names: true,
+          growth_funding: true,
+          not_yet_identified: true,
+          funding_sources_visited: true,
           asset_replacement_allowance: true,
+          environment_statutory_funding: true,
+          frequently_flooded_communities: true,
+          other_additional_grant_in_aid: true,
+          other_government_department: true,
+          recovery: true,
           summer_economic_fund: true
         }
       })
