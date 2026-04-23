@@ -1141,7 +1141,11 @@ describe('ProjectService', () => {
           carbon_cost_avoided: true,
           carbon_savings_net_economic_benefit: true,
           carbon_operational_cost_forecast: true,
-          carbon_values_hexdigest: true
+          carbon_values_hexdigest: true,
+          fcerm_gia: true,
+          public_contributions: true,
+          asset_replacement_allowance: true,
+          summer_economic_fund: true
         }
       })
 
@@ -2181,6 +2185,299 @@ describe('ProjectService', () => {
       service._attachJoinedTableData(project, 'state', null, false)
 
       expect(project).not.toHaveProperty('state')
+    })
+  })
+
+  describe('_fetchJoinedDataByConfig', () => {
+    test('should fetch funding contributors using funding value ids (indirect join)', async () => {
+      mockPrisma.pafs_core_funding_values = {
+        findMany: vi.fn().mockResolvedValue([{ id: 11n }, { id: 12n }])
+      }
+      mockPrisma.pafs_core_funding_contributors = {
+        findMany: vi.fn().mockResolvedValue([
+          { funding_value_id: 11n, amount: 1000n },
+          { funding_value_id: 12n, amount: 2000n }
+        ])
+      }
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: {
+          fundingValueId: 'funding_value_id',
+          amount: 'amount'
+        }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+
+      expect(mockPrisma.pafs_core_funding_values.findMany).toHaveBeenCalledWith(
+        {
+          where: { project_id: 1 },
+          select: { id: true }
+        }
+      )
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: {
+            in: [11, 12]
+          }
+        },
+        select: {
+          funding_value_id: true,
+          amount: true
+        }
+      })
+      expect(result).toEqual([
+        { funding_value_id: 11n, amount: 1000n },
+        { funding_value_id: 12n, amount: 2000n }
+      ])
+    })
+
+    test('should return empty array when funding contributors table findMany is missing', async () => {
+      mockPrisma.pafs_core_funding_values = {
+        findMany: vi.fn().mockResolvedValue([{ id: 11n }])
+      }
+      mockPrisma.pafs_core_funding_contributors = undefined
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return empty array when funding values findMany is missing', async () => {
+      mockPrisma.pafs_core_funding_values = undefined
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return empty array when no funding value ids found', async () => {
+      mockPrisma.pafs_core_funding_values = {
+        findMany: vi.fn().mockResolvedValue([])
+      }
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return empty array when table is not found for non-contributor config (isArray)', async () => {
+      mockPrisma.nonexistent_table = undefined
+
+      const config = {
+        tableName: 'nonexistent_table',
+        joinField: 'project_id',
+        isArray: true,
+        fields: { name: 'name' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual([])
+    })
+
+    test('should return null when table is not found for non-contributor config (single)', async () => {
+      mockPrisma.nonexistent_table = undefined
+
+      const config = {
+        tableName: 'nonexistent_table',
+        joinField: 'project_id',
+        isArray: false,
+        fields: { name: 'name' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toBeNull()
+    })
+
+    test('should use findFirst for non-array config', async () => {
+      mockPrisma.pafs_core_states = {
+        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
+      }
+
+      const config = {
+        tableName: 'pafs_core_states',
+        joinField: 'project_id',
+        isArray: false,
+        fields: { state: 'state' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(result).toEqual({ state: 'draft' })
+      expect(mockPrisma.pafs_core_states.findFirst).toHaveBeenCalledWith({
+        where: { project_id: 1 },
+        select: { state: true }
+      })
+    })
+
+    test('should filter out NaN ids from funding value results', async () => {
+      mockPrisma.pafs_core_funding_values = {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 11n }, { id: 'invalid' }, { id: 12n }])
+      }
+      mockPrisma.pafs_core_funding_contributors = {
+        findMany: vi.fn().mockResolvedValue([])
+      }
+
+      const config = {
+        tableName: 'pafs_core_funding_contributors',
+        joinField: 'funding_value_id',
+        isArray: true,
+        fields: { amount: 'amount' }
+      }
+
+      const result = await service._fetchJoinedDataByConfig(1n, config)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).toHaveBeenCalledWith({
+        where: { funding_value_id: { in: [11, 12] } },
+        select: { amount: true }
+      })
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('funding service delegation', () => {
+    test('should delegate upsertFundingValue to fundingSourcesService', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026,
+        amounts: { fcermGia: '1000' }
+      }
+
+      const expected = { id: 1n }
+      const spy = vi
+        .spyOn(service, 'upsertFundingValue')
+        .mockResolvedValue(expected)
+
+      const result = await service.upsertFundingValue(payload)
+
+      expect(spy).toHaveBeenCalledWith(payload)
+      expect(result).toEqual(expected)
+    })
+
+    test('should delegate deleteFundingValue to fundingSourcesService', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026
+      }
+
+      const spy = vi
+        .spyOn(service, 'deleteFundingValue')
+        .mockResolvedValue(null)
+
+      const result = await service.deleteFundingValue(payload)
+
+      expect(spy).toHaveBeenCalledWith(payload)
+      expect(result).toBeNull()
+    })
+
+    test('should delegate deleteAllFundingContributors to fundingSourcesService', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026
+      }
+
+      const spy = vi
+        .spyOn(service, 'deleteAllFundingContributors')
+        .mockResolvedValue(3)
+
+      const result = await service.deleteAllFundingContributors(payload)
+
+      expect(spy).toHaveBeenCalledWith(payload)
+      expect(result).toBe(3)
+    })
+
+    test('should delegate upsertFundingContributor to fundingSourcesService', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026,
+        contributorType: 'public_contributions',
+        name: 'Local Authority',
+        amount: '5000'
+      }
+
+      const expected = { id: 10n }
+      const spy = vi
+        .spyOn(service, 'upsertFundingContributor')
+        .mockResolvedValue(expected)
+
+      const result = await service.upsertFundingContributor(payload)
+
+      expect(spy).toHaveBeenCalledWith(payload)
+      expect(result).toEqual(expected)
+    })
+
+    test('should delegate deleteFundingContributor to fundingSourcesService', async () => {
+      const payload = { id: 5n }
+      const spy = vi
+        .spyOn(service, 'deleteFundingContributor')
+        .mockResolvedValue(null)
+
+      const result = await service.deleteFundingContributor(payload)
+
+      expect(spy).toHaveBeenCalledWith(payload)
+      expect(result).toBeNull()
+    })
+
+    test('should delegate deleteAllFundingData to fundingSourcesService', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const spy = vi
+        .spyOn(service, 'deleteAllFundingData')
+        .mockResolvedValue(undefined)
+
+      await service.deleteAllFundingData(referenceNumber)
+
+      expect(spy).toHaveBeenCalledWith(referenceNumber)
+    })
+
+    test('should delegate deleteContributorsByType to fundingSourcesService', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'public_contributions'
+      }
+      const spy = vi
+        .spyOn(service, 'deleteContributorsByType')
+        .mockResolvedValue(2)
+
+      const result = await service.deleteContributorsByType(payload)
+
+      expect(spy).toHaveBeenCalledWith(payload)
+      expect(result).toBe(2)
+    })
+
+    test('should delegate nullAdditionalGiaColumns to fundingSourcesService', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const spy = vi
+        .spyOn(service, 'nullAdditionalGiaColumns')
+        .mockResolvedValue(undefined)
+
+      await service.nullAdditionalGiaColumns(referenceNumber)
+
+      expect(spy).toHaveBeenCalledWith(referenceNumber)
     })
   })
 })

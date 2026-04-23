@@ -32,3 +32,6 @@ export * from './project/wlb.js'
 
 // Re-export Carbon Impact schemas
 export * from './project/carbon.js'
+
+// Re-export funding sources schemas
+export * from './project/funding-sources.js'

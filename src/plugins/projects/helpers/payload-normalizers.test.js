@@ -19,7 +19,9 @@ import {
   normalizeWlbFields,
   clearNfmFieldsOnInterventionTypeChange,
   sanitizeCarbonFields,
-  normalizeCarbonFields
+  normalizeCarbonFields,
+  sanitizeFundingSourceFields,
+  normalizeFundingSourceFields
 } from './payload-normalizers.js'
 
 describe('normalizeInterventionTypes', () => {
@@ -1705,6 +1707,179 @@ describe('normalizeWlbFields', () => {
 
     expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
     expect(payload.wlbEstimatedPropertyDamagesAvoided).toBeNull()
+  })
+})
+
+describe('sanitizeFundingSourceFields', () => {
+  it('trims public contributor names at PUBLIC_SECTOR_CONTRIBUTORS level', () => {
+    const payload = { publicContributorNames: '  Org A, Org B  ' }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS
+    )
+
+    expect(payload.publicContributorNames).toBe('Org A, Org B')
+  })
+
+  it('trims private contributor names at PRIVATE_SECTOR_CONTRIBUTORS level', () => {
+    const payload = { privateContributorNames: '  Private Co  ' }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PRIVATE_SECTOR_CONTRIBUTORS
+    )
+
+    expect(payload.privateContributorNames).toBe('Private Co')
+  })
+
+  it('trims other EA contributor names at OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS level', () => {
+    const payload = { otherEaContributorNames: '  EA Team  ' }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS
+    )
+
+    expect(payload.otherEaContributorNames).toBe('EA Team')
+  })
+
+  it('sanitizes fundingValues spend fields at FUNDING_SOURCES_ESTIMATED_SPEND level', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: ' 1,000 ',
+          localLevy: '2,500',
+          otherEaContributions: '  300 ',
+          recovery: '',
+          total: ' 3,800 '
+        }
+      ]
+    }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBe('1000')
+    expect(payload.fundingValues[0].localLevy).toBe('2500')
+    expect(payload.fundingValues[0].otherEaContributions).toBe('300')
+    expect(payload.fundingValues[0].recovery).toBe('')
+    expect(payload.fundingValues[0].total).toBe('3800')
+  })
+
+  it('does nothing when fundingValues is not an array', () => {
+    const payload = { fundingValues: null }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues).toBeNull()
+  })
+
+  it('does not run at unrelated levels', () => {
+    const payload = {
+      publicContributorNames: '  Org A  ',
+      fundingValues: [{ fcermGia: '1,000' }]
+    }
+
+    sanitizeFundingSourceFields(payload, PROJECT_VALIDATION_LEVELS.APPROACH)
+
+    expect(payload.publicContributorNames).toBe('  Org A  ')
+    expect(payload.fundingValues[0].fcermGia).toBe('1,000')
+  })
+})
+
+describe('normalizeFundingSourceFields', () => {
+  it('converts empty spend strings to null at FUNDING_SOURCES_ESTIMATED_SPEND level', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: '',
+          localLevy: '1000',
+          otherEaContributions: '',
+          total: ''
+        }
+      ]
+    }
+
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBeNull()
+    expect(payload.fundingValues[0].localLevy).toBe('1000')
+    expect(payload.fundingValues[0].otherEaContributions).toBeNull()
+    expect(payload.fundingValues[0].total).toBeNull()
+  })
+
+  it('preserves null/undefined and numeric-like strings', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: null,
+          localLevy: undefined,
+          publicContributions: '0'
+        }
+      ]
+    }
+
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBeNull()
+    expect(payload.fundingValues[0].localLevy).toBeUndefined()
+    expect(payload.fundingValues[0].publicContributions).toBe('0')
+  })
+
+  it('does nothing when fundingValues is not an array', () => {
+    const payload = { fundingValues: undefined }
+
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues).toBeUndefined()
+  })
+
+  it('does not run at unrelated levels', () => {
+    const payload = {
+      fundingValues: [{ fcermGia: '' }]
+    }
+
+    normalizeFundingSourceFields(payload, PROJECT_VALIDATION_LEVELS.APPROACH)
+
+    expect(payload.fundingValues[0].fcermGia).toBe('')
+  })
+
+  it('works together with sanitizeFundingSourceFields for spend level', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: ' 1,000 ',
+          localLevy: ' '
+        }
+      ]
+    }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBe('1000')
+    expect(payload.fundingValues[0].localLevy).toBeNull()
   })
 })
 

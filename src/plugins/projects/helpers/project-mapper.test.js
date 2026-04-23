@@ -914,6 +914,68 @@ describe('ProjectMapper', () => {
       expect(result).toHaveProperty('pafs_core_nfm_measures')
       expect(result.pafs_core_nfm_measures).toEqual([])
     })
+
+    it('should map one-to-many pafs_core_funding_values with bigint spend fields', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        pafs_core_funding_values: [
+          {
+            financial_year: 2025,
+            fcerm_gia: BigInt(1000),
+            local_levy: BigInt(2000),
+            total: BigInt(3000),
+            recovery: null
+          }
+        ]
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toHaveProperty('pafs_core_funding_values')
+      expect(result.pafs_core_funding_values).toEqual([
+        {
+          financialYear: 2025,
+          fcermGia: '1000',
+          localLevy: '2000',
+          total: '3000',
+          recovery: null
+        }
+      ])
+    })
+
+    it('should map one-to-many pafs_core_funding_contributors with bigint ids/amounts', () => {
+      const nestedDbData = {
+        reference_number: 'REF123',
+        pafs_core_funding_contributors: [
+          {
+            name: 'Contributor A',
+            contributor_type: 'public_contributions',
+            funding_value_id: BigInt(55),
+            amount: BigInt(7000),
+            secured: true,
+            constrained: false,
+            created_at: new Date('2026-01-01T00:00:00.000Z'),
+            updated_at: new Date('2026-01-02T00:00:00.000Z')
+          }
+        ]
+      }
+
+      const result = ProjectMapper.toApi(nestedDbData)
+
+      expect(result).toHaveProperty('pafs_core_funding_contributors')
+      expect(result.pafs_core_funding_contributors).toEqual([
+        {
+          name: 'Contributor A',
+          contributorType: 'public_contributions',
+          fundingValueId: '55',
+          amount: '7000',
+          secured: true,
+          constrained: false,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z')
+        }
+      ])
+    })
   })
 
   describe('WLB BigInt field transformations', () => {

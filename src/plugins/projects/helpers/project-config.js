@@ -48,6 +48,45 @@ export const PROJECT_JOIN_TABLES = {
       areaBeforeHectares: 'area_before_hectares',
       areaAfterHectares: 'area_after_hectares'
     }
+  },
+  pafs_core_funding_values: {
+    tableName: 'pafs_core_funding_values',
+    joinField: 'project_id',
+    isArray: true,
+    fields: {
+      id: 'id',
+      financialYear: 'financial_year',
+      fcermGia: 'fcerm_gia',
+      localLevy: 'local_levy',
+      internalDrainageBoards: 'internal_drainage_boards',
+      publicContributions: 'public_contributions',
+      privateContributions: 'private_contributions',
+      otherEaContributions: 'other_ea_contributions',
+      notYetIdentified: 'not_yet_identified',
+      total: 'total',
+      assetReplacementAllowance: 'asset_replacement_allowance',
+      environmentStatutoryFunding: 'environment_statutory_funding',
+      frequentlyFloodedCommunities: 'frequently_flooded_communities',
+      otherAdditionalGrantInAid: 'other_additional_grant_in_aid',
+      otherGovernmentDepartment: 'other_government_department',
+      recovery: 'recovery',
+      summerEconomicFund: 'summer_economic_fund'
+    }
+  },
+  pafs_core_funding_contributors: {
+    tableName: 'pafs_core_funding_contributors',
+    joinField: 'funding_value_id',
+    isArray: true,
+    fields: {
+      name: 'name',
+      contributorType: 'contributor_type',
+      fundingValueId: 'funding_value_id',
+      amount: 'amount',
+      secured: 'secured',
+      constrained: 'constrained',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at'
+    }
   }
 }
 
@@ -158,7 +197,26 @@ export const PROJECT_FIELDS_MAP = {
   carbonCostAvoided: 'carbon_cost_avoided',
   carbonSavingsNetEconomicBenefit: 'carbon_savings_net_economic_benefit',
   carbonOperationalCostForecast: 'carbon_operational_cost_forecast',
-  carbonValuesHexdigest: 'carbon_values_hexdigest'
+  carbonValuesHexdigest: 'carbon_values_hexdigest',
+  fcermGia: 'fcerm_gia',
+  localLevy: 'local_levy',
+  internalDrainageBoards: 'internal_drainage_boards',
+  publicContributions: 'public_contributions',
+  publicContributorNames: 'public_contributor_names',
+  privateContributions: 'private_contributions',
+  privateContributorNames: 'private_contributor_names',
+  otherEaContributions: 'other_ea_contributions',
+  otherEaContributorNames: 'other_ea_contributor_names',
+  growthFunding: 'growth_funding',
+  notYetIdentified: 'not_yet_identified',
+  fundingSourcesVisited: 'funding_sources_visited',
+  assetReplacementAllowance: 'asset_replacement_allowance',
+  environmentStatutoryFunding: 'environment_statutory_funding',
+  frequentlyFloodedCommunities: 'frequently_flooded_communities',
+  otherAdditionalGrantInAid: 'other_additional_grant_in_aid',
+  otherGovernmentDepartment: 'other_government_department',
+  recovery: 'recovery',
+  summerEconomicFund: 'summer_economic_fund'
 }
 
 /**

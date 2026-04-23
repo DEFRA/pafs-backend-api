@@ -138,7 +138,20 @@ describe('project-config', () => {
         carbonCostAvoided: 'carbon_cost_avoided',
         carbonSavingsNetEconomicBenefit: 'carbon_savings_net_economic_benefit',
         carbonOperationalCostForecast: 'carbon_operational_cost_forecast',
-        carbonValuesHexdigest: 'carbon_values_hexdigest'
+        carbonValuesHexdigest: 'carbon_values_hexdigest',
+        fcermGia: 'fcerm_gia',
+        localLevy: 'local_levy',
+        publicContributions: 'public_contributions',
+        privateContributions: 'private_contributions',
+        otherEaContributions: 'other_ea_contributions',
+        notYetIdentified: 'not_yet_identified',
+        assetReplacementAllowance: 'asset_replacement_allowance',
+        environmentStatutoryFunding: 'environment_statutory_funding',
+        frequentlyFloodedCommunities: 'frequently_flooded_communities',
+        otherAdditionalGrantInAid: 'other_additional_grant_in_aid',
+        otherGovernmentDepartment: 'other_government_department',
+        recovery: 'recovery',
+        summerEconomicFund: 'summer_economic_fund'
       })
     })
 
@@ -215,8 +228,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 101 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(101)
+    it('should have 113 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(113)
     })
   })
 
@@ -260,8 +273,8 @@ describe('project-config', () => {
       })
     })
 
-    it('should have exactly 4 joined tables', () => {
-      expect(Object.keys(PROJECT_JOIN_TABLES)).toHaveLength(4)
+    it('should have exactly 6 joined tables', () => {
+      expect(Object.keys(PROJECT_JOIN_TABLES)).toHaveLength(6)
     })
   })
 
@@ -283,9 +296,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 101 fields', () => {
+    it('should return an object with 113 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(101)
+      expect(Object.keys(result)).toHaveLength(113)
     })
 
     it('should return a new object each time', () => {
@@ -338,9 +351,9 @@ describe('project-config', () => {
       })
     })
 
-    it('should return exactly 4 joined tables', () => {
+    it('should return exactly 6 joined tables', () => {
       const result = getJoinedTableConfig()
-      expect(Object.keys(result)).toHaveLength(4)
+      expect(Object.keys(result)).toHaveLength(6)
     })
 
     it('should have valid table configuration structure', () => {
@@ -372,6 +385,8 @@ describe('project-config', () => {
       expect(result).toHaveProperty('pafs_core_area_projects')
       expect(result).toHaveProperty('pafs_core_nfm_measures')
       expect(result).toHaveProperty('pafs_core_nfm_land_use_changes')
+      expect(result).toHaveProperty('pafs_core_funding_values')
+      expect(result).toHaveProperty('pafs_core_funding_contributors')
     })
 
     it('should have correct structure for pafs_core_states', () => {
@@ -393,9 +408,9 @@ describe('project-config', () => {
       })
     })
 
-    it('should return exactly 4 joined tables', () => {
+    it('should return exactly 6 joined tables', () => {
       const result = getJoinedSelectFields()
-      expect(Object.keys(result)).toHaveLength(4)
+      expect(Object.keys(result)).toHaveLength(6)
     })
 
     it('should have all select values as true', () => {

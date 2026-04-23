@@ -45,6 +45,49 @@ const DECIMAL_FIELDS = new Set([
   'carbonSavingsNetEconomicBenefit'
 ])
 
+const FUNDING_VALUE_BIGINT_FIELDS = new Set([
+  'fcermGia',
+  'localLevy',
+  'internalDrainageBoards',
+  'publicContributions',
+  'privateContributions',
+  'otherEaContributions',
+  'notYetIdentified',
+  'total',
+  'assetReplacementAllowance',
+  'environmentStatutoryFunding',
+  'frequentlyFloodedCommunities',
+  'otherAdditionalGrantInAid',
+  'otherGovernmentDepartment',
+  'recovery',
+  'summerEconomicFund'
+])
+
+const FUNDING_CONTRIBUTOR_BIGINT_FIELDS = new Set(['fundingValueId', 'amount'])
+
+const isFundingValuesBigIntField = (field, sourceTable) => {
+  return (
+    sourceTable === 'pafs_core_funding_values' &&
+    FUNDING_VALUE_BIGINT_FIELDS.has(field)
+  )
+}
+
+const FUNDING_VALUES_NUMBER_FIELDS = new Set(['financialYear', 'id'])
+
+const isFundingValuesNumberField = (field, sourceTable) => {
+  return (
+    sourceTable === 'pafs_core_funding_values' &&
+    FUNDING_VALUES_NUMBER_FIELDS.has(field)
+  )
+}
+
+const isFundingContributorsBigIntField = (field, sourceTable) => {
+  return (
+    sourceTable === 'pafs_core_funding_contributors' &&
+    FUNDING_CONTRIBUTOR_BIGINT_FIELDS.has(field)
+  )
+}
+
 export class ProjectMapper {
   /**
    * Maps API data to database format (for create/upsert operations)
@@ -76,7 +119,7 @@ export class ProjectMapper {
     const apiData = {}
 
     // Map main project fields
-    this._mapFields(dbData, apiData, PROJECT_SELECT_FIELDS_MAP)
+    this._mapFields(dbData, apiData, PROJECT_SELECT_FIELDS_MAP, 'main')
 
     // Map joined fields from manually fetched tables
     Object.entries(PROJECT_JOIN_TABLES).forEach(([tableName, config]) => {
@@ -85,7 +128,7 @@ export class ProjectMapper {
           // Handle one-to-many relationships (e.g., NFM measures)
           apiData[tableName] = dbData[tableName].map((item) => {
             const mappedItem = {}
-            this._mapFields(item, mappedItem, config.fields)
+            this._mapFields(item, mappedItem, config.fields, tableName)
             return mappedItem
           })
         } else {
@@ -95,7 +138,7 @@ export class ProjectMapper {
             : dbData[tableName]
 
           if (tableData) {
-            this._mapFields(tableData, apiData, config.fields)
+            this._mapFields(tableData, apiData, config.fields, tableName)
           }
         }
       }
@@ -112,12 +155,13 @@ export class ProjectMapper {
    * @param {Object} fieldMap - Field mapping configuration
    * @private
    */
-  static _mapFields(dbData, apiData, fieldMap) {
+  static _mapFields(dbData, apiData, fieldMap, sourceTable = 'main') {
     for (const [apiField, dbColumn] of Object.entries(fieldMap)) {
       if (dbData[dbColumn] !== undefined) {
         apiData[apiField] = this.reverseTransformValue(
           apiField,
-          dbData[dbColumn]
+          dbData[dbColumn],
+          sourceTable
         )
       }
     }
@@ -159,7 +203,19 @@ export class ProjectMapper {
    * @param {any} value - The value to reverse transform
    * @returns {any} - The reversed transformed value
    */
-  static reverseTransformValue(field, value) {
+  static reverseTransformValue(field, value, sourceTable = 'main') {
+    if (isFundingValuesBigIntField(field, sourceTable)) {
+      return convertBigInt(value, CONVERSION_DIRECTIONS.TO_API)
+    }
+
+    if (isFundingValuesNumberField(field, sourceTable)) {
+      return convertNumber(value, CONVERSION_DIRECTIONS.TO_API)
+    }
+
+    if (isFundingContributorsBigIntField(field, sourceTable)) {
+      return convertBigInt(value, CONVERSION_DIRECTIONS.TO_API)
+    }
+
     if (ARRAY_FIELDS.has(field)) {
       return convertArray(value, CONVERSION_DIRECTIONS.TO_API)
     }
