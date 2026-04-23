@@ -27,6 +27,8 @@ const validateCarbonDecimalString = (value, helpers) => {
   } else if (intPart.length > MAX_EMISSION_DIGITS) {
     // Decimal: max 16 digits before decimal point
     return helpers.error('string.max')
+  } else {
+    // no error
   }
   return value
 }
