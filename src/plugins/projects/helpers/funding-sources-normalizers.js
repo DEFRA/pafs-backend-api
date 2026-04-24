@@ -210,6 +210,21 @@ const hasContributorFields = (row) => {
   )
 }
 
+/**
+ * Check whether a contributor entry is a valid object with a name and
+ * a non-empty, non-zero amount.
+ * @private
+ */
+const isValidContributorEntry = (contributor) => {
+  if (!contributor || typeof contributor !== 'object' || !contributor.name) {
+    return false
+  }
+  const { amount } = contributor
+  return (
+    amount !== null && amount !== undefined && amount !== '' && amount !== '0'
+  )
+}
+
 const getContributorEntries = (row) => {
   return CONTRIBUTOR_CONFIG.flatMap(
     ({ contributorsField, contributorType }) => {
@@ -220,16 +235,7 @@ const getContributorEntries = (row) => {
       }
 
       return contributors
-        .filter(
-          (contributor) =>
-            contributor &&
-            typeof contributor === 'object' &&
-            contributor.name &&
-            contributor.amount !== null &&
-            contributor.amount !== undefined &&
-            contributor.amount !== '' &&
-            contributor.amount !== '0'
-        )
+        .filter(isValidContributorEntry)
         .map((contributor) => ({
           name: contributor.name,
           contributorType: contributor.contributorType || contributorType,
