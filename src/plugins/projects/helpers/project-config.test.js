@@ -28,31 +28,137 @@ describe('project-config', () => {
 
   describe('PROJECT_FIELDS_MAP', () => {
     it('should have correct field mappings', () => {
-      expect(PROJECT_FIELDS_MAP).toEqual(
-        expect.objectContaining({
-          name: 'name',
-          rmaName: 'rma_name',
-          projectType: 'project_type',
-          projectInterventionTypes: 'project_intervention_types',
-          mainInterventionType: 'main_intervention_type',
-          wlcEstimatedWholeLifePvCosts: 'wlc_estimated_whole_life_pv_costs',
-          wlbEstimatedWholeLifePvBenefits:
-            'wlc_estimated_whole_life_pv_benefits',
-          fcermGia: 'fcerm_gia',
-          localLevy: 'local_levy',
-          publicContributions: 'public_contributions',
-          privateContributions: 'private_contributions',
-          otherEaContributions: 'other_ea_contributions',
-          notYetIdentified: 'not_yet_identified',
-          assetReplacementAllowance: 'asset_replacement_allowance',
-          environmentStatutoryFunding: 'environment_statutory_funding',
-          frequentlyFloodedCommunities: 'frequently_flooded_communities',
-          otherAdditionalGrantInAid: 'other_additional_grant_in_aid',
-          otherGovernmentDepartment: 'other_government_department',
-          recovery: 'recovery',
-          summerEconomicFund: 'summer_economic_fund'
-        })
-      )
+      expect(PROJECT_FIELDS_MAP).toEqual({
+        name: 'name',
+        rmaName: 'rma_name',
+        projectType: 'project_type',
+        projectInterventionTypes: 'project_intervention_types',
+        mainInterventionType: 'main_intervention_type',
+        financialStartYear: 'earliest_start_year',
+        financialEndYear: 'project_end_financial_year',
+        startOutlineBusinessCaseMonth: 'start_outline_business_case_month',
+        startOutlineBusinessCaseYear: 'start_outline_business_case_year',
+        completeOutlineBusinessCaseMonth:
+          'complete_outline_business_case_month',
+        completeOutlineBusinessCaseYear: 'complete_outline_business_case_year',
+        awardContractMonth: 'award_contract_month',
+        awardContractYear: 'award_contract_year',
+        startConstructionMonth: 'start_construction_month',
+        startConstructionYear: 'start_construction_year',
+        readyForServiceMonth: 'ready_for_service_month',
+        readyForServiceYear: 'ready_for_service_year',
+        couldStartEarly: 'could_start_early',
+        earliestWithGiaMonth: 'earliest_with_gia_month',
+        earliestWithGiaYear: 'earliest_with_gia_year',
+        risks: 'project_risks_protected_against',
+        mainRisk: 'main_source_of_risk',
+        noPropertiesAtRisk: 'no_properties_at_flood_risk',
+        maintainingExistingAssets: 'properties_benefit_maintaining_assets',
+        reducingFloodRisk50Plus: 'properties_benefit_50_percent_reduction',
+        reducingFloodRiskLess50: 'properties_benefit_less_50_percent_reduction',
+        increasingFloodResilience: 'properties_benefit_individual_intervention',
+        noPropertiesAtCoastalErosionRisk:
+          'no_properties_at_coastal_erosion_risk',
+        propertiesBenefitMaintainingAssetsCoastal:
+          'properties_benefit_maintaining_assets_coastal',
+        propertiesBenefitInvestmentCoastalErosion:
+          'properties_benefit_investment_coastal_erosion',
+        percentProperties20PercentDeprived:
+          'percent_properties_20_percent_deprived',
+        percentProperties40PercentDeprived:
+          'percent_properties_40_percent_deprived',
+        currentFloodFluvialRisk: 'current_flood_fluvial_risk',
+        currentFloodSurfaceWaterRisk: 'current_flood_surface_water_risk',
+        currentCoastalErosionRisk: 'current_coastal_erosion_risk',
+        approach: 'approach',
+        urgencyReason: 'urgency_reason',
+        urgencyDetails: 'urgency_details',
+        urgencyDetailsUpdatedAt: 'urgency_details_updated_at',
+        confidenceHomesBetterProtected: 'confidence_homes_better_protected',
+        confidenceHomesByGatewayFour: 'confidence_homes_by_gateway_four',
+        confidenceSecuredPartnershipFunding:
+          'confidence_secured_partnership_funding',
+        environmentalBenefits: 'environmental_benefits',
+        intertidalHabitat: 'intertidal_habitat',
+        hectaresOfIntertidalHabitatCreatedOrEnhanced:
+          'hectares_of_intertidal_habitat_created_or_enhanced',
+        woodland: 'woodland',
+        hectaresOfWoodlandHabitatCreatedOrEnhanced:
+          'hectares_of_woodland_habitat_created_or_enhanced',
+        wetWoodland: 'wet_woodland',
+        hectaresOfWetWoodlandHabitatCreatedOrEnhanced:
+          'hectares_of_wet_woodland_habitat_created_or_enhanced',
+        wetlandOrWetGrassland: 'wetland_or_wet_grassland',
+        hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced:
+          'hectares_of_wetland_or_wet_grassland_created_or_enhanced',
+        grassland: 'grassland',
+        hectaresOfGrasslandHabitatCreatedOrEnhanced:
+          'hectares_of_grassland_habitat_created_or_enhanced',
+        heathland: 'heathland',
+        hectaresOfHeathlandCreatedOrEnhanced:
+          'hectares_of_heathland_created_or_enhanced',
+        pondsLakes: 'ponds_lakes',
+        hectaresOfPondOrLakeHabitatCreatedOrEnhanced:
+          'hectares_of_pond_or_lake_habitat_created_or_enhanced',
+        arableLand: 'arable_land',
+        hectaresOfArableLandLakeHabitatCreatedOrEnhanced:
+          'hectares_of_arable_land_lake_habitat_created_or_enhanced',
+        comprehensiveRestoration: 'comprehensive_restoration',
+        kilometresOfWatercourseEnhancedOrCreatedComprehensive:
+          'kilometres_of_watercourse_enhanced_or_created_comprehensive',
+        partialRestoration: 'partial_restoration',
+        kilometresOfWatercourseEnhancedOrCreatedPartial:
+          'kilometres_of_watercourse_enhanced_or_created_partial',
+        createHabitatWatercourse: 'create_habitat_watercourse',
+        kilometresOfWatercourseEnhancedOrCreatedSingle:
+          'kilometres_of_watercourse_enhanced_or_created_single',
+        nfmSelectedMeasures: 'nfm_selected_measures',
+        nfmLandUseChange: 'nfm_land_use_change',
+        nfmLandownerConsent: 'nfm_landowner_consent',
+        nfmExperienceLevel: 'nfm_experience_level',
+        nfmProjectReadiness: 'nfm_project_readiness',
+        wlcEstimatedWholeLifePvCosts: 'wlc_estimated_whole_life_pv_costs',
+        wlcEstimatedDesignConstructionCosts:
+          'wlc_estimated_design_construction_costs',
+        wlcEstimatedRiskContingencyCosts:
+          'wlc_estimated_risk_contingency_costs',
+        wlcEstimatedFutureCosts: 'wlc_estimated_future_costs',
+        wlbEstimatedWholeLifePvBenefits: 'wlc_estimated_whole_life_pv_benefits',
+        wlbEstimatedPropertyDamagesAvoided:
+          'wlc_estimated_property_damages_avoided',
+        wlbEstimatedEnvironmentalBenefits:
+          'wlc_estimated_environmental_benefits',
+        wlbEstimatedRecreationTourismBenefits:
+          'wlc_estimated_recreation_tourism_benefits',
+        wlbEstimatedLandValueUpliftBenefits:
+          'wlc_estimated_land_value_uplift_benefits',
+        carbonCostBuild: 'carbon_cost_build',
+        carbonCostOperation: 'carbon_cost_operation',
+        carbonCostSequestered: 'carbon_cost_sequestered',
+        carbonCostAvoided: 'carbon_cost_avoided',
+        carbonSavingsNetEconomicBenefit: 'carbon_savings_net_economic_benefit',
+        carbonOperationalCostForecast: 'carbon_operational_cost_forecast',
+        carbonValuesHexdigest: 'carbon_values_hexdigest',
+        fcermGia: 'fcerm_gia',
+        localLevy: 'local_levy',
+        internalDrainageBoards: 'internal_drainage_boards',
+        publicContributions: 'public_contributions',
+        publicContributorNames: 'public_contributor_names',
+        privateContributions: 'private_contributions',
+        privateContributorNames: 'private_contributor_names',
+        otherEaContributions: 'other_ea_contributions',
+        otherEaContributorNames: 'other_ea_contributor_names',
+        growthFunding: 'growth_funding',
+        notYetIdentified: 'not_yet_identified',
+        fundingSourcesVisited: 'funding_sources_visited',
+        assetReplacementAllowance: 'asset_replacement_allowance',
+        environmentStatutoryFunding: 'environment_statutory_funding',
+        frequentlyFloodedCommunities: 'frequently_flooded_communities',
+        otherAdditionalGrantInAid: 'other_additional_grant_in_aid',
+        otherGovernmentDepartment: 'other_government_department',
+        recovery: 'recovery',
+        summerEconomicFund: 'summer_economic_fund'
+      })
     })
 
     it('should have all required fields', () => {
@@ -128,8 +234,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 118 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(118)
+    it('should have 125 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(125)
     })
   })
 
@@ -196,9 +302,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 118 fields', () => {
+    it('should return an object with 125 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(118)
+      expect(Object.keys(result)).toHaveLength(125)
     })
 
     it('should return a new object each time', () => {

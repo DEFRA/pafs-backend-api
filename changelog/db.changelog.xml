@@ -22,6 +22,8 @@
   <include file="2-005-area-downloads-table.xml" relativeToChangelogFile="true"/>
   <include file="2-006-area-downloads-progress.xml" relativeToChangelogFile="true"/>
   <include file="2-007-area-downloads-benefit-count.xml" relativeToChangelogFile="true"/>
+  <!-- Schema changes for validation updates -->
+  <include file="2-008-numeric-precision.xml" relativeToChangelogFile="true"/>
 
   <!-- Legacy tables - these are maintained for historical purposes, but new system should not use these tables. -->
   <include file="3-001-account-requests-legacy-table.xml" relativeToChangelogFile="true"/>

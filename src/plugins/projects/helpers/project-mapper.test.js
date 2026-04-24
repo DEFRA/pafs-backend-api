@@ -1127,4 +1127,224 @@ describe('ProjectMapper', () => {
       )
     })
   })
+
+  describe('transformValue', () => {
+    it('should transform array fields using convertArray', () => {
+      const result = ProjectMapper.transformValue('projectInterventionTypes', [
+        'NFM',
+        'SUDS',
+        'PFR'
+      ])
+
+      expect(result).toBe('NFM,SUDS,PFR')
+      expect(typeof result).toBe('string')
+    })
+
+    it('should transform empty arrays to empty string', () => {
+      const result = ProjectMapper.transformValue(
+        'projectInterventionTypes',
+        []
+      )
+
+      expect(result).toBe('')
+    })
+
+    it('should transform null arrays to null', () => {
+      const result = ProjectMapper.transformValue(
+        'projectInterventionTypes',
+        null
+      )
+
+      expect(result).toBeNull()
+    })
+
+    it('should transform risks array field', () => {
+      const result = ProjectMapper.transformValue('risks', [
+        'fluvial_flooding',
+        'coastal_erosion'
+      ])
+
+      expect(result).toBe('fluvial_flooding,coastal_erosion')
+    })
+
+    it('should transform BIGINT fields using convertBigInt', () => {
+      const result = ProjectMapper.transformValue(
+        'wlcEstimatedWholeLifePvCosts',
+        1000000
+      )
+
+      expect(result).toBe(1000000n)
+      expect(typeof result).toBe('bigint')
+    })
+
+    it('should transform string BIGINT values to bigint', () => {
+      const result = ProjectMapper.transformValue(
+        'wlcEstimatedDesignConstructionCosts',
+        '5000000'
+      )
+
+      expect(result).toBe(5000000n)
+      expect(typeof result).toBe('bigint')
+    })
+
+    it('should transform DECIMAL fields using convertDecimal', () => {
+      const result = ProjectMapper.transformValue('carbonCostBuild', 100.5)
+
+      expect(result).toBe('100.5')
+      expect(typeof result).toBe('string')
+    })
+
+    it('should transform string DECIMAL values', () => {
+      const result = ProjectMapper.transformValue(
+        'carbonCostOperation',
+        '250.75'
+      )
+
+      expect(result).toBe('250.75')
+    })
+
+    it('should transform NUMBER fields using convertNumber', () => {
+      const result = ProjectMapper.transformValue('financialStartYear', 2024)
+
+      expect(result).toBe(2024)
+    })
+
+    it('should transform string NUMBER values to number', () => {
+      const result = ProjectMapper.transformValue('financialEndYear', '2025')
+
+      expect(result).toBe(2025)
+    })
+
+    it('should transform percentage fields', () => {
+      const result = ProjectMapper.transformValue(
+        'percentProperties20PercentDeprived',
+        45.5
+      )
+
+      expect(result).toBe(45.5)
+    })
+
+    it('should pass through non-mapped values unchanged', () => {
+      const result = ProjectMapper.transformValue('name', 'Test Project')
+
+      expect(result).toBe('Test Project')
+    })
+
+    it('should pass through null values unchanged for non-array fields', () => {
+      const result = ProjectMapper.transformValue('name', null)
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('reverseTransformValue', () => {
+    it('should reverse transform comma-separated array strings back to array', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'projectInterventionTypes',
+        'NFM,SUDS,PFR'
+      )
+
+      expect(result).toEqual(['NFM', 'SUDS', 'PFR'])
+      expect(Array.isArray(result)).toBe(true)
+    })
+
+    it('should reverse transform empty array string', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'projectInterventionTypes',
+        ''
+      )
+
+      expect(result).toEqual([])
+    })
+
+    it('should reverse transform null array values', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'projectInterventionTypes',
+        null
+      )
+
+      expect(result).toEqual([])
+    })
+
+    it('should reverse transform risks array field', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'risks',
+        'fluvial_flooding,coastal_erosion,surface_water_flooding'
+      )
+
+      expect(result).toEqual([
+        'fluvial_flooding',
+        'coastal_erosion',
+        'surface_water_flooding'
+      ])
+    })
+
+    it('should reverse transform BIGINT fields back to string', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'wlcEstimatedWholeLifePvCosts',
+        1000000n
+      )
+
+      expect(result).toBe('1000000')
+      expect(typeof result).toBe('string')
+    })
+
+    it('should reverse transform numeric BIGINT values', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'wlcEstimatedDesignConstructionCosts',
+        5000000
+      )
+
+      expect(result).toBe('5000000')
+    })
+
+    it('should reverse transform DECIMAL fields', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'carbonCostBuild',
+        '100.5'
+      )
+
+      expect(result).toBe('100.5')
+      expect(typeof result).toBe('string')
+    })
+
+    it('should reverse transform numeric DECIMAL values', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'carbonCostOperation',
+        250.75
+      )
+
+      expect(result).toBe('250.75')
+    })
+
+    it('should reverse transform NUMBER fields', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'financialStartYear',
+        2024
+      )
+
+      expect(result).toBe(2024)
+    })
+
+    it('should reverse transform percentage fields', () => {
+      const result = ProjectMapper.reverseTransformValue(
+        'percentProperties20PercentDeprived',
+        45.5
+      )
+
+      expect(result).toBe(45.5)
+    })
+
+    it('should pass through non-mapped values unchanged', () => {
+      const result = ProjectMapper.reverseTransformValue('name', 'Test Project')
+
+      expect(result).toBe('Test Project')
+    })
+
+    it('should pass through null values unchanged', () => {
+      const result = ProjectMapper.reverseTransformValue('name', null)
+
+      expect(result).toBeNull()
+    })
+  })
 })
