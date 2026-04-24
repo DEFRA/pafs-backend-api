@@ -17,7 +17,6 @@ function makeProject(overrides = {}) {
     rma_name: 'East Anglia IDB',
     project_type: 'DEF',
     main_risk: 'fluvial_flooding',
-    main_source_of_risk: 'fluvial_flooding',
     project_risks_protected_against: 'fluvial_flooding,coastal_erosion',
     urgency_reason: 'not_urgent',
     consented: true,
@@ -192,9 +191,7 @@ describe('FcermPresenter', () => {
     })
 
     test('mainRisk returns null when not set', () => {
-      const p = new FcermPresenter(
-        makeProject({ main_risk: null, main_source_of_risk: null })
-      )
+      const p = new FcermPresenter(makeProject({ main_risk: null }))
       expect(p.mainRisk()).toBeNull()
     })
 

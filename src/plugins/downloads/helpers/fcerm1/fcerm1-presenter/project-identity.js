@@ -49,11 +49,11 @@ export const projectIdentityMixin = {
     return type ?? null
   },
   mainRisk() {
-    const risk = this._p.main_risk ?? this._p.main_source_of_risk
+    const risk = this._p.main_risk
     return risk ? (RISK_LABELS[risk] ?? risk) : null
   },
   secondaryRiskSources() {
-    const main = this._p.main_risk ?? this._p.main_source_of_risk
+    const main = this._p.main_risk
     const risks = this._p.project_risks_protected_against
       ? this._p.project_risks_protected_against.split(',').map((r) => r.trim())
       : []

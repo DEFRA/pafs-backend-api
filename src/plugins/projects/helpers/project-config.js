@@ -117,7 +117,7 @@ export const PROJECT_FIELDS_MAP = {
   earliestWithGiaMonth: 'earliest_with_gia_month',
   earliestWithGiaYear: 'earliest_with_gia_year',
   risks: 'project_risks_protected_against',
-  mainRisk: 'main_source_of_risk',
+  mainRisk: 'main_risk',
   noPropertiesAtRisk: 'no_properties_at_flood_risk',
   maintainingExistingAssets: 'properties_benefit_maintaining_assets',
   reducingFloodRisk50Plus: 'properties_benefit_50_percent_reduction',

@@ -684,23 +684,58 @@ describe('urgencyDetails', () => {
   })
 })
 
-// ── Carbon calculated fields (KN–KQ) — not in DB ─────────────────────────────
+// ── Carbon calculated fields (KP–KS) ───────────────────────────────────────
 
 describe('carbon calculated fields', () => {
-  test('carbonCapitalBaseline returns null', () => {
-    expect(makePresenter().carbonCapitalBaseline()).toBeNull()
+  const carbonProject = {
+    start_construction_month: 4,
+    start_construction_year: 2025,
+    ready_for_service_month: 3,
+    ready_for_service_year: 2028,
+    carbon_operational_cost_forecast: 150000n,
+    pafs_core_funding_values: [
+      { financial_year: 2025, total: 500000 },
+      { financial_year: 2026, total: 300000 },
+      { financial_year: 2027, total: 200000 }
+    ]
+  }
+
+  test('carbonCapitalBaseline calculates from construction funding and mid-year rate', () => {
+    // TPF=1000000, mid-year=2026, Cap DN rate=2.94 → 1000000 * 2.94 / 10000 = 294
+    const p = makePresenter(carbonProject)
+    expect(p.carbonCapitalBaseline()).toBeCloseTo(294, 1)
   })
 
-  test('carbonCapitalTarget returns null', () => {
-    expect(makePresenter().carbonCapitalTarget()).toBeNull()
+  test('carbonCapitalTarget applies reduction to baseline', () => {
+    // Cap reduction=-31.5% → 1000000 * 2.94 * (1 - 0.315) / 10000 ≈ 201.39
+    const p = makePresenter(carbonProject)
+    expect(p.carbonCapitalTarget()).toBeCloseTo(201.39, 1)
   })
 
-  test('carbonOmBaseline returns null', () => {
-    expect(makePresenter().carbonOmBaseline()).toBeNull()
+  test('carbonOmBaseline uses operational cost forecast and RFS year rate', () => {
+    // TPF=150000, RFS FY=2027, Ops DN rate=2.94 → 150000 * 2.94 / 10000 = 44.1
+    const p = makePresenter(carbonProject)
+    expect(p.carbonOmBaseline()).toBeCloseTo(44.1, 1)
   })
 
-  test('carbonOmTarget returns null', () => {
-    expect(makePresenter().carbonOmTarget()).toBeNull()
+  test('carbonOmTarget applies operational reduction to baseline', () => {
+    // Ops reduction=-36% → 150000 * 2.94 * (1 - 0.36) / 10000 ≈ 28.22
+    const p = makePresenter(carbonProject)
+    expect(p.carbonOmTarget()).toBeCloseTo(28.22, 1)
+  })
+
+  test('returns null when timeline is incomplete', () => {
+    const p = makePresenter({
+      start_construction_month: null,
+      start_construction_year: null,
+      ready_for_service_month: null,
+      ready_for_service_year: null,
+      pafs_core_funding_values: []
+    })
+    expect(p.carbonCapitalBaseline()).toBeNull()
+    expect(p.carbonCapitalTarget()).toBeNull()
+    expect(p.carbonOmBaseline()).toBeNull()
+    expect(p.carbonOmTarget()).toBeNull()
   })
 })
 

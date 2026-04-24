@@ -941,7 +941,7 @@ describe('ProjectService', () => {
           is_legacy: true,
           is_revised: true,
           project_risks_protected_against: true,
-          main_source_of_risk: true,
+          main_risk: true,
           no_properties_at_flood_risk: true,
           properties_benefit_maintaining_assets: true,
           properties_benefit_50_percent_reduction: true,

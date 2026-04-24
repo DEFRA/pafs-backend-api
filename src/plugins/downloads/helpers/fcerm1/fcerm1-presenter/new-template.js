@@ -24,6 +24,7 @@ import {
   currentFinancialYear
 } from '../fcerm1-presenter-utils.js'
 import { NEW_FCERM1_LAST_YEAR } from '../fcerm1-new-columns.js'
+import { CarbonImpactCalculator } from '../../../../projects/services/carbon-impact-calculator.js'
 
 // ── Mixin ─────────────────────────────────────────────────────────────────────
 
@@ -397,18 +398,30 @@ export const newTemplateMixin = {
     return this._p.urgency_details ?? null
   },
 
-  // ── Carbon calculated fields (KN–KQ) — not yet in DB ─────────────────────
+  // ── Carbon calculated fields (KP–KS) ────────────────────────────────────
 
+  _carbonCalc() {
+    const p = this._p
+    const projectForCalc = {
+      startConstructionMonth: p.start_construction_month,
+      startConstructionYear: p.start_construction_year,
+      readyForServiceMonth: p.ready_for_service_month,
+      readyForServiceYear: p.ready_for_service_year,
+      carbonOperationalCostForecast: p.carbon_operational_cost_forecast
+    }
+    const fundingValues = p.pafs_core_funding_values ?? []
+    return new CarbonImpactCalculator(projectForCalc, fundingValues)
+  },
   carbonCapitalBaseline() {
-    return null
+    return this._carbonCalc().capitalCarbonBaseline()
   },
   carbonCapitalTarget() {
-    return null
+    return this._carbonCalc().capitalCarbonTarget()
   },
   carbonOmBaseline() {
-    return null
+    return this._carbonCalc().operationalCarbonBaseline()
   },
   carbonOmTarget() {
-    return null
+    return this._carbonCalc().operationalCarbonTarget()
   }
 }

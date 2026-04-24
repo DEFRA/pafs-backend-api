@@ -293,18 +293,6 @@ describe('hasRisk', () => {
       )
     ).toBe(false)
   })
-
-  test('falls back to main_source_of_risk when main_risk is undefined', () => {
-    expect(
-      hasRisk(
-        {
-          main_source_of_risk: 'fluvial_flooding',
-          project_risks_protected_against: null
-        },
-        'fluvial_flooding'
-      )
-    ).toBe(true)
-  })
 })
 
 describe('currentFinancialYear', () => {
