@@ -24,6 +24,17 @@ describe('funding-sources-normalizers', () => {
       expect(payload.publicContributorNames).toBe('Partner A, Partner B')
     })
 
+    it('does not modify public contributor names when not a string', () => {
+      const payload = { publicContributorNames: null }
+
+      sanitizeFundingSourceFields(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS
+      )
+
+      expect(payload.publicContributorNames).toBeNull()
+    })
+
     it('sanitizes numeric funding values including internalDrainageBoards', () => {
       const payload = {
         fundingValues: [
@@ -290,6 +301,176 @@ describe('funding-sources-normalizers', () => {
         deleteFundingValue: vi.fn().mockResolvedValue(null),
         deleteAllFundingContributors: vi.fn().mockResolvedValue(0)
       }
+    })
+
+    it('filters out contributor entries with no name during handleFundingSourcesData', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [
+          {
+            financialYear: 2026,
+            fcermGia: '1000',
+            publicContributors: [
+              {
+                name: '',
+                contributorType: 'public_contributions',
+                amount: '500'
+              },
+              {
+                name: 'Alice',
+                contributorType: 'public_contributions',
+                amount: '200'
+              },
+              { contributorType: 'public_contributions', amount: '300' },
+              null
+            ]
+          }
+        ]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService
+      )
+
+      expect(
+        projectService.syncFundingContributorsForYear
+      ).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026,
+        contributorEntries: [
+          {
+            contributorType: 'public_contributions',
+            name: 'Alice',
+            amount: '200'
+          }
+        ]
+      })
+    })
+
+    it('filters out contributor entries with 0 or empty amounts', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [
+          {
+            financialYear: 2026,
+            fcermGia: '1000',
+            publicContributors: [
+              {
+                name: 'Alice',
+                contributorType: 'public_contributions',
+                amount: '0'
+              },
+              {
+                name: 'Bob',
+                contributorType: 'public_contributions',
+                amount: ''
+              },
+              {
+                name: 'Charlie',
+                contributorType: 'public_contributions',
+                amount: null
+              },
+              {
+                name: 'Dave',
+                contributorType: 'public_contributions',
+                amount: '500'
+              }
+            ]
+          }
+        ]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService
+      )
+
+      expect(
+        projectService.syncFundingContributorsForYear
+      ).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026,
+        contributorEntries: [
+          {
+            contributorType: 'public_contributions',
+            name: 'Dave',
+            amount: '500'
+          }
+        ]
+      })
+    })
+
+    it('deletes row when all amounts are empty strings or 0', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [
+          {
+            financialYear: 2027,
+            fcermGia: '',
+            localLevy: '0',
+            internalDrainageBoards: undefined,
+            publicContributions: null,
+            privateContributions: null,
+            otherEaContributions: null,
+            notYetIdentified: null,
+            assetReplacementAllowance: null,
+            environmentStatutoryFunding: null,
+            frequentlyFloodedCommunities: null,
+            otherAdditionalGrantInAid: null,
+            otherGovernmentDepartment: null,
+            recovery: null,
+            summerEconomicFund: null
+          }
+        ]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService
+      )
+
+      expect(projectService.deleteAllFundingContributors).toHaveBeenCalled()
+      expect(projectService.deleteFundingValue).toHaveBeenCalled()
+      expect(projectService.upsertFundingValue).not.toHaveBeenCalled()
+    })
+
+    it('preserves explicit contributor total when already set (does not override with sum)', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [
+          {
+            financialYear: 2026,
+            fcermGia: '1000',
+            publicContributions: '999',
+            publicContributors: [
+              {
+                name: 'Alice',
+                contributorType: 'public_contributions',
+                amount: '500'
+              }
+            ]
+          }
+        ]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService
+      )
+
+      expect(projectService.upsertFundingValue).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026,
+        amounts: expect.objectContaining({
+          publicContributions: '999',
+          total: expect.any(String)
+        })
+      })
     })
 
     it('upserts a funding value when row has amount data', async () => {
@@ -976,6 +1157,63 @@ describe('funding-sources-normalizers', () => {
         referenceNumber: 'ANC501E/000A/001A',
         contributorType: 'public_contributions',
         currentNames: []
+      })
+    })
+
+    it('handles whitespace-only names string as empty array', async () => {
+      const payload = {
+        publicContributorNames: '   ',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'public_contributions',
+        currentNames: []
+      })
+    })
+
+    it('calls service at PRIVATE_SECTOR_CONTRIBUTORS level', async () => {
+      const payload = {
+        privateContributorNames: 'Corp A',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PRIVATE_SECTOR_CONTRIBUTORS,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'private_contributions',
+        currentNames: ['Corp A']
+      })
+    })
+
+    it('calls service at OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS level', async () => {
+      const payload = {
+        otherEaContributorNames: 'EA Dept',
+        referenceNumber: 'ANC501E/000A/001A'
+      }
+
+      await cleanupRemovedContributors(
+        payload,
+        PROJECT_VALIDATION_LEVELS.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS,
+        projectService
+      )
+
+      expect(projectService.cleanupContributorsByName).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        contributorType: 'other_ea_contributions',
+        currentNames: ['EA Dept']
       })
     })
   })
