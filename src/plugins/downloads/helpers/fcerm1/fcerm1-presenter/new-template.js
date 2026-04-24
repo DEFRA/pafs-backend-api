@@ -398,7 +398,7 @@ export const newTemplateMixin = {
     return this._p.urgency_details ?? null
   },
 
-  // ── Carbon calculated fields (KP–KS) ────────────────────────────────────
+  // ── Carbon calculated fields (KP–KU) ────────────────────────────────────
 
   _carbonCalc() {
     const p = this._p
@@ -407,21 +407,40 @@ export const newTemplateMixin = {
       startConstructionYear: p.start_construction_year,
       readyForServiceMonth: p.ready_for_service_month,
       readyForServiceYear: p.ready_for_service_year,
-      carbonOperationalCostForecast: p.carbon_operational_cost_forecast
+      carbonOperationalCostForecast: p.carbon_operational_cost_forecast,
+      carbonCostBuild: p.carbon_cost_build,
+      carbonCostOperation: p.carbon_cost_operation,
+      carbonCostSequestered: p.carbon_cost_sequestered,
+      carbonCostAvoided: p.carbon_cost_avoided
     }
     const fundingValues = p.pafs_core_funding_values ?? []
     return new CarbonImpactCalculator(projectForCalc, fundingValues)
   },
+  _roundCarbon(v) {
+    return v == null ? null : Math.round(v * 100) / 100
+  },
   carbonCapitalBaseline() {
-    return this._carbonCalc().capitalCarbonBaseline()
+    return this._roundCarbon(this._carbonCalc().capitalCarbonBaseline())
   },
   carbonCapitalTarget() {
-    return this._carbonCalc().capitalCarbonTarget()
+    return this._roundCarbon(this._carbonCalc().capitalCarbonTarget())
   },
   carbonOmBaseline() {
-    return this._carbonCalc().operationalCarbonBaseline()
+    return this._roundCarbon(this._carbonCalc().operationalCarbonBaseline())
   },
   carbonOmTarget() {
-    return this._carbonCalc().operationalCarbonTarget()
+    return this._roundCarbon(this._carbonCalc().operationalCarbonTarget())
+  },
+  netCarbonEstimate() {
+    return this._roundCarbon(this._carbonCalc().netCarbonEstimate())
+  },
+  netCarbonWithBlanksCalculated() {
+    const calc = this._carbonCalc()
+    const estimate = this._roundCarbon(calc.netCarbonEstimate())
+    const withBlanks = this._roundCarbon(calc.netCarbonWithBlanksCalculated())
+    if (withBlanks == null || withBlanks === estimate) {
+      return null
+    }
+    return withBlanks
   }
 }

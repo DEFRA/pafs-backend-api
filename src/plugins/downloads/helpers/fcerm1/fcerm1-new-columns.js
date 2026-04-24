@@ -263,5 +263,7 @@ export const NEW_COLUMNS = [
   { column: 'KP', field: 'carbonCapitalBaseline' },
   { column: 'KQ', field: 'carbonCapitalTarget' },
   { column: 'KR', field: 'carbonOmBaseline' },
-  { column: 'KS', field: 'carbonOmTarget' }
+  { column: 'KS', field: 'carbonOmTarget' },
+  { column: 'KT', field: 'netCarbonEstimate' },
+  { column: 'KU', field: 'netCarbonWithBlanksCalculated' }
 ]

@@ -737,6 +737,63 @@ describe('carbon calculated fields', () => {
     expect(p.carbonOmBaseline()).toBeNull()
     expect(p.carbonOmTarget()).toBeNull()
   })
+
+  test('netCarbonEstimate returns sum of cost fields when all are present', () => {
+    // build=100, operation=50, sequestered=20, avoided=10 → 100+50-20-10=120
+    const p = makePresenter({
+      ...carbonProject,
+      carbon_cost_build: 100,
+      carbon_cost_operation: 50,
+      carbon_cost_sequestered: 20,
+      carbon_cost_avoided: 10
+    })
+    expect(p.netCarbonEstimate()).toBeCloseTo(120, 1)
+  })
+
+  test('netCarbonEstimate returns null when all cost fields are absent', () => {
+    const p = makePresenter(carbonProject)
+    expect(p.netCarbonEstimate()).toBeNull()
+  })
+
+  test('netCarbonWithBlanksCalculated returns null when it equals netCarbonEstimate', () => {
+    // All cost fields filled → withBlanks == estimate, so presenter suppresses
+    const p = makePresenter({
+      ...carbonProject,
+      carbon_cost_build: 100,
+      carbon_cost_operation: 50,
+      carbon_cost_sequestered: 20,
+      carbon_cost_avoided: 10
+    })
+    // Both methods produce the same value (120) — should be suppressed (null)
+    expect(p.netCarbonEstimate()).toBeCloseTo(120, 1)
+    expect(p.netCarbonWithBlanksCalculated()).toBeNull()
+  })
+
+  test('netCarbonWithBlanksCalculated returns value when it differs from netCarbonEstimate', () => {
+    // build is blank → withBlanks substitutes capitalCarbonBaseline (~294)
+    // estimate has no build term → returns 50-20-10=20
+    const p = makePresenter({
+      ...carbonProject,
+      carbon_cost_build: null,
+      carbon_cost_operation: 50,
+      carbon_cost_sequestered: 20,
+      carbon_cost_avoided: 10
+    })
+    expect(p.netCarbonEstimate()).toBeCloseTo(20, 1) // only filled fields
+    expect(p.netCarbonWithBlanksCalculated()).not.toBeNull()
+    expect(p.netCarbonWithBlanksCalculated()).not.toBe(p.netCarbonEstimate())
+  })
+
+  test('netCarbonWithBlanksCalculated returns null when timeline is missing', () => {
+    const p = makePresenter({
+      start_construction_month: null,
+      start_construction_year: null,
+      ready_for_service_month: null,
+      ready_for_service_year: null,
+      pafs_core_funding_values: []
+    })
+    expect(p.netCarbonWithBlanksCalculated()).toBeNull()
+  })
 })
 
 // ── Additional per-year funding methods ───────────────────────────────────────

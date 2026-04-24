@@ -116,9 +116,9 @@ describe('fcerm1-columns', () => {
       })
     })
 
-    test('ends with column KS', () => {
+    test('ends with column KU', () => {
       const last = NEW_COLUMNS.at(-1)
-      expect(last.column).toBe('KS')
+      expect(last.column).toBe('KU')
     })
 
     test('every entry has column and field properties', () => {
