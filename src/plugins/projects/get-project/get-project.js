@@ -3,7 +3,6 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 import {
   fetchFundingValues,
-  buildCalcProject,
   computeCarbonResults
 } from '../carbon-impact/carbon-impact.js'
 
@@ -48,10 +47,7 @@ const getProject = {
             referenceNumber,
             result
           )
-          result.carbonCalc = computeCarbonResults(
-            buildCalcProject(result),
-            fundingValues
-          )
+          result.carbonCalc = computeCarbonResults(result, fundingValues)
         } catch (carbonError) {
           request.server.logger.warn(
             { error: carbonError },

@@ -4,7 +4,6 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ProjectService } from '../services/project-service.js'
 import {
   fetchFundingValues,
-  buildCalcProject,
   computeCarbonResults
 } from '../carbon-impact/carbon-impact.js'
 
@@ -49,7 +48,6 @@ describe('getProject', () => {
     }
 
     fetchFundingValues.mockResolvedValue({ totalFunding: 500000 })
-    buildCalcProject.mockReturnValue({ carbonCostBuild: '100.0' })
     computeCarbonResults.mockReturnValue(MOCK_CARBON_CALC)
   })
 
@@ -120,8 +118,9 @@ describe('getProject', () => {
         'RM/2023/001',
         mockData
       )
-      expect(buildCalcProject).toHaveBeenCalledWith(mockData)
-      expect(computeCarbonResults).toHaveBeenCalled()
+      expect(computeCarbonResults).toHaveBeenCalledWith(mockData, {
+        totalFunding: 500000
+      })
       expect(result.data).toMatchObject({ carbonCalc: MOCK_CARBON_CALC })
     })
 
