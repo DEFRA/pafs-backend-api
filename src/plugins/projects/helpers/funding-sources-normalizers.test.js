@@ -7,7 +7,8 @@ import {
   clearDeselectedAdditionalGiaData,
   clearDeselectedContributorData,
   clearDeselectedFundingSourceColumns,
-  cleanupRemovedContributors
+  cleanupRemovedContributors,
+  flushOutOfRangeFundingData
 } from './funding-sources-normalizers.js'
 
 describe('funding-sources-normalizers', () => {
@@ -1134,6 +1135,139 @@ describe('funding-sources-normalizers', () => {
       )
 
       expect(projectService.nullSpecificFundingColumns).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('flushOutOfRangeFundingData', () => {
+    let projectService
+
+    beforeEach(() => {
+      projectService = {
+        clearOutOfRangeFundingData: vi.fn().mockResolvedValue({
+          fundingValuesCleared: 0,
+          contributorsCleared: 0
+        })
+      }
+    })
+
+    it('skips for non-financial-year validation levels', async () => {
+      const payload = {
+        referenceNumber: 'TEST-001',
+        financialStartYear: 2025
+      }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        {},
+        projectService
+      )
+
+      expect(projectService.clearOutOfRangeFundingData).not.toHaveBeenCalled()
+    })
+
+    it('flushes out-of-range data at FINANCIAL_START_YEAR level', async () => {
+      const payload = {
+        referenceNumber: 'TEST-001',
+        financialStartYear: 2026
+      }
+      const existingProject = {
+        financialStartYear: 2025,
+        financialEndYear: 2030
+      }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
+        existingProject,
+        projectService
+      )
+
+      expect(projectService.clearOutOfRangeFundingData).toHaveBeenCalledWith(
+        'TEST-001',
+        2026,
+        2030
+      )
+    })
+
+    it('flushes out-of-range data at FINANCIAL_END_YEAR level', async () => {
+      const payload = {
+        referenceNumber: 'TEST-001',
+        financialEndYear: 2028
+      }
+      const existingProject = {
+        financialStartYear: 2025,
+        financialEndYear: 2030
+      }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_END_YEAR,
+        existingProject,
+        projectService
+      )
+
+      expect(projectService.clearOutOfRangeFundingData).toHaveBeenCalledWith(
+        'TEST-001',
+        2025,
+        2028
+      )
+    })
+
+    it('skips when referenceNumber is missing', async () => {
+      const payload = {
+        financialStartYear: 2026
+      }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
+        { financialEndYear: 2030 },
+        projectService
+      )
+
+      expect(projectService.clearOutOfRangeFundingData).not.toHaveBeenCalled()
+    })
+
+    it('skips when end year is not available', async () => {
+      const payload = {
+        referenceNumber: 'TEST-001',
+        financialStartYear: 2026
+      }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
+        {},
+        projectService
+      )
+
+      expect(projectService.clearOutOfRangeFundingData).not.toHaveBeenCalled()
+    })
+
+    it('uses payload values over existing project values', async () => {
+      const payload = {
+        referenceNumber: 'TEST-001',
+        financialStartYear: 2027,
+        financialEndYear: 2032
+      }
+      const existingProject = {
+        financialStartYear: 2025,
+        financialEndYear: 2030
+      }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
+        existingProject,
+        projectService
+      )
+
+      expect(projectService.clearOutOfRangeFundingData).toHaveBeenCalledWith(
+        'TEST-001',
+        2027,
+        2032
+      )
     })
   })
 })
