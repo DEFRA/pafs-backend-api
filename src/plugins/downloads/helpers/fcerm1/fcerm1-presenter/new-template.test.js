@@ -528,9 +528,24 @@ describe('risk and properties benefitting', () => {
 })
 
 describe('currentFloodFluvialRisk', () => {
-  test('maps DB key to human-readable label', () => {
-    const p = makePresenter({ current_flood_fluvial_risk: 'fluvial_flooding' })
-    expect(p.currentFloodFluvialRisk()).toBe('River Flooding')
+  test('maps high to High', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'high' })
+    expect(p.currentFloodFluvialRisk()).toBe('High')
+  })
+
+  test('maps medium to Medium', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'medium' })
+    expect(p.currentFloodFluvialRisk()).toBe('Medium')
+  })
+
+  test('maps low to Low', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'low' })
+    expect(p.currentFloodFluvialRisk()).toBe('Low')
+  })
+
+  test('maps very_low to Very Low', () => {
+    const p = makePresenter({ current_flood_fluvial_risk: 'very_low' })
+    expect(p.currentFloodFluvialRisk()).toBe('Very Low')
   })
 
   test('returns null when field is absent', () => {
@@ -538,18 +553,21 @@ describe('currentFloodFluvialRisk', () => {
     expect(p.currentFloodFluvialRisk()).toBeNull()
   })
 
-  test('returns raw value when key is not in RISK_LABELS', () => {
+  test('returns raw value when key is not in FLOOD_RISK_LEVEL_LABELS', () => {
     const p = makePresenter({ current_flood_fluvial_risk: 'unknown_risk' })
     expect(p.currentFloodFluvialRisk()).toBe('unknown_risk')
   })
 })
 
 describe('currentFloodSurfaceWaterRisk', () => {
-  test('maps DB key to human-readable label', () => {
-    const p = makePresenter({
-      current_flood_surface_water_risk: 'surface_water_flooding'
-    })
-    expect(p.currentFloodSurfaceWaterRisk()).toBe('Surface Water Flooding')
+  test('maps high to High', () => {
+    const p = makePresenter({ current_flood_surface_water_risk: 'high' })
+    expect(p.currentFloodSurfaceWaterRisk()).toBe('High')
+  })
+
+  test('maps very_low to Very Low', () => {
+    const p = makePresenter({ current_flood_surface_water_risk: 'very_low' })
+    expect(p.currentFloodSurfaceWaterRisk()).toBe('Very Low')
   })
 
   test('returns null when field is absent', () => {
@@ -559,9 +577,14 @@ describe('currentFloodSurfaceWaterRisk', () => {
 })
 
 describe('currentCoastalErosionRisk', () => {
-  test('maps DB key to human-readable label', () => {
-    const p = makePresenter({ current_coastal_erosion_risk: 'coastal_erosion' })
-    expect(p.currentCoastalErosionRisk()).toBe('Coastal Erosion')
+  test('maps medium_term to Medium term loss', () => {
+    const p = makePresenter({ current_coastal_erosion_risk: 'medium_term' })
+    expect(p.currentCoastalErosionRisk()).toBe('Medium term loss')
+  })
+
+  test('maps longer_term to Longer term loss', () => {
+    const p = makePresenter({ current_coastal_erosion_risk: 'longer_term' })
+    expect(p.currentCoastalErosionRisk()).toBe('Longer term loss')
   })
 
   test('returns null when field is absent', () => {
@@ -623,9 +646,24 @@ describe('whole-life benefit breakdown', () => {
 // ── Urgency ───────────────────────────────────────────────────────────────────
 
 describe('urgencyReason', () => {
-  test('returns urgency_reason', () => {
+  test('maps statutory_need to Statutory Requirement', () => {
     const p = makePresenter({ urgency_reason: 'statutory_need' })
-    expect(p.urgencyReason()).toBe('statutory_need')
+    expect(p.urgencyReason()).toBe('Statutory Requirement')
+  })
+
+  test('maps not_urgent to Not Urgent', () => {
+    const p = makePresenter({ urgency_reason: 'not_urgent' })
+    expect(p.urgencyReason()).toBe('Not Urgent')
+  })
+
+  test('maps health_and_safety to Health and Safety', () => {
+    const p = makePresenter({ urgency_reason: 'health_and_safety' })
+    expect(p.urgencyReason()).toBe('Health and Safety')
+  })
+
+  test('returns raw value when key is not in MODERATION_LABELS', () => {
+    const p = makePresenter({ urgency_reason: 'unknown_reason' })
+    expect(p.urgencyReason()).toBe('unknown_reason')
   })
 
   test('returns null when absent', () => {
@@ -646,23 +684,115 @@ describe('urgencyDetails', () => {
   })
 })
 
-// ── Carbon calculated fields (KN–KQ) — not in DB ─────────────────────────────
+// ── Carbon calculated fields (KP–KS) ───────────────────────────────────────
 
 describe('carbon calculated fields', () => {
-  test('carbonCapitalBaseline returns null', () => {
-    expect(makePresenter().carbonCapitalBaseline()).toBeNull()
+  const carbonProject = {
+    start_construction_month: 4,
+    start_construction_year: 2025,
+    ready_for_service_month: 3,
+    ready_for_service_year: 2028,
+    carbon_operational_cost_forecast: 150000n,
+    pafs_core_funding_values: [
+      { financial_year: 2025, total: 500000 },
+      { financial_year: 2026, total: 300000 },
+      { financial_year: 2027, total: 200000 }
+    ]
+  }
+
+  test('carbonCapitalBaseline calculates from construction funding and mid-year rate', () => {
+    // TPF=1000000, mid-year=2026, Cap DN rate=2.94 → 1000000 * 2.94 / 10000 = 294
+    const p = makePresenter(carbonProject)
+    expect(p.carbonCapitalBaseline()).toBeCloseTo(294, 1)
   })
 
-  test('carbonCapitalTarget returns null', () => {
-    expect(makePresenter().carbonCapitalTarget()).toBeNull()
+  test('carbonCapitalTarget applies reduction to baseline', () => {
+    // Cap reduction=-31.5% → 1000000 * 2.94 * (1 - 0.315) / 10000 ≈ 201.39
+    const p = makePresenter(carbonProject)
+    expect(p.carbonCapitalTarget()).toBeCloseTo(201.39, 1)
   })
 
-  test('carbonOmBaseline returns null', () => {
-    expect(makePresenter().carbonOmBaseline()).toBeNull()
+  test('carbonOmBaseline uses operational cost forecast and RFS year rate', () => {
+    // TPF=150000, RFS FY=2027, Ops DN rate=2.94 → 150000 * 2.94 / 10000 = 44.1
+    const p = makePresenter(carbonProject)
+    expect(p.carbonOmBaseline()).toBeCloseTo(44.1, 1)
   })
 
-  test('carbonOmTarget returns null', () => {
-    expect(makePresenter().carbonOmTarget()).toBeNull()
+  test('carbonOmTarget applies operational reduction to baseline', () => {
+    // Ops reduction=-36% → 150000 * 2.94 * (1 - 0.36) / 10000 ≈ 28.22
+    const p = makePresenter(carbonProject)
+    expect(p.carbonOmTarget()).toBeCloseTo(28.22, 1)
+  })
+
+  test('returns null when timeline is incomplete', () => {
+    const p = makePresenter({
+      start_construction_month: null,
+      start_construction_year: null,
+      ready_for_service_month: null,
+      ready_for_service_year: null,
+      pafs_core_funding_values: []
+    })
+    expect(p.carbonCapitalBaseline()).toBeNull()
+    expect(p.carbonCapitalTarget()).toBeNull()
+    expect(p.carbonOmBaseline()).toBeNull()
+    expect(p.carbonOmTarget()).toBeNull()
+  })
+
+  test('netCarbonEstimate returns sum of cost fields when all are present', () => {
+    // build=100, operation=50, sequestered=20, avoided=10 → 100+50-20-10=120
+    const p = makePresenter({
+      ...carbonProject,
+      carbon_cost_build: 100,
+      carbon_cost_operation: 50,
+      carbon_cost_sequestered: 20,
+      carbon_cost_avoided: 10
+    })
+    expect(p.netCarbonEstimate()).toBeCloseTo(120, 1)
+  })
+
+  test('netCarbonEstimate returns null when all cost fields are absent', () => {
+    const p = makePresenter(carbonProject)
+    expect(p.netCarbonEstimate()).toBeNull()
+  })
+
+  test('netCarbonWithBlanksCalculated returns null when it equals netCarbonEstimate', () => {
+    // All cost fields filled → withBlanks == estimate, so presenter suppresses
+    const p = makePresenter({
+      ...carbonProject,
+      carbon_cost_build: 100,
+      carbon_cost_operation: 50,
+      carbon_cost_sequestered: 20,
+      carbon_cost_avoided: 10
+    })
+    // Both methods produce the same value (120) — should be suppressed (null)
+    expect(p.netCarbonEstimate()).toBeCloseTo(120, 1)
+    expect(p.netCarbonWithBlanksCalculated()).toBeNull()
+  })
+
+  test('netCarbonWithBlanksCalculated returns value when it differs from netCarbonEstimate', () => {
+    // build is blank → withBlanks substitutes capitalCarbonBaseline (~294)
+    // estimate has no build term → returns 50-20-10=20
+    const p = makePresenter({
+      ...carbonProject,
+      carbon_cost_build: null,
+      carbon_cost_operation: 50,
+      carbon_cost_sequestered: 20,
+      carbon_cost_avoided: 10
+    })
+    expect(p.netCarbonEstimate()).toBeCloseTo(20, 1) // only filled fields
+    expect(p.netCarbonWithBlanksCalculated()).not.toBeNull()
+    expect(p.netCarbonWithBlanksCalculated()).not.toBe(p.netCarbonEstimate())
+  })
+
+  test('netCarbonWithBlanksCalculated returns null when timeline is missing', () => {
+    const p = makePresenter({
+      start_construction_month: null,
+      start_construction_year: null,
+      ready_for_service_month: null,
+      ready_for_service_year: null,
+      pafs_core_funding_values: []
+    })
+    expect(p.netCarbonWithBlanksCalculated()).toBeNull()
   })
 })
 
@@ -733,7 +863,7 @@ for (const [method, field] of PER_YEAR_CASES) {
 // ── Unknown risk key fallback for surface-water and coastal-erosion ───────────
 
 describe('currentFloodSurfaceWaterRisk — unknown key fallback', () => {
-  test('returns the raw value when the key is not in RISK_LABELS', () => {
+  test('returns the raw value when the key is not in FLOOD_RISK_LEVEL_LABELS', () => {
     const p = makePresenter({
       current_flood_surface_water_risk: 'unknown_risk'
     })
@@ -742,7 +872,7 @@ describe('currentFloodSurfaceWaterRisk — unknown key fallback', () => {
 })
 
 describe('currentCoastalErosionRisk — unknown key fallback', () => {
-  test('returns the raw value when the key is not in RISK_LABELS', () => {
+  test('returns the raw value when the key is not in COASTAL_EROSION_RISK_LABELS', () => {
     const p = makePresenter({ current_coastal_erosion_risk: 'unknown_risk' })
     expect(p.currentCoastalErosionRisk()).toBe('unknown_risk')
   })

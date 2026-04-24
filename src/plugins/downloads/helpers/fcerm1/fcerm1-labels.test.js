@@ -2,6 +2,8 @@ import { describe, test, expect } from 'vitest'
 import {
   RFCC_CODE_NAMES,
   RISK_LABELS,
+  FLOOD_RISK_LEVEL_LABELS,
+  COASTAL_EROSION_RISK_LABELS,
   MODERATION_LABELS,
   FLOOD_RISK_SYMBOLS,
   COASTAL_BEFORE_SYMBOLS,
@@ -71,12 +73,48 @@ describe('RISK_LABELS', () => {
     expect(Object.keys(RISK_LABELS)).toHaveLength(7)
   })
 
-  test('maps fluvial_flooding to River Flooding', () => {
-    expect(RISK_LABELS.fluvial_flooding).toBe('River Flooding')
+  test('maps fluvial_flooding to Fluvial Flooding', () => {
+    expect(RISK_LABELS.fluvial_flooding).toBe('Fluvial Flooding')
   })
 
   test('maps coastal_erosion to Coastal Erosion', () => {
     expect(RISK_LABELS.coastal_erosion).toBe('Coastal Erosion')
+  })
+})
+
+describe('FLOOD_RISK_LEVEL_LABELS', () => {
+  test('has 4 entries', () => {
+    expect(Object.keys(FLOOD_RISK_LEVEL_LABELS)).toHaveLength(4)
+  })
+
+  test('maps high to High', () => {
+    expect(FLOOD_RISK_LEVEL_LABELS.high).toBe('High')
+  })
+
+  test('maps medium to Medium', () => {
+    expect(FLOOD_RISK_LEVEL_LABELS.medium).toBe('Medium')
+  })
+
+  test('maps low to Low', () => {
+    expect(FLOOD_RISK_LEVEL_LABELS.low).toBe('Low')
+  })
+
+  test('maps very_low to Very Low', () => {
+    expect(FLOOD_RISK_LEVEL_LABELS.very_low).toBe('Very Low')
+  })
+})
+
+describe('COASTAL_EROSION_RISK_LABELS', () => {
+  test('has 2 entries', () => {
+    expect(Object.keys(COASTAL_EROSION_RISK_LABELS)).toHaveLength(2)
+  })
+
+  test('maps medium_term to Medium term loss', () => {
+    expect(COASTAL_EROSION_RISK_LABELS.medium_term).toBe('Medium term loss')
+  })
+
+  test('maps longer_term to Longer term loss', () => {
+    expect(COASTAL_EROSION_RISK_LABELS.longer_term).toBe('Longer term loss')
   })
 })
 

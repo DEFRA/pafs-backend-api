@@ -22,8 +22,8 @@ describe('fcerm1-new-columns', () => {
       })
     })
 
-    test('ends with column KS', () => {
-      expect(NEW_COLUMNS.at(-1).column).toBe('KS')
+    test('ends with column KU', () => {
+      expect(NEW_COLUMNS.at(-1).column).toBe('KU')
     })
 
     test('every entry has column and field properties', () => {

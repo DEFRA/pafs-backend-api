@@ -11,7 +11,6 @@ function makeProject(overrides = {}) {
     rma_name: 'East Anglia IDB',
     project_type: 'DEF',
     main_risk: 'fluvial_flooding',
-    main_source_of_risk: 'fluvial_flooding',
     project_risks_protected_against: 'fluvial_flooding',
     pafs_core_funding_values: [],
     ...overrides
@@ -238,7 +237,7 @@ describe('projectType', () => {
 describe('mainRisk', () => {
   test('returns the RISK_LABELS display label for a known risk type', () => {
     const p = new FcermPresenter(makeProject({ main_risk: 'fluvial_flooding' }))
-    expect(p.mainRisk()).toBe('River Flooding')
+    expect(p.mainRisk()).toBe('Fluvial Flooding')
   })
 
   test('returns the raw risk key when not present in RISK_LABELS', () => {
@@ -248,17 +247,8 @@ describe('mainRisk', () => {
     expect(p.mainRisk()).toBe('unknown_risk_type')
   })
 
-  test('falls back to main_source_of_risk when main_risk is null', () => {
-    const p = new FcermPresenter(
-      makeProject({ main_risk: null, main_source_of_risk: 'sea_flooding' })
-    )
-    expect(p.mainRisk()).toBe('Sea Flooding')
-  })
-
-  test('returns null when both main_risk and main_source_of_risk are null', () => {
-    const p = new FcermPresenter(
-      makeProject({ main_risk: null, main_source_of_risk: null })
-    )
+  test('returns null when main_risk is null', () => {
+    const p = new FcermPresenter(makeProject({ main_risk: null }))
     expect(p.mainRisk()).toBeNull()
   })
 })
@@ -281,17 +271,6 @@ describe('secondaryRiskSources', () => {
       makeProject({ project_risks_protected_against: null })
     )
     expect(p.secondaryRiskSources()).toBe('')
-  })
-
-  test('uses main_source_of_risk for filtering when main_risk is null', () => {
-    const p = new FcermPresenter(
-      makeProject({
-        main_risk: null,
-        main_source_of_risk: 'fluvial_flooding',
-        project_risks_protected_against: 'fluvial_flooding,sea_flooding'
-      })
-    )
-    expect(p.secondaryRiskSources()).toBe('Sea Flooding')
   })
 
   test('passes through raw key for unknown risk type in the list', () => {

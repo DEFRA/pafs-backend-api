@@ -38,7 +38,11 @@ function makeH() {
 
 function makeRequest(userId = 99) {
   return {
-    server: { logger: { info: vi.fn(), error: vi.fn() }, prisma: {} },
+    server: {
+      logger: { info: vi.fn(), error: vi.fn() },
+      prisma: {},
+      sqs: { send: vi.fn().mockResolvedValue({}) }
+    },
     auth: { credentials: { userId } }
   }
 }
@@ -75,7 +79,8 @@ describe('generateAdminProgramme route', () => {
         downloadId: BigInt(7),
         s3Bucket: 'test-bucket',
         requestingUserId: 99
-      })
+      }),
+      expect.objectContaining({ send: expect.any(Function) })
     )
     expect(h._status).toBe(202)
     expect(h._body).toMatchObject({

@@ -254,8 +254,8 @@ model pafs_core_nfm_land_use_changes {
   id                   BigInt   @id @default(autoincrement())
   project_id           BigInt
   land_use_type        String   @db.VarChar(50)
-  area_before_hectares Float
-  area_after_hectares  Float
+  area_before_hectares Decimal  @db.Decimal(20, 2)
+  area_after_hectares  Decimal  @db.Decimal(20, 2)
   created_at           DateTime @db.Timestamp(6)
   updated_at           DateTime @db.Timestamp(6)
 
@@ -267,10 +267,10 @@ model pafs_core_nfm_measures {
   id                BigInt   @id @default(autoincrement())
   project_id        BigInt
   measure_type      String   @db.VarChar(100)
-  area_hectares     Float?
-  storage_volume_m3 Float?
-  length_km         Float?
-  width_m           Float?
+  area_hectares     Decimal? @db.Decimal(20, 2)
+  storage_volume_m3 Decimal? @db.Decimal(20, 2)
+  length_km         Decimal? @db.Decimal(20, 2)
+  width_m           Decimal? @db.Decimal(20, 2)
   created_at        DateTime @db.Timestamp(6)
   updated_at        DateTime @db.Timestamp(6)
 
@@ -341,18 +341,17 @@ model pafs_core_projects {
   recovery                                                    Boolean?  @default(false)
   summer_economic_fund                                        Boolean?  @default(false)
   project_risks_protected_against                             String?
-  main_source_of_risk                                         String?   @db.VarChar(255)
   current_flood_fluvial_risk                                  String?   @db.VarChar(255)
   current_flood_surface_water_risk                            String?   @db.VarChar(255)
   current_coastal_erosion_risk                                String?   @db.VarChar(255)
   no_properties_at_flood_risk                                 Boolean?  @default(false)
-  properties_benefit_maintaining_assets                       Int?
-  properties_benefit_50_percent_reduction                     Int?
-  properties_benefit_less_50_percent_reduction                Int?
-  properties_benefit_individual_intervention                  Int?
+  properties_benefit_maintaining_assets                       BigInt?
+  properties_benefit_50_percent_reduction                     BigInt?
+  properties_benefit_less_50_percent_reduction                BigInt?
+  properties_benefit_individual_intervention                  BigInt?
   no_properties_at_coastal_erosion_risk                       Boolean?  @default(false)
-  properties_benefit_maintaining_assets_coastal               Int?
-  properties_benefit_investment_coastal_erosion               Int?
+  properties_benefit_maintaining_assets_coastal               BigInt?
+  properties_benefit_investment_coastal_erosion               BigInt?
   percent_properties_20_percent_deprived                      Float?
   percent_properties_40_percent_deprived                      Float?
   fluvial_flooding                                            Boolean?
@@ -372,27 +371,27 @@ model pafs_core_projects {
   no_properties_affected_by_flooding_2040                     Boolean   @default(false)
   environmental_benefits                                      Boolean?
   intertidal_habitat                                          Boolean?
-  hectares_of_intertidal_habitat_created_or_enhanced          Float?
+  hectares_of_intertidal_habitat_created_or_enhanced          Decimal?  @db.Decimal(20, 2)
   woodland                                                    Boolean?
-  hectares_of_woodland_habitat_created_or_enhanced            Float?
+  hectares_of_woodland_habitat_created_or_enhanced            Decimal?  @db.Decimal(20, 2)
   wet_woodland                                                Boolean?
-  hectares_of_wet_woodland_habitat_created_or_enhanced        Float?
+  hectares_of_wet_woodland_habitat_created_or_enhanced        Decimal?  @db.Decimal(20, 2)
   wetland_or_wet_grassland                                    Boolean?
-  hectares_of_wetland_or_wet_grassland_created_or_enhanced    Float?
+  hectares_of_wetland_or_wet_grassland_created_or_enhanced    Decimal?  @db.Decimal(20, 2)
   grassland                                                   Boolean?
-  hectares_of_grassland_habitat_created_or_enhanced           Float?
+  hectares_of_grassland_habitat_created_or_enhanced           Decimal?  @db.Decimal(20, 2)
   heathland                                                   Boolean?
-  hectares_of_heathland_created_or_enhanced                   Float?
+  hectares_of_heathland_created_or_enhanced                   Decimal?  @db.Decimal(20, 2)
   ponds_lakes                                                 Boolean?
-  hectares_of_pond_or_lake_habitat_created_or_enhanced        Float?
+  hectares_of_pond_or_lake_habitat_created_or_enhanced        Decimal?  @db.Decimal(20, 2)
   arable_land                                                 Boolean?
-  hectares_of_arable_land_lake_habitat_created_or_enhanced    Float?
+  hectares_of_arable_land_lake_habitat_created_or_enhanced    Decimal?  @db.Decimal(20, 2)
   comprehensive_restoration                                   Boolean?
-  kilometres_of_watercourse_enhanced_or_created_comprehensive Float?
+  kilometres_of_watercourse_enhanced_or_created_comprehensive Decimal?  @db.Decimal(20, 2)
   partial_restoration                                         Boolean?
-  kilometres_of_watercourse_enhanced_or_created_partial       Float?
+  kilometres_of_watercourse_enhanced_or_created_partial       Decimal?  @db.Decimal(20, 2)
   create_habitat_watercourse                                  Boolean?
-  kilometres_of_watercourse_enhanced_or_created_single        Float?
+  kilometres_of_watercourse_enhanced_or_created_single        Decimal?  @db.Decimal(20, 2)
   improve_surface_or_groundwater                              Boolean?
   improve_surface_or_groundwater_amount                       Float?
   improve_river                                               Boolean?

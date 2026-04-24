@@ -7,7 +7,9 @@
 import {
   PROJECT_RISK_TYPES,
   URGENCY_REASONS,
-  CONFIDENCE_LEVELS
+  CONFIDENCE_LEVELS,
+  FLOOD_RISK_LEVELS,
+  COASTAL_EROSION_RISK_LEVELS
 } from '../../../../common/constants/project.js'
 
 // ── RFCC area codes → display names ──────────────────────────────────────────
@@ -28,16 +30,34 @@ export const RFCC_CODE_NAMES = {
   YO: 'Yorkshire'
 }
 
-// ── Risk source labels (from pafs_core config/locales/spreadsheet.en.yml) ────
+// ── Risk source labels ────
 
 export const RISK_LABELS = {
-  [PROJECT_RISK_TYPES.FLUVIAL]: 'River Flooding',
+  [PROJECT_RISK_TYPES.FLUVIAL]: 'Fluvial Flooding',
   [PROJECT_RISK_TYPES.TIDAL]: 'Tidal Flooding',
   [PROJECT_RISK_TYPES.GROUNDWATER]: 'Groundwater Flooding',
   [PROJECT_RISK_TYPES.SURFACE_WATER]: 'Surface Water Flooding',
   [PROJECT_RISK_TYPES.SEA]: 'Sea Flooding',
   [PROJECT_RISK_TYPES.RESERVOIR]: 'Reservoir Flooding',
   [PROJECT_RISK_TYPES.COASTAL_EROSION]: 'Coastal Erosion'
+}
+
+// ── Flood risk level labels (HF, HG in new template) ───────────────────────
+// DB stores high / medium / low / very_low (FLOOD_RISK_LEVELS)
+
+export const FLOOD_RISK_LEVEL_LABELS = {
+  [FLOOD_RISK_LEVELS.HIGH]: 'High',
+  [FLOOD_RISK_LEVELS.MEDIUM]: 'Medium',
+  [FLOOD_RISK_LEVELS.LOW]: 'Low',
+  [FLOOD_RISK_LEVELS.VERY_LOW]: 'Very Low'
+}
+
+// ── Coastal erosion risk level labels (HH in new template) ───────────────────
+// DB stores medium_term / longer_term (COASTAL_EROSION_RISK_LEVELS)
+
+export const COASTAL_EROSION_RISK_LABELS = {
+  [COASTAL_EROSION_RISK_LEVELS.MEDIUM_TERM]: 'Medium term loss',
+  [COASTAL_EROSION_RISK_LEVELS.LONGER_TERM]: 'Longer term loss'
 }
 
 // ── Moderation / urgency reason labels ───────────────────────────────────────

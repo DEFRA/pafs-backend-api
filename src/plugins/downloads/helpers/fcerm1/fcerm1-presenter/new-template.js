@@ -11,7 +11,11 @@
  *   - Carbon calculated fields (KN–KQ)
  */
 
-import { RISK_LABELS } from '../fcerm1-labels.js'
+import {
+  FLOOD_RISK_LEVEL_LABELS,
+  COASTAL_EROSION_RISK_LABELS,
+  MODERATION_LABELS
+} from '../fcerm1-labels.js'
 import {
   toNumber,
   sumFunding,
@@ -20,6 +24,7 @@ import {
   currentFinancialYear
 } from '../fcerm1-presenter-utils.js'
 import { NEW_FCERM1_LAST_YEAR } from '../fcerm1-new-columns.js'
+import { CarbonImpactCalculator } from '../../../../projects/services/carbon-impact-calculator.js'
 
 // ── Mixin ─────────────────────────────────────────────────────────────────────
 
@@ -339,15 +344,15 @@ export const newTemplateMixin = {
   },
   currentFloodFluvialRisk() {
     const raw = this._p.current_flood_fluvial_risk
-    return raw ? (RISK_LABELS[raw] ?? raw) : null
+    return raw ? (FLOOD_RISK_LEVEL_LABELS[raw] ?? raw) : null
   },
   currentFloodSurfaceWaterRisk() {
     const raw = this._p.current_flood_surface_water_risk
-    return raw ? (RISK_LABELS[raw] ?? raw) : null
+    return raw ? (FLOOD_RISK_LEVEL_LABELS[raw] ?? raw) : null
   },
   currentCoastalErosionRisk() {
     const raw = this._p.current_coastal_erosion_risk
-    return raw ? (RISK_LABELS[raw] ?? raw) : null
+    return raw ? (COASTAL_EROSION_RISK_LABELS[raw] ?? raw) : null
   },
 
   // ── Whole-life costs breakdown (HG–HJ) ───────────────────────────────────
@@ -386,24 +391,56 @@ export const newTemplateMixin = {
   // ── Urgency (IE–IF) ───────────────────────────────────────────────────────
 
   urgencyReason() {
-    return this._p.urgency_reason ?? null
+    const raw = this._p.urgency_reason
+    return raw ? (MODERATION_LABELS[raw] ?? raw) : null
   },
   urgencyDetails() {
     return this._p.urgency_details ?? null
   },
 
-  // ── Carbon calculated fields (KN–KQ) — not yet in DB ─────────────────────
+  // ── Carbon calculated fields (KP–KU) ────────────────────────────────────
 
+  _carbonCalc() {
+    const p = this._p
+    const projectForCalc = {
+      startConstructionMonth: p.start_construction_month,
+      startConstructionYear: p.start_construction_year,
+      readyForServiceMonth: p.ready_for_service_month,
+      readyForServiceYear: p.ready_for_service_year,
+      carbonOperationalCostForecast: p.carbon_operational_cost_forecast,
+      carbonCostBuild: p.carbon_cost_build,
+      carbonCostOperation: p.carbon_cost_operation,
+      carbonCostSequestered: p.carbon_cost_sequestered,
+      carbonCostAvoided: p.carbon_cost_avoided
+    }
+    const fundingValues = p.pafs_core_funding_values ?? []
+    return new CarbonImpactCalculator(projectForCalc, fundingValues)
+  },
+  _roundCarbon(v) {
+    return v == null ? null : Math.round(v * 100) / 100
+  },
   carbonCapitalBaseline() {
-    return null
+    return this._roundCarbon(this._carbonCalc().capitalCarbonBaseline())
   },
   carbonCapitalTarget() {
-    return null
+    return this._roundCarbon(this._carbonCalc().capitalCarbonTarget())
   },
   carbonOmBaseline() {
-    return null
+    return this._roundCarbon(this._carbonCalc().operationalCarbonBaseline())
   },
   carbonOmTarget() {
-    return null
+    return this._roundCarbon(this._carbonCalc().operationalCarbonTarget())
+  },
+  netCarbonEstimate() {
+    return this._roundCarbon(this._carbonCalc().netCarbonEstimate())
+  },
+  netCarbonWithBlanksCalculated() {
+    const calc = this._carbonCalc()
+    const estimate = this._roundCarbon(calc.netCarbonEstimate())
+    const withBlanks = this._roundCarbon(calc.netCarbonWithBlanksCalculated())
+    if (withBlanks == null || withBlanks === estimate) {
+      return null
+    }
+    return withBlanks
   }
 }

@@ -1,6 +1,21 @@
 import { ProjectService } from '../services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
+import {
+  fetchFundingValues,
+  computeCarbonResults
+} from '../carbon-impact/carbon-impact.js'
+
+const CARBON_FIELDS = [
+  'carbonCostBuild',
+  'carbonCostOperation',
+  'carbonCostSequestered',
+  'carbonCostAvoided',
+  'carbonSavingsNetEconomicBenefit',
+  'carbonOperationalCostForecast'
+]
+
+const hasCarbonData = (project) => CARBON_FIELDS.some((f) => project[f] != null)
 
 const getProject = {
   method: 'GET',
@@ -24,6 +39,22 @@ const getProject = {
       )
       const result =
         await projectService.getProjectByReferenceNumber(referenceNumber)
+
+      if (result && hasCarbonData(result)) {
+        try {
+          const fundingValues = await fetchFundingValues(
+            request.prisma,
+            referenceNumber,
+            result
+          )
+          result.carbonCalc = computeCarbonResults(result, fundingValues)
+        } catch (carbonError) {
+          request.server.logger.warn(
+            { error: carbonError },
+            'Carbon impact calculation failed — returning project without carbonCalc'
+          )
+        }
+      }
 
       return buildSuccessResponse(h, result)
     } catch (error) {

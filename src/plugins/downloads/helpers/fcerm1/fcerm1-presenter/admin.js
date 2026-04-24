@@ -8,6 +8,9 @@ export const adminMixin = {
     if (!state) {
       return null
     }
+    if (this._p.is_legacy && !this._p.is_revised) {
+      return 'Revise'
+    }
     return state.charAt(0).toUpperCase() + state.slice(1)
   },
 

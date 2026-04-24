@@ -48,6 +48,42 @@ describe('projectStatus', () => {
     const p = makePresenter({ _state: '' })
     expect(p.projectStatus()).toBeNull()
   })
+
+  test('returns Revise when project is legacy and not yet revised', () => {
+    const p = makePresenter({
+      _state: 'draft',
+      is_legacy: true,
+      is_revised: false
+    })
+    expect(p.projectStatus()).toBe('Revise')
+  })
+
+  test('returns Revise when is_revised is null (legacy project)', () => {
+    const p = makePresenter({
+      _state: 'draft',
+      is_legacy: true,
+      is_revised: null
+    })
+    expect(p.projectStatus()).toBe('Revise')
+  })
+
+  test('returns capitalized state when legacy project has already been revised', () => {
+    const p = makePresenter({
+      _state: 'draft',
+      is_legacy: true,
+      is_revised: true
+    })
+    expect(p.projectStatus()).toBe('Draft')
+  })
+
+  test('returns capitalized state when project is not legacy', () => {
+    const p = makePresenter({
+      _state: 'draft',
+      is_legacy: false,
+      is_revised: false
+    })
+    expect(p.projectStatus()).toBe('Draft')
+  })
 })
 
 // ── carbonCostBuild ───────────────────────────────────────────────────────────

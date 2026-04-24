@@ -208,6 +208,20 @@ export const clearWlFieldsOnProjectTypeChange = (
 export { handleNfmMeasureData } from './nfm-normalizers.js'
 
 /**
+ * Funding source normalizers/handlers are implemented in a dedicated module.
+ * Re-exported here for backward compatibility with existing imports.
+ */
+export {
+  sanitizeFundingSourceFields,
+  normalizeFundingSourceFields,
+  handleFundingSourcesData,
+  clearDeselectedContributorData,
+  clearDeselectedAdditionalGiaData,
+  clearDeselectedFundingSourceColumns,
+  cleanupRemovedContributors
+} from './funding-sources-normalizers.js'
+
+/**
  * Sanitizes WLC cost fields (for validation stage) by removing commas
  * and trimming whitespace. Keeps empty string as-is so required validation
  * still returns required-message semantics.
@@ -350,4 +364,75 @@ export const clearNfmFieldsOnInterventionTypeChange = async (
 
   // Delete all NFM detail rows (land use changes and measures) for this project
   await projectService.deleteAllNfmChildRecords(enrichedPayload.referenceNumber)
+}
+
+/**
+ * Pre-validation sanitizer for carbon impact fields.
+ * Strips commas and trims whitespace from string values.
+ */
+export const sanitizeCarbonFields = (payload, validationLevel) => {
+  if (
+    ![
+      PROJECT_VALIDATION_LEVELS.CARBON_IMPACT,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_BUILD,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_OPERATION,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_SEQUESTERED,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_AVOIDED,
+      PROJECT_VALIDATION_LEVELS.CARBON_SAVINGS_NET_ECONOMIC_BENEFIT,
+      PROJECT_VALIDATION_LEVELS.CARBON_OPERATIONAL_COST_FORECAST
+    ].includes(validationLevel)
+  ) {
+    return
+  }
+
+  const carbonFields = [
+    'carbonCostBuild',
+    'carbonCostOperation',
+    'carbonCostSequestered',
+    'carbonCostAvoided',
+    'carbonSavingsNetEconomicBenefit',
+    'carbonOperationalCostForecast'
+  ]
+
+  carbonFields.forEach((field) => {
+    if (typeof payload[field] === 'string') {
+      payload[field] = payload[field].replaceAll(',', '').trim()
+    }
+  })
+}
+
+/**
+ * Post-validation normalizer for carbon impact fields.
+ * Converts empty strings to null for optional fields.
+ */
+export const normalizeCarbonFields = (enrichedPayload, validationLevel) => {
+  if (
+    ![
+      PROJECT_VALIDATION_LEVELS.CARBON_IMPACT,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_BUILD,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_OPERATION,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_SEQUESTERED,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_AVOIDED,
+      PROJECT_VALIDATION_LEVELS.CARBON_SAVINGS_NET_ECONOMIC_BENEFIT,
+      PROJECT_VALIDATION_LEVELS.CARBON_OPERATIONAL_COST_FORECAST,
+      PROJECT_VALIDATION_LEVELS.CARBON_VALUES_HEXDIGEST
+    ].includes(validationLevel)
+  ) {
+    return
+  }
+
+  const carbonFields = [
+    'carbonCostBuild',
+    'carbonCostOperation',
+    'carbonCostSequestered',
+    'carbonCostAvoided',
+    'carbonSavingsNetEconomicBenefit',
+    'carbonOperationalCostForecast'
+  ]
+
+  carbonFields.forEach((field) => {
+    if (enrichedPayload[field] === '') {
+      enrichedPayload[field] = null
+    }
+  })
 }

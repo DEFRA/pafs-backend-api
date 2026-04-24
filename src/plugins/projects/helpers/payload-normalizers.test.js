@@ -17,7 +17,11 @@ import {
   clearWlFieldsOnProjectTypeChange,
   sanitizeWlbFields,
   normalizeWlbFields,
-  clearNfmFieldsOnInterventionTypeChange
+  clearNfmFieldsOnInterventionTypeChange,
+  sanitizeCarbonFields,
+  normalizeCarbonFields,
+  sanitizeFundingSourceFields,
+  normalizeFundingSourceFields
 } from './payload-normalizers.js'
 
 describe('normalizeInterventionTypes', () => {
@@ -1706,6 +1710,179 @@ describe('normalizeWlbFields', () => {
   })
 })
 
+describe('sanitizeFundingSourceFields', () => {
+  it('trims public contributor names at PUBLIC_SECTOR_CONTRIBUTORS level', () => {
+    const payload = { publicContributorNames: '  Org A, Org B  ' }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS
+    )
+
+    expect(payload.publicContributorNames).toBe('Org A, Org B')
+  })
+
+  it('trims private contributor names at PRIVATE_SECTOR_CONTRIBUTORS level', () => {
+    const payload = { privateContributorNames: '  Private Co  ' }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PRIVATE_SECTOR_CONTRIBUTORS
+    )
+
+    expect(payload.privateContributorNames).toBe('Private Co')
+  })
+
+  it('trims other EA contributor names at OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS level', () => {
+    const payload = { otherEaContributorNames: '  EA Team  ' }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS
+    )
+
+    expect(payload.otherEaContributorNames).toBe('EA Team')
+  })
+
+  it('sanitizes fundingValues spend fields at FUNDING_SOURCES_ESTIMATED_SPEND level', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: ' 1,000 ',
+          localLevy: '2,500',
+          otherEaContributions: '  300 ',
+          recovery: '',
+          total: ' 3,800 '
+        }
+      ]
+    }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBe('1000')
+    expect(payload.fundingValues[0].localLevy).toBe('2500')
+    expect(payload.fundingValues[0].otherEaContributions).toBe('300')
+    expect(payload.fundingValues[0].recovery).toBe('')
+    expect(payload.fundingValues[0].total).toBe('3800')
+  })
+
+  it('does nothing when fundingValues is not an array', () => {
+    const payload = { fundingValues: null }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues).toBeNull()
+  })
+
+  it('does not run at unrelated levels', () => {
+    const payload = {
+      publicContributorNames: '  Org A  ',
+      fundingValues: [{ fcermGia: '1,000' }]
+    }
+
+    sanitizeFundingSourceFields(payload, PROJECT_VALIDATION_LEVELS.APPROACH)
+
+    expect(payload.publicContributorNames).toBe('  Org A  ')
+    expect(payload.fundingValues[0].fcermGia).toBe('1,000')
+  })
+})
+
+describe('normalizeFundingSourceFields', () => {
+  it('converts empty spend strings to null at FUNDING_SOURCES_ESTIMATED_SPEND level', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: '',
+          localLevy: '1000',
+          otherEaContributions: '',
+          total: ''
+        }
+      ]
+    }
+
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBeNull()
+    expect(payload.fundingValues[0].localLevy).toBe('1000')
+    expect(payload.fundingValues[0].otherEaContributions).toBeNull()
+    expect(payload.fundingValues[0].total).toBeNull()
+  })
+
+  it('preserves null/undefined and numeric-like strings', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: null,
+          localLevy: undefined,
+          publicContributions: '0'
+        }
+      ]
+    }
+
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBeNull()
+    expect(payload.fundingValues[0].localLevy).toBeUndefined()
+    expect(payload.fundingValues[0].publicContributions).toBe('0')
+  })
+
+  it('does nothing when fundingValues is not an array', () => {
+    const payload = { fundingValues: undefined }
+
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues).toBeUndefined()
+  })
+
+  it('does not run at unrelated levels', () => {
+    const payload = {
+      fundingValues: [{ fcermGia: '' }]
+    }
+
+    normalizeFundingSourceFields(payload, PROJECT_VALIDATION_LEVELS.APPROACH)
+
+    expect(payload.fundingValues[0].fcermGia).toBe('')
+  })
+
+  it('works together with sanitizeFundingSourceFields for spend level', () => {
+    const payload = {
+      fundingValues: [
+        {
+          fcermGia: ' 1,000 ',
+          localLevy: ' '
+        }
+      ]
+    }
+
+    sanitizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+    normalizeFundingSourceFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND
+    )
+
+    expect(payload.fundingValues[0].fcermGia).toBe('1000')
+    expect(payload.fundingValues[0].localLevy).toBeNull()
+  })
+})
+
 describe('clearNfmFieldsOnInterventionTypeChange', () => {
   let projectService
 
@@ -1880,5 +2057,253 @@ describe('clearNfmFieldsOnInterventionTypeChange', () => {
 
     expect(payload.nfmSelectedMeasures).toBe('woodland')
     expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+})
+
+describe('sanitizeCarbonFields', () => {
+  it('should strip commas and trim whitespace at CARBON_IMPACT level', () => {
+    const payload = {
+      carbonCostBuild: '1,000.50 ',
+      carbonCostOperation: ' 2,500.75',
+      carbonCostSequestered: '500,000'
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBe('1000.50')
+    expect(payload.carbonCostOperation).toBe('2500.75')
+    expect(payload.carbonCostSequestered).toBe('500000')
+  })
+
+  it('should sanitize carbonCostBuild field at CARBON_COST_BUILD level', () => {
+    const payload = {
+      carbonCostBuild: '3,000.00 '
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_COST_BUILD)
+
+    expect(payload.carbonCostBuild).toBe('3000.00')
+  })
+
+  it('should sanitize carbonCostOperation field at CARBON_COST_OPERATION level', () => {
+    const payload = {
+      carbonCostOperation: ' 5,000 '
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_OPERATION
+    )
+
+    expect(payload.carbonCostOperation).toBe('5000')
+  })
+
+  it('should sanitize carbonCostSequestered field at CARBON_COST_SEQUESTERED level', () => {
+    const payload = {
+      carbonCostSequestered: '10,000.25 '
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_SEQUESTERED
+    )
+
+    expect(payload.carbonCostSequestered).toBe('10000.25')
+  })
+
+  it('should sanitize carbonCostAvoided field at CARBON_COST_AVOIDED level', () => {
+    const payload = {
+      carbonCostAvoided: ' 2,500.50'
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_COST_AVOIDED)
+
+    expect(payload.carbonCostAvoided).toBe('2500.50')
+  })
+
+  it('should sanitize carbonSavingsNetEconomicBenefit field at CARBON_SAVINGS_NET_ECONOMIC_BENEFIT level', () => {
+    const payload = {
+      carbonSavingsNetEconomicBenefit: '500,000.99 '
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_SAVINGS_NET_ECONOMIC_BENEFIT
+    )
+
+    expect(payload.carbonSavingsNetEconomicBenefit).toBe('500000.99')
+  })
+
+  it('should sanitize carbonOperationalCostForecast field at CARBON_OPERATIONAL_COST_FORECAST level', () => {
+    const payload = {
+      carbonOperationalCostForecast: ' 1,234,567.89'
+    }
+
+    sanitizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_OPERATIONAL_COST_FORECAST
+    )
+
+    expect(payload.carbonOperationalCostForecast).toBe('1234567.89')
+  })
+
+  it('should not sanitize fields at non-carbon validation levels', () => {
+    const payload = {
+      carbonCostBuild: '1,000.50 '
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.carbonCostBuild).toBe('1,000.50 ')
+  })
+
+  it('should only sanitize string values', () => {
+    const payload = {
+      carbonCostBuild: 1000.5,
+      carbonCostOperation: null,
+      carbonCostSequestered: undefined
+    }
+
+    sanitizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBe(1000.5)
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBeUndefined()
+  })
+})
+
+describe('normalizeCarbonFields', () => {
+  it('should convert empty strings to null at CARBON_IMPACT level', () => {
+    const payload = {
+      carbonCostBuild: '',
+      carbonCostOperation: '2500.75',
+      carbonCostSequestered: '',
+      carbonCostAvoided: null
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonCostOperation).toBe('2500.75')
+    expect(payload.carbonCostSequestered).toBeNull()
+    expect(payload.carbonCostAvoided).toBeNull()
+  })
+
+  it('should convert empty carbonCostBuild to null at CARBON_COST_BUILD level', () => {
+    const payload = {
+      carbonCostBuild: ''
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_COST_BUILD)
+
+    expect(payload.carbonCostBuild).toBeNull()
+  })
+
+  it('should convert empty carbonCostOperation to null at CARBON_COST_OPERATION level', () => {
+    const payload = {
+      carbonCostOperation: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_OPERATION
+    )
+
+    expect(payload.carbonCostOperation).toBeNull()
+  })
+
+  it('should convert empty carbonCostSequestered to null at CARBON_COST_SEQUESTERED level', () => {
+    const payload = {
+      carbonCostSequestered: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_SEQUESTERED
+    )
+
+    expect(payload.carbonCostSequestered).toBeNull()
+  })
+
+  it('should convert empty carbonCostAvoided to null at CARBON_COST_AVOIDED level', () => {
+    const payload = {
+      carbonCostAvoided: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_COST_AVOIDED
+    )
+
+    expect(payload.carbonCostAvoided).toBeNull()
+  })
+
+  it('should convert empty carbonSavingsNetEconomicBenefit to null at CARBON_SAVINGS_NET_ECONOMIC_BENEFIT level', () => {
+    const payload = {
+      carbonSavingsNetEconomicBenefit: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_SAVINGS_NET_ECONOMIC_BENEFIT
+    )
+
+    expect(payload.carbonSavingsNetEconomicBenefit).toBeNull()
+  })
+
+  it('should convert empty carbonOperationalCostForecast to null at CARBON_OPERATIONAL_COST_FORECAST level', () => {
+    const payload = {
+      carbonOperationalCostForecast: ''
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_OPERATIONAL_COST_FORECAST
+    )
+
+    expect(payload.carbonOperationalCostForecast).toBeNull()
+  })
+
+  it('should work at CARBON_VALUES_HEXDIGEST level', () => {
+    const payload = {
+      carbonCostBuild: '',
+      carbonOperationalCostForecast: 'abc123'
+    }
+
+    normalizeCarbonFields(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_VALUES_HEXDIGEST
+    )
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonOperationalCostForecast).toBe('abc123')
+  })
+
+  it('should not normalize fields at non-carbon validation levels', () => {
+    const payload = {
+      carbonCostBuild: '',
+      carbonCostOperation: ''
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.PROJECT_TYPE)
+
+    expect(payload.carbonCostBuild).toBe('')
+    expect(payload.carbonCostOperation).toBe('')
+  })
+
+  it('should preserve non-empty values and other field types', () => {
+    const payload = {
+      carbonCostBuild: '1000.50',
+      carbonCostOperation: null,
+      carbonCostSequestered: 0,
+      carbonCostAvoided: false
+    }
+
+    normalizeCarbonFields(payload, PROJECT_VALIDATION_LEVELS.CARBON_IMPACT)
+
+    expect(payload.carbonCostBuild).toBe('1000.50')
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBe(0)
+    expect(payload.carbonCostAvoided).toBe(false)
   })
 })

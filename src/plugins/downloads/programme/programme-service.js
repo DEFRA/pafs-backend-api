@@ -1,3 +1,4 @@
+import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import { config } from '../../../config.js'
 import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
 import { getEmailService } from '../../../common/services/email/notify-service.js'
@@ -10,6 +11,7 @@ import {
 } from './programme-generation-helpers.js'
 import {
   DOWNLOAD_STATUS as DownloadStatus,
+  getAdminDownloadRecord,
   updateDownloadRecord
 } from './programme-records.js'
 import { resolveAccessibleAreaIdsForUser } from '../../areas/helpers/user-areas.js'
@@ -158,7 +160,7 @@ async function loadAllProjectsInBatches(
 
 // ── User programme generation (runs in background via setImmediate) ───────────
 
-async function runUserGeneration({
+export async function runUserGeneration({
   prisma,
   logger,
   userId,
@@ -234,8 +236,20 @@ async function runUserGeneration({
   }
 }
 
-export function queueUserGeneration(params) {
-  setImmediate(() => runUserGeneration(params))
+export async function queueUserGeneration(params, sqs) {
+  const { downloadId, userId, s3Bucket, requestedOn } = params
+  await sqs.send(
+    new SendMessageCommand({
+      QueueUrl: config.get('sqsProgrammeGeneration.queueUrl'),
+      MessageBody: JSON.stringify({
+        type: 'user',
+        downloadId: downloadId.toString(),
+        userId,
+        s3Bucket,
+        requestedOn
+      })
+    })
+  )
 }
 
 // ── Admin programme generation ────────────────────────────────────────────────
@@ -289,7 +303,7 @@ async function generateAdminSpreadsheet({
   return presenters.length
 }
 
-async function runAdminGeneration({
+export async function runAdminGeneration({
   prisma,
   logger,
   downloadId,
@@ -297,6 +311,20 @@ async function runAdminGeneration({
   requestingUserId,
   requestedOn
 }) {
+  // Guard against duplicate concurrent jobs — if another job already moved the
+  // record to GENERATING after this one was queued, abort silently.
+  const current = await getAdminDownloadRecord(prisma)
+  if (
+    current?.status === DownloadStatus.GENERATING &&
+    current.id !== downloadId
+  ) {
+    logger.warn(
+      { downloadId, existingId: current.id },
+      'Admin generation already in progress — skipping duplicate job'
+    )
+    return
+  }
+
   try {
     logger.info(
       { downloadId, requestingUserId },
@@ -341,6 +369,18 @@ async function runAdminGeneration({
   }
 }
 
-export function queueAdminGeneration(params) {
-  setImmediate(() => runAdminGeneration(params))
+export async function queueAdminGeneration(params, sqs) {
+  const { downloadId, s3Bucket, requestingUserId, requestedOn } = params
+  await sqs.send(
+    new SendMessageCommand({
+      QueueUrl: config.get('sqsProgrammeGeneration.queueUrl'),
+      MessageBody: JSON.stringify({
+        type: 'admin',
+        downloadId: downloadId.toString(),
+        s3Bucket,
+        requestingUserId,
+        requestedOn
+      })
+    })
+  )
 }

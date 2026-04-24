@@ -22,76 +22,213 @@ export function adminS3Key(filename) {
 // ── FCERM1 project loader ─────────────────────────────────────────────────────
 
 export async function loadSingleProjectPresenter(prisma, projectId) {
-  const project = await prisma.pafs_core_projects.findFirst({
-    where: { id: BigInt(projectId) }
-  })
+  const data = await fetchBulkProjectData(
+    prisma,
+    [BigInt(projectId)],
+    [projectId]
+  )
+  const project = data.projects[0]
   if (!project) {
     return null
   }
 
+  const maps = buildProjectLookupMaps(data)
+  const pid = Number(project.id)
+  const areaId = maps.areaByProject.get(pid)
+  const areaHierarchy = areaId ? await resolveAreaHierarchy(prisma, areaId) : {}
+
+  const projectFvs = maps.fvByProject.get(pid) ?? []
+  const contributors = projectFvs.flatMap(
+    (fv) => maps.contributorsByFv.get(Number(fv.id)) ?? []
+  )
+
+  return new FcermPresenter(
+    assembleProjectData(project, pid, maps),
+    areaHierarchy,
+    contributors
+  )
+}
+
+// ── Bulk project loader ──────────────────────────────────────────────────────
+
+function groupBy(array, keyFn) {
+  const map = new Map()
+  for (const item of array) {
+    const key = keyFn(item)
+    const existing = map.get(key)
+    if (existing) {
+      existing.push(item)
+    } else {
+      map.set(key, [item])
+    }
+  }
+  return map
+}
+
+const EMPTY_HIERARCHY = Object.freeze({
+  rmaName: null,
+  rmaSubType: null,
+  psoName: null,
+  rfccName: null,
+  eaAreaName: null
+})
+
+function uniqueParentIds(areas) {
+  return [
+    ...new Set(areas.filter((a) => a.parent_id != null).map((a) => a.parent_id))
+  ]
+}
+
+function buildHierarchyEntry(rma, psoMap, eaMap) {
+  const pso = rma.parent_id == null ? null : psoMap.get(Number(rma.parent_id))
+  const ea = pso?.parent_id == null ? null : eaMap.get(Number(pso.parent_id))
+  return {
+    rmaName: rma.name ?? null,
+    rmaSubType: rma.sub_type ?? null,
+    psoName: pso?.name ?? null,
+    rfccName: pso?.name ?? null,
+    eaAreaName: ea?.name ?? null
+  }
+}
+
+// Resolves RMA → PSO → EA area hierarchy for a set of area IDs using at most
+// 3 bulk DB queries, regardless of how many areas are provided.
+async function resolveAreaHierarchiesBulk(prisma, areaIds) {
+  if (areaIds.length === 0) {
+    return new Map()
+  }
+
+  const rmas = await prisma.pafs_core_areas.findMany({
+    where: { id: { in: areaIds.map(BigInt) } },
+    select: { id: true, name: true, sub_type: true, parent_id: true }
+  })
+
+  const psoIds = uniqueParentIds(rmas)
+  const psos =
+    psoIds.length > 0
+      ? await prisma.pafs_core_areas.findMany({
+          where: { id: { in: psoIds.map(BigInt) } },
+          select: { id: true, name: true, parent_id: true }
+        })
+      : []
+  const psoMap = new Map(psos.map((p) => [Number(p.id), p]))
+
+  const eaIds = uniqueParentIds(psos)
+  const eas =
+    eaIds.length > 0
+      ? await prisma.pafs_core_areas.findMany({
+          where: { id: { in: eaIds.map(BigInt) } },
+          select: { id: true, name: true }
+        })
+      : []
+  const eaMap = new Map(eas.map((e) => [Number(e.id), e]))
+
+  const result = new Map()
+  for (const rma of rmas) {
+    result.set(Number(rma.id), buildHierarchyEntry(rma, psoMap, eaMap))
+  }
+  return result
+}
+
+async function fetchBulkProjectData(prisma, bigIntIds, projectIds) {
   const [
+    projects,
     fundingValues,
     floodProtectionOutcomes,
     flood2040Outcomes,
     coastalOutcomes,
     nfmMeasures,
     nfmLandUseChanges,
-    stateRow,
-    areaProject
+    states,
+    areaProjectRows
   ] = await Promise.all([
+    prisma.pafs_core_projects.findMany({ where: { id: { in: bigIntIds } } }),
     prisma.pafs_core_funding_values.findMany({
-      where: { project_id: BigInt(projectId) }
+      where: { project_id: { in: bigIntIds } }
     }),
     prisma.pafs_core_flood_protection_outcomes.findMany({
-      where: { project_id: BigInt(projectId) }
+      where: { project_id: { in: bigIntIds } }
     }),
     prisma.pafs_core_flood_protection2040_outcomes.findMany({
-      where: { project_id: BigInt(projectId) }
+      where: { project_id: { in: bigIntIds } }
     }),
     prisma.pafs_core_coastal_erosion_protection_outcomes.findMany({
-      where: { project_id: BigInt(projectId) }
+      where: { project_id: { in: bigIntIds } }
     }),
     prisma.pafs_core_nfm_measures.findMany({
-      where: { project_id: BigInt(projectId) }
+      where: { project_id: { in: bigIntIds } }
     }),
     prisma.pafs_core_nfm_land_use_changes.findMany({
-      where: { project_id: BigInt(projectId) }
+      where: { project_id: { in: bigIntIds } }
     }),
-    prisma.pafs_core_states.findFirst({
-      where: { project_id: projectId },
-      select: { state: true }
+    prisma.pafs_core_states.findMany({
+      where: { project_id: { in: projectIds } },
+      select: { project_id: true, state: true }
     }),
-    prisma.pafs_core_area_projects.findFirst({
-      where: { project_id: projectId },
-      select: { area_id: true }
+    prisma.pafs_core_area_projects.findMany({
+      where: { project_id: { in: projectIds } },
+      select: { project_id: true, area_id: true }
     })
   ])
 
-  const fundingValueIds = fundingValues.map((fv) => fv.id)
+  const allFvIds = fundingValues.map((fv) => fv.id)
   const contributors =
-    fundingValueIds.length > 0
+    allFvIds.length > 0
       ? await prisma.pafs_core_funding_contributors.findMany({
-          where: { funding_value_id: { in: fundingValueIds } }
+          where: { funding_value_id: { in: allFvIds } }
         })
       : []
 
-  const projectData = {
+  return {
+    projects,
+    fundingValues,
+    floodProtectionOutcomes,
+    flood2040Outcomes,
+    coastalOutcomes,
+    nfmMeasures,
+    nfmLandUseChanges,
+    states,
+    areaProjectRows,
+    contributors
+  }
+}
+
+// Build O(1) lookup maps indexed by project_id as Number.
+function buildProjectLookupMaps(data) {
+  const byProjectId = (r) => Number(r.project_id)
+  return {
+    fvByProject: groupBy(data.fundingValues, byProjectId),
+    floodByProject: groupBy(data.floodProtectionOutcomes, byProjectId),
+    flood2040ByProject: groupBy(data.flood2040Outcomes, byProjectId),
+    coastalByProject: groupBy(data.coastalOutcomes, byProjectId),
+    nfmMByProject: groupBy(data.nfmMeasures, byProjectId),
+    nfmLByProject: groupBy(data.nfmLandUseChanges, byProjectId),
+    stateByProject: new Map(
+      data.states.map((s) => [Number(s.project_id), s.state])
+    ),
+    areaByProject: new Map(
+      data.areaProjectRows.map((a) => [Number(a.project_id), a.area_id])
+    ),
+    contributorsByFv: groupBy(data.contributors, (c) =>
+      Number(c.funding_value_id)
+    )
+  }
+}
+
+function assembleProjectData(project, pid, maps) {
+  return {
     ...project,
-    pafs_core_funding_values: fundingValues,
-    pafs_core_flood_protection_outcomes: floodProtectionOutcomes,
-    pafs_core_flood_protection2040_outcomes: flood2040Outcomes,
-    pafs_core_coastal_erosion_protection_outcomes: coastalOutcomes,
-    pafs_core_nfm_measures: nfmMeasures,
-    pafs_core_nfm_land_use_changes: nfmLandUseChanges,
-    _state: stateRow?.state ?? null,
+    pafs_core_funding_values: maps.fvByProject.get(pid) ?? [],
+    pafs_core_flood_protection_outcomes: maps.floodByProject.get(pid) ?? [],
+    pafs_core_flood_protection2040_outcomes:
+      maps.flood2040ByProject.get(pid) ?? [],
+    pafs_core_coastal_erosion_protection_outcomes:
+      maps.coastalByProject.get(pid) ?? [],
+    pafs_core_nfm_measures: maps.nfmMByProject.get(pid) ?? [],
+    pafs_core_nfm_land_use_changes: maps.nfmLByProject.get(pid) ?? [],
+    _state: maps.stateByProject.get(pid) ?? null,
     _updatedByName: null
   }
-
-  const areaHierarchy = areaProject?.area_id
-    ? await resolveAreaHierarchy(prisma, areaProject.area_id)
-    : {}
-
-  return new FcermPresenter(projectData, areaHierarchy, contributors)
 }
 
 export async function loadProjectsForFcerm1(prisma, projectIds, logger) {
@@ -99,16 +236,41 @@ export async function loadProjectsForFcerm1(prisma, projectIds, logger) {
     return []
   }
 
-  const presenters = []
+  const bigIntIds = projectIds.map(BigInt)
+  const data = await fetchBulkProjectData(prisma, bigIntIds, projectIds)
+  const maps = buildProjectLookupMaps(data)
 
-  for (const projectId of projectIds) {
+  const uniqueAreaIds = [
+    ...new Set([...maps.areaByProject.values()].map(Number).filter(Boolean))
+  ]
+  const hierarchyByArea = await resolveAreaHierarchiesBulk(
+    prisma,
+    uniqueAreaIds
+  )
+
+  const presenters = []
+  for (const project of data.projects) {
     try {
-      const presenter = await loadSingleProjectPresenter(prisma, projectId)
-      if (presenter) {
-        presenters.push(presenter)
-      }
+      const pid = Number(project.id)
+      const projectFvs = maps.fvByProject.get(pid) ?? []
+      const projectContributors = projectFvs.flatMap(
+        (fv) => maps.contributorsByFv.get(Number(fv.id)) ?? []
+      )
+      const hierarchy = hierarchyByArea.get(
+        Number(maps.areaByProject.get(pid))
+      ) ?? { ...EMPTY_HIERARCHY }
+      presenters.push(
+        new FcermPresenter(
+          assembleProjectData(project, pid, maps),
+          hierarchy,
+          projectContributors
+        )
+      )
     } catch (err) {
-      logger.warn({ err, projectId }, 'Skipping project due to load error')
+      logger.warn(
+        { err, projectId: Number(project.id) },
+        'Skipping project due to load error'
+      )
     }
   }
 
@@ -117,46 +279,52 @@ export async function loadProjectsForFcerm1(prisma, projectIds, logger) {
 
 // ── Benefit areas ZIP builder ─────────────────────────────────────────────────
 
+// Max concurrent S3 downloads when assembling a benefit areas ZIP.
+const S3_DOWNLOAD_CONCURRENCY = 10
+
 export async function buildBenefitAreasZip(projects, s3Service, logger) {
   const zip = new AdmZip()
   let count = 0
 
   logger?.info({ total: projects.length }, 'Building benefit areas zip')
 
-  for (const project of projects) {
-    if (
-      !project.benefit_area_file_s3_bucket ||
-      !project.benefit_area_file_s3_key
-    ) {
-      logger?.debug(
-        {
-          referenceNumber: project.reference_number,
-          hasFilename: !!project.benefit_area_file_name
-        },
-        'Skipping project — no S3 coordinates for benefit area file'
-      )
-      continue
-    }
+  const eligible = projects.filter(
+    (p) => p.benefit_area_file_s3_bucket && p.benefit_area_file_s3_key
+  )
 
-    try {
-      const fileBuffer = await s3Service.getObject(
-        project.benefit_area_file_s3_bucket,
-        project.benefit_area_file_s3_key
-      )
+  // Download files with bounded concurrency to avoid overwhelming S3.
+  for (let i = 0; i < eligible.length; i += S3_DOWNLOAD_CONCURRENCY) {
+    const chunk = eligible.slice(i, i + S3_DOWNLOAD_CONCURRENCY)
+    const downloaded = await Promise.all(
+      chunk.map(async (project) => {
+        try {
+          const fileBuffer = await s3Service.getObject(
+            project.benefit_area_file_s3_bucket,
+            project.benefit_area_file_s3_key
+          )
+          return { project, fileBuffer, ok: true }
+        } catch (err) {
+          logger.warn(
+            { err, referenceNumber: project.reference_number },
+            'Skipping benefit area file'
+          )
+          return { ok: false }
+        }
+      })
+    )
+
+    for (const result of downloaded) {
+      if (!result.ok) {
+        continue
+      }
       const basename = (
-        project.benefit_area_file_name || 'benefit_area.zip'
+        result.project.benefit_area_file_name || 'benefit_area.zip'
       ).replaceAll('/', '-')
       // Sanitise reference_number (can contain '/') and prefix so entries are
       // unique even when projects share an identical filename.
-      const refPrefix = project.reference_number.replaceAll('/', '-')
-      const filename = `${refPrefix}_${basename}`
-      zip.addFile(filename, fileBuffer)
+      const refPrefix = result.project.reference_number.replaceAll('/', '-')
+      zip.addFile(`${refPrefix}_${basename}`, result.fileBuffer)
       count++
-    } catch (err) {
-      logger.warn(
-        { err, referenceNumber: project.reference_number },
-        'Skipping benefit area file'
-      )
     }
   }
 

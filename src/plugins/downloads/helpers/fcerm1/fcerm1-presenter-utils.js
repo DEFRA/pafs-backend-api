@@ -127,7 +127,7 @@ export function sumOutcomes(project, table, year, field) {
 
 // ── Risk helper ───────────────────────────────────────────────────────────────
 export function hasRisk(project, riskType) {
-  const main = project.main_risk ?? project.main_source_of_risk
+  const main = project.main_risk
   if (main === riskType) {
     return true
   }

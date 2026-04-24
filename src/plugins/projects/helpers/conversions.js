@@ -113,3 +113,45 @@ export const convertBigInt = (value, direction) => {
   }
   return toApiBigInt(value)
 }
+
+/**
+ * Converts Prisma Decimal values between API and database formats.
+ * Prisma returns Decimal as Decimal.js objects; the API uses strings.
+ * - TO_DATABASE: string -> Prisma Decimal (via the raw string, Prisma handles it)
+ * - TO_API: Decimal.js object -> string
+ *
+ * @param {object|string|null|undefined} value - Value to convert
+ * @param {string} direction - 'toDatabase' or 'toApi'
+ * @returns {string|null|undefined} - Converted value
+ */
+export const convertDecimal = (value, direction) => {
+  if (value === null || value === undefined) {
+    return value
+  }
+
+  if (direction === CONVERSION_DIRECTIONS.TO_DATABASE) {
+    // For database writes, empty string becomes null, otherwise pass the string through.
+    // Prisma accepts string values for Decimal fields.
+    if (value === '') {
+      return null
+    }
+    if (typeof value === 'string') {
+      return value
+    }
+    // Numeric value — convert to string for Prisma Decimal
+    return Number(value).toString()
+  }
+
+  // TO_API: Prisma Decimal objects expose a toFixed() / toString() method
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number') {
+    return value.toString()
+  }
+  // Prisma Decimal — has a toFixed method
+  if (typeof value?.toFixed === 'function') {
+    return value.toFixed()
+  }
+  return value
+}

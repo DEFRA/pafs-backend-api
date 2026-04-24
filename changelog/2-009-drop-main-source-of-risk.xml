@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
+
+  <changeSet id="2-009-drop-main-source-of-risk" author="migration-team">
+    <comment>
+      Drop redundant main_source_of_risk column from pafs_core_projects.
+      main_risk already serves the same purpose and is used by the legacy project
+      download. Data is migrated to main_risk before this column is dropped.
+    </comment>
+
+    <dropColumn columnName="main_source_of_risk" tableName="pafs_core_projects"/>
+  </changeSet>
+
+</databaseChangeLog>
