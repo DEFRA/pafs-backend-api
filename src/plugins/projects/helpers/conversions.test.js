@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { convertArray, convertNumber, convertBigInt } from './conversions.js'
+import {
+  convertArray,
+  convertNumber,
+  convertBigInt,
+  convertDecimal
+} from './conversions.js'
 
 describe('convertBigInt', () => {
   const TO_DB = 'toDatabase'
@@ -454,6 +459,135 @@ describe('conversions', () => {
         const toDb = convertBigInt(0, 'toDatabase')
         const backToApi = convertBigInt(toDb, 'toApi')
         expect(backToApi).toBe('0')
+      })
+    })
+  })
+
+  describe('convertDecimal', () => {
+    describe('toDatabase direction', () => {
+      it('should convert string to string (pass through)', () => {
+        const result = convertDecimal('123.45', 'toDatabase')
+        expect(result).toBe('123.45')
+      })
+
+      it('should convert empty string to null', () => {
+        const result = convertDecimal('', 'toDatabase')
+        expect(result).toBeNull()
+      })
+
+      it('should convert number to string', () => {
+        const result = convertDecimal(123.45, 'toDatabase')
+        expect(result).toBe('123.45')
+      })
+
+      it('should pass through null unchanged', () => {
+        const result = convertDecimal(null, 'toDatabase')
+        expect(result).toBeNull()
+      })
+
+      it('should pass through undefined unchanged', () => {
+        const result = convertDecimal(undefined, 'toDatabase')
+        expect(result).toBeUndefined()
+      })
+
+      it('should handle zero', () => {
+        expect(convertDecimal('0', 'toDatabase')).toBe('0')
+        expect(convertDecimal(0, 'toDatabase')).toBe('0')
+      })
+
+      it('should handle negative decimals', () => {
+        expect(convertDecimal('-123.45', 'toDatabase')).toBe('-123.45')
+        expect(convertDecimal(-99.99, 'toDatabase')).toBe('-99.99')
+      })
+
+      it('should handle large decimal numbers', () => {
+        const result = convertDecimal('999999999.99', 'toDatabase')
+        expect(result).toBe('999999999.99')
+      })
+
+      it('should handle decimal with many places', () => {
+        const result = convertDecimal('3.14159265359', 'toDatabase')
+        expect(result).toBe('3.14159265359')
+      })
+    })
+
+    describe('toApi direction', () => {
+      it('should pass through string unchanged', () => {
+        const result = convertDecimal('123.45', 'toApi')
+        expect(result).toBe('123.45')
+      })
+
+      it('should convert number to string', () => {
+        const result = convertDecimal(123.45, 'toApi')
+        expect(result).toBe('123.45')
+      })
+
+      it('should convert Decimal.js-like object using toFixed()', () => {
+        // Mock Decimal.js object with toFixed method
+        const mockDecimal = { toFixed: () => '456.78' }
+        const result = convertDecimal(mockDecimal, 'toApi')
+        expect(result).toBe('456.78')
+      })
+
+      it('should pass through null unchanged', () => {
+        const result = convertDecimal(null, 'toApi')
+        expect(result).toBeNull()
+      })
+
+      it('should pass through undefined unchanged', () => {
+        const result = convertDecimal(undefined, 'toApi')
+        expect(result).toBeUndefined()
+      })
+
+      it('should handle zero', () => {
+        expect(convertDecimal('0', 'toApi')).toBe('0')
+        expect(convertDecimal(0, 'toApi')).toBe('0')
+      })
+
+      it('should handle negative decimals', () => {
+        expect(convertDecimal('-123.45', 'toApi')).toBe('-123.45')
+        expect(convertDecimal(-99.99, 'toApi')).toBe('-99.99')
+      })
+
+      it('should handle Decimal object with different precisions', () => {
+        const mockDecimal100 = { toFixed: () => '100.123456' }
+        const mockDecimal50 = { toFixed: () => '50' }
+        expect(convertDecimal(mockDecimal100, 'toApi')).toBe('100.123456')
+        expect(convertDecimal(mockDecimal50, 'toApi')).toBe('50')
+      })
+    })
+
+    describe('bidirectional conversions', () => {
+      it('should maintain string value through database and back to API', () => {
+        const original = '123.45'
+        const toDb = convertDecimal(original, 'toDatabase')
+        const backToApi = convertDecimal(toDb, 'toApi')
+        expect(backToApi).toBe(original)
+      })
+
+      it('should maintain number value through database and back to API', () => {
+        const original = 123.45
+        const toDb = convertDecimal(original, 'toDatabase')
+        expect(toDb).toBe('123.45')
+        const backToApi = convertDecimal(toDb, 'toApi')
+        expect(backToApi).toBe('123.45')
+      })
+    })
+
+    describe('edge cases', () => {
+      it('should handle scientific notation strings', () => {
+        const result = convertDecimal('1e3', 'toDatabase')
+        expect(result).toBe('1e3')
+      })
+
+      it('should handle objects without toFixed method', () => {
+        const result = convertDecimal({ value: 123 }, 'toApi')
+        expect(result).toEqual({ value: 123 })
+      })
+
+      it('should handle very small decimal numbers', () => {
+        expect(convertDecimal('0.0001', 'toDatabase')).toBe('0.0001')
+        expect(convertDecimal(0.0001, 'toApi')).toBe('0.0001')
       })
     })
   })

@@ -111,11 +111,71 @@ export const environmentalBenefitsGateSchema = (label) =>
   })
 
 /**
+ * Shared custom validator for environmental benefit quantity fields.
+ * - Whole numbers (no decimal): up to 18 digits — matches Decimal(20,2) DB column
+ * - Decimal numbers: up to 16 digits before the decimal, up to 2 digits after
+ * Returns the original string to preserve precision for Decimal database fields.
+ */
+const ERR_PRECISION = 'number.precision'
+const ERR_WHOLE_NUMBER_PRECISION = 'number.integer.max'
+const ERR_BASE = 'number.base'
+
+/**
+ * Maximum digits allowed for whole-number values — matches Decimal(20,2) DB column
+ */
+const MAX_WHOLE_NUMBER_DIGITS = 18
+
+/**
+ * Maximum digits allowed before the decimal point for decimal values
+ * (leaves 2 digits for the fractional part within Decimal(20,2))
+ */
+const MAX_INTEGER_PART_DIGITS = 16
+
+const validateQuantityString = (value, helpers) => {
+  if (!/^\d+(?:\.\d+)?$/.test(value)) {
+    return helpers.error(ERR_BASE)
+  }
+
+  const [integerPart, decimalPart] = value.split('.')
+
+  if (decimalPart === undefined) {
+    // Whole number: max 18 digits
+    if (integerPart.length > MAX_WHOLE_NUMBER_DIGITS) {
+      return helpers.error(ERR_WHOLE_NUMBER_PRECISION)
+    }
+  } else {
+    // Decimal number: max 16 digits before decimal, max 2 after
+    if (integerPart.length > MAX_INTEGER_PART_DIGITS) {
+      return helpers.error(ERR_PRECISION)
+    }
+    if (decimalPart.length > 2) {
+      return helpers.error(ERR_PRECISION)
+    }
+  }
+
+  return value
+}
+
+const QUANTITY_MESSAGES = {
+  'number.base':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+  'string.pattern.base':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
+  'number.min': PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
+  'number.max':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
+  'number.precision':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION,
+  'number.integer.max':
+    PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_WHOLE_NUMBER_PRECISION
+}
+
+/**
  * Conditional environmental benefits quantity field schema
  * Only requires the quantity field when the gate field is true
- * Strictly validates maximum 2 decimal places WITHOUT auto-rounding
- * (e.g., 0.01, 1.5, 10.25 are valid; 1.234, 10.999 are rejected)
- * Minimum value: 0.01
+ * Allows up to 16 digits before decimal, 2 digits after decimal
+ * Accepts both string and number inputs for maximum compatibility
+ * Minimum value: 0 (0 allowed as specified)
  * @param {string} label - Field label for error messages
  * @param {string} gateField - Name of the gate field to check
  */
@@ -125,21 +185,60 @@ export const environmentalBenefitsConditionalQuantitySchema = (
 ) =>
   Joi.when(gateField, {
     is: true,
-    then: Joi.number()
-      .min(0.01)
-      .precision(2)
+    then: Joi.alternatives()
+      .try(Joi.string().trim().custom(validateQuantityString).label(label))
       .required()
-      .prefs({ convert: false })
-      .label(label)
       .messages({
         'any.required':
           PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_REQUIRED,
-        'number.base':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_INVALID,
-        'number.min':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_MIN,
-        'number.precision':
-          PROJECT_VALIDATION_MESSAGES.ENVIRONMENTAL_BENEFITS_QUANTITY_PRECISION
+        ...QUANTITY_MESSAGES
       }),
     otherwise: Joi.any().strip()
   })
+
+/**
+ * Base environmental benefit quantity schema
+ * Handles numeric fields with 16 digits before decimal, 2 digits after
+ * Minimum value: 0 (0 allowed as specified)
+ * @param {string} label - Field label for error messages
+ */
+const environmentalBenefitQuantitySchema = (label) =>
+  Joi.alternatives()
+    .try(Joi.string().trim().custom(validateQuantityString).label(label))
+    .messages(QUANTITY_MESSAGES)
+
+/**
+ * WFD (Water Framework Directive) environmental benefit amount schemas
+ */
+export const improveSurfaceOrGroundwaterAmountSchema =
+  environmentalBenefitQuantitySchema('improveSurfaceOrGroundwaterAmount')
+export const improveHabitatAmountSchema = environmentalBenefitQuantitySchema(
+  'improveHabitatAmount'
+)
+export const improveRiverAmountSchema =
+  environmentalBenefitQuantitySchema('improveRiverAmount')
+export const createHabitatAmountSchema = environmentalBenefitQuantitySchema(
+  'createHabitatAmount'
+)
+export const fishOrEelAmountSchema =
+  environmentalBenefitQuantitySchema('fishOrEelAmount')
+
+/**
+ * NFM cost schema
+ */
+export const naturalFloodRiskMeasuresCostSchema =
+  environmentalBenefitQuantitySchema('naturalFloodRiskMeasuresCost')
+
+/**
+ * Additional environmental benefit quantity schemas
+ */
+export const hectaresOfNetWaterDependentHabitatCreatedSchema =
+  environmentalBenefitQuantitySchema(
+    'hectaresOfNetWaterDependentHabitatCreated'
+  )
+export const hectaresOfNetWaterIntertidalHabitatCreatedSchema =
+  environmentalBenefitQuantitySchema(
+    'hectaresOfNetWaterIntertidalHabitatCreated'
+  )
+export const kilometresOfProtectedRiverImprovedSchema =
+  environmentalBenefitQuantitySchema('kilometresOfProtectedRiverImproved')

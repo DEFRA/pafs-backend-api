@@ -68,7 +68,7 @@ describe('NFM Schemas - Backend', () => {
     test('should validate valid area value', () => {
       const result = nfmRiverRestorationAreaSchema.validate(10.5)
       expect(result.error).toBeUndefined()
-      expect(result.value).toBe(10.5)
+      expect(result.value).toBe('10.5')
     })
 
     test('should validate area with 2 decimal places', () => {
@@ -112,7 +112,7 @@ describe('NFM Schemas - Backend', () => {
     test('should validate valid volume value', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(500.25)
       expect(result.error).toBeUndefined()
-      expect(result.value).toBe(500.25)
+      expect(result.value).toBe('500.25')
     })
 
     test('should validate volume with 2 decimal places', () => {
@@ -216,7 +216,7 @@ describe('NFM Schemas - Backend', () => {
     test('should validate valid area value', () => {
       const result = nfmOfflineStorageAreaSchema.validate(1.5)
       expect(result.error).toBeUndefined()
-      expect(result.value).toBe(1.5)
+      expect(result.value).toBe('1.5')
     })
 
     test('should validate area with 2 decimal places', () => {
@@ -255,7 +255,7 @@ describe('NFM Schemas - Backend', () => {
     test('should validate valid volume value', () => {
       const result = nfmOfflineStorageVolumeSchema.validate(100)
       expect(result.error).toBeUndefined()
-      expect(result.value).toBe(100)
+      expect(result.value).toBe('100')
     })
 
     test('should validate volume with 2 decimal places', () => {
@@ -469,6 +469,11 @@ describe('NFM Schemas - Backend', () => {
 
     test('should reject invalid land use types', () => {
       const result = nfmLandUseChangeSchema.validate('invalid_land_use')
+      expect(result.error).toBeDefined()
+    })
+
+    test('should reject comma-only string (empty after filtering)', () => {
+      const result = nfmLandUseChangeSchema.validate(',')
       expect(result.error).toBeDefined()
     })
 

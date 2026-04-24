@@ -5,6 +5,7 @@ import updateStatus from './update-status/update-status.js'
 import downloadBenefitAreaFile from './download-benefit-area-file/download-benefit-area-file.js'
 import deleteBenefitAreaFile from './delete-benefit-area-file/delete-benefit-area-file.js'
 import listProjects from './list-projects/list-projects.js'
+import carbonImpact from './carbon-impact/carbon-impact.js'
 
 const projectsPlugin = {
   name: 'projects',
@@ -17,7 +18,8 @@ const projectsPlugin = {
       updateStatus,
       downloadBenefitAreaFile,
       deleteBenefitAreaFile,
-      listProjects
+      listProjects,
+      carbonImpact
     ])
     server.logger.info('Projects plugin registered')
   }
@@ -31,3 +33,4 @@ export { default as downloadBenefitAreaFile } from './download-benefit-area-file
 export { default as deleteBenefitAreaFile } from './delete-benefit-area-file/delete-benefit-area-file.js'
 export { default as listProjects } from './list-projects/list-projects.js'
 export { default as updateStatus } from './update-status/update-status.js'
+export { default as carbonImpact } from './carbon-impact/carbon-impact.js'
