@@ -589,3 +589,19 @@ model scheduler_logs {
   @@index([task_name], map: "idx_scheduler_logs_task_name")
   @@index([task_name, status], map: "idx_scheduler_logs_task_status")
 }
+
+model audit_log {
+  id          BigInt   @id @default(autoincrement())
+  model       String   @db.VarChar(100)
+  entity_id   String   @db.VarChar(100)
+  action      String   @db.VarChar(20)
+  changed_by  String?  @db.VarChar(255)
+  changed_at  DateTime @default(now()) @db.Timestamp(6)
+  before_data Json?
+  after_data  Json?
+  diff        Json?
+
+  @@index([changed_at(sort: Desc)], map: "idx_audit_log_changed_at")
+  @@index([changed_by], map: "idx_audit_log_changed_by")
+  @@index([model, entity_id], map: "idx_audit_log_model_entity")
+}
