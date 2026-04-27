@@ -15,6 +15,10 @@ vi.mock('@aws-sdk/client-s3', () => {
     DeleteObjectCommand: vi.fn(function (params) {
       this.input = params
       return this
+    }),
+    PutObjectCommand: vi.fn(function (params) {
+      this.input = params
+      return this
     })
   }
 })
@@ -587,6 +591,81 @@ describe('S3Service', () => {
           key
         }),
         'Failed to retrieve S3 object'
+      )
+    })
+  })
+
+  describe('putObject', () => {
+    it('should upload a buffer to S3 successfully', async () => {
+      const service = new S3Service(mockLogger)
+      const bucket = 'test-bucket'
+      const key = 'uploads/report.xlsx'
+      const body = Buffer.from('file contents')
+      const contentType =
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+      service.s3Client.send.mockResolvedValue({})
+
+      await service.putObject(bucket, key, body, contentType)
+
+      const { PutObjectCommand } = await import('@aws-sdk/client-s3')
+      expect(PutObjectCommand).toHaveBeenCalledWith({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType
+      })
+      expect(service.s3Client.send).toHaveBeenCalledTimes(1)
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { bucket, key, size: body.length },
+        'Uploaded object to S3'
+      )
+    })
+
+    it('should upload an empty buffer without error', async () => {
+      const service = new S3Service(mockLogger)
+      const body = Buffer.alloc(0)
+
+      service.s3Client.send.mockResolvedValue({})
+
+      await service.putObject('bucket', 'empty.txt', body, 'text/plain')
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { bucket: 'bucket', key: 'empty.txt', size: 0 },
+        'Uploaded object to S3'
+      )
+    })
+
+    it('should throw and log when S3 put fails', async () => {
+      const service = new S3Service(mockLogger)
+      const error = new Error('S3 put failed')
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(
+        service.putObject('bucket', 'key', Buffer.from('x'), 'text/plain')
+      ).rejects.toThrow('S3 put failed')
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { err: error, bucket: 'bucket', key: 'key' },
+        'Failed to upload object to S3'
+      )
+    })
+
+    it('should throw and log on access-denied error', async () => {
+      const service = new S3Service(mockLogger)
+      const error = new Error('Access Denied')
+      error.name = 'AccessDenied'
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(
+        service.putObject('bucket', 'key', Buffer.from('data'), 'text/plain')
+      ).rejects.toThrow('Access Denied')
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ err: error, bucket: 'bucket', key: 'key' }),
+        'Failed to upload object to S3'
       )
     })
   })

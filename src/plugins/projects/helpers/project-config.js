@@ -117,7 +117,7 @@ export const PROJECT_FIELDS_MAP = {
   earliestWithGiaMonth: 'earliest_with_gia_month',
   earliestWithGiaYear: 'earliest_with_gia_year',
   risks: 'project_risks_protected_against',
-  mainRisk: 'main_source_of_risk',
+  mainRisk: 'main_risk',
   noPropertiesAtRisk: 'no_properties_at_flood_risk',
   maintainingExistingAssets: 'properties_benefit_maintaining_assets',
   reducingFloodRisk50Plus: 'properties_benefit_50_percent_reduction',
@@ -227,6 +227,7 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   ...PROJECT_FIELDS_MAP,
   id: 'id',
   referenceNumber: 'reference_number',
+  version: 'version',
   slug: 'slug',
   updatedAt: 'updated_at',
   createdAt: 'created_at',
@@ -238,6 +239,10 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   benefitAreaFileUpdatedAt: 'benefit_area_file_updated_at',
   benefitAreaFileDownloadUrl: 'benefit_area_file_download_url',
   benefitAreaFileDownloadExpiry: 'benefit_area_file_download_expiry',
+  fundingCalculatorFileName: 'funding_calculator_file_name',
+  fundingCalculatorFileSize: 'funding_calculator_file_size',
+  fundingCalculatorContentType: 'funding_calculator_content_type',
+  fundingCalculatorUpdatedAt: 'funding_calculator_updated_at',
   isLegacy: 'is_legacy',
   isRevised: 'is_revised'
 }

@@ -28,6 +28,7 @@ describe('ProjectFundingContributorsService', () => {
         findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
         delete: vi.fn(),
         deleteMany: vi.fn()
       }
@@ -317,43 +318,10 @@ describe('ProjectFundingContributorsService', () => {
       expect(mockPrisma.pafs_core_funding_values.update).not.toHaveBeenCalled()
     })
 
-    test('deletes stale names via NOT IN and recalculates totals', async () => {
+    test('deletes all contributors when currentNames is empty', async () => {
       mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
-        { id: 10n, total: 1000n, public_contributions: 500n }
+        { id: 10n }
       ])
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
-        { amount: 200n },
-        { amount: null }
-      ])
-
-      await service.cleanupContributorsByName({
-        ...args,
-        currentNames: ['Still Here']
-      })
-
-      expect(
-        mockPrisma.pafs_core_funding_contributors.deleteMany
-      ).toHaveBeenCalledWith({
-        where: {
-          funding_value_id: { in: [10n] },
-          contributor_type: 'public_contributions',
-          NOT: { name: { in: ['Still Here'] } }
-        }
-      })
-      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
-        where: { id: 10n },
-        data: {
-          public_contributions: 200n,
-          total: 700n
-        }
-      })
-    })
-
-    test('deletes all contributors for type when currentNames is empty', async () => {
-      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
-        { id: 10n, total: 500n, public_contributions: 500n }
-      ])
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([])
 
       await service.cleanupContributorsByName({ ...args, currentNames: [] })
 
@@ -365,51 +333,107 @@ describe('ProjectFundingContributorsService', () => {
           contributor_type: 'public_contributions'
         }
       })
-      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
-        where: { id: 10n },
-        data: {
-          public_contributions: null,
-          total: 0n
-        }
-      })
+      expect(mockPrisma.pafs_core_funding_values.update).not.toHaveBeenCalled()
     })
 
-    test('clamps negative totals to 0', async () => {
+    test('renames contributor row in-place when a single name changes', async () => {
       mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
-        { id: 10n, total: 100n, public_contributions: 500n }
+        { id: 10n }
       ])
       mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
-        { amount: 50n }
+        { name: 'Alice' }
       ])
 
-      await service.cleanupContributorsByName({ ...args, currentNames: ['A'] })
-
-      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
-        where: { id: 10n },
-        data: {
-          public_contributions: 50n,
-          total: 0n
-        }
+      await service.cleanupContributorsByName({
+        ...args,
+        currentNames: ['Alice Smith']
       })
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: { in: [10n] },
+          contributor_type: 'public_contributions',
+          name: 'Alice'
+        },
+        data: { name: 'Alice Smith' }
+      })
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).not.toHaveBeenCalled()
     })
 
-    test('handles null amount field and null total when recalculating', async () => {
+    test('deletes a true removal when more removed than added', async () => {
       mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
-        { id: 10n, total: null, public_contributions: null }
+        { id: 10n }
       ])
       mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
-        { amount: 100n }
+        { name: 'Alice' },
+        { name: 'Bob' }
       ])
 
-      await service.cleanupContributorsByName({ ...args, currentNames: ['A'] })
+      await service.cleanupContributorsByName({
+        ...args,
+        currentNames: ['Alice']
+      })
 
-      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
-        where: { id: 10n },
-        data: {
-          public_contributions: 100n,
-          total: 100n
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: { in: [10n] },
+          contributor_type: 'public_contributions',
+          name: 'Bob'
         }
       })
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('renames one and deletes another when two removed but only one added', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 10n }
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { name: 'Alice' },
+        { name: 'Bob' }
+      ])
+
+      // Alice renamed to Charlie, Bob removed entirely
+      await service.cleanupContributorsByName({
+        ...args,
+        currentNames: ['Charlie']
+      })
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).toHaveBeenCalledTimes(1)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).toHaveBeenCalledTimes(1)
+    })
+
+    test('does nothing when names are unchanged', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 10n }
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { name: 'Alice' }
+      ])
+
+      await service.cleanupContributorsByName({
+        ...args,
+        currentNames: ['Alice']
+      })
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).not.toHaveBeenCalled()
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).not.toHaveBeenCalled()
     })
 
     test('logs and rethrows on error', async () => {

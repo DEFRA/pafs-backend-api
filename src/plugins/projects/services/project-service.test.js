@@ -1,5 +1,15 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import { ProjectService } from './project-service.js'
+import { enrichProjectResponse } from '../helpers/project-enricher.js'
+
+// Mock external modules so ProjectService can be tested in isolation
+vi.mock('../helpers/project-enricher.js', () => ({
+  enrichProjectResponse: vi.fn().mockResolvedValue(undefined)
+}))
+
+vi.mock('./project-reference-service.js', () => ({
+  generateProjectReferenceNumber: vi.fn().mockResolvedValue('ANC501E/000A/001A')
+}))
 
 describe('ProjectService', () => {
   let service
@@ -322,184 +332,8 @@ describe('ProjectService', () => {
     })
   })
 
-  describe('generateReferenceNumber', () => {
-    test('Should generate reference number with default RFCC code when counter does not exist', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        const mockTx = {
-          pafs_core_reference_counters: {
-            findUnique: vi.fn().mockResolvedValue(null),
-            upsert: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 0,
-              low_counter: 1
-            })
-          }
-        }
-        return callback(mockTx)
-      })
-
-      const result = await service.generateReferenceNumber()
-
-      expect(result).toBe('ANC501E/000A/001A')
-    })
-
-    test('Should increment existing counter', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        const mockTx = {
-          pafs_core_reference_counters: {
-            findUnique: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 0,
-              low_counter: 5
-            }),
-            upsert: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 0,
-              low_counter: 6
-            })
-          }
-        }
-        return callback(mockTx)
-      })
-
-      const result = await service.generateReferenceNumber()
-
-      expect(result).toBe('ANC501E/000A/006A')
-    })
-
-    test('Should use custom RFCC code', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        const mockTx = {
-          pafs_core_reference_counters: {
-            findUnique: vi.fn().mockResolvedValue(null),
-            upsert: vi.fn().mockResolvedValue({
-              rfcc_code: 'AE',
-              high_counter: 0,
-              low_counter: 1
-            })
-          }
-        }
-        return callback(mockTx)
-      })
-
-      const result = await service.generateReferenceNumber('AE')
-
-      expect(result).toBe('AEC501E/000A/001A')
-    })
-
-    test('Should throw error for invalid RFCC code', async () => {
-      // Test expects the transaction to fail with invalid RFCC
-      // The service will fail when trying to access undefined counter properties
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        const mockTx = {
-          pafs_core_reference_counters: {
-            findUnique: vi.fn().mockResolvedValue(null),
-            upsert: vi.fn().mockResolvedValue({
-              rfcc_code: 'INVALID',
-              high_counter: 0,
-              low_counter: 1
-            })
-          }
-        }
-        return callback(mockTx)
-      })
-
-      // The service will accept any RFCC code and create a reference number
-      const result = await service.generateReferenceNumber('INVALID')
-      expect(result).toBe('INVALIDC501E/000A/001A')
-    })
-
-    test('Should format counters with leading zeros', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        const mockTx = {
-          pafs_core_reference_counters: {
-            findUnique: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 12,
-              low_counter: 99
-            }),
-            upsert: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 12,
-              low_counter: 100
-            })
-          }
-        }
-        return callback(mockTx)
-      })
-
-      const result = await service.generateReferenceNumber()
-
-      expect(result).toBe('ANC501E/012A/100A')
-    })
-
-    test('Should handle low_counter rollover at 999', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        const mockTx = {
-          pafs_core_reference_counters: {
-            findUnique: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 5,
-              low_counter: 999
-            }),
-            upsert: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 6,
-              low_counter: 1
-            })
-          }
-        }
-        return callback(mockTx)
-      })
-
-      const result = await service.generateReferenceNumber()
-
-      expect(result).toBe('ANC501E/006A/001A')
-    })
-
-    test('Should log info messages during generation', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        const mockTx = {
-          pafs_core_reference_counters: {
-            findUnique: vi.fn().mockResolvedValue(null),
-            upsert: vi.fn().mockResolvedValue({
-              rfcc_code: 'AN',
-              high_counter: 0,
-              low_counter: 1
-            })
-          }
-        }
-        return callback(mockTx)
-      })
-
-      await service.generateReferenceNumber()
-
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        { rfccCode: 'AN' },
-        'Generating reference number'
-      )
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: 'ANC501E/000A/001A'
-        }),
-        'Reference number generated successfully'
-      )
-    })
-
-    test('Should throw error and log when generation fails', async () => {
-      const dbError = new Error('Counter update failed')
-      mockPrisma.$transaction.mockRejectedValue(dbError)
-
-      await expect(service.generateReferenceNumber()).rejects.toThrow(
-        'Counter update failed'
-      )
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: dbError.message }),
-        'Error generating reference number'
-      )
-    })
-  })
+  // generateReferenceNumber was extracted to project-reference-service.js
+  // See services/project-reference-service.test.js for those tests.
 
   describe('upsertProject', () => {
     beforeEach(() => {
@@ -1107,7 +941,7 @@ describe('ProjectService', () => {
           is_legacy: true,
           is_revised: true,
           project_risks_protected_against: true,
-          main_source_of_risk: true,
+          main_risk: true,
           no_properties_at_flood_risk: true,
           properties_benefit_maintaining_assets: true,
           properties_benefit_50_percent_reduction: true,
@@ -1160,7 +994,12 @@ describe('ProjectService', () => {
           other_additional_grant_in_aid: true,
           other_government_department: true,
           recovery: true,
-          summer_economic_fund: true
+          summer_economic_fund: true,
+          funding_calculator_file_name: true,
+          funding_calculator_file_size: true,
+          funding_calculator_content_type: true,
+          funding_calculator_updated_at: true,
+          version: true
         }
       })
 
@@ -1470,7 +1309,7 @@ describe('ProjectService', () => {
       )
     })
 
-    test('Should resolve area name when rma_name is empty', async () => {
+    test('Should resolve area name via enrichment when rma_name is empty', async () => {
       const referenceNumber = 'ANC501E/000A/001A'
       const mockProject = {
         id: 1,
@@ -1486,27 +1325,29 @@ describe('ProjectService', () => {
         created_at: new Date('2024-01-01')
       }
 
+      // enrichProjectResponse is mocked at module level; override for this test
+      // to simulate the enricher resolving rmaName from the area hierarchy
+      enrichProjectResponse.mockImplementationOnce((_prisma, _raw, apiData) => {
+        apiData.rmaName = 'Resolved Area Name'
+      })
+
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
       mockPrisma.pafs_core_states = {
         findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
       }
       mockPrisma.pafs_core_area_projects = {
-        findFirst: vi.fn().mockResolvedValue({ area_id: 10, owner: true }),
-        findMany: vi.fn().mockResolvedValue([{ project_id: 1, area_id: 10 }])
-      }
-      mockPrisma.pafs_core_areas = {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([{ id: BigInt(10), name: 'Resolved Area Name' }])
+        findFirst: vi.fn().mockResolvedValue({ area_id: 10, owner: true })
       }
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
       expect(result.rmaName).toBe('Resolved Area Name')
-      expect(mockPrisma.pafs_core_area_projects.findMany).toHaveBeenCalledWith({
-        where: { project_id: { in: [1] } },
-        select: { project_id: true, area_id: true }
-      })
+      expect(enrichProjectResponse).toHaveBeenCalledWith(
+        mockPrisma,
+        expect.objectContaining({ rma_name: null }),
+        expect.any(Object),
+        expect.any(Object)
+      )
     })
   })
 

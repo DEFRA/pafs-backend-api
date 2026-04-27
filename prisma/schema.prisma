@@ -106,8 +106,14 @@ model pafs_core_area_downloads {
   funding_calculator_filename         String?   @db.VarChar(255)
   created_at                          DateTime? @db.Timestamp(6)
   updated_at                          DateTime? @db.Timestamp(6)
+  progress_current                    Int?      @default(0)
+  progress_total                      Int?      @default(0)
+  progress_message                    String?   @db.VarChar(500)
+  number_of_benefit_areas             Int?
 
   @@index([area_id], map: "index_pafs_core_area_downloads_on_area_id")
+  @@index([status], map: "index_pafs_core_area_downloads_on_status")
+  @@index([user_id], map: "index_pafs_core_area_downloads_on_user_id")
 }
 
 model pafs_core_area_projects {
@@ -335,7 +341,6 @@ model pafs_core_projects {
   recovery                                                    Boolean?  @default(false)
   summer_economic_fund                                        Boolean?  @default(false)
   project_risks_protected_against                             String?
-  main_source_of_risk                                         String?   @db.VarChar(255)
   current_flood_fluvial_risk                                  String?   @db.VarChar(255)
   current_flood_surface_water_risk                            String?   @db.VarChar(255)
   current_coastal_erosion_risk                                String?   @db.VarChar(255)
@@ -544,7 +549,7 @@ model pafs_core_users {
   invitations_count          Int?           @default(0)
   admin                      Boolean        @default(false)
   disabled                   Boolean        @default(false)
-  unique_session_id          String?        @db.VarChar(20)
+  unique_session_id          String?        @db.VarChar(36)
   file_uploads               file_uploads[]
 
   @@index([disabled], map: "index_pafs_core_users_on_disabled")

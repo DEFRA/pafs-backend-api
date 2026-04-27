@@ -62,7 +62,7 @@ export const projectRisksProtectedAgainstSchema = Joi.array()
 /**
  * Main source of risk schema (API format)
  * Accepts single risk type string from frontend
- * Database field: main_source_of_risk (String - single value from PROJECT_RISK_TYPES)
+ * Database field: main_risk (String - single value from PROJECT_RISK_TYPES)
  */
 export const mainSourceOfRiskSchema = Joi.string()
   .trim()

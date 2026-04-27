@@ -276,6 +276,36 @@ export class ProjectFundingContributorsService {
    * @param {string[]} data.currentNames - Names that are still present
    * @returns {Promise<void>}
    */
+  /**
+   * Apply rename-or-delete for each stale contributor name.
+   * Pairs each removed name with an added name (rename in-place) to preserve
+   * the stored amount so the estimated-spend page pre-populates correctly.
+   * Unpaired removals are true deletions.
+   * @private
+   */
+  async _applyContributorNameChanges({
+    fundingValueIds,
+    contributorType,
+    removed,
+    added
+  }) {
+    for (let i = 0; i < removed.length; i++) {
+      const where = {
+        funding_value_id: { in: fundingValueIds },
+        contributor_type: contributorType,
+        name: removed[i]
+      }
+      if (i < added.length) {
+        await this.prisma.pafs_core_funding_contributors.updateMany({
+          where,
+          data: { name: added[i] }
+        })
+      } else {
+        await this.prisma.pafs_core_funding_contributors.deleteMany({ where })
+      }
+    }
+  }
+
   async cleanupContributorsByName({
     referenceNumber,
     contributorType,
@@ -286,7 +316,8 @@ export class ProjectFundingContributorsService {
 
       const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
         {
-          where: { project_id: projectId }
+          where: { project_id: projectId },
+          select: { id: true }
         }
       )
 
@@ -296,60 +327,53 @@ export class ProjectFundingContributorsService {
 
       const fundingValueIds = fundingValues.map((fv) => fv.id)
 
-      // Remove stale contributor rows
-      if (currentNames.length > 0) {
-        await this.prisma.pafs_core_funding_contributors.deleteMany({
-          where: {
-            funding_value_id: { in: fundingValueIds },
-            contributor_type: contributorType,
-            NOT: { name: { in: currentNames } }
-          }
-        })
-      } else {
+      // Remove all contributors when the list has been cleared entirely
+      if (currentNames.length === 0) {
         await this.prisma.pafs_core_funding_contributors.deleteMany({
           where: {
             funding_value_id: { in: fundingValueIds },
             contributor_type: contributorType
           }
         })
+
+        this.logger.info(
+          { projectId, referenceNumber, contributorType },
+          'Cleaned up removed contributors'
+        )
+        return
       }
 
-      // Map contributorType to the pafs_core_funding_values column name
-      const amountDbField = contributorType // e.g. 'public_contributions'
-
-      // Recalculate per-year amount and total for each funding value row
-      for (const fv of fundingValues) {
-        const remaining =
-          await this.prisma.pafs_core_funding_contributors.findMany({
-            where: {
-              funding_value_id: fv.id,
-              contributor_type: contributorType
-            },
-            select: { amount: true }
-          })
-
-        const newAmount =
-          remaining.length > 0
-            ? remaining.reduce((sum, c) => sum + (c.amount ?? 0n), 0n)
-            : null
-
-        // Recalculate the overall row total: swap old amount for new amount
-        const oldAmount = fv[amountDbField] ?? 0n
-        const newAmountBigInt = newAmount ?? 0n
-        const newTotal = (fv.total ?? 0n) - oldAmount + newAmountBigInt
-
-        await this.prisma.pafs_core_funding_values.update({
-          where: { id: fv.id },
-          data: {
-            [amountDbField]: newAmount,
-            total: newTotal < 0n ? 0n : newTotal
-          }
+      // Determine which names have been added and which removed
+      const existingRows =
+        await this.prisma.pafs_core_funding_contributors.findMany({
+          where: {
+            funding_value_id: { in: fundingValueIds },
+            contributor_type: contributorType
+          },
+          select: { name: true },
+          distinct: ['name']
         })
-      }
+
+      const existingNames = existingRows
+        .map((r) => r.name)
+        .sort((a, b) => a.localeCompare(b))
+      const removed = existingNames
+        .filter((n) => !currentNames.includes(n))
+        .sort((a, b) => a.localeCompare(b))
+      const added = currentNames
+        .filter((n) => !existingNames.includes(n))
+        .sort((a, b) => a.localeCompare(b))
+
+      await this._applyContributorNameChanges({
+        fundingValueIds,
+        contributorType,
+        removed,
+        added
+      })
 
       this.logger.info(
         { projectId, referenceNumber, contributorType, currentNames },
-        'Cleaned up removed contributors and recalculated totals'
+        'Cleaned up removed contributors'
       )
     } catch (error) {
       this.logger.error(

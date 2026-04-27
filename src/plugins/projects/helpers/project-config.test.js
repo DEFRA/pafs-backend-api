@@ -51,7 +51,7 @@ describe('project-config', () => {
         earliestWithGiaMonth: 'earliest_with_gia_month',
         earliestWithGiaYear: 'earliest_with_gia_year',
         risks: 'project_risks_protected_against',
-        mainRisk: 'main_source_of_risk',
+        mainRisk: 'main_risk',
         noPropertiesAtRisk: 'no_properties_at_flood_risk',
         maintainingExistingAssets: 'properties_benefit_maintaining_assets',
         reducingFloodRisk50Plus: 'properties_benefit_50_percent_reduction',
@@ -234,8 +234,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 120 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(120)
+    it('should have 125 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(125)
     })
   })
 
@@ -302,9 +302,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 120 fields', () => {
+    it('should return an object with 125 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(120)
+      expect(Object.keys(result)).toHaveLength(125)
     })
 
     it('should return a new object each time', () => {

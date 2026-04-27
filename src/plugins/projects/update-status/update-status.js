@@ -17,9 +17,7 @@ const updateStatus = {
   method: 'PUT',
   path: '/api/v1/project/{referenceNumber}/status',
   options: {
-    auth: {
-      strategies: ['jwt', 'api-key']
-    },
+    auth: 'jwt',
     description: 'Update the status of a project',
     notes:
       'Updates the state of an existing project identified by its reference number.',

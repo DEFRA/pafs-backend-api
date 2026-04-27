@@ -65,10 +65,6 @@ describe('upsertProject handler', () => {
     })
     vi.spyOn(
       ProjectService.prototype,
-      'generateReferenceNumber'
-    ).mockResolvedValue('ANC501E/000A/001A')
-    vi.spyOn(
-      ProjectService.prototype,
       'getProjectByReferenceNumber'
     ).mockResolvedValue({
       referenceNumber: 'REF123',
