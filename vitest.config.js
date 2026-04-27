@@ -28,6 +28,7 @@ export default defineConfig({
         '**/prisma-db-pull.js',
         '**/.DS_Store',
         'src/plugins/swagger/**',
+        '**/*.json',
         '**/*.xlsx'
       ]
     },

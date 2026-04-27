@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<databaseChangeLog
-    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
 
-  <changeSet id="4-001-numeric-precision" author="system">
+  <changeSet id="2-008-numeric-precision" author="migration-team">
     <comment>
       Update numeric fields for improved precision:
       - Property benefit columns: INTEGER to BIGINT
