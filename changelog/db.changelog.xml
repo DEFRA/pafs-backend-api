@@ -36,5 +36,7 @@
   <include file="3-006-asite-files-legacy-table.xml" relativeToChangelogFile="true"/>
   <include file="3-007-bootstraps-legacy-table.xml" relativeToChangelogFile="true"/>
 
+  <!-- New audit log table for tracking all data changes with before/after snapshots -->
+  <include file="4-001-audit-log.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

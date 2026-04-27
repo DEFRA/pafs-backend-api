@@ -2,11 +2,30 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
 import { buildRdsPoolConfig } from './helpers/build-rds-pool-config.js'
+import { createAuditExtension } from './audit-extension.js'
 
 const { Pool } = pg
 
 // Liquibase manages schema, Prisma provides type-safe ORM
 // Schema introspection (prisma:db:pull) only needed during development
+
+function setupPrismaListeners(prismaClient, server, isDevelopment) {
+  if (isDevelopment) {
+    prismaClient.$on('query', (e) => {
+      server.logger.debug(
+        { query: e.query, params: e.params, duration: e.duration },
+        'Prisma query'
+      )
+    })
+  }
+
+  prismaClient.$on('error', (e) =>
+    server.logger.error({ err: e }, 'Prisma error')
+  )
+  prismaClient.$on('warn', (e) =>
+    server.logger.warn({ warning: e }, 'Prisma warning')
+  )
+}
 
 export const prisma = {
   plugin: {
@@ -54,21 +73,7 @@ export const prisma = {
       })
 
       // Set up event listeners for logging
-      if (isDevelopment) {
-        prismaClient.$on('query', (e) => {
-          server.logger.debug(
-            { query: e.query, params: e.params, duration: e.duration },
-            'Prisma query'
-          )
-        })
-      }
-
-      prismaClient.$on('error', (e) =>
-        server.logger.error({ err: e }, 'Prisma error')
-      )
-      prismaClient.$on('warn', (e) =>
-        server.logger.warn({ warning: e }, 'Prisma warning')
-      )
+      setupPrismaListeners(prismaClient, server, isDevelopment)
 
       server.logger.info('Prisma client configured successfully')
 
@@ -84,9 +89,25 @@ export const prisma = {
         throw err
       }
 
-      // Decorate server and request with Prisma client access
+      // Decorate server with base Prisma client (for direct use without audit, e.g. in the audit extension itself)
       server.decorate('server', 'prisma', prismaClient)
-      server.decorate('request', 'prisma', () => prismaClient, { apply: true })
+
+      // Per-request: wrap in the audit extension. getUserId is a lazy closure so
+      // it resolves after auth has completed, by the time any route operation runs.
+      server.decorate(
+        'request',
+        'prisma',
+        function () {
+          return prismaClient.$extends(
+            createAuditExtension({
+              getUserId: () => this.auth?.credentials?.userId,
+              prismaBase: prismaClient,
+              logger: server.logger
+            })
+          )
+        },
+        { apply: true }
+      )
 
       // Graceful shutdown
       server.events.on('stop', async () => {
