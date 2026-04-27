@@ -22,7 +22,6 @@ describe('setupProxy', () => {
     config.set('httpProxy', 'http://localhost:8080')
     setupProxy()
     expect(global?.GLOBAL_AGENT?.HTTP_PROXY).toBe('http://localhost:8080')
-    expect(global?.GLOBAL_AGENT?.HTTPS_PROXY).toBe('http://localhost:8080')
     const undiciDispatcher = getGlobalDispatcher()
     expect(undiciDispatcher).toBeInstanceOf(ProxyAgent)
   })
