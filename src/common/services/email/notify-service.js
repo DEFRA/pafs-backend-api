@@ -12,6 +12,25 @@ export class EmailService {
         throw new Error('NOTIFY_API_KEY is required when NOTIFY_ENABLED=true')
       }
       this.client = new NotifyClient(apiKey)
+
+      const proxyUrl = config.get('httpProxy')
+      if (proxyUrl) {
+        const parsed = new URL(proxyUrl)
+        this.client.setProxy({
+          host: parsed.hostname,
+          port: Number(parsed.port),
+          protocol: parsed.protocol
+        })
+        this.logger.info(
+          { proxyHost: parsed.hostname, proxyPort: Number(parsed.port) },
+          'GOV.UK Notify: outbound proxy configured'
+        )
+      } else {
+        this.logger.warn(
+          'GOV.UK Notify: no HTTP_PROXY configured — outbound will be direct'
+        )
+      }
+
       this.logger.info('GOV.UK Notify initialized')
     } else {
       this.logger.warn('Email disabled - will log only')
@@ -32,6 +51,10 @@ export class EmailService {
     }
 
     try {
+      this.logger.info(
+        { email, template: reference, templateId },
+        'Email send attempt'
+      )
       const response = await this.client.sendEmail(templateId, email, {
         personalisation,
         reference: `${reference}-${Date.now()}`
@@ -52,7 +75,10 @@ export class EmailService {
         {
           err: error,
           email,
-          statusCode: error?.response?.data?.status_code
+          template: reference,
+          statusCode: error?.response?.data?.status_code,
+          errorCode: error?.code,
+          errorMessage: error?.message
         },
         'Email send failed'
       )

@@ -6,10 +6,12 @@ import {
 } from './notify-service.js'
 
 const mockSendEmail = vi.fn()
+const mockSetProxy = vi.fn()
 
 vi.mock('notifications-node-client', () => ({
   NotifyClient: class {
     sendEmail = mockSendEmail
+    setProxy = mockSetProxy
   }
 }))
 
@@ -80,6 +82,38 @@ describe('EmailService', () => {
       expect(() => new EmailService(mockLogger)).toThrow(
         'NOTIFY_API_KEY is required when NOTIFY_ENABLED=true'
       )
+    })
+
+    it('calls setProxy on the client when httpProxy is configured', () => {
+      mockConfig.get.mockImplementation((key) => {
+        if (key === 'notify.enabled') return true
+        if (key === 'notify.apiKey') return 'test-api-key'
+        if (key === 'httpProxy') return 'http://squid.internal:3128'
+        return null
+      })
+
+      const service = new EmailService(mockLogger)
+
+      expect(service.enabled).toBe(true)
+      expect(mockSetProxy).toHaveBeenCalledWith({
+        host: 'squid.internal',
+        port: 3128,
+        protocol: 'http:'
+      })
+    })
+
+    it('does not call setProxy when no proxy is configured', () => {
+      mockConfig.get.mockImplementation((key) => {
+        if (key === 'notify.enabled') return true
+        if (key === 'notify.apiKey') return 'test-api-key'
+        if (key === 'httpProxy') return null
+        return null
+      })
+
+      const service = new EmailService(mockLogger)
+
+      expect(service.enabled).toBe(true)
+      expect(mockSetProxy).not.toHaveBeenCalled()
     })
   })
 
