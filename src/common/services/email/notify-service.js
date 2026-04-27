@@ -1,6 +1,7 @@
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../../config.js'
 
+const proxyPort = 3128
 export class EmailService {
   constructor(logger) {
     this.logger = logger
@@ -16,13 +17,25 @@ export class EmailService {
       const proxyUrl = config.get('httpProxy')
       if (proxyUrl) {
         const parsed = new URL(proxyUrl)
-        this.client.setProxy({
+        const proxyConfig = {
           host: parsed.hostname,
-          port: Number(parsed.port),
-          protocol: parsed.protocol
-        })
+          port: Number(parsed.port) || proxyPort,
+          protocol: parsed.protocol.replace(/:$/, '')
+        }
+        if (parsed.username) {
+          proxyConfig.auth = {
+            username: parsed.username,
+            password: parsed.password
+          }
+        }
+        this.client.setProxy(proxyConfig)
         this.logger.info(
-          { proxyHost: parsed.hostname, proxyPort: Number(parsed.port) },
+          {
+            proxyHost: parsed.hostname,
+            proxyPort: proxyConfig.port,
+            proxyProtocol: proxyConfig.protocol,
+            proxyAuth: !!parsed.username
+          },
           'GOV.UK Notify: outbound proxy configured'
         )
       } else {

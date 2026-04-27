@@ -98,7 +98,7 @@ describe('EmailService', () => {
       expect(mockSetProxy).toHaveBeenCalledWith({
         host: 'squid.internal',
         port: 3128,
-        protocol: 'http:'
+        protocol: 'http'
       })
     })
 
