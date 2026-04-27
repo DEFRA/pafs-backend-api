@@ -26,7 +26,11 @@ function buildH() {
 function buildRequest(proposals = [], overrides = {}) {
   return {
     payload: { proposals },
-    prisma: {},
+    prisma: {
+      pafs_core_states: {
+        findFirst: vi.fn().mockResolvedValue({ state: 'submitted' })
+      }
+    },
     server: {
       logger: {
         info: vi.fn(),
@@ -103,13 +107,14 @@ describe('externalUpdateProposalStatus route', () => {
       expect(error).toBeUndefined()
     })
 
-    it('should accept reference numbers with forward slashes', async () => {
+    it('should reject reference numbers with forward slashes', async () => {
       const { error } = schema.validate({
         proposals: [
           { referenceNumber: 'ANC501E/000A/001A', status: 'approved' }
         ]
       })
-      expect(error).toBeUndefined()
+      expect(error).toBeDefined()
+      expect(error.message).toMatch(/word characters|hyphens/i)
     })
 
     it('should reject when proposals is missing', async () => {
@@ -374,6 +379,79 @@ describe('externalUpdateProposalStatus route', () => {
       )
 
       expect(result.statusCode).toBe(HTTP_STATUS.UNPROCESSABLE_ENTITY)
+    })
+  })
+
+  // ──────────────────────────────────────────────────────
+  //  Handler — state guard (proposal not in submitted state)
+  // ──────────────────────────────────────────────────────
+  describe('handler — state guard', () => {
+    it('should return 422 when the proposal is not in the submitted state', async () => {
+      const mockProject = { id: 1n, reference_number: 'ANC501E/000A/001A' }
+      ProjectService.prototype.getProjectByReference = vi
+        .fn()
+        .mockResolvedValue(mockProject)
+
+      const { h } = buildH()
+      const request = buildRequest([
+        { referenceNumber: 'ANC501E-000A-001A', status: 'approved' }
+      ])
+      request.prisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+
+      const result = await externalUpdateProposalStatus.options.handler(
+        request,
+        h
+      )
+
+      expect(result.statusCode).toBe(HTTP_STATUS.UNPROCESSABLE_ENTITY)
+      expect(result.data).toEqual({
+        errors: [
+          {
+            referenceNumber: 'ANC501E-000A-001A',
+            errorCode: 'INVALID_STATE',
+            message: `Proposal 'ANC501E-000A-001A' can only be updated when in the submitted state`
+          }
+        ]
+      })
+      expect(ProjectService.prototype.upsertProjectState).not.toHaveBeenCalled()
+    })
+
+    it('should return 207 when one proposal is submitted and another is not', async () => {
+      const project1 = { id: 1n, reference_number: 'ANC501E/000A/001A' }
+      const project2 = { id: 2n, reference_number: 'ANC501E/000B/001A' }
+
+      ProjectService.prototype.getProjectByReference = vi
+        .fn()
+        .mockResolvedValueOnce(project1)
+        .mockResolvedValueOnce(project2)
+      ProjectService.prototype.upsertProjectState = vi
+        .fn()
+        .mockResolvedValue({})
+
+      const h = {
+        response: vi.fn().mockReturnValue({
+          code: vi.fn().mockReturnValue({ statusCode: 207 })
+        })
+      }
+      const request = buildRequest([
+        { referenceNumber: 'ANC501E-000A-001A', status: 'approved' },
+        { referenceNumber: 'ANC501E-000B-001A', status: 'approved' }
+      ])
+      request.prisma.pafs_core_states.findFirst
+        .mockResolvedValueOnce({ state: 'submitted' })
+        .mockResolvedValueOnce({ state: 'draft' })
+
+      const result = await externalUpdateProposalStatus.options.handler(
+        request,
+        h
+      )
+
+      expect(result.statusCode).toBe(207)
+      expect(ProjectService.prototype.upsertProjectState).toHaveBeenCalledTimes(
+        1
+      )
     })
   })
 

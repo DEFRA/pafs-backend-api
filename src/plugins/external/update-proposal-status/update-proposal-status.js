@@ -1,6 +1,7 @@
 import Joi from 'joi'
 import { ProjectService } from '../../projects/services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
+import { PROJECT_STATUS } from '../../../common/constants/project.js'
 import {
   buildSuccessResponse,
   buildErrorResponse
@@ -30,13 +31,13 @@ const ALLOWED_EXTERNAL_STATUSES = ['draft', 'approved']
 
 const proposalItemSchema = Joi.object({
   referenceNumber: Joi.string()
-    .pattern(/^[\w/-]+$/)
+    .pattern(/^[\w-]+$/)
     .required()
     .label('Reference Number')
     .messages({
       'any.required': 'referenceNumber is required for each proposal',
       'string.pattern.base':
-        'referenceNumber must contain only word characters, hyphens, or forward slashes'
+        'referenceNumber must contain only word characters or hyphens'
     }),
   status: Joi.string()
     .valid(...ALLOWED_EXTERNAL_STATUSES)
@@ -55,7 +56,7 @@ const externalUpdateProposalStatus = {
     auth: false, // Cognito Bearer token validated by CDP API Gateway — not here
     description: 'Update proposal status (external)',
     notes:
-      'Updates the status of one or more FCRM project proposals. ' +
+      'Updates the status of one or more FCERM project proposals. ' +
       'Each proposal specifies its own reference number and target status (`draft` or `approved`). ' +
       'Authentication is handled by the CDP API Gateway using AWS Cognito ' +
       'client-credentials; this endpoint must NOT be called directly — ' +
@@ -104,6 +105,22 @@ const externalUpdateProposalStatus = {
               success: false,
               errorCode: 'PROPOSAL_NOT_FOUND',
               message: `Proposal '${raw}' was not found`
+            })
+            hasFailure = true
+            continue
+          }
+
+          const stateRecord = await request.prisma.pafs_core_states.findFirst({
+            where: { project_id: Number(project.id) },
+            select: { state: true }
+          })
+          const currentState = stateRecord?.state ?? null
+          if (currentState !== PROJECT_STATUS.SUBMITTED) {
+            results.push({
+              referenceNumber: raw,
+              success: false,
+              errorCode: 'INVALID_STATE',
+              message: `Proposal '${raw}' can only be updated when in the submitted state`
             })
             hasFailure = true
             continue
