@@ -28,6 +28,8 @@ describe('EmailService', () => {
   beforeEach(async () => {
     resetEmailService()
     vi.clearAllMocks()
+    // Ensure global-agent is not active so setProxy tests run the direct-proxy path
+    delete globalThis.GLOBAL_AGENT
 
     const { config } = await import('../../../config.js')
     mockConfig = config
@@ -102,6 +104,43 @@ describe('EmailService', () => {
       })
     })
 
+    it('includes auth in proxy config when proxy URL contains credentials', () => {
+      mockConfig.get.mockImplementation((key) => {
+        if (key === 'notify.enabled') return true
+        if (key === 'notify.apiKey') return 'test-api-key'
+        if (key === 'httpProxy') {
+          return 'http://proxyuser:proxypass@squid.internal:3128'
+        }
+        return null
+      })
+
+      const service = new EmailService(mockLogger)
+
+      expect(service.enabled).toBe(true)
+      expect(mockSetProxy).toHaveBeenCalledWith({
+        host: 'squid.internal',
+        port: 3128,
+        protocol: 'http',
+        auth: { username: 'proxyuser', password: 'proxypass' }
+      })
+    })
+
+    it('falls back to port 3128 when proxy URL has no port', () => {
+      mockConfig.get.mockImplementation((key) => {
+        if (key === 'notify.enabled') return true
+        if (key === 'notify.apiKey') return 'test-api-key'
+        if (key === 'httpProxy') return 'http://squid.internal'
+        return null
+      })
+
+      const service = new EmailService(mockLogger)
+
+      expect(service.enabled).toBe(true)
+      expect(mockSetProxy).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 3128 })
+      )
+    })
+
     it('does not call setProxy when no proxy is configured', () => {
       mockConfig.get.mockImplementation((key) => {
         if (key === 'notify.enabled') return true
@@ -114,6 +153,33 @@ describe('EmailService', () => {
 
       expect(service.enabled).toBe(true)
       expect(mockSetProxy).not.toHaveBeenCalled()
+    })
+
+    it('skips setProxy and logs via global-agent when GLOBAL_AGENT is active', () => {
+      globalThis.GLOBAL_AGENT = {
+        HTTP_PROXY: 'http://squid.internal:3128'
+      }
+
+      mockConfig.get.mockImplementation((key) => {
+        if (key === 'notify.enabled') return true
+        if (key === 'notify.apiKey') return 'test-api-key'
+        if (key === 'httpProxy') return 'http://squid.internal:3128'
+        return null
+      })
+
+      const service = new EmailService(mockLogger)
+
+      expect(service.enabled).toBe(true)
+      expect(mockSetProxy).not.toHaveBeenCalled()
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proxyUrl: 'http://squid.internal:3128',
+          globalAgentHttpProxy: 'http://squid.internal:3128'
+        }),
+        expect.stringContaining('via global-agent')
+      )
+
+      delete globalThis.GLOBAL_AGENT
     })
   })
 
