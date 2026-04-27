@@ -1045,6 +1045,7 @@ describe('AccountService', () => {
         data: {
           inactivity_warning_sent_at: null,
           disabled: false,
+          last_sign_in_at: expect.any(Date),
           updated_at: expect.any(Date)
         }
       })
@@ -1208,6 +1209,35 @@ describe('AccountService', () => {
 
       expect(result.success).toBe(true)
       expect(result.account.email).toBe('user@example.com')
+    })
+
+    it('should reset last_sign_in_at to prevent immediate re-disable on login or by nightly scheduler', async () => {
+      const disabledUser = {
+        id: BigInt(1),
+        email: 'user@example.com',
+        first_name: 'John',
+        last_name: 'Smith',
+        disabled: true,
+        status: ACCOUNT_STATUS.ACTIVE,
+        last_sign_in_at: new Date('2023-01-01') // over a year ago — would trigger inactivity check
+      }
+
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue(disabledUser)
+      mockPrisma.pafs_core_users.update.mockResolvedValue({
+        ...disabledUser,
+        disabled: false
+      })
+
+      const before = Date.now()
+      await accountService.reactivateAccount(1, adminUser)
+      const after = Date.now()
+
+      const updateCall = mockPrisma.pafs_core_users.update.mock.calls[0][0]
+      const resetDate = updateCall.data.last_sign_in_at
+
+      expect(resetDate).toBeInstanceOf(Date)
+      expect(resetDate.getTime()).toBeGreaterThanOrEqual(before)
+      expect(resetDate.getTime()).toBeLessThanOrEqual(after)
     })
   })
 })

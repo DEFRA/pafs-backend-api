@@ -326,12 +326,14 @@ export class AccountService {
       throw new Error('Account is not disabled')
     }
 
+    const now = new Date()
     await this.prisma.pafs_core_users.update({
       where: { id: BigInt(userId) },
       data: {
         inactivity_warning_sent_at: null,
         disabled: false,
-        updated_at: new Date()
+        last_sign_in_at: now, // Reset inactivity clock so login check and nightly scheduler don't re-disable immediately
+        updated_at: now
       }
     })
 
