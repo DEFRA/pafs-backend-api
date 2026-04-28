@@ -56,10 +56,8 @@ describe('update-status route', () => {
       expect(updateStatus.path).toBe('/api/v1/project/{referenceNumber}/status')
     })
 
-    test('Should support both JWT and API key authentication', () => {
-      expect(updateStatus.options.auth).toEqual({
-        strategies: ['jwt', 'api-key']
-      })
+    test('Should support JWT authentication', () => {
+      expect(updateStatus.options.auth).toBe('jwt')
     })
 
     test('Should have proper tags', () => {

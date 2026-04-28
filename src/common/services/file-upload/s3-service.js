@@ -1,7 +1,8 @@
 import {
   S3Client,
   GetObjectCommand,
-  DeleteObjectCommand
+  DeleteObjectCommand,
+  PutObjectCommand
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { config } from '../../../config.js'
@@ -128,6 +129,39 @@ export class S3Service {
           key
         },
         'Failed to retrieve S3 object'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Upload a buffer to S3
+   *
+   * @param {string} bucket - S3 bucket name
+   * @param {string} key - S3 object key
+   * @param {Buffer} body - File contents
+   * @param {string} contentType - MIME type
+   * @returns {Promise<void>}
+   */
+  async putObject(bucket, key, body, contentType) {
+    try {
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType
+      })
+
+      await this.s3Client.send(command)
+
+      this.logger.info(
+        { bucket, key, size: body.length },
+        'Uploaded object to S3'
+      )
+    } catch (error) {
+      this.logger.error(
+        { err: error, bucket, key },
+        'Failed to upload object to S3'
       )
       throw error
     }

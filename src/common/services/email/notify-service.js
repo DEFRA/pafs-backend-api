@@ -32,6 +32,10 @@ export class EmailService {
     }
 
     try {
+      this.logger.info(
+        { email, template: reference, templateId },
+        'Email send attempt'
+      )
       const response = await this.client.sendEmail(templateId, email, {
         personalisation,
         reference: `${reference}-${Date.now()}`
@@ -51,10 +55,14 @@ export class EmailService {
       this.logger.error(
         {
           err: error,
+          errStack: error?.stack,
           email,
-          statusCode: error?.response?.data?.status_code
+          template: reference,
+          statusCode: error?.response?.data?.status_code,
+          errorCode: error?.code,
+          errorMessage: error?.message
         },
-        'Email send failed'
+        `Email send failed — ${error?.message} (code:${error?.code ?? 'none'})`
       )
       throw error
     }

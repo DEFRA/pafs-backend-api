@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2-006-area-downloads-progress" author="migration-team">
+        <comment>
+            Add progress tracking and user-scoped columns to pafs_core_area_downloads.
+            Switches from area-scoped to user-scoped downloads to fix the data consistency
+            issue where users sharing the same primary area overwrote each other's downloads.
+            Admin system-wide download is represented by user_id IS NULL.
+        </comment>
+
+        <!-- Progress tracking for admin system-wide generation -->
+        <addColumn tableName="pafs_core_area_downloads">
+            <column name="progress_current" type="INTEGER" defaultValueNumeric="0"/>
+        </addColumn>
+
+        <addColumn tableName="pafs_core_area_downloads">
+            <column name="progress_total" type="INTEGER" defaultValueNumeric="0"/>
+        </addColumn>
+
+        <addColumn tableName="pafs_core_area_downloads">
+            <column name="progress_message" type="VARCHAR(500)"/>
+        </addColumn>
+
+        <!-- Index for user-scoped lookups -->
+        <createIndex indexName="index_pafs_core_area_downloads_on_user_id" tableName="pafs_core_area_downloads">
+            <column name="user_id"/>
+        </createIndex>
+
+        <!-- Index for admin download (user_id IS NULL + status) -->
+        <createIndex indexName="index_pafs_core_area_downloads_on_status" tableName="pafs_core_area_downloads">
+            <column name="status"/>
+        </createIndex>
+
+        <rollback>
+            <dropColumn tableName="pafs_core_area_downloads" columnName="progress_current"/>
+            <dropColumn tableName="pafs_core_area_downloads" columnName="progress_total"/>
+            <dropColumn tableName="pafs_core_area_downloads" columnName="progress_message"/>
+            <dropIndex tableName="pafs_core_area_downloads" indexName="index_pafs_core_area_downloads_on_user_id"/>
+            <dropIndex tableName="pafs_core_area_downloads" indexName="index_pafs_core_area_downloads_on_status"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

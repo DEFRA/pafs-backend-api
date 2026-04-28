@@ -18,9 +18,14 @@ import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
 import jwtAuthPlugin from './plugins/jwt/jwt-auth.js'
-import apiKeyAuthPlugin from './plugins/api-key/api-key-auth.js'
 import schedulerPlugin from './plugins/scheduler/index.js'
 import { loadTasks } from './plugins/scheduler/helpers/task-loader.js'
+import swaggerPlugin from './plugins/swagger/index.js'
+import downloadsPlugin from './plugins/downloads/index.js'
+import gatewayGuardPlugin from './plugins/gateway-guard/index.js'
+import externalPlugin from './plugins/external/index.js'
+import { sqsClientPlugin } from './common/helpers/sqs/sqs-client.js'
+import { sqsProgrammeConsumerPlugin } from './plugins/sqs-consumer/index.js'
 
 function createServerConfig() {
   return {
@@ -90,19 +95,16 @@ async function registerCorePlugins(server) {
         audience: config.get('auth.jwt.audience')
       }
     },
-    {
-      plugin: apiKeyAuthPlugin,
-      options: {
-        apiKey: config.get('auth.apiKey')
-      }
-    },
+    gatewayGuardPlugin,
     healthPlugin,
     authPlugin,
     areasPlugin,
     accountsPlugin,
     emailValidationPlugin,
     projectsPlugin,
-    fileUploadPlugin
+    fileUploadPlugin,
+    downloadsPlugin,
+    externalPlugin
   ])
 }
 
@@ -115,11 +117,19 @@ async function registerScheduler(server) {
   })
 }
 
+async function registerSwagger(server) {
+  // Register swagger after all routes are registered so all routes are included
+  await server.register(swaggerPlugin)
+}
+
 async function createServer() {
   setupProxy()
   const server = Hapi.server(createServerConfig())
   await registerCorePlugins(server)
+  await server.register(sqsClientPlugin)
+  await server.register(sqsProgrammeConsumerPlugin)
   await registerScheduler(server)
+  await registerSwagger(server)
   return server
 }
 

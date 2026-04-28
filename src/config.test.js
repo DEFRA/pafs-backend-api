@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest'
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest'
 
 describe('config', () => {
   let originalEnv
@@ -472,6 +472,133 @@ describe('config', () => {
       const { config } = await import('./config.js')
       // Config is validated on load, so this should not throw
       expect(() => config.validate({ allowed: 'strict' })).not.toThrow()
+    })
+  })
+
+  describe('log configuration (production branches)', () => {
+    beforeEach(() => {
+      vi.resetModules()
+    })
+
+    afterEach(() => {
+      vi.resetModules()
+    })
+
+    test('Should use ecs format in production', async () => {
+      process.env.NODE_ENV = 'production'
+      const { config } = await import('./config.js')
+      expect(config.get('log.format')).toBe('ecs')
+    })
+
+    test('Should redact headers in production', async () => {
+      process.env.NODE_ENV = 'production'
+      const { config } = await import('./config.js')
+      const redact = config.get('log.redact')
+      expect(redact).toContain('req.headers.authorization')
+      expect(redact).toContain('req.headers.cookie')
+      expect(redact).toContain('res.headers')
+    })
+
+    test('Should disable logging in test environment', async () => {
+      process.env.NODE_ENV = 'test'
+      const { config } = await import('./config.js')
+      expect(config.get('log.isEnabled')).toBe(false)
+    })
+
+    test('Should enable logging outside test environment', async () => {
+      process.env.NODE_ENV = 'development'
+      const { config } = await import('./config.js')
+      expect(config.get('log.isEnabled')).toBe(true)
+    })
+
+    test('Should override log level via LOG_LEVEL env var', async () => {
+      process.env.LOG_LEVEL = 'debug'
+      const { config } = await import('./config.js')
+      expect(config.get('log.level')).toBe('debug')
+    })
+
+    test('Should override log enabled via LOG_ENABLED env var', async () => {
+      process.env.LOG_ENABLED = 'false'
+      const { config } = await import('./config.js')
+      expect(config.get('log.isEnabled')).toBe(false)
+    })
+  })
+
+  describe('aws configuration (production branches)', () => {
+    beforeEach(() => {
+      vi.resetModules()
+    })
+
+    afterEach(() => {
+      vi.resetModules()
+    })
+
+    test('Should use production CDP uploader URL in production', async () => {
+      process.env.NODE_ENV = 'production'
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.baseUrl')).toBe(
+        'https://cdp-uploader.prod.cdp-int.defra.cloud'
+      )
+    })
+
+    test('Should have null S3 endpoint in production', async () => {
+      process.env.NODE_ENV = 'production'
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.s3Endpoint')).toBeNull()
+    })
+
+    test('Should have null SQS endpoint in production', async () => {
+      process.env.NODE_ENV = 'production'
+      const { config } = await import('./config.js')
+      expect(config.get('sqsEndpoint')).toBeNull()
+    })
+
+    test('Should have LocalStack S3 endpoint outside production', async () => {
+      process.env.NODE_ENV = 'development'
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.s3Endpoint')).toBe('http://localhost:4566')
+    })
+
+    test('Should have LocalStack SQS endpoint outside production', async () => {
+      process.env.NODE_ENV = 'development'
+      const { config } = await import('./config.js')
+      expect(config.get('sqsEndpoint')).toBe('http://localhost:4566')
+    })
+
+    test('Should have correct SQS programme generation defaults', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('sqsProgrammeGeneration.queueUrl')).toContain(
+        'pafs_programme_generation'
+      )
+      expect(config.get('sqsProgrammeGeneration.visibilityTimeout')).toBe(900)
+      expect(config.get('sqsProgrammeGeneration.waitTimeSeconds')).toBe(20)
+    })
+
+    test('Should override SQS queue URL via env var', async () => {
+      process.env.SQS_PROGRAMME_GENERATION_QUEUE_URL =
+        'https://sqs.eu-west-2.amazonaws.com/123456789/pafs_programme_generation'
+      const { config } = await import('./config.js')
+      expect(config.get('sqsProgrammeGeneration.queueUrl')).toBe(
+        'https://sqs.eu-west-2.amazonaws.com/123456789/pafs_programme_generation'
+      )
+    })
+
+    test('Should override SQS visibility timeout via env var', async () => {
+      process.env.SQS_PROGRAMME_GENERATION_VISIBILITY_TIMEOUT = '600'
+      const { config } = await import('./config.js')
+      expect(config.get('sqsProgrammeGeneration.visibilityTimeout')).toBe(600)
+    })
+
+    test('Should override CDP uploader max file size via env var', async () => {
+      process.env.CDP_UPLOADER_MAX_FILE_SIZE = '10000000'
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.maxFileSize')).toBe(10000000)
+    })
+
+    test('Should override CDP uploader S3 bucket via env var', async () => {
+      process.env.CDP_UPLOADER_S3_BUCKET = 'my-custom-bucket'
+      const { config } = await import('./config.js')
+      expect(config.get('cdpUploader.s3Bucket')).toBe('my-custom-bucket')
     })
   })
 })
