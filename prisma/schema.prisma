@@ -605,3 +605,20 @@ model audit_log {
   @@index([changed_by], map: "idx_audit_log_changed_by")
   @@index([model, entity_id], map: "idx_audit_log_model_entity")
 }
+
+model pafs_proposal_submissions {
+  id               BigInt   @id @default(autoincrement())
+  project_id       BigInt
+  reference_number String   @db.VarChar(255)
+  status           String   @default("pending") @db.VarChar(50)
+  http_status_code Int?
+  error_message    String?
+  response_body    String?
+  is_resend        Boolean  @default(false)
+  attempted_at     DateTime @default(now()) @db.Timestamp(6)
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([project_id], map: "idx_proposal_submissions_project_id")
+  @@index([reference_number], map: "idx_proposal_submissions_reference_number")
+  @@index([status], map: "idx_proposal_submissions_status")
+}

@@ -41,4 +41,7 @@
   <!-- New audit log table for tracking all data changes with before/after snapshots -->
   <include file="4-001-audit-log.xml" relativeToChangelogFile="true"/>
 
+  <!-- Proposal submission tracking — records every attempt to send to the external system -->
+  <include file="4-002-create-proposal-submissions.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

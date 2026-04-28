@@ -6,6 +6,7 @@ import deleteBenefitAreaFile from './delete-benefit-area-file/delete-benefit-are
 import listProjects from './list-projects/list-projects.js'
 import carbonImpact from './carbon-impact/carbon-impact.js'
 import submitProject from './submit-project/submit-project.js'
+import resubmitProject from './resubmit-project/resubmit-project.js'
 
 const projectsPlugin = {
   name: 'projects',
@@ -19,7 +20,8 @@ const projectsPlugin = {
       deleteBenefitAreaFile,
       listProjects,
       carbonImpact,
-      submitProject
+      submitProject,
+      resubmitProject
     ])
     server.logger.info('Projects plugin registered')
   }
@@ -34,3 +36,4 @@ export { default as listProjects } from './list-projects/list-projects.js'
 export { default as updateStatus } from './update-status/update-status.js'
 export { default as carbonImpact } from './carbon-impact/carbon-impact.js'
 export { default as submitProject } from './submit-project/submit-project.js'
+export { default as resubmitProject } from './resubmit-project/resubmit-project.js'

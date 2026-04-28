@@ -17,6 +17,8 @@ import {
   validateSubmission,
   canSubmitProject
 } from '../helpers/project-validations/validate-submission.js'
+import { buildProposalPayload } from '../helpers/proposal-payload-builder.js'
+import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
 
 const loadProject = async (projectService, referenceNumber, h) => {
   try {
@@ -155,13 +157,6 @@ const handler = async (request, h) => {
       { referenceNumber, userId: credentials.userId },
       'Project submitted successfully'
     )
-    return buildSuccessResponse(h, {
-      success: true,
-      data: {
-        referenceNumber: project.referenceNumber,
-        status: PROJECT_STATUS.SUBMITTED
-      }
-    })
   } catch (error) {
     logger.error(
       { error: error.message, referenceNumber },
@@ -171,6 +166,57 @@ const handler = async (request, h) => {
       .response({ error: 'Failed to submit project' })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
   }
+
+  // 6. Look up the creator's email address for the payload
+  let creatorEmail = null
+  try {
+    const creator = await request.prisma.pafs_core_users.findFirst({
+      where: { id: Number(project.creatorId ?? project.creator_id) },
+      select: { email: true }
+    })
+    creatorEmail = creator?.email ?? null
+  } catch (emailLookupError) {
+    logger.warn(
+      { error: emailLookupError.message, referenceNumber },
+      'Could not look up creator email for external submission'
+    )
+  }
+
+  // 7. Build payload and fire off to the external system.
+  //    We do NOT fail the submission if the external call fails — the project
+  //    is already marked submitted in our system and can be resent by an admin.
+  try {
+    const payload = buildProposalPayload(project, creatorEmail)
+    const submissionService = new ExternalSubmissionService(
+      request.prisma,
+      logger
+    )
+    const result = await submissionService.send({
+      projectId: project.id,
+      referenceNumber,
+      payload,
+      isResend: false
+    })
+    if (!result.success) {
+      logger.warn(
+        { referenceNumber, error: result.error, httpStatus: result.httpStatus },
+        'External submission failed — project is submitted in PAFS but not yet in external system'
+      )
+    }
+  } catch (externalError) {
+    logger.error(
+      { error: externalError.message, referenceNumber },
+      'Unexpected error during external submission — project is submitted in PAFS'
+    )
+  }
+
+  return buildSuccessResponse(h, {
+    success: true,
+    data: {
+      referenceNumber: project.referenceNumber,
+      status: PROJECT_STATUS.SUBMITTED
+    }
+  })
 }
 
 const submitProject = {

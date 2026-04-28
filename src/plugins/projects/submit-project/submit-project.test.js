@@ -18,6 +18,17 @@ vi.mock('../helpers/project-validations/validate-submission.js', () => ({
   validateSubmission: vi.fn(),
   canSubmitProject: vi.fn()
 }))
+vi.mock('../helpers/proposal-payload-builder.js', () => ({
+  buildProposalPayload: vi
+    .fn()
+    .mockReturnValue({ national_project_number: 'LCR/123/456' })
+}))
+vi.mock(
+  '../../../common/services/external-submission/external-submission-service.js',
+  () => ({
+    ExternalSubmissionService: vi.fn()
+  })
+)
 vi.mock('../../../common/helpers/response-builder.js', () => ({
   buildSuccessResponse: vi.fn((h, data) => h.response(data).code(200)),
   buildErrorResponse: vi.fn((h, statusCode, errors, includeStatusCode) => {
@@ -35,6 +46,7 @@ import {
   validateSubmission,
   canSubmitProject
 } from '../helpers/project-validations/validate-submission.js'
+import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -60,7 +72,11 @@ const buildMockRequest = (overrides = {}) => ({
     }
   },
   server: { logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
-  prisma: {},
+  prisma: {
+    pafs_core_users: {
+      findFirst: vi.fn().mockResolvedValue({ email: 'user@example.com' })
+    }
+  },
   ...overrides
 })
 
@@ -108,6 +124,7 @@ describe('submitProject route definition', () => {
 describe('submit-project handler', () => {
   let mockProjectService
   let mockAreaService
+  let mockExternalService
   let request
   let h
 
@@ -121,12 +138,18 @@ describe('submit-project handler', () => {
     mockAreaService = {
       getAreaByIdWithParents: vi.fn().mockResolvedValue(AREA)
     }
+    mockExternalService = {
+      send: vi.fn().mockResolvedValue({ success: true, httpStatus: 200 })
+    }
 
     ProjectService.mockImplementation(function () {
       return mockProjectService
     })
     AreaService.mockImplementation(function () {
       return mockAreaService
+    })
+    ExternalSubmissionService.mockImplementation(function () {
+      return mockExternalService
     })
 
     validateSubmission.mockReturnValue([])
@@ -387,5 +410,51 @@ describe('submit-project handler', () => {
     )
     await submitProjectRoute.options.handler(request, h)
     expect(request.server.logger.error).toHaveBeenCalled()
+  })
+
+  // ─── External submission behaviour ───────────────────────────────────────
+
+  test('calls external submission service after state transition', async () => {
+    await submitProjectRoute.options.handler(request, h)
+    expect(mockExternalService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceNumber: 'LCR/123/456',
+        isResend: false
+      })
+    )
+  })
+
+  test('still returns 200 when external submission fails', async () => {
+    mockExternalService.send.mockResolvedValue({
+      success: false,
+      error: 'Connection refused'
+    })
+    await submitProjectRoute.options.handler(request, h)
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true })
+    )
+  })
+
+  test('logs warning when external submission fails', async () => {
+    mockExternalService.send.mockResolvedValue({
+      success: false,
+      error: 'Timeout'
+    })
+    await submitProjectRoute.options.handler(request, h)
+    expect(request.server.logger.warn).toHaveBeenCalled()
+  })
+
+  test('still returns 200 when external submission service throws unexpectedly', async () => {
+    mockExternalService.send.mockRejectedValue(new Error('Unexpected error'))
+    await submitProjectRoute.options.handler(request, h)
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+  })
+
+  test('looks up creator email before building payload', async () => {
+    await submitProjectRoute.options.handler(request, h)
+    expect(request.prisma.pafs_core_users.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { email: true } })
+    )
   })
 })
