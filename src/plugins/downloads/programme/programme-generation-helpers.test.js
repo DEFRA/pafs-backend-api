@@ -626,7 +626,8 @@ describe('uploadFcerm1IfAny', () => {
       '/fake/template.xlsx',
       presenters,
       [],
-      []
+      [],
+      { includeSecuredConstrained: false }
     )
     expect(mockPutObject).toHaveBeenCalledWith(
       'test-bucket',

@@ -350,7 +350,8 @@ export async function uploadFcerm1IfAny(
     NEW_TEMPLATE_PATH,
     presenters,
     NEW_COLUMNS,
-    NEW_FCERM1_YEARS
+    NEW_FCERM1_YEARS,
+    { includeSecuredConstrained: false }
   )
   await s3Service.putObject(
     s3Bucket,
