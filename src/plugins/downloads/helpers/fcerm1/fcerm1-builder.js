@@ -19,6 +19,25 @@ import {
   addContributorsSheetToZip
 } from './fcerm1-contributors-sheet.js'
 
+// ── Title cell helper ────────────────────────────────────────────────────────
+
+/**
+ * Replace the cell at A1 in the sheet XML with an inline-string cell containing
+ * `title`.  The existing style attribute (s="...") is preserved so the merged
+ * A1:B2 formatting is retained.  Works for shared-string (t="s"), inline-string,
+ * or self-closing cells.
+ */
+function updateTitleCell(sheetXml, title) {
+  return sheetXml.replace(
+    /<c r="A1"([^>]*?)(?:\/>|>[\s\S]*?<\/c>)/,
+    (_, attrs) => {
+      const styleMatch = /\bs="([^"]+)"/.exec(attrs)
+      const styleAttr = styleMatch ? ` s="${styleMatch[1]}"` : ''
+      return `<c r="A1"${styleAttr} t="inlineStr"><is><t>${title}</t></is></c>`
+    }
+  )
+}
+
 // ── Core builder ──────────────────────────────────────────────────────────────
 
 async function buildWorkbook(
@@ -28,14 +47,15 @@ async function buildWorkbook(
   years = FCERM1_YEARS,
   options = {}
 ) {
-  const { includeSecuredConstrained = true } = options
+  const { includeSecuredConstrained = true, title = null } = options
   const templateBuffer = await readFile(templatePath)
   const zip = new AdmZip(templateBuffer)
 
   // Extract template row 7 metadata — styles and formula cells to carry forward
   const rawSheetXml = zipReadText(zip, 'xl/worksheets/sheet1.xml')
   const maxColIndex = columnLetterToIndex(lastColumnLetter(columns, years))
-  const sheetXml = normaliseColStyles(rawSheetXml, maxColIndex)
+  const normalisedXml = normaliseColStyles(rawSheetXml, maxColIndex)
+  const sheetXml = title ? updateTitleCell(normalisedXml, title) : normalisedXml
   const row7Match = sheetXml.match(/<row r="7"[^>]*>.*?<\/row>/s)
   const styleMap = row7Match ? parseRowStyleMap(row7Match[0]) : {}
   const formulaCells = row7Match ? extractFormulaCells(row7Match[0]) : {}
@@ -64,6 +84,11 @@ async function buildWorkbook(
   let workbookXml = zipReadText(zip, 'xl/workbook.xml')
   if (!workbookXml.includes('fullCalcOnLoad')) {
     workbookXml = workbookXml.replace('<calcPr ', '<calcPr fullCalcOnLoad="1" ')
+  }
+  if (title) {
+    workbookXml = workbookXml.replace(/<sheet\b[^>]*>/, (match) =>
+      match.replace(/\bname="[^"]*"/, `name="${title}"`)
+    )
   }
   workbookXml = workbookXml.replace(
     '</sheets>',
@@ -103,5 +128,8 @@ export async function buildMultiWorkbook(
   years = FCERM1_YEARS,
   options = {}
 ) {
-  return buildWorkbook(templatePath, presenters, columns, years, options)
+  return buildWorkbook(templatePath, presenters, columns, years, {
+    ...options,
+    title: 'All Proposals'
+  })
 }

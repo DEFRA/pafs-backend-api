@@ -416,6 +416,76 @@ describe('additionalFcermGiaTotal', () => {
   })
 })
 
+// ── additionalFcermGia(year) — combined per-year sum ─────────────────────────
+
+describe('additionalFcermGia(year)', () => {
+  test('sums all 7 sub-categories for a year within the project range', () => {
+    const fvs = [
+      fundingValue({
+        asset_replacement_allowance: 10,
+        environment_statutory_funding: 20,
+        frequently_flooded_communities: 30,
+        other_additional_grant_in_aid: 40,
+        other_government_department: 50,
+        recovery: 60,
+        summer_economic_fund: 70,
+        financial_year: 2030
+      })
+    ]
+    const p = makePresenter({ pafs_core_funding_values: fvs })
+    expect(p.additionalFcermGia(2030)).toBe(280)
+  })
+
+  test('returns 0 for a year before the project start', () => {
+    const fvs = [
+      fundingValue({ asset_replacement_allowance: 999, financial_year: 2025 })
+    ]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2038
+    })
+    expect(p.additionalFcermGia(2025)).toBe(0)
+  })
+
+  test('returns 0 for a year after the project end', () => {
+    const fvs = [fundingValue({ recovery: 999, financial_year: 2039 })]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2035
+    })
+    expect(p.additionalFcermGia(2039)).toBe(0)
+  })
+
+  test('2038 bucket sums all sub-categories across all years >= 2038 up to project end', () => {
+    const fvs = [
+      fundingValue({ recovery: 100, financial_year: 2038 }),
+      fundingValue({ summer_economic_fund: 150, financial_year: 2040 }),
+      fundingValue({ asset_replacement_allowance: 999, financial_year: 2041 }) // beyond end → excluded
+    ]
+    const p = makePresenter({
+      pafs_core_funding_values: fvs,
+      earliest_start_year: 2026,
+      project_end_financial_year: 2040
+    })
+    expect(p.additionalFcermGia(2038)).toBe(250)
+  })
+
+  test('does not include fcerm_gia or local_levy', () => {
+    const fvs = [
+      fundingValue({
+        fcerm_gia: 1000,
+        local_levy: 2000,
+        recovery: 50,
+        financial_year: 2030
+      })
+    ]
+    const p = makePresenter({ pafs_core_funding_values: fvs })
+    expect(p.additionalFcermGia(2030)).toBe(50)
+  })
+})
+
 describe('contributor totals', () => {
   function makeContributor(type, amount, fvId = 1) {
     return { contributor_type: type, amount, funding_value_id: fvId }

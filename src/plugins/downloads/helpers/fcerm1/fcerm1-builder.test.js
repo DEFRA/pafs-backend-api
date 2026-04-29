@@ -1075,4 +1075,49 @@ describe('buildMultiWorkbook', () => {
 
     expect(result).toBe(expected)
   })
+
+  // ── title cell + sheet name (bulk download) ──────────────────────────────
+
+  test('sets cell A1 to inline string “All Proposals”', async () => {
+    const sheetWithTitleCell =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<dimension ref="A1:NI7"/><sheetData>' +
+      '<row r="1"><c r="A1" s="5" t="s"><v>0</v></c></row>' +
+      '<row r="7" customFormat="false" ht="15" hidden="false" customHeight="true" outlineLevel="0" collapsed="false">' +
+      '<c r="A7" s="66"/><c r="B7" s="67"/>' +
+      '</row>' +
+      '</sheetData></worksheet>'
+    mocks.zip.readAsText.mockImplementation((name) => {
+      if (name === 'xl/worksheets/sheet1.xml') return sheetWithTitleCell
+      if (name === 'xl/workbook.xml') return mocks.WORKBOOK_XML
+      if (name === 'xl/_rels/workbook.xml.rels') return mocks.RELS_XML
+      if (name === '[Content_Types].xml') return mocks.CONTENT_TYPES_XML
+      return ''
+    })
+    const presenters = [
+      { f: vi.fn(() => 'a'), fundingContributorsSheetData: vi.fn(() => []) },
+      { f: vi.fn(() => 'b'), fundingContributorsSheetData: vi.fn(() => []) }
+    ]
+
+    await buildMultiWorkbook('/path/template.xlsx', presenters, [])
+
+    const xml = getUpdatedXml('xl/worksheets/sheet1.xml')
+    expect(xml).toContain(
+      '<c r="A1" s="5" t="inlineStr"><is><t>All Proposals</t></is></c>'
+    )
+    expect(xml).not.toContain('t="s"')
+  })
+
+  test('sets main sheet name to “All Proposals” in workbook.xml', async () => {
+    const presenters = [
+      { f: vi.fn(() => 'a'), fundingContributorsSheetData: vi.fn(() => []) }
+    ]
+
+    await buildMultiWorkbook('/path/template.xlsx', presenters, [])
+
+    const xml = getUpdatedXml('xl/workbook.xml')
+    expect(xml).toContain('name="All Proposals"')
+    expect(xml).not.toContain('name="Sheet1"')
+  })
 })

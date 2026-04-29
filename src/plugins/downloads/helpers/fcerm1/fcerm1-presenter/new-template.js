@@ -225,6 +225,24 @@ export const newTemplateMixin = {
       this._p.project_end_financial_year
     )
   },
+  // ── Additional FCRM GIA combined — sum of all 7 sub-categories per year ───
+  additionalFcermGia(year) {
+    if (!this._inYearRange(year)) {
+      return 0
+    }
+    const fv = this._p.pafs_core_funding_values
+    const rollUp = year >= NEW_FCERM1_LAST_YEAR
+    const end = this._p.project_end_financial_year
+    return (
+      sumFunding(fv, year, 'asset_replacement_allowance', rollUp, end) +
+      sumFunding(fv, year, 'environment_statutory_funding', rollUp, end) +
+      sumFunding(fv, year, 'frequently_flooded_communities', rollUp, end) +
+      sumFunding(fv, year, 'other_additional_grant_in_aid', rollUp, end) +
+      sumFunding(fv, year, 'other_government_department', rollUp, end) +
+      sumFunding(fv, year, 'recovery', rollUp, end) +
+      sumFunding(fv, year, 'summer_economic_fund', rollUp, end)
+    )
+  },
   environmentStatutoryFunding(year) {
     if (!this._inYearRange(year)) {
       return 0
