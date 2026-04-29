@@ -125,9 +125,9 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
-    test('should reject zero volume', () => {
+    test('should allow zero volume (AC: 0 treated same as empty)', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(0)
-      expect(result.error).toBeDefined()
+      expect(result.error).toBeUndefined()
     })
   })
 
@@ -152,9 +152,9 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
-    test('should reject zero volume', () => {
+    test('should allow zero volume (AC: 0 treated same as empty)', () => {
       const result = nfmLeakyBarriersVolumeSchema.validate(0)
-      expect(result.error).toBeDefined()
+      expect(result.error).toBeUndefined()
     })
   })
 
@@ -268,9 +268,9 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
-    test('should reject zero volume', () => {
+    test('should allow zero volume (AC: 0 treated same as empty)', () => {
       const result = nfmOfflineStorageVolumeSchema.validate(0)
-      expect(result.error).toBeDefined()
+      expect(result.error).toBeUndefined()
     })
 
     test('should reject non-numeric value', () => {

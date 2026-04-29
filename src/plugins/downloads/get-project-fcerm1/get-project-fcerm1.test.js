@@ -295,7 +295,7 @@ describe('getProjectFcerm1New', () => {
         expect.any(Object), // FcermPresenter instance (mocked)
         expect.any(Array), // NEW_COLUMNS
         NEW_FCERM1_YEARS,
-        { includeSecuredConstrained: false }
+        { includeSecuredConstrained: false, title: 'Proposal' }
       )
     })
 
@@ -514,7 +514,7 @@ describe('getProjectFcerm1New', () => {
         expect.any(Object),
         expect.any(Array),
         NEW_FCERM1_YEARS,
-        { includeSecuredConstrained: false }
+        { includeSecuredConstrained: false, title: 'Proposal' }
       )
     })
 

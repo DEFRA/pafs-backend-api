@@ -51,10 +51,7 @@ export class CarbonImpactCalculator {
       readyForServiceMonth != null &&
       readyForServiceYear != null
 
-    // Placeholder: funding sources completeness check will be added later
-    const hasFundingSources = true // NOSONAR
-
-    return hasTimeline && hasFundingSources
+    return hasTimeline
   }
 
   /**

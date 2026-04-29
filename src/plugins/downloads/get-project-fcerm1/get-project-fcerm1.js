@@ -27,7 +27,9 @@ const XLSX_CONTENT_TYPE =
 
 export function createFcerm1Route({ format, templatePath, columns, years }) {
   const buildOptions =
-    format === 'new' ? { includeSecuredConstrained: false } : {}
+    format === 'new'
+      ? { includeSecuredConstrained: false, title: 'Proposal' }
+      : {}
   return {
     method: 'GET',
     path: `/api/v1/project/{referenceNumber}/fcerm1/${format}`,

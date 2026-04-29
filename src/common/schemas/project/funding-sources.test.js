@@ -677,10 +677,10 @@ describe('createFundingValuesSchema', () => {
   })
 
   describe('per-source coverage validation (selectedSources)', () => {
-    it('passes when selected source has a value in at least one row', () => {
+    it('passes when selected source has a non-zero value in at least one row', () => {
       const schema = createFundingValuesSchema(['fcermGia'])
       const { error } = schema.validate([
-        validRow({ financialYear: 2025, fcermGia: '0' }),
+        validRow({ financialYear: 2025, fcermGia: '1000' }),
         validRow({ financialYear: 2026, fcermGia: '' })
       ])
       expect(error).toBeUndefined()
@@ -729,7 +729,7 @@ describe('createFundingValuesSchema', () => {
       )
     })
 
-    it('passes when multiple selected sources all have at least one entry', () => {
+    it('passes when multiple selected sources all have at least one non-zero entry', () => {
       const schema = createFundingValuesSchema([
         'fcermGia',
         'localLevy',
@@ -739,16 +739,31 @@ describe('createFundingValuesSchema', () => {
         validRow({
           financialYear: 2025,
           fcermGia: '100000',
-          localLevy: '0',
+          localLevy: '5000',
           publicContributions: '25000'
         })
       ])
       expect(error).toBeUndefined()
     })
 
-    it('treats "0" as a valid entry for a selected source', () => {
+    it('fails when all entries for a selected source are zero', () => {
       const schema = createFundingValuesSchema(['recovery'])
-      const { error } = schema.validate([validRow({ recovery: '0' })])
+      const { error } = schema.validate([
+        validRow({ recovery: '0' }),
+        validRow({ financialYear: 2026, recovery: '0' })
+      ])
+      expect(error).toBeDefined()
+      expect(error.details[0].message).toBe(
+        PROJECT_VALIDATION_MESSAGES.FUNDING_SOURCES_ESTIMATED_SPEND_REQUIRED
+      )
+    })
+
+    it('passes when at least one entry for a selected source is non-zero', () => {
+      const schema = createFundingValuesSchema(['recovery'])
+      const { error } = schema.validate([
+        validRow({ recovery: '0' }),
+        validRow({ financialYear: 2026, recovery: '1000' })
+      ])
       expect(error).toBeUndefined()
     })
 

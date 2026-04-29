@@ -22,8 +22,8 @@ describe('fcerm1-new-columns', () => {
       })
     })
 
-    test('ends with column KU', () => {
-      expect(NEW_COLUMNS.at(-1).column).toBe('KU')
+    test('ends with column HN', () => {
+      expect(NEW_COLUMNS.at(-1).column).toBe('HN')
     })
 
     test('every entry has column and field properties', () => {
@@ -44,28 +44,99 @@ describe('fcerm1-new-columns', () => {
       expect(col.field).toBe('additionalFcermGiaTotal')
     })
 
-    test('GiA dateRange block starts at column AK', () => {
+    // Individual sub-total columns (araTotal, esfTotal etc.) must not appear
+    test('removed sub-total fields (araTotal, esfTotal, ffcTotal, otherGiaTotal, ogdTotal, recoveryTotal, sefTotal) are not in NEW_COLUMNS', () => {
+      const removedFields = [
+        'araTotal',
+        'esfTotal',
+        'ffcTotal',
+        'otherGiaTotal',
+        'ogdTotal',
+        'recoveryTotal',
+        'sefTotal'
+      ]
+      for (const field of removedFields) {
+        expect(NEW_COLUMNS.find((c) => c.field === field)).toBeUndefined()
+      }
+    })
+
+    // Individual per-year blocks must not appear
+    test('removed per-year sub-category fields are not in NEW_COLUMNS', () => {
+      const removedPerYear = [
+        'assetReplacementAllowance',
+        'environmentStatutoryFunding',
+        'frequentlyFloodedCommunities',
+        'otherAdditionalGrantInAid',
+        'otherGovernmentDepartment',
+        'recovery',
+        'summerEconomicFund'
+      ]
+      for (const field of removedPerYear) {
+        expect(
+          NEW_COLUMNS.find((c) => c.field === field && c.dateRange === true)
+        ).toBeUndefined()
+      }
+    })
+
+    test('notYetIdentifiedTotal is at column Z (shifted from AG)', () => {
+      const col = NEW_COLUMNS.find((c) => c.column === 'Z')
+      expect(col?.field).toBe('notYetIdentifiedTotal')
+    })
+
+    test('GiA dateRange block starts at column AD (shifted from AK)', () => {
       const gia = NEW_COLUMNS.find(
-        (c) => c.column === 'AK' && c.dateRange === true
+        (c) => c.column === 'AD' && c.dateRange === true
       )
       expect(gia).toBeDefined()
       expect(gia.field).toBe('fcermGia')
     })
 
-    test('urgency columns IG and IH are present', () => {
-      const igCol = NEW_COLUMNS.find((c) => c.column === 'IG')
-      const ih = NEW_COLUMNS.find((c) => c.column === 'IH')
-      expect(igCol?.field).toBe('urgencyReason')
-      expect(ih?.field).toBe('urgencyDetails')
+    test('localLevy dateRange block starts at column AQ (shifted from AX)', () => {
+      const ll = NEW_COLUMNS.find(
+        (c) => c.column === 'AQ' && c.dateRange === true
+      )
+      expect(ll).toBeDefined()
+      expect(ll.field).toBe('localLevy')
     })
 
-    test('NHM confidence columns KG-KI are present', () => {
-      const kg = NEW_COLUMNS.find((c) => c.column === 'KG')
-      const kh = NEW_COLUMNS.find((c) => c.column === 'KH')
-      const ki = NEW_COLUMNS.find((c) => c.column === 'KI')
-      expect(kg?.field).toBe('nfmLandownerConsent')
-      expect(kh?.field).toBe('nfmExperienceLevel')
-      expect(ki?.field).toBe('nfmProjectReadiness')
+    test('additionalFcermGia combined dateRange block is at column BD', () => {
+      const col = NEW_COLUMNS.find(
+        (c) => c.column === 'BD' && c.dateRange === true
+      )
+      expect(col).toBeDefined()
+      expect(col.field).toBe('additionalFcermGia')
+    })
+
+    test('publicContributions dateRange block starts at column BQ (shifted from EX)', () => {
+      const col = NEW_COLUMNS.find(
+        (c) => c.column === 'BQ' && c.dateRange === true
+      )
+      expect(col).toBeDefined()
+      expect(col.field).toBe('publicContributions')
+    })
+
+    test('notYetIdentified dateRange block starts at column DD (shifted from GK)', () => {
+      const col = NEW_COLUMNS.find(
+        (c) => c.column === 'DD' && c.dateRange === true
+      )
+      expect(col).toBeDefined()
+      expect(col.field).toBe('notYetIdentified')
+    })
+
+    test('urgency columns EZ and FA are present (shifted from IG/IH)', () => {
+      const ez = NEW_COLUMNS.find((c) => c.column === 'EZ')
+      const fa = NEW_COLUMNS.find((c) => c.column === 'FA')
+      expect(ez?.field).toBe('urgencyReason')
+      expect(fa?.field).toBe('urgencyDetails')
+    })
+
+    test('NHM confidence columns GZ–HB are present (shifted from KG–KI)', () => {
+      const gz = NEW_COLUMNS.find((c) => c.column === 'GZ')
+      const ha = NEW_COLUMNS.find((c) => c.column === 'HA')
+      const hb = NEW_COLUMNS.find((c) => c.column === 'HB')
+      expect(gz?.field).toBe('nfmLandownerConsent')
+      expect(ha?.field).toBe('nfmExperienceLevel')
+      expect(hb?.field).toBe('nfmProjectReadiness')
     })
 
     test('no duplicate exportable column letters', () => {

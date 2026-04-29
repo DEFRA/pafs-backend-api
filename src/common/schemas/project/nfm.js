@@ -147,19 +147,20 @@ const createRequiredPositiveSchema = (
     })
 
 /**
- * Factory: optional positive numeric field (volume in m³, optional length in km).
+ * Factory: optional non-negative numeric field (volume in m³, optional length in km).
+ * Accepts 0 as a valid value (AC: 0 treated same as empty/null).
  */
 const createOptionalPositiveSchema = (label, { invalid, precision }) =>
   Joi.number()
     .unsafe()
-    .positive()
+    .min(0)
     .custom(maxTwoDecimalPlaces)
     .allow(null)
     .optional()
     .label(label)
     .messages({
       'number.base': invalid,
-      'number.positive': invalid,
+      'number.min': invalid,
       'number.precision': precision
     })
 
