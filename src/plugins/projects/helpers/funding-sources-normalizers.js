@@ -160,7 +160,7 @@ export const normalizeFundingSourceFields = (
     }
 
     FUNDING_SPEND_FIELDS.forEach((field) => {
-      if (row[field] === '') {
+      if (row[field] === '' || row[field] === '0') {
         row[field] = null
       }
     })
@@ -175,7 +175,7 @@ export const normalizeFundingSourceFields = (
           return
         }
 
-        if (contributor.amount === '') {
+        if (contributor.amount === '' || contributor.amount === '0') {
           contributor.amount = null
         }
       })
@@ -199,13 +199,29 @@ const hasAnyAmountValue = (amounts) => {
     (field) =>
       amounts[field] !== null &&
       amounts[field] !== undefined &&
-      amounts[field] !== ''
+      amounts[field] !== '' &&
+      amounts[field] !== '0'
   )
 }
 
 const hasContributorFields = (row) => {
   return CONTRIBUTOR_CONFIG.some(
     ({ contributorsField }) => contributorsField in row
+  )
+}
+
+/**
+ * Check whether a contributor entry is a valid object with a name and
+ * a non-empty, non-zero amount.
+ * @private
+ */
+const isValidContributorEntry = (contributor) => {
+  if (!contributor || typeof contributor !== 'object' || !contributor.name) {
+    return false
+  }
+  const { amount } = contributor
+  return (
+    amount !== null && amount !== undefined && amount !== '' && amount !== '0'
   )
 }
 
@@ -219,15 +235,7 @@ const getContributorEntries = (row) => {
       }
 
       return contributors
-        .filter(
-          (contributor) =>
-            contributor &&
-            typeof contributor === 'object' &&
-            contributor.name &&
-            contributor.amount !== null &&
-            contributor.amount !== undefined &&
-            contributor.amount !== ''
-        )
+        .filter(isValidContributorEntry)
         .map((contributor) => ({
           name: contributor.name,
           contributorType: contributor.contributorType || contributorType,
@@ -593,4 +601,49 @@ export const handleFundingSourcesData = async (
   }
 
   delete enrichedPayload.fundingValues
+}
+
+/**
+ * Flush funding values and contributors that fall outside the new financial year range.
+ * Only runs at FINANCIAL_START_YEAR or FINANCIAL_END_YEAR validation levels.
+ * Uses both the new payload values and the existing project to determine the full range.
+ */
+export const flushOutOfRangeFundingData = async (
+  enrichedPayload,
+  validationLevel,
+  existingProject,
+  projectService
+) => {
+  if (
+    validationLevel !== PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR &&
+    validationLevel !== PROJECT_VALIDATION_LEVELS.FINANCIAL_END_YEAR
+  ) {
+    return
+  }
+
+  const { referenceNumber } = enrichedPayload
+  if (!referenceNumber) {
+    return
+  }
+
+  // Resolve the effective start and end years
+  // The payload may only contain one of the two; the other comes from the existing project
+  const startYear =
+    enrichedPayload.financialStartYear ??
+    existingProject?.financialStartYear ??
+    null
+  const endYear =
+    enrichedPayload.financialEndYear ??
+    existingProject?.financialEndYear ??
+    null
+
+  if (startYear === null || endYear === null) {
+    return
+  }
+
+  await projectService.clearOutOfRangeFundingData(
+    referenceNumber,
+    Number(startYear),
+    Number(endYear)
+  )
 }

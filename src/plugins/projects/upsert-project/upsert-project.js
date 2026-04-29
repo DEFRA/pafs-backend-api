@@ -31,7 +31,8 @@ import {
   clearWlFieldsOnProjectTypeChange,
   clearNfmFieldsOnInterventionTypeChange,
   sanitizeCarbonFields,
-  normalizeCarbonFields
+  normalizeCarbonFields,
+  flushOutOfRangeFundingData
 } from '../helpers/payload-normalizers.js'
 
 /**
@@ -152,6 +153,14 @@ const applyPayloadNormalizers = async (
   await handleFundingSourcesData(
     enrichedPayload,
     validationLevel,
+    projectService
+  )
+
+  // Flush funding values and contributors outside the new financial year range
+  await flushOutOfRangeFundingData(
+    enrichedPayload,
+    validationLevel,
+    existingProject,
     projectService
   )
 }
