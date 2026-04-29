@@ -229,10 +229,18 @@ function buildProjectLookupMaps(data) {
   }
 }
 
-function assembleProjectData(project, pid, maps) {
+function resolveUpdatedBy(project, maps) {
   const user = project.updated_by_id
     ? maps.userById.get(Number(project.updated_by_id))
     : null
+  return {
+    name: user ? `${user.first_name} ${user.last_name}`.trim() : null,
+    email: user?.email ?? null
+  }
+}
+
+function assembleProjectData(project, pid, maps) {
+  const updatedBy = resolveUpdatedBy(project, maps)
   return {
     ...project,
     pafs_core_funding_values: maps.fvByProject.get(pid) ?? [],
@@ -244,8 +252,8 @@ function assembleProjectData(project, pid, maps) {
     pafs_core_nfm_measures: maps.nfmMByProject.get(pid) ?? [],
     pafs_core_nfm_land_use_changes: maps.nfmLByProject.get(pid) ?? [],
     _state: maps.stateByProject.get(pid) ?? null,
-    _updatedByName: user ? `${user.first_name} ${user.last_name}`.trim() : null,
-    _updatedByEmail: user?.email ?? null
+    _updatedByName: updatedBy.name,
+    _updatedByEmail: updatedBy.email
   }
 }
 
