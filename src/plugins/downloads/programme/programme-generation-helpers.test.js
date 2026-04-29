@@ -78,6 +78,7 @@ function makePrisma(overrides = {}) {
     },
     pafs_core_funding_contributors: { findMany: vi.fn().mockResolvedValue([]) },
     pafs_core_areas: { findMany: vi.fn().mockResolvedValue([]) },
+    pafs_core_users: { findMany: vi.fn().mockResolvedValue([]) },
     ...overrides
   }
 }
@@ -483,6 +484,49 @@ describe('loadProjectsForFcerm1', () => {
 
     const [, hierarchy] = FcermPresenter.mock.calls[0]
     expect(hierarchy).toMatchObject({ rmaName: null, rmaSubType: null })
+  })
+
+  test('populates _updatedByName and _updatedByEmail from the user who last updated the project', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001', updated_by_id: 99 }
+    ])
+    prisma.pafs_core_users.findMany.mockResolvedValue([
+      {
+        id: 99,
+        first_name: 'Jane',
+        last_name: 'Smith',
+        email: 'jane.smith@example.gov.uk'
+      }
+    ])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    const [projectData] = FcermPresenter.mock.calls[0]
+    expect(projectData._updatedByName).toBe('Jane Smith')
+    expect(projectData._updatedByEmail).toBe('jane.smith@example.gov.uk')
+  })
+
+  test('sets _updatedByName and _updatedByEmail to null when project has no updated_by_id', async () => {
+    const { FcermPresenter } =
+      await import('../helpers/fcerm1/fcerm1-presenter.js')
+    FcermPresenter.mockClear()
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      { id: BigInt(1), reference_number: 'REF001', updated_by_id: null }
+    ])
+
+    await loadProjectsForFcerm1(prisma, [1], makeLogger())
+
+    const [projectData] = FcermPresenter.mock.calls[0]
+    expect(projectData._updatedByName).toBeNull()
+    expect(projectData._updatedByEmail).toBeNull()
+    expect(prisma.pafs_core_users.findMany).not.toHaveBeenCalled()
   })
 })
 
