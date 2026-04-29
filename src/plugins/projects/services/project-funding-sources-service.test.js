@@ -1308,4 +1308,122 @@ describe('ProjectFundingSourcesService', () => {
       expect(mockLogger.error).toHaveBeenCalled()
     })
   })
+
+  // ─── clearOutOfRangeFundingData ─────────────────────────────────────────────
+
+  describe('clearOutOfRangeFundingData', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 42n })
+    })
+
+    test('should null amounts in funding values and contributors outside range', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 10n, financial_year: 2024 },
+        { id: 11n, financial_year: 2032 }
+      ])
+      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+      mockPrisma.pafs_core_funding_contributors.updateMany.mockResolvedValue({
+        count: 3
+      })
+
+      const result = await service.clearOutOfRangeFundingData(
+        referenceNumber,
+        2025,
+        2030
+      )
+
+      expect(mockPrisma.pafs_core_funding_values.findMany).toHaveBeenCalledWith(
+        {
+          where: {
+            project_id: 42,
+            OR: [
+              { financial_year: { lt: 2025 } },
+              { financial_year: { gt: 2030 } }
+            ]
+          },
+          select: { id: true, financial_year: true }
+        }
+      )
+
+      // Should update each funding value row to null all amounts
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledTimes(
+        2
+      )
+      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
+        where: { id: 10n },
+        data: expect.objectContaining({
+          fcerm_gia: null,
+          local_levy: null,
+          total: 0n
+        })
+      })
+
+      // Should null contributor amounts (not delete rows)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).toHaveBeenCalledWith({
+        where: { funding_value_id: { in: [10n, 11n] } },
+        data: { amount: null }
+      })
+
+      // Should NOT delete any rows
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).not.toHaveBeenCalled()
+      expect(
+        mockPrisma.pafs_core_funding_values.deleteMany
+      ).not.toHaveBeenCalled()
+
+      expect(result).toEqual({
+        fundingValuesCleared: 2,
+        contributorsCleared: 3
+      })
+    })
+
+    test('should return zeros when no out-of-range data exists', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([])
+
+      const result = await service.clearOutOfRangeFundingData(
+        referenceNumber,
+        2025,
+        2030
+      )
+
+      expect(result).toEqual({
+        fundingValuesCleared: 0,
+        contributorsCleared: 0
+      })
+      expect(mockPrisma.pafs_core_funding_values.update).not.toHaveBeenCalled()
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('should throw and log error when project not found', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.clearOutOfRangeFundingData(referenceNumber, 2025, 2030)
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber }),
+        'Error clearing out-of-range funding data'
+      )
+    })
+
+    test('should throw when database operation fails', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockRejectedValue(
+        new Error('DB error')
+      )
+
+      await expect(
+        service.clearOutOfRangeFundingData(referenceNumber, 2025, 2030)
+      ).rejects.toThrow('DB error')
+      expect(mockLogger.error).toHaveBeenCalled()
+    })
+  })
 })

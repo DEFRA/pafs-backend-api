@@ -1817,7 +1817,7 @@ describe('normalizeFundingSourceFields', () => {
     expect(payload.fundingValues[0].total).toBeNull()
   })
 
-  it('preserves null/undefined and numeric-like strings', () => {
+  it('preserves null/undefined and converts zero to null', () => {
     const payload = {
       fundingValues: [
         {
@@ -1835,7 +1835,7 @@ describe('normalizeFundingSourceFields', () => {
 
     expect(payload.fundingValues[0].fcermGia).toBeNull()
     expect(payload.fundingValues[0].localLevy).toBeUndefined()
-    expect(payload.fundingValues[0].publicContributions).toBe('0')
+    expect(payload.fundingValues[0].publicContributions).toBeNull()
   })
 
   it('does nothing when fundingValues is not an array', () => {

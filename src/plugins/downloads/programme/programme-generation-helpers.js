@@ -179,6 +179,18 @@ async function fetchBulkProjectData(prisma, bigIntIds, projectIds) {
         })
       : []
 
+  // Bulk-load the users who last updated each project (one query, all projects)
+  const updatedByIds = [
+    ...new Set(projects.map((p) => p.updated_by_id).filter((id) => id != null))
+  ]
+  const users =
+    updatedByIds.length > 0
+      ? await prisma.pafs_core_users.findMany({
+          where: { id: { in: updatedByIds } },
+          select: { id: true, first_name: true, last_name: true, email: true }
+        })
+      : []
+
   return {
     projects,
     fundingValues,
@@ -189,7 +201,8 @@ async function fetchBulkProjectData(prisma, bigIntIds, projectIds) {
     nfmLandUseChanges,
     states,
     areaProjectRows,
-    contributors
+    contributors,
+    users
   }
 }
 
@@ -211,11 +224,23 @@ function buildProjectLookupMaps(data) {
     ),
     contributorsByFv: groupBy(data.contributors, (c) =>
       Number(c.funding_value_id)
-    )
+    ),
+    userById: new Map(data.users.map((u) => [Number(u.id), u]))
+  }
+}
+
+function resolveUpdatedBy(project, maps) {
+  const user = project.updated_by_id
+    ? maps.userById.get(Number(project.updated_by_id))
+    : null
+  return {
+    name: user ? `${user.first_name} ${user.last_name}`.trim() : null,
+    email: user?.email ?? null
   }
 }
 
 function assembleProjectData(project, pid, maps) {
+  const updatedBy = resolveUpdatedBy(project, maps)
   return {
     ...project,
     pafs_core_funding_values: maps.fvByProject.get(pid) ?? [],
@@ -227,7 +252,8 @@ function assembleProjectData(project, pid, maps) {
     pafs_core_nfm_measures: maps.nfmMByProject.get(pid) ?? [],
     pafs_core_nfm_land_use_changes: maps.nfmLByProject.get(pid) ?? [],
     _state: maps.stateByProject.get(pid) ?? null,
-    _updatedByName: null
+    _updatedByName: updatedBy.name,
+    _updatedByEmail: updatedBy.email
   }
 }
 
@@ -350,7 +376,8 @@ export async function uploadFcerm1IfAny(
     NEW_TEMPLATE_PATH,
     presenters,
     NEW_COLUMNS,
-    NEW_FCERM1_YEARS
+    NEW_FCERM1_YEARS,
+    { includeSecuredConstrained: false }
   )
   await s3Service.putObject(
     s3Bucket,

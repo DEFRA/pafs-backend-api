@@ -222,6 +222,92 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
   }
 
   /**
+   * Clear spending amounts from funding values and contributors that fall
+   * outside a financial year range.  Rows are preserved (not deleted) so that
+   * legacy projects do not lose contributor names stored only in the
+   * pafs_core_funding_contributors table.
+   *
+   * For out-of-range funding value rows every amount column is set to null and
+   * the total is reset to 0.  For the linked contributor rows the amount field
+   * is set to null while the name and contributor_type are kept intact.
+   *
+   * @param {string} referenceNumber - Project reference number
+   * @param {number} startYear - New financial start year (inclusive)
+   * @param {number} endYear - New financial end year (inclusive)
+   * @returns {Promise<{fundingValuesCleared: number, contributorsCleared: number}>}
+   */
+  async clearOutOfRangeFundingData(referenceNumber, startYear, endYear) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      // Find funding values outside the new range
+      const outOfRangeValues =
+        await this.prisma.pafs_core_funding_values.findMany({
+          where: {
+            project_id: projectId,
+            OR: [
+              { financial_year: { lt: startYear } },
+              { financial_year: { gt: endYear } }
+            ]
+          },
+          select: { id: true, financial_year: true }
+        })
+
+      if (!outOfRangeValues.length) {
+        this.logger.info(
+          { projectId, referenceNumber, startYear, endYear },
+          'No out-of-range funding data found'
+        )
+        return { fundingValuesCleared: 0, contributorsCleared: 0 }
+      }
+
+      const outOfRangeIds = outOfRangeValues.map((fv) => fv.id)
+
+      // Build the null-data object for all amount columns
+      const nullAmounts = {}
+      for (const [, dbCol] of FUNDING_VALUE_AMOUNT_FIELD_MAP) {
+        nullAmounts[dbCol] = null
+      }
+      nullAmounts.total = 0n
+
+      // Null out amounts in each out-of-range funding value row
+      let fundingValuesCleared = 0
+      for (const fv of outOfRangeValues) {
+        await this.prisma.pafs_core_funding_values.update({
+          where: { id: fv.id },
+          data: nullAmounts
+        })
+        fundingValuesCleared++
+      }
+
+      // Null out the amount on linked contributor rows (keep name & type)
+      const contributorsResult =
+        await this.prisma.pafs_core_funding_contributors.updateMany({
+          where: { funding_value_id: { in: outOfRangeIds } },
+          data: { amount: null }
+        })
+
+      const result = {
+        fundingValuesCleared,
+        contributorsCleared: contributorsResult.count
+      }
+
+      this.logger.info(
+        { projectId, referenceNumber, startYear, endYear, ...result },
+        'Out-of-range funding data cleared successfully'
+      )
+
+      return result
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, startYear, endYear },
+        'Error clearing out-of-range funding data'
+      )
+      throw error
+    }
+  }
+
+  /**
    * Null out specific funding source columns in all pafs_core_funding_values rows
    * for a project, and recalculate the total from the remaining non-nulled columns.
    * Called when individual funding sources are deselected on Screen 1 or Screen 2.
