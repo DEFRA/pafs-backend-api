@@ -139,12 +139,19 @@ describe('externalUpdateProposalStatus route', () => {
       expect(error.message).toMatch(/maximum of 100/i)
     })
 
+    it('should accept rejected status', async () => {
+      const { error } = schema.validate({
+        proposals: [{ referenceNumber: 'REF-001', status: 'rejected' }]
+      })
+      expect(error).toBeUndefined()
+    })
+
     it('should reject a disallowed status', async () => {
       const { error } = schema.validate({
         proposals: [{ referenceNumber: 'REF-001', status: 'submitted' }]
       })
       expect(error).toBeDefined()
-      expect(error.message).toMatch(/draft.*approved|approved.*draft/i)
+      expect(error.message).toMatch(/draft|approved|rejected/i)
     })
 
     it('should reject an item missing referenceNumber', async () => {

@@ -237,9 +237,9 @@ describe('Prisma Plugin', () => {
     )
     const decoratorFn = call[2]
 
-    // Simulate Hapi calling the function with `this` = request (after auth)
+    // Simulate Hapi calling the apply:true decorator — Hapi passes request as the first argument, not as `this`
     const mockRequest = { auth: { credentials: { userId: BigInt(1) } } }
-    decoratorFn.call(mockRequest)
+    decoratorFn(mockRequest)
 
     expect(createAuditExtension).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -261,7 +261,7 @@ describe('Prisma Plugin', () => {
     )
     const decoratorFn = call[2]
     const mockRequest = { auth: { credentials: { userId: BigInt(99) } } }
-    decoratorFn.call(mockRequest)
+    decoratorFn(mockRequest)
 
     const { getUserId } = createAuditExtension.mock.calls.at(-1)[0]
     expect(getUserId()).toBe(BigInt(99))
@@ -276,7 +276,7 @@ describe('Prisma Plugin', () => {
       (c) => c[0] === 'request' && c[1] === 'prisma'
     )
     const decoratorFn = call[2]
-    decoratorFn.call({})
+    decoratorFn({})
 
     const { getUserId } = createAuditExtension.mock.calls.at(-1)[0]
     expect(getUserId()).toBeUndefined()

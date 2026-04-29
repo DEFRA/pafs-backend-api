@@ -221,7 +221,7 @@ describe('$allOperations — update / before state', () => {
     expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 5 } })
   })
 
-  test('skips pre-read when args.where.id is absent', async () => {
+  test('performs pre-read for non-id unique where clause (e.g. composite key or slug)', async () => {
     const { handler, mockFindUnique } = makeContext()
     const query = vi.fn().mockResolvedValue({ id: 1 })
     await handler({
@@ -230,7 +230,7 @@ describe('$allOperations — update / before state', () => {
       args: { where: { slug: 'x' } },
       query
     })
-    expect(mockFindUnique).not.toHaveBeenCalled()
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { slug: 'x' } })
   })
 
   test('before_data is JsonNull when no where.id', async () => {

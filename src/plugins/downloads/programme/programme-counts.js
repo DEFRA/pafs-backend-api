@@ -10,7 +10,7 @@ export async function getProjectCountsForUser(prisma, userId, logger) {
   const areaIds = await resolveAccessibleAreaIdsForUser(prisma, logger, userId)
 
   if (areaIds.length === 0) {
-    return { total: 0, submitted: 0, draft: 0, completed: 0, archived: 0 }
+    return { total: 0, submitted: 0, draft: 0, rejected: 0, archived: 0 }
   }
 
   const areaProjectRows = await prisma.pafs_core_area_projects.findMany({
@@ -27,7 +27,7 @@ export async function getProjectCountsForUser(prisma, userId, logger) {
       draft: 0,
       revise: 0,
       approved: 0,
-      completed: 0,
+      rejected: 0,
       archived: 0
     }
   }
@@ -82,7 +82,7 @@ const TRACKED_STATES = new Set([
   'draft',
   'revise',
   'approved',
-  'completed',
+  'rejected',
   'archived'
 ])
 
@@ -93,7 +93,7 @@ function tabulateCounts(stateRows, reviseProjectIds = new Set()) {
     draft: 0,
     revise: 0,
     approved: 0,
-    completed: 0,
+    rejected: 0,
     archived: 0
   }
   for (const { state, project_id: projectId } of stateRows) {

@@ -94,13 +94,15 @@ export const prisma = {
 
       // Per-request: wrap in the audit extension. getUserId is a lazy closure so
       // it resolves after auth has completed, by the time any route operation runs.
+      // Note: Hapi calls apply:true decorations as assignment(request) — the request
+      // is the first argument, not `this` (which is undefined in strict ES modules).
       server.decorate(
         'request',
         'prisma',
-        function () {
+        function (request) {
           return prismaClient.$extends(
             createAuditExtension({
-              getUserId: () => this.auth?.credentials?.userId,
+              getUserId: () => request.auth?.credentials?.userId,
               prismaBase: prismaClient,
               logger: server.logger
             })

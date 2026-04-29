@@ -27,7 +27,7 @@ import { validationFailAction } from '../../../common/helpers/validation-fail-ac
  * 422 when all fail; 400 when the payload itself is invalid.
  */
 
-const ALLOWED_EXTERNAL_STATUSES = ['draft', 'approved']
+const ALLOWED_EXTERNAL_STATUSES = ['draft', 'approved', 'rejected']
 
 const proposalItemSchema = Joi.object({
   referenceNumber: Joi.string()
@@ -57,7 +57,7 @@ const externalUpdateProposalStatus = {
     description: 'Update proposal status (external)',
     notes:
       'Updates the status of one or more FCERM project proposals. ' +
-      'Each proposal specifies its own reference number and target status (`draft` or `approved`). ' +
+      'Each proposal specifies its own reference number and target status (`draft`, `approved`, or `rejected`). ' +
       'Authentication is handled by the CDP API Gateway using AWS Cognito ' +
       'client-credentials; this endpoint must NOT be called directly — ' +
       'always go via the public API Gateway. ' +

@@ -59,10 +59,6 @@ function extractEntityId(result, args) {
 }
 
 async function readBeforeState({ model, operation, args, prismaBase, logger }) {
-  const whereId = args?.where?.id
-  if (whereId == null) {
-    return null
-  }
   if (
     operation !== 'update' &&
     operation !== 'delete' &&
@@ -70,8 +66,14 @@ async function readBeforeState({ model, operation, args, prismaBase, logger }) {
   ) {
     return null
   }
+
+  const where = args?.where
+  if (!where || Object.keys(where).length === 0) {
+    return null
+  }
+
   try {
-    const row = await prismaBase[model].findUnique({ where: { id: whereId } })
+    const row = await prismaBase[model].findUnique({ where })
     return toJson(row)
   } catch (err) {
     logger.debug(
