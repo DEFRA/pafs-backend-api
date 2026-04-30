@@ -5,10 +5,16 @@
  * Extracted from ProjectFundingSourcesService to keep file sizes within SonarQube limits.
  */
 
+import { ProjectFundingContributorsSyncService } from './project-funding-contributors-sync-service.js'
+
 export class ProjectFundingContributorsService {
   constructor(prisma, logger) {
     this.prisma = prisma
     this.logger = logger
+    this._syncService = new ProjectFundingContributorsSyncService(
+      prisma,
+      logger
+    )
   }
 
   /**
@@ -435,143 +441,36 @@ export class ProjectFundingContributorsService {
   }
 
   /**
-   * Upsert all desired contributor entries for a year.
-   * @private
-   */
-  async _upsertDesiredContributors(
-    desiredEntries,
-    referenceNumber,
-    financialYear
-  ) {
-    for (const contributor of desiredEntries) {
-      await this.upsertFundingContributor({
-        referenceNumber,
-        financialYear,
-        contributorType: contributor.contributorType,
-        name: contributor.name,
-        amount: contributor.amount
-      })
-    }
-  }
-
-  /**
-   * Delete stale contributor rows that are no longer in the desired set.
-   * @private
-   * @returns {Promise<number>} Number of deleted rows
-   */
-  async _deleteStaleContributors(desiredEntries, fundingValueId) {
-    const desiredKeys = new Set(
-      desiredEntries.map((c) => `${c.contributorType}::${c.name}`)
-    )
-
-    const existingContributors =
-      await this.prisma.pafs_core_funding_contributors.findMany({
-        where: { funding_value_id: fundingValueId },
-        select: {
-          id: true,
-          contributor_type: true,
-          name: true
-        }
-      })
-
-    const staleIds = existingContributors
-      .filter((c) => !desiredKeys.has(`${c.contributor_type}::${c.name}`))
-      .map((c) => c.id)
-
-    if (staleIds.length > 0) {
-      await this.prisma.pafs_core_funding_contributors.deleteMany({
-        where: {
-          funding_value_id: fundingValueId,
-          id: { in: staleIds }
-        }
-      })
-    }
-
-    return staleIds.length
-  }
-
-  /**
-   * Sync contributor rows for a single financial year without resetting
-   * legacy secured/constrained values.
-   *
-   * Behaviour:
-   * - Existing matching rows (same type + name) are updated for amount only
-   * - Missing rows are created (secured/constrained left to DB defaults)
-   * - Stale rows not present in contributorEntries are deleted
-   *
-   * @param {Object} data
-   * @param {string} data.referenceNumber
-   * @param {number} data.financialYear
-   * @param {Array<{name:string, contributorType:string, amount:string|number}>} data.contributorEntries
+   * Sync contributor rows for a single financial year.
+   * Delegates to ProjectFundingContributorsSyncService.
    */
   async syncFundingContributorsForYear({
     referenceNumber,
     financialYear,
     contributorEntries
   }) {
-    try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+    return this._syncService.syncFundingContributorsForYear({
+      referenceNumber,
+      financialYear,
+      contributorEntries,
+      upsertFn: this.upsertFundingContributor.bind(this)
+    })
+  }
 
-      const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
-        {
-          where: {
-            project_id: projectId,
-            financial_year: financialYear
-          },
-          select: { id: true }
-        }
-      )
-
-      if (!fundingValue) {
-        this.logger.info(
-          { projectId, financialYear, referenceNumber },
-          'Funding value not found, cannot sync contributors'
-        )
-        return
-      }
-
-      const desiredEntries = Array.isArray(contributorEntries)
-        ? contributorEntries.filter(
-            (c) =>
-              c?.name &&
-              c?.contributorType &&
-              c?.amount !== null &&
-              c?.amount !== undefined &&
-              c?.amount !== ''
-          )
-        : []
-
-      await this._upsertDesiredContributors(
-        desiredEntries,
-        referenceNumber,
-        financialYear
-      )
-
-      const deletedCount = await this._deleteStaleContributors(
-        desiredEntries,
-        fundingValue.id
-      )
-
-      this.logger.info(
-        {
-          projectId,
-          financialYear,
-          referenceNumber,
-          desiredCount: desiredEntries.length,
-          deletedCount
-        },
-        'Funding contributors synced successfully for year'
-      )
-    } catch (error) {
-      this.logger.error(
-        {
-          error: error.message,
-          referenceNumber,
-          financialYear
-        },
-        'Error syncing funding contributors for year'
-      )
-      throw error
-    }
+  /**
+   * Ensures funding_value rows exist for each financial year of the project and
+   * upserts contributor rows (with null amounts) for new contributor names.
+   * Delegates to ProjectFundingContributorsSyncService.
+   */
+  async ensureContributorFundingRows({
+    referenceNumber,
+    contributorType,
+    contributorNames
+  }) {
+    return this._syncService.ensureContributorFundingRows({
+      referenceNumber,
+      contributorType,
+      contributorNames
+    })
   }
 }

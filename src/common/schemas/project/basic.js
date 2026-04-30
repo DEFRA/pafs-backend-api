@@ -6,6 +6,8 @@ import {
 } from '../../constants/project.js'
 import { SIZE, PATTERN } from '../../constants/common.js'
 
+const MAX_PROJECT_NAME_LENGTH = 200
+
 /**
  * Project ID schema - for updates
  */
@@ -44,12 +46,14 @@ export const projectNameSchema = Joi.string()
   .trim()
   .custom((value) => value.split(/\s+/).join(' '))
   .pattern(PATTERN.NAME_WITH_ALPHANUMERIC_SPACE_UNDERSCORE_DASH)
+  .max(MAX_PROJECT_NAME_LENGTH)
   .required()
   .label('name')
   .messages({
     'string.empty': PROJECT_VALIDATION_MESSAGES.NAME_REQUIRED,
     'any.required': PROJECT_VALIDATION_MESSAGES.NAME_REQUIRED,
-    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.NAME_INVALID_FORMAT
+    'string.pattern.base': PROJECT_VALIDATION_MESSAGES.NAME_INVALID_FORMAT,
+    'string.max': PROJECT_VALIDATION_MESSAGES.NAME_TOO_LONG
   })
 
 /**

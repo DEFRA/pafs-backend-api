@@ -373,7 +373,7 @@ describe('performValidations', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
     })
 
-    it('should return bad request when contributor is not configured on the project', async () => {
+    it('should allow contributor names not previously configured on the project', async () => {
       validateProjectExists.validateProjectExists.mockResolvedValue({
         error: null,
         project: {
@@ -411,17 +411,7 @@ describe('performValidations', () => {
         mockH
       )
 
-      expect(result.error).toBeDefined()
-      expect(mockH.response).toHaveBeenCalledWith({
-        validationErrors: [
-          {
-            field: 'fundingValues[0].publicContributors[0].name',
-            message: 'Unknown Org is not configured for this project',
-            errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA
-          }
-        ]
-      })
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+      expect(result.error).toBeUndefined()
     })
 
     it('should return null when fundingValues is not an array', async () => {
@@ -531,7 +521,7 @@ describe('performValidations', () => {
       )
     })
 
-    it('should return error when contributors exist but none are configured (empty names)', async () => {
+    it('should allow contributors when enabled even if project contributor names are empty', async () => {
       validateProjectExists.validateProjectExists.mockResolvedValue({
         error: null,
         project: {
@@ -569,16 +559,7 @@ describe('performValidations', () => {
         mockH
       )
 
-      expect(result.error).toBeDefined()
-      expect(mockH.response).toHaveBeenCalledWith(
-        expect.objectContaining({
-          validationErrors: expect.arrayContaining([
-            expect.objectContaining({
-              message: 'No contributors are configured for publicContributors'
-            })
-          ])
-        })
-      )
+      expect(result.error).toBeUndefined()
     })
 
     it('should skip year range validation when financialYear is not an integer', async () => {

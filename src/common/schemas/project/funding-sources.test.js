@@ -360,12 +360,24 @@ describe.each(contributorNameCases)(
     })
 
     it('fails for duplicate contributor names (case-insensitive)', () => {
-      const { error } = schema.validate('Alice, alice')
+      const { error } = schema.validate('Alice|||alice')
       expect(error).toBeDefined()
     })
 
     it('fails for duplicate names with different casing and extra spaces', () => {
-      const { error } = schema.validate('Local Authority, local authority')
+      const { error } = schema.validate('Local Authority|||local authority')
+      expect(error).toBeDefined()
+    })
+
+    it('fails when a contributor name exceeds 200 characters', () => {
+      const longName = 'A'.repeat(201)
+      const { error } = schema.validate(longName)
+      expect(error).toBeDefined()
+    })
+
+    it('fails when one name in a multi-name string exceeds 200 characters', () => {
+      const longName = 'A'.repeat(201)
+      const { error } = schema.validate(`Valid Name|||${longName}`)
       expect(error).toBeDefined()
     })
   }

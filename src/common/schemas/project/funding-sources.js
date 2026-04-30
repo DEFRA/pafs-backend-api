@@ -164,14 +164,18 @@ const createContributorsArraySchema = (contributorType) =>
 
 /**
  * Creates a contributor names schema.
- * Accepts a non-empty trimmed string; multiple contributors may be
- * comma-separated (e.g. "Org A, Org B").
+ * Accepts a non-empty trimmed string of up to 200 characters.
+ * Multiple contributor names are comma-separated (e.g. "Org A, Org B").
+ * Each individual name must not exceed 200 characters.
  * Rejects duplicate names (case-insensitive) within the same string.
  */
+const MAX_CONTRIBUTOR_NAME_LENGTH = 200
+
 const createContributorNamesSchema = (
   label,
   requiredMessage,
   invalidMessage,
+  tooLongMessage,
   duplicateMessage
 ) =>
   Joi.string()
@@ -181,15 +185,19 @@ const createContributorNamesSchema = (
     .label(label)
     .custom((value, helpers) => {
       const names = value
-        .split(',')
-        .map((n) => n.trim().toLowerCase())
+        .split('|||')
+        .map((n) => n.trim())
         .filter(Boolean)
       const seen = new Set()
       for (const name of names) {
-        if (seen.has(name)) {
+        if (name.length > MAX_CONTRIBUTOR_NAME_LENGTH) {
+          return helpers.error('string.tooLong')
+        }
+        const normalised = name.toLowerCase()
+        if (seen.has(normalised)) {
           return helpers.error('string.duplicate')
         }
-        seen.add(name)
+        seen.add(normalised)
       }
       return value
     })
@@ -198,6 +206,7 @@ const createContributorNamesSchema = (
       'string.empty': requiredMessage,
       'string.min': requiredMessage,
       'any.required': requiredMessage,
+      'string.tooLong': tooLongMessage,
       'string.duplicate': duplicateMessage
     })
 
@@ -274,6 +283,7 @@ export const publicContributorNamesSchema = createContributorNamesSchema(
   FUNDING_SOURCE_OPTIONS.PUBLIC_CONTRIBUTIONS,
   PROJECT_VALIDATION_MESSAGES.PUBLIC_SECTOR_CONTRIBUTORS_REQUIRED,
   PROJECT_VALIDATION_MESSAGES.PUBLIC_SECTOR_CONTRIBUTORS_INVALID,
+  PROJECT_VALIDATION_MESSAGES.PUBLIC_SECTOR_CONTRIBUTORS_TOO_LONG,
   PROJECT_VALIDATION_MESSAGES.PUBLIC_SECTOR_CONTRIBUTORS_DUPLICATE
 )
 
@@ -284,6 +294,7 @@ export const privateContributorNamesSchema = createContributorNamesSchema(
   FUNDING_SOURCE_OPTIONS.PRIVATE_CONTRIBUTIONS,
   PROJECT_VALIDATION_MESSAGES.PRIVATE_SECTOR_CONTRIBUTORS_REQUIRED,
   PROJECT_VALIDATION_MESSAGES.PRIVATE_SECTOR_CONTRIBUTORS_INVALID,
+  PROJECT_VALIDATION_MESSAGES.PRIVATE_SECTOR_CONTRIBUTORS_TOO_LONG,
   PROJECT_VALIDATION_MESSAGES.PRIVATE_SECTOR_CONTRIBUTORS_DUPLICATE
 )
 
@@ -294,6 +305,7 @@ export const otherEaContributorNamesSchema = createContributorNamesSchema(
   FUNDING_SOURCE_OPTIONS.OTHER_EA_CONTRIBUTIONS,
   PROJECT_VALIDATION_MESSAGES.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS_REQUIRED,
   PROJECT_VALIDATION_MESSAGES.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS_INVALID,
+  PROJECT_VALIDATION_MESSAGES.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS_TOO_LONG,
   PROJECT_VALIDATION_MESSAGES.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS_DUPLICATE
 )
 

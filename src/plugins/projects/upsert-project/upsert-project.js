@@ -25,6 +25,7 @@ import {
   clearDeselectedAdditionalGiaData,
   clearDeselectedFundingSourceColumns,
   cleanupRemovedContributors,
+  ensureContributorFundingRows,
   handleNfmMeasureData,
   sanitizeWlbFields,
   normalizeWlbFields,
@@ -32,7 +33,8 @@ import {
   clearNfmFieldsOnInterventionTypeChange,
   sanitizeCarbonFields,
   normalizeCarbonFields,
-  flushOutOfRangeFundingData
+  flushOutOfRangeFundingData,
+  syncGrowthFundingFlag
 } from '../helpers/payload-normalizers.js'
 
 /**
@@ -110,6 +112,9 @@ const applyPayloadNormalizers = async (
   // Normalize funding source spend fields: convert empty strings to null
   normalizeFundingSourceFields(enrichedPayload, validationLevel)
 
+  // Sync growthFunding flag with additionalFcermGia selection
+  syncGrowthFundingFlag(enrichedPayload, validationLevel)
+
   // Clear NFM fields when intervention type changes away from NFM/SUDS
   await clearNfmFieldsOnInterventionTypeChange(
     enrichedPayload,
@@ -137,6 +142,13 @@ const applyPayloadNormalizers = async (
 
   // Remove contributor DB rows that are no longer in the saved names list
   await cleanupRemovedContributors(
+    enrichedPayload,
+    validationLevel,
+    projectService
+  )
+
+  // Ensure funding_value rows exist per year and upsert contributor rows with null amounts
+  await ensureContributorFundingRows(
     enrichedPayload,
     validationLevel,
     projectService
