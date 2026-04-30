@@ -10,3 +10,4 @@ export { validateCreateSpecificFields } from './validate-create-specific-fields.
 export { validateUpdateAreaChange } from './validate-update-area-change.js'
 export { validateCommonFields } from './validate-common-fields.js'
 export { performValidations } from './perform-validations.js'
+export { validateSubmission, canSubmitProject } from './validate-submission.js'

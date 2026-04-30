@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="4-001-create-audit-log-table" author="migration-team">
+    <comment>Create audit_log table to track all data changes with before/after snapshots</comment>
+
+    <createTable tableName="audit_log">
+      <column name="id" type="BIGSERIAL" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <!-- Model (table) name -->
+      <column name="model" type="VARCHAR(100)">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- Primary key of the changed record -->
+      <column name="entity_id" type="VARCHAR(100)">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- CREATE | UPDATE | DELETE | UPSERT -->
+      <column name="action" type="VARCHAR(20)">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- User ID from JWT, or 'system' for automated operations -->
+      <column name="changed_by" type="VARCHAR(255)">
+        <constraints nullable="true"/>
+      </column>
+
+      <column name="changed_at" type="TIMESTAMP WITHOUT TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- Full row state before the change (null for creates) -->
+      <column name="before_data" type="JSONB">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- Full row state after the change (null for deletes) -->
+      <column name="after_data" type="JSONB">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- Field-level diff: only the fields that changed -->
+      <column name="diff" type="JSONB">
+        <constraints nullable="true"/>
+      </column>
+    </createTable>
+
+    <createIndex indexName="idx_audit_log_model_entity" tableName="audit_log">
+      <column name="model"/>
+      <column name="entity_id"/>
+    </createIndex>
+
+    <createIndex indexName="idx_audit_log_changed_by" tableName="audit_log">
+      <column name="changed_by"/>
+    </createIndex>
+
+    <createIndex indexName="idx_audit_log_changed_at" tableName="audit_log">
+      <column name="changed_at" descending="true"/>
+    </createIndex>
+
+    <rollback>
+      <dropTable tableName="audit_log" cascadeConstraints="true"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

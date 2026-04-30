@@ -5,6 +5,9 @@ import updateStatus from './update-status/update-status.js'
 import deleteBenefitAreaFile from './delete-benefit-area-file/delete-benefit-area-file.js'
 import listProjects from './list-projects/list-projects.js'
 import carbonImpact from './carbon-impact/carbon-impact.js'
+import submitProject from './submit-project/submit-project.js'
+import resubmitProject from './resubmit-project/resubmit-project.js'
+import markSubmittedToPol from './mark-submitted-to-pol/mark-submitted-to-pol.js'
 
 const projectsPlugin = {
   name: 'projects',
@@ -17,7 +20,10 @@ const projectsPlugin = {
       updateStatus,
       deleteBenefitAreaFile,
       listProjects,
-      carbonImpact
+      carbonImpact,
+      submitProject,
+      resubmitProject,
+      markSubmittedToPol
     ])
     server.logger.info('Projects plugin registered')
   }
@@ -31,3 +37,6 @@ export { default as deleteBenefitAreaFile } from './delete-benefit-area-file/del
 export { default as listProjects } from './list-projects/list-projects.js'
 export { default as updateStatus } from './update-status/update-status.js'
 export { default as carbonImpact } from './carbon-impact/carbon-impact.js'
+export { default as submitProject } from './submit-project/submit-project.js'
+export { default as resubmitProject } from './resubmit-project/resubmit-project.js'
+export { default as markSubmittedToPol } from './mark-submitted-to-pol/mark-submitted-to-pol.js'

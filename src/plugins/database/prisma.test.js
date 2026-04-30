@@ -3,6 +3,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 const mockPrismaDisconnect = vi.fn()
 const mockPrismaQueryRaw = vi.fn()
 const mockPrismaOn = vi.fn()
+const mockPrismaExtends = vi.fn().mockReturnValue({ _isAuditedClient: true })
 const mockPoolEnd = vi.fn()
 const mockPoolOn = vi.fn()
 
@@ -11,8 +12,13 @@ vi.mock('@prisma/client', () => ({
     this.$disconnect = mockPrismaDisconnect
     this.$queryRaw = mockPrismaQueryRaw
     this.$on = mockPrismaOn
+    this.$extends = mockPrismaExtends
     return this
   })
+}))
+
+vi.mock('./audit-extension.js', () => ({
+  createAuditExtension: vi.fn().mockReturnValue({ name: 'audit' })
 }))
 
 vi.mock('@prisma/adapter-pg', () => ({
@@ -219,6 +225,61 @@ describe('Prisma Plugin', () => {
     expect(call).toBeDefined()
     expect(call[2]).toBeTypeOf('function')
     expect(call[3]).toEqual({ apply: true })
+  })
+
+  test('request prisma accessor creates audit-extended client', async () => {
+    const { createAuditExtension } = await import('./audit-extension.js')
+
+    await prisma.plugin.register(mockServer, {})
+
+    const call = mockServer.decorate.mock.calls.find(
+      (c) => c[0] === 'request' && c[1] === 'prisma'
+    )
+    const decoratorFn = call[2]
+
+    // Simulate Hapi calling the apply:true decorator — Hapi passes request as the first argument, not as `this`
+    const mockRequest = { auth: { credentials: { userId: BigInt(1) } } }
+    decoratorFn(mockRequest)
+
+    expect(createAuditExtension).toHaveBeenCalledWith(
+      expect.objectContaining({
+        getUserId: expect.any(Function),
+        prismaBase: expect.any(Object),
+        logger: mockServer.logger
+      })
+    )
+    expect(mockPrismaExtends).toHaveBeenCalled()
+  })
+
+  test('getUserId in audit extension resolves userId from request credentials', async () => {
+    const { createAuditExtension } = await import('./audit-extension.js')
+
+    await prisma.plugin.register(mockServer, {})
+
+    const call = mockServer.decorate.mock.calls.find(
+      (c) => c[0] === 'request' && c[1] === 'prisma'
+    )
+    const decoratorFn = call[2]
+    const mockRequest = { auth: { credentials: { userId: BigInt(99) } } }
+    decoratorFn(mockRequest)
+
+    const { getUserId } = createAuditExtension.mock.calls.at(-1)[0]
+    expect(getUserId()).toBe(BigInt(99))
+  })
+
+  test('getUserId returns undefined when request has no auth credentials', async () => {
+    const { createAuditExtension } = await import('./audit-extension.js')
+
+    await prisma.plugin.register(mockServer, {})
+
+    const call = mockServer.decorate.mock.calls.find(
+      (c) => c[0] === 'request' && c[1] === 'prisma'
+    )
+    const decoratorFn = call[2]
+    decoratorFn({})
+
+    const { getUserId } = createAuditExtension.mock.calls.at(-1)[0]
+    expect(getUserId()).toBeUndefined()
   })
 
   test('disconnects Prisma and closes pool on server stop', async () => {

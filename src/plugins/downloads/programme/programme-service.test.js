@@ -175,7 +175,7 @@ describe('getProjectCountsForUser', () => {
       total: 0,
       submitted: 0,
       draft: 0,
-      completed: 0,
+      rejected: 0,
       archived: 0
     })
   })
@@ -214,7 +214,7 @@ describe('getProjectCountsForUser', () => {
       draft: 1,
       revise: 0,
       approved: 0,
-      completed: 0,
+      rejected: 0,
       archived: 1
     })
   })
@@ -302,7 +302,7 @@ describe('getAllProjectCounts', () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([
       { state: 'submitted', project_id: 1 },
-      { state: 'completed', project_id: 2 },
+      { state: 'rejected', project_id: 2 },
       { state: 'draft', project_id: 3 }
     ])
     prisma.pafs_core_projects.findMany.mockResolvedValue([])
@@ -315,7 +315,7 @@ describe('getAllProjectCounts', () => {
       draft: 1,
       revise: 0,
       approved: 0,
-      completed: 1,
+      rejected: 1,
       archived: 0
     })
     expect(prisma.pafs_core_states.findMany).toHaveBeenCalledWith({
@@ -657,14 +657,14 @@ describe('runAdminGeneration', () => {
   })
 })
 
-// â”€â”€ tabulateCounts â€” completed and unknown branches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ tabulateCounts â€” rejected and unknown branches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe('tabulateCounts completed and unknown state branches', () => {
-  test('counts completed state correctly', async () => {
+describe('tabulateCounts rejected and unknown state branches', () => {
+  test('counts rejected state correctly', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([
-      { state: 'completed' },
-      { state: 'completed' }
+      { state: 'rejected' },
+      { state: 'rejected' }
     ])
     const result = await getAllProjectCounts(prisma)
     expect(result).toEqual({
@@ -673,7 +673,7 @@ describe('tabulateCounts completed and unknown state branches', () => {
       draft: 0,
       revise: 0,
       approved: 0,
-      completed: 2,
+      rejected: 2,
       archived: 0
     })
   })
@@ -692,7 +692,7 @@ describe('tabulateCounts completed and unknown state branches', () => {
       draft: 0,
       revise: 2,
       approved: 1,
-      completed: 0,
+      rejected: 0,
       archived: 0
     })
   })
@@ -709,7 +709,7 @@ describe('tabulateCounts completed and unknown state branches', () => {
       draft: 0,
       revise: 0,
       approved: 0,
-      completed: 0,
+      rejected: 0,
       archived: 0
     })
   })

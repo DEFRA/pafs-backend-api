@@ -38,6 +38,9 @@ describe('validate-email endpoint', () => {
         checkDuplicate: true,
         excludeUserId: null
       },
+      auth: {
+        isAuthenticated: false
+      },
       prisma: {},
       server: {
         app: {
@@ -61,8 +64,11 @@ describe('validate-email endpoint', () => {
       expect(validateEmail.path).toBe('/api/v1/validate-email')
     })
 
-    it('has auth disabled', () => {
-      expect(validateEmail.options.auth).toBe(false)
+    it('has optional JWT auth configured', () => {
+      expect(validateEmail.options.auth).toEqual({
+        mode: 'try',
+        strategy: 'jwt'
+      })
     })
 
     it('has appropriate tags', () => {
@@ -101,7 +107,8 @@ describe('validate-email endpoint', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })
 
-    it('passes all options to validation service', async () => {
+    it('passes all options to validation service for authenticated user', async () => {
+      mockRequest.auth = { isAuthenticated: true }
       mockRequest.payload = {
         email: 'user@example.com',
         checkDisposable: false,
@@ -124,6 +131,30 @@ describe('validate-email endpoint', () => {
         checkDuplicate: false,
         excludeUserId: 123
       })
+    })
+
+    it('strips excludeUserId for unauthenticated requests', async () => {
+      mockRequest.auth = { isAuthenticated: false }
+      mockRequest.payload = {
+        email: 'user@example.com',
+        checkDuplicate: true,
+        excludeUserId: 123
+      }
+
+      mockValidateEmail.mockResolvedValue({
+        isValid: true,
+        email: 'user@example.com',
+        errors: []
+      })
+
+      await validateEmail.handler(mockRequest, mockH)
+
+      expect(mockValidateEmail).toHaveBeenCalledWith(
+        'user@example.com',
+        expect.objectContaining({
+          excludeUserId: undefined
+        })
+      )
     })
   })
 
@@ -292,7 +323,8 @@ describe('validate-email endpoint', () => {
       )
     })
 
-    it('handles update scenario with excludeUserId', async () => {
+    it('handles update scenario with excludeUserId (authenticated admin)', async () => {
+      mockRequest.auth = { isAuthenticated: true }
       mockRequest.payload = {
         email: 'test@example.com',
         checkDuplicate: true,
