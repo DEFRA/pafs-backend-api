@@ -415,6 +415,46 @@ describe('ProjectFundingContributorsService', () => {
       ).toHaveBeenCalledTimes(1)
     })
 
+    test('sorts added names and renames removed contributors in order', async () => {
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 10n }
+      ])
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
+        { name: 'Old A' },
+        { name: 'Old B' }
+      ])
+
+      // Both old names removed, two new names added (unsorted order: Zeta, Alpha)
+      await service.cleanupContributorsByName({
+        ...args,
+        currentNames: ['Zeta', 'Alpha']
+      })
+
+      // added should be sorted: ['Alpha', 'Zeta']
+      // removed sorted: ['Old A', 'Old B']
+      // Old A → Alpha (rename), Old B → Zeta (rename)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: { in: [10n] },
+          contributor_type: 'public_contributions',
+          name: 'Old A'
+        },
+        data: { name: 'Alpha' }
+      })
+      expect(
+        mockPrisma.pafs_core_funding_contributors.updateMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: { in: [10n] },
+          contributor_type: 'public_contributions',
+          name: 'Old B'
+        },
+        data: { name: 'Zeta' }
+      })
+    })
+
     test('does nothing when names are unchanged', async () => {
       mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
         { id: 10n }
@@ -522,13 +562,14 @@ describe('ProjectFundingContributorsService', () => {
         .spyOn(service, 'upsertFundingContributor')
         .mockResolvedValue({})
 
-      await service._upsertDesiredContributors(
+      await service._syncService._upsertDesiredContributors(
         [
           { contributorType: 'public_contributions', name: 'A', amount: '1' },
           { contributorType: 'private_contributions', name: 'B', amount: '2' }
         ],
         'REF-001',
-        2026
+        2026,
+        service.upsertFundingContributor.bind(service)
       )
 
       expect(spy).toHaveBeenCalledTimes(2)
@@ -549,7 +590,7 @@ describe('ProjectFundingContributorsService', () => {
         { id: 2n, contributor_type: 'public_contributions', name: 'Remove' }
       ])
 
-      const deleted = await service._deleteStaleContributors(
+      const deleted = await service._syncService._deleteStaleContributors(
         [{ contributorType: 'public_contributions', name: 'Keep' }],
         10n
       )
@@ -570,7 +611,7 @@ describe('ProjectFundingContributorsService', () => {
         { id: 1n, contributor_type: 'public_contributions', name: 'Keep' }
       ])
 
-      const deleted = await service._deleteStaleContributors(
+      const deleted = await service._syncService._deleteStaleContributors(
         [{ contributorType: 'public_contributions', name: 'Keep' }],
         10n
       )
@@ -614,10 +655,10 @@ describe('ProjectFundingContributorsService', () => {
         id: 10n
       })
       const upsertSpy = vi
-        .spyOn(service, '_upsertDesiredContributors')
+        .spyOn(service._syncService, '_upsertDesiredContributors')
         .mockResolvedValue()
       const staleSpy = vi
-        .spyOn(service, '_deleteStaleContributors')
+        .spyOn(service._syncService, '_deleteStaleContributors')
         .mockResolvedValue(2)
 
       await service.syncFundingContributorsForYear({
@@ -637,7 +678,8 @@ describe('ProjectFundingContributorsService', () => {
           { contributorType: 'private_contributions', name: 'C', amount: 50 }
         ],
         'REF-001',
-        2026
+        2026,
+        expect.any(Function)
       )
       expect(staleSpy).toHaveBeenCalledWith(
         [
@@ -657,10 +699,10 @@ describe('ProjectFundingContributorsService', () => {
         id: 10n
       })
       const upsertSpy = vi
-        .spyOn(service, '_upsertDesiredContributors')
+        .spyOn(service._syncService, '_upsertDesiredContributors')
         .mockResolvedValue()
       const staleSpy = vi
-        .spyOn(service, '_deleteStaleContributors')
+        .spyOn(service._syncService, '_deleteStaleContributors')
         .mockResolvedValue(0)
 
       await service.syncFundingContributorsForYear({
@@ -668,7 +710,12 @@ describe('ProjectFundingContributorsService', () => {
         contributorEntries: null
       })
 
-      expect(upsertSpy).toHaveBeenCalledWith([], 'REF-001', 2026)
+      expect(upsertSpy).toHaveBeenCalledWith(
+        [],
+        'REF-001',
+        2026,
+        expect.any(Function)
+      )
       expect(staleSpy).toHaveBeenCalledWith([], 10n)
     })
 
@@ -677,10 +724,10 @@ describe('ProjectFundingContributorsService', () => {
         id: 10n
       })
       const upsertSpy = vi
-        .spyOn(service, '_upsertDesiredContributors')
+        .spyOn(service._syncService, '_upsertDesiredContributors')
         .mockResolvedValue()
       const staleSpy = vi
-        .spyOn(service, '_deleteStaleContributors')
+        .spyOn(service._syncService, '_deleteStaleContributors')
         .mockResolvedValue(0)
 
       await service.syncFundingContributorsForYear({
@@ -709,7 +756,8 @@ describe('ProjectFundingContributorsService', () => {
           }
         ],
         'REF-001',
-        2026
+        2026,
+        expect.any(Function)
       )
       expect(staleSpy).toHaveBeenCalledWith(
         [
@@ -727,9 +775,10 @@ describe('ProjectFundingContributorsService', () => {
       mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue({
         id: 10n
       })
-      vi.spyOn(service, '_upsertDesiredContributors').mockRejectedValue(
-        new Error('boom')
-      )
+      vi.spyOn(
+        service._syncService,
+        '_upsertDesiredContributors'
+      ).mockRejectedValue(new Error('boom'))
 
       await expect(
         service.syncFundingContributorsForYear({
@@ -745,6 +794,26 @@ describe('ProjectFundingContributorsService', () => {
         }),
         'Error syncing funding contributors for year'
       )
+    })
+  })
+
+  describe('ensureContributorFundingRows', () => {
+    test('delegates to _syncService.ensureContributorFundingRows', async () => {
+      const spy = vi
+        .spyOn(service._syncService, 'ensureContributorFundingRows')
+        .mockResolvedValue()
+
+      await service.ensureContributorFundingRows({
+        referenceNumber: 'REF-001',
+        contributorType: 'public_contributions',
+        contributorNames: ['Alice']
+      })
+
+      expect(spy).toHaveBeenCalledWith({
+        referenceNumber: 'REF-001',
+        contributorType: 'public_contributions',
+        contributorNames: ['Alice']
+      })
     })
   })
 })
