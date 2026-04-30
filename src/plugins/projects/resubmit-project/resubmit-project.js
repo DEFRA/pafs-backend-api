@@ -74,40 +74,19 @@ async function lookupCreatorEmail(prisma, project, referenceNumber, logger) {
   }
 }
 
-const handler = async (request, h) => {
-  const referenceNumber = request.params.referenceNumber.replaceAll('-', '/')
+/**
+ * Build and send the resubmission payload, stamp submitted_at, and return
+ * the success response. Called once access and state checks have passed.
+ */
+async function performResubmission(
+  request,
+  h,
+  referenceNumber,
+  project,
+  projectService
+) {
   const { credentials } = request.auth
   const { logger } = request.server
-
-  if (!credentials.isAdmin) {
-    return buildErrorResponse(h, HTTP_STATUS.FORBIDDEN, [
-      {
-        errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_SUBMIT,
-        message: 'Only admin users may resubmit proposals'
-      }
-    ])
-  }
-
-  const projectService = new ProjectService(request.prisma, logger)
-  const { project, errorResponse } = await loadProjectForResubmit(
-    projectService,
-    referenceNumber,
-    logger,
-    h
-  )
-  if (errorResponse) {
-    return errorResponse
-  }
-
-  const projectState = project.projectState ?? project.state ?? project.status
-  if (projectState !== PROJECT_STATUS.SUBMITTED) {
-    return buildErrorResponse(h, HTTP_STATUS.UNPROCESSABLE_ENTITY, [
-      {
-        errorCode: 'PROJECT_NOT_SUBMITTED',
-        message: `Project '${referenceNumber}' is not in submitted state (current: ${projectState})`
-      }
-    ])
-  }
 
   const creatorEmail = await lookupCreatorEmail(
     request.prisma,
@@ -161,6 +140,50 @@ const handler = async (request, h) => {
       }
     }
   })
+}
+
+const handler = async (request, h) => {
+  const referenceNumber = request.params.referenceNumber.replaceAll('-', '/')
+  const { credentials } = request.auth
+  const { logger } = request.server
+
+  if (!credentials.isAdmin) {
+    return buildErrorResponse(h, HTTP_STATUS.FORBIDDEN, [
+      {
+        errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_SUBMIT,
+        message: 'Only admin users may resubmit proposals'
+      }
+    ])
+  }
+
+  const projectService = new ProjectService(request.prisma, logger)
+  const { project, errorResponse } = await loadProjectForResubmit(
+    projectService,
+    referenceNumber,
+    logger,
+    h
+  )
+  if (errorResponse) {
+    return errorResponse
+  }
+
+  const projectState = project.projectState ?? project.state ?? project.status
+  if (projectState !== PROJECT_STATUS.SUBMITTED) {
+    return buildErrorResponse(h, HTTP_STATUS.UNPROCESSABLE_ENTITY, [
+      {
+        errorCode: 'PROJECT_NOT_SUBMITTED',
+        message: `Project '${referenceNumber}' is not in submitted state (current: ${projectState})`
+      }
+    ])
+  }
+
+  return performResubmission(
+    request,
+    h,
+    referenceNumber,
+    project,
+    projectService
+  )
 }
 
 const resubmitProject = {

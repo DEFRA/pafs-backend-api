@@ -12,11 +12,7 @@ import {
   fyEndOrdinal,
   currentFYStartYear
 } from './submission/submission-date-utils.js'
-import {
-  hasValue,
-  MANDATORY_WL_TYPES,
-  NFM_INTERVENTION_TYPES
-} from './submission/submission-utils.js'
+import { hasValue, MANDATORY_WL_TYPES } from './submission/submission-utils.js'
 import {
   validateFundingSources,
   validateFundingSourceValues,
@@ -445,9 +441,8 @@ export function canSubmitProject(credentials, projectAreaDetails) {
   return canUpdateProject(credentials, projectAreaDetails)
 }
 
+export { OPTIONAL_WL_TYPES, FULL_TYPES }
 export {
   MANDATORY_WL_TYPES,
-  OPTIONAL_WL_TYPES,
-  FULL_TYPES,
   NFM_INTERVENTION_TYPES
-}
+} from './submission/submission-utils.js'
