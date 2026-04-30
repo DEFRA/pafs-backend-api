@@ -8,7 +8,9 @@ import {
   clearDeselectedContributorData,
   clearDeselectedFundingSourceColumns,
   cleanupRemovedContributors,
-  flushOutOfRangeFundingData
+  flushOutOfRangeFundingData,
+  syncGrowthFundingFlag,
+  ensureContributorFundingRows
 } from './funding-sources-normalizers.js'
 
 describe('funding-sources-normalizers', () => {
@@ -1506,6 +1508,140 @@ describe('funding-sources-normalizers', () => {
         2027,
         2032
       )
+    })
+  })
+
+  describe('syncGrowthFundingFlag (re-export)', () => {
+    it('sets growthFunding true when additionalFcermGia is true', () => {
+      const payload = { additionalFcermGia: true }
+      syncGrowthFundingFlag(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED
+      )
+      expect(payload.growthFunding).toBe(true)
+    })
+
+    it('sets growthFunding false when additionalFcermGia is false', () => {
+      const payload = { additionalFcermGia: false, growthFunding: true }
+      syncGrowthFundingFlag(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED
+      )
+      expect(payload.growthFunding).toBe(false)
+    })
+  })
+
+  describe('ensureContributorFundingRows (re-export)', () => {
+    it('calls projectService.ensureContributorFundingRows with parsed names', async () => {
+      const projectService = {
+        ensureContributorFundingRows: vi.fn().mockResolvedValue()
+      }
+      const payload = {
+        referenceNumber: 'REF-001',
+        publicContributorNames: 'Alice|||Bob'
+      }
+      await ensureContributorFundingRows(
+        payload,
+        PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS,
+        projectService
+      )
+      expect(projectService.ensureContributorFundingRows).toHaveBeenCalledWith({
+        referenceNumber: 'REF-001',
+        contributorType: 'public_contributions',
+        contributorNames: ['Alice', 'Bob']
+      })
+    })
+
+    it('skips for unrelated validation levels', async () => {
+      const projectService = { ensureContributorFundingRows: vi.fn() }
+      const payload = {
+        referenceNumber: 'REF-001',
+        publicContributorNames: 'Alice'
+      }
+      await ensureContributorFundingRows(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED,
+        projectService
+      )
+      expect(projectService.ensureContributorFundingRows).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('normalizeFundingSourceFields – contributorType fallback', () => {
+    it('uses the config contributorType when entry has no contributorType', async () => {
+      const projectService = {
+        upsertFundingValue: vi.fn().mockResolvedValue(),
+        syncFundingContributorsForYear: vi.fn().mockResolvedValue()
+      }
+      const payload = {
+        referenceNumber: 'REF-001',
+        fundingValues: [
+          {
+            financialYear: 2025,
+            publicContributors: [{ name: 'OrgA', amount: '100' }]
+          }
+        ]
+      }
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService
+      )
+      expect(
+        projectService.syncFundingContributorsForYear
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contributorEntries: expect.arrayContaining([
+            expect.objectContaining({
+              contributorType: 'public_contributions',
+              name: 'OrgA'
+            })
+          ])
+        })
+      )
+    })
+  })
+
+  describe('flushOutOfRangeFundingData – null year fallback', () => {
+    it('falls back to existingProject years when payload years are missing', async () => {
+      const projectService = {
+        clearOutOfRangeFundingData: vi.fn().mockResolvedValue()
+      }
+      const payload = { referenceNumber: 'REF-001' }
+      const existingProject = {
+        financialStartYear: 2025,
+        financialEndYear: 2030
+      }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
+        existingProject,
+        projectService
+      )
+
+      expect(projectService.clearOutOfRangeFundingData).toHaveBeenCalledWith(
+        'REF-001',
+        2025,
+        2030
+      )
+    })
+
+    it('resolves to null when existingProject is null', async () => {
+      const projectService = {
+        clearOutOfRangeFundingData: vi.fn().mockResolvedValue()
+      }
+      const payload = { referenceNumber: 'REF-001' }
+
+      await flushOutOfRangeFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
+        null,
+        projectService
+      )
+
+      // Both years null → returns early, clearOutOfRangeFundingData not called
+      expect(projectService.clearOutOfRangeFundingData).not.toHaveBeenCalled()
     })
   })
 })

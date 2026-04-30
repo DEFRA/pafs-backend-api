@@ -368,6 +368,18 @@ describe.each(contributorNameCases)(
       const { error } = schema.validate('Local Authority|||local authority')
       expect(error).toBeDefined()
     })
+
+    it('fails when a contributor name exceeds 200 characters', () => {
+      const longName = 'A'.repeat(201)
+      const { error } = schema.validate(longName)
+      expect(error).toBeDefined()
+    })
+
+    it('fails when one name in a multi-name string exceeds 200 characters', () => {
+      const longName = 'A'.repeat(201)
+      const { error } = schema.validate(`Valid Name|||${longName}`)
+      expect(error).toBeDefined()
+    })
   }
 )
 

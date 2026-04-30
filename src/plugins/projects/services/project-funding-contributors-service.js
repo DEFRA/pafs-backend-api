@@ -5,10 +5,16 @@
  * Extracted from ProjectFundingSourcesService to keep file sizes within SonarQube limits.
  */
 
+import { ProjectFundingContributorsSyncService } from './project-funding-contributors-sync-service.js'
+
 export class ProjectFundingContributorsService {
   constructor(prisma, logger) {
     this.prisma = prisma
     this.logger = logger
+    this._syncService = new ProjectFundingContributorsSyncService(
+      prisma,
+      logger
+    )
   }
 
   /**
@@ -435,248 +441,36 @@ export class ProjectFundingContributorsService {
   }
 
   /**
-   * Upsert all desired contributor entries for a year.
-   * @private
-   */
-  async _upsertDesiredContributors(
-    desiredEntries,
-    referenceNumber,
-    financialYear
-  ) {
-    for (const contributor of desiredEntries) {
-      await this.upsertFundingContributor({
-        referenceNumber,
-        financialYear,
-        contributorType: contributor.contributorType,
-        name: contributor.name,
-        amount: contributor.amount
-      })
-    }
-  }
-
-  /**
-   * Delete stale contributor rows that are no longer in the desired set.
-   * @private
-   * @returns {Promise<number>} Number of deleted rows
-   */
-  async _deleteStaleContributors(desiredEntries, fundingValueId) {
-    const desiredKeys = new Set(
-      desiredEntries.map((c) => `${c.contributorType}::${c.name}`)
-    )
-
-    const existingContributors =
-      await this.prisma.pafs_core_funding_contributors.findMany({
-        where: { funding_value_id: fundingValueId },
-        select: {
-          id: true,
-          contributor_type: true,
-          name: true
-        }
-      })
-
-    const staleIds = existingContributors
-      .filter((c) => !desiredKeys.has(`${c.contributor_type}::${c.name}`))
-      .map((c) => c.id)
-
-    if (staleIds.length > 0) {
-      await this.prisma.pafs_core_funding_contributors.deleteMany({
-        where: {
-          funding_value_id: fundingValueId,
-          id: { in: staleIds }
-        }
-      })
-    }
-
-    return staleIds.length
-  }
-
-  /**
-   * Sync contributor rows for a single financial year without resetting
-   * legacy secured/constrained values.
-   *
-   * Behaviour:
-   * - Existing matching rows (same type + name) are updated for amount only
-   * - Missing rows are created (secured/constrained left to DB defaults)
-   * - Stale rows not present in contributorEntries are deleted
-   *
-   * @param {Object} data
-   * @param {string} data.referenceNumber
-   * @param {number} data.financialYear
-   * @param {Array<{name:string, contributorType:string, amount:string|number}>} data.contributorEntries
+   * Sync contributor rows for a single financial year.
+   * Delegates to ProjectFundingContributorsSyncService.
    */
   async syncFundingContributorsForYear({
     referenceNumber,
     financialYear,
     contributorEntries
   }) {
-    try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
-
-      const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
-        {
-          where: {
-            project_id: projectId,
-            financial_year: financialYear
-          },
-          select: { id: true }
-        }
-      )
-
-      if (!fundingValue) {
-        this.logger.info(
-          { projectId, financialYear, referenceNumber },
-          'Funding value not found, cannot sync contributors'
-        )
-        return
-      }
-
-      const desiredEntries = Array.isArray(contributorEntries)
-        ? contributorEntries.filter(
-            (c) =>
-              c?.name &&
-              c?.contributorType &&
-              c?.amount !== null &&
-              c?.amount !== undefined &&
-              c?.amount !== ''
-          )
-        : []
-
-      await this._upsertDesiredContributors(
-        desiredEntries,
-        referenceNumber,
-        financialYear
-      )
-
-      const deletedCount = await this._deleteStaleContributors(
-        desiredEntries,
-        fundingValue.id
-      )
-
-      this.logger.info(
-        {
-          projectId,
-          financialYear,
-          referenceNumber,
-          desiredCount: desiredEntries.length,
-          deletedCount
-        },
-        'Funding contributors synced successfully for year'
-      )
-    } catch (error) {
-      this.logger.error(
-        {
-          error: error.message,
-          referenceNumber,
-          financialYear
-        },
-        'Error syncing funding contributors for year'
-      )
-      throw error
-    }
+    return this._syncService.syncFundingContributorsForYear({
+      referenceNumber,
+      financialYear,
+      contributorEntries,
+      upsertFn: this.upsertFundingContributor.bind(this)
+    })
   }
 
   /**
    * Ensures funding_value rows exist for each financial year of the project and
    * upserts contributor rows (with null amounts) for new contributor names.
-   * Existing contributors with amounts are preserved (rename-in-place is handled
-   * by cleanupContributorsByName).
-   *
-   * @param {Object} data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {string} data.contributorType - e.g. 'public_contributions'
-   * @param {string[]} data.contributorNames - Array of contributor names
+   * Delegates to ProjectFundingContributorsSyncService.
    */
   async ensureContributorFundingRows({
     referenceNumber,
     contributorType,
     contributorNames
   }) {
-    try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
-
-      // Get the project's financial year range
-      const project = await this.prisma.pafs_core_projects.findFirst({
-        where: { id: projectId },
-        select: {
-          earliest_start_year: true,
-          project_end_financial_year: true
-        }
-      })
-
-      if (
-        !project?.earliest_start_year ||
-        !project?.project_end_financial_year
-      ) {
-        this.logger.info(
-          { referenceNumber },
-          'Project has no financial year range, skipping contributor funding rows'
-        )
-        return
-      }
-
-      const startYear = project.earliest_start_year
-      const endYear = project.project_end_financial_year
-
-      for (let year = startYear; year <= endYear; year++) {
-        // Ensure funding_value row exists for this year
-        let fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
-          {
-            where: { project_id: projectId, financial_year: year },
-            select: { id: true }
-          }
-        )
-
-        if (!fundingValue) {
-          fundingValue = await this.prisma.pafs_core_funding_values.create({
-            data: {
-              project_id: projectId,
-              financial_year: year,
-              total: 0n
-            }
-          })
-        }
-
-        // Upsert contributor rows with null amount for each name
-        for (const name of contributorNames) {
-          const existing =
-            await this.prisma.pafs_core_funding_contributors.findFirst({
-              where: {
-                funding_value_id: fundingValue.id,
-                name,
-                contributor_type: contributorType
-              },
-              select: { id: true }
-            })
-
-          if (!existing) {
-            await this.prisma.pafs_core_funding_contributors.create({
-              data: {
-                funding_value_id: fundingValue.id,
-                name,
-                contributor_type: contributorType,
-                amount: null,
-                created_at: new Date(),
-                updated_at: new Date()
-              }
-            })
-          }
-        }
-      }
-
-      this.logger.info(
-        {
-          referenceNumber,
-          contributorType,
-          nameCount: contributorNames.length
-        },
-        'Contributor funding rows ensured successfully'
-      )
-    } catch (error) {
-      this.logger.error(
-        { error: error.message, referenceNumber, contributorType },
-        'Error ensuring contributor funding rows'
-      )
-      throw error
-    }
+    return this._syncService.ensureContributorFundingRows({
+      referenceNumber,
+      contributorType,
+      contributorNames
+    })
   }
 }
