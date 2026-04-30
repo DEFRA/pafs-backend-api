@@ -1,7 +1,6 @@
 import { config } from '../../../config.js'
 
-const HTTP_SUCCESS_MIN = 200
-const HTTP_SUCCESS_MAX = 300
+const HTTP_OK = 200
 
 export const SUBMISSION_STATUS = {
   PENDING: 'pending',
@@ -69,7 +68,7 @@ export class ExternalSubmissionService {
         referenceNumber
       ))
 
-      if (httpStatus < HTTP_SUCCESS_MIN || httpStatus >= HTTP_SUCCESS_MAX) {
+      if (httpStatus !== HTTP_OK) {
         return await this._handleFailure({
           projectId,
           referenceNumber,

@@ -15,6 +15,11 @@ import {
   URGENCY_REASONS
 } from '../../../../common/constants/project.js'
 
+const {
+  SUBMISSION_IMPORTANT_DATES_INCOMPLETE,
+  SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
+} = PROJECT_VALIDATION_MESSAGES
+
 // ─── canUpdateProject mock ────────────────────────────────────────────────────
 vi.mock('../project-permissions.js', () => ({
   canUpdateProject: vi.fn()
@@ -55,17 +60,28 @@ const validDefProject = (overrides = {}) => ({
     { financialYear: 2026, total: 5000 }
   ],
   // Risk & properties
-  noPropertiesAtFloodRisk: true,
+  noPropertiesAtRisk: true,
   noPropertiesAtCoastalErosionRisk: true,
   percentProperties20PercentDeprived: 10,
   percentProperties40PercentDeprived: 20,
   risks: [],
   // Goals
   approach: 'We will build a flood defence.',
-  // Environmental benefits
-  environmentalBenefits: 'yes',
-  // NFM — DEF with NFM intervention: measures required
+  // Environmental benefits — answered no; sub-gate tests are in validate-environmental-benefits.test.js
+  environmentalBenefits: false,
+  // NFM — DEF with NFM intervention: measures, land use and context fields required
   nfmSelectedMeasures: ['floodplain_restoration'],
+  nfmLandUseChange: 'woodland',
+  pafs_core_nfm_land_use_changes: [
+    {
+      landUseType: 'woodland',
+      areaBeforeHectares: 10.0,
+      areaAfterHectares: 12.5
+    }
+  ],
+  nfmLandownerConsent: 'consent_fully_secured',
+  nfmExperienceLevel: 'moderate_experience',
+  nfmProjectReadiness: 'well_developed_proposal',
   // Urgency
   urgencyReason: URGENCY_REASONS.NOT_URGENT,
   // WLC (mandatory for DEF)
@@ -106,7 +122,7 @@ const validEloProject = (overrides = {}) => ({
   readyForServiceYear: 2026,
   couldStartEarly: false,
   pafs_core_funding_values: [{ financialYear: 2025, total: 1000 }],
-  noPropertiesAtFloodRisk: true,
+  noPropertiesAtRisk: true,
   noPropertiesAtCoastalErosionRisk: true,
   percentProperties20PercentDeprived: 0,
   percentProperties40PercentDeprived: 0,
@@ -347,14 +363,15 @@ describe('validateSubmission', () => {
       )
     })
 
-    test('returns both year errors when both are missing', () => {
+    test('returns START_YEAR_INCOMPLETE when both years are missing', () => {
+      // Combined validator returns the first error — start year checked before end year
       const errors = validateSubmission(
         validDefProject({ financialStartYear: null, financialEndYear: null })
       )
       expect(errors).toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_START_YEAR_INCOMPLETE
       )
-      expect(errors).toContain(
+      expect(errors).not.toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_INCOMPLETE
       )
     })
@@ -366,6 +383,40 @@ describe('validateSubmission', () => {
       )
       expect(errors).not.toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_INCOMPLETE
+      )
+    })
+
+    test('returns END_YEAR_NOT_AFTER_START when endYear equals startYear', () => {
+      const errors = validateSubmission(
+        validDefProject({ financialStartYear: 2025, financialEndYear: 2025 })
+      )
+      expect(errors).toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_NOT_AFTER_START
+      )
+    })
+
+    test('returns END_YEAR_NOT_AFTER_START when endYear is less than startYear', () => {
+      const errors = validateSubmission(
+        validDefProject({ financialStartYear: 2025, financialEndYear: 2024 })
+      )
+      expect(errors).toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_NOT_AFTER_START
+      )
+    })
+
+    test('does not return range error when endYear is greater than startYear', () => {
+      const errors = validateSubmission(validDefProject())
+      expect(errors).not.toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_NOT_AFTER_START
+      )
+    })
+
+    test('does not return range error when either year is missing', () => {
+      const errors = validateSubmission(
+        validDefProject({ financialStartYear: null })
+      )
+      expect(errors).not.toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_NOT_AFTER_START
       )
     })
   })
@@ -426,11 +477,12 @@ describe('validateSubmission', () => {
     )
 
     test('returns IMPORTANT_DATES_OUT_OF_RANGE when a date is before financialStartYear', () => {
-      // startConstructionMonth/Year FY = 2024, but startYear = 2025
+      // startOBC March 2025 → ordinal 24303 < lower bound April 2025 (24304) → out of range
+      // Dates remain chronological so the range check fires first
       const errors = validateSubmission(
         validDefProject({
-          startConstructionMonth: 4,
-          startConstructionYear: 2024,
+          startOutlineBusinessCaseMonth: 3,
+          startOutlineBusinessCaseYear: 2025,
           financialStartYear: 2025
         })
       )
@@ -440,6 +492,8 @@ describe('validateSubmission', () => {
     })
 
     test('returns IMPORTANT_DATES_OUT_OF_RANGE when a date is after financialEndYear', () => {
+      // readyForService April 2030 → ordinal 24364
+      // upper bound: March of (endYear+1) = March 2028 → ordinal 24339 → 24364 > 24339
       const errors = validateSubmission(
         validDefProject({
           readyForServiceMonth: 4,
@@ -448,6 +502,29 @@ describe('validateSubmission', () => {
         })
       )
       expect(errors).toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
+      )
+    })
+
+    test('date in March of (endYear+1) is within range — inclusive upper boundary', () => {
+      // financialEndYear=2027 → upper bound = March 2028 → ordinal 24339
+      // readyForService March 2028 → ordinal 24339 ≤ 24339 → passes
+      const errors = validateSubmission(
+        validDefProject({
+          startOutlineBusinessCaseMonth: 4,
+          startOutlineBusinessCaseYear: 2025,
+          completeOutlineBusinessCaseMonth: 6,
+          completeOutlineBusinessCaseYear: 2025,
+          awardContractMonth: 8,
+          awardContractYear: 2025,
+          startConstructionMonth: 10,
+          startConstructionYear: 2025,
+          readyForServiceMonth: 3,
+          readyForServiceYear: 2028,
+          financialEndYear: 2027
+        })
+      )
+      expect(errors).not.toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
       )
     })
@@ -464,8 +541,8 @@ describe('validateSubmission', () => {
       )
     })
 
-    test('January–March dates mapped to previous FY — boundary passes when within range', () => {
-      // Month 1, year 2026 → FY 2025 (within 2025–2027)
+    test('Jan–Mar dates compare by actual calendar month — boundary within range passes', () => {
+      // January 2026 ordinal = 24313; range [April 2025=24304, March 2028=24339] → passes
       const errors = validateSubmission(
         validDefProject({
           awardContractMonth: 1,
@@ -477,7 +554,7 @@ describe('validateSubmission', () => {
       )
     })
 
-    test('April date maps to same year FY — boundary passes at start', () => {
+    test('April at start year passes (inclusive lower boundary)', () => {
       const errors = validateSubmission(
         validDefProject({
           startOutlineBusinessCaseMonth: 4,
@@ -489,18 +566,76 @@ describe('validateSubmission', () => {
       )
     })
 
+    describe('chronological order', () => {
+      test('returns OUT_OF_RANGE when two consecutive dates are equal', () => {
+        // awardContract same month/year as startConstruction
+        const errors = validateSubmission(
+          validDefProject({
+            awardContractMonth: 4,
+            awardContractYear: 2026,
+            startConstructionMonth: 4,
+            startConstructionYear: 2026
+          })
+        )
+        expect(errors).toContain(
+          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
+        )
+      })
+
+      test('returns OUT_OF_RANGE when a date is earlier than the previous', () => {
+        // startConstruction before completeOBC
+        const errors = validateSubmission(
+          validDefProject({
+            completeOutlineBusinessCaseMonth: 8,
+            completeOutlineBusinessCaseYear: 2025,
+            awardContractMonth: 7,
+            awardContractYear: 2025
+          })
+        )
+        expect(errors).toContain(
+          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
+        )
+      })
+
+      test('all dates strictly increasing returns no out-of-range error', () => {
+        const errors = validateSubmission(validDefProject())
+        expect(errors).not.toContain(
+          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
+        )
+      })
+    })
+
     describe('couldStartEarly / earliestWithGia', () => {
+      // Use a fixed `now` so current FY is predictable.
+      // June 2024 → currentFYStartYear = 2024 → lower GIA bound = April 2024 (ordinal 24292)
+      // validDefProject startOBC = May 2025 (ordinal 24305) → upper GIA bound = 24305
+      const fixedNow = new Date('2024-06-01')
+
+      test('couldStartEarly=null returns INCOMPLETE', () => {
+        const errors = validateSubmission(
+          validDefProject({ couldStartEarly: null }),
+          fixedNow
+        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
+      })
+
+      test('couldStartEarly=undefined returns INCOMPLETE', () => {
+        const p = validDefProject()
+        delete p.couldStartEarly
+        const errors = validateSubmission(p, fixedNow)
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
+      })
+
       test('couldStartEarly=true with missing GIA month returns INCOMPLETE', () => {
         const errors = validateSubmission(
           validDefProject({
             couldStartEarly: true,
             earliestWithGiaMonth: null,
             earliestWithGiaYear: 2024
-          })
+          }),
+          fixedNow
         )
-        expect(errors).toContain(
-          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
-        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
       })
 
       test('couldStartEarly=true with missing GIA year returns INCOMPLETE', () => {
@@ -509,11 +644,10 @@ describe('validateSubmission', () => {
             couldStartEarly: true,
             earliestWithGiaMonth: 6,
             earliestWithGiaYear: null
-          })
+          }),
+          fixedNow
         )
-        expect(errors).toContain(
-          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
-        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
       })
 
       test('couldStartEarly="true" (string) also triggers GIA check', () => {
@@ -522,11 +656,10 @@ describe('validateSubmission', () => {
             couldStartEarly: 'true',
             earliestWithGiaMonth: null,
             earliestWithGiaYear: null
-          })
+          }),
+          fixedNow
         )
-        expect(errors).toContain(
-          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
-        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
       })
 
       test('couldStartEarly=false with missing GIA dates returns no error', () => {
@@ -535,42 +668,77 @@ describe('validateSubmission', () => {
             couldStartEarly: false,
             earliestWithGiaMonth: null,
             earliestWithGiaYear: null
-          })
+          }),
+          fixedNow
         )
-        expect(errors).not.toContain(
-          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
-        )
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
       })
 
-      test('GIA date >= financialStartYear returns OUT_OF_RANGE', () => {
-        // earliestWithGia FY must be BEFORE financialStartYear (2025)
-        // month=5, year=2025 → FY 2025 which is NOT < 2025 → error
+      test('GIA date after startOBC returns OUT_OF_RANGE', () => {
+        // startOBC = May 2025 (ordinal 24305); GIA = Jun 2025 (ordinal 24306) → after upper bound
         const errors = validateSubmission(
           validDefProject({
-            couldStartEarly: false,
-            earliestWithGiaMonth: 5,
-            earliestWithGiaYear: 2025,
-            financialStartYear: 2025
-          })
+            couldStartEarly: true,
+            earliestWithGiaMonth: 6,
+            earliestWithGiaYear: 2025
+          }),
+          fixedNow
         )
-        expect(errors).toContain(
-          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
-        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
       })
 
-      test('GIA date < financialStartYear returns no range error', () => {
-        // month=5, year=2024 → FY 2024, which is < 2025 → passes
+      test('GIA date before April of current FY returns OUT_OF_RANGE', () => {
+        // fixedNow = June 2024 → currentFY = 2024 → lower = April 2024 (ordinal 24292)
+        // GIA = March 2024 (ordinal 24291) → before lower bound
         const errors = validateSubmission(
           validDefProject({
-            couldStartEarly: false,
+            couldStartEarly: true,
+            earliestWithGiaMonth: 3,
+            earliestWithGiaYear: 2024
+          }),
+          fixedNow
+        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
+      })
+
+      test('GIA date at April of current FY passes (inclusive lower boundary)', () => {
+        // GIA = April 2024 (ordinal 24292) = lower bound → passes
+        const errors = validateSubmission(
+          validDefProject({
+            couldStartEarly: true,
+            earliestWithGiaMonth: 4,
+            earliestWithGiaYear: 2024
+          }),
+          fixedNow
+        )
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
+      })
+
+      test('GIA date equal to startOBC passes (inclusive upper boundary)', () => {
+        // GIA = May 2025 = startOBC (ordinal 24305) → passes
+        const errors = validateSubmission(
+          validDefProject({
+            couldStartEarly: true,
             earliestWithGiaMonth: 5,
-            earliestWithGiaYear: 2024,
-            financialStartYear: 2025
-          })
+            earliestWithGiaYear: 2025
+          }),
+          fixedNow
         )
-        expect(errors).not.toContain(
-          PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
+      })
+
+      test('GIA date strictly within valid range passes', () => {
+        // GIA = October 2024 → ordinal 2024*12+10=24298; within [24292, 24305]
+        const errors = validateSubmission(
+          validDefProject({
+            couldStartEarly: true,
+            earliestWithGiaMonth: 10,
+            earliestWithGiaYear: 2024
+          }),
+          fixedNow
         )
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
       })
     })
   })
@@ -695,7 +863,9 @@ describe('validateSubmission', () => {
       test('returns INCOMPLETE when no flood property condition is satisfied', () => {
         const errors = validateSubmission(
           validDefProject({
-            noPropertiesAtFloodRisk: false,
+            risks: [PROJECT_RISK_TYPES.FLUVIAL],
+            currentFloodFluvialRisk: 'high',
+            noPropertiesAtRisk: false,
             maintainingExistingAssets: 0,
             reducingFloodRisk50Plus: 0,
             reducingFloodRiskLess50: 0,
@@ -707,9 +877,9 @@ describe('validateSubmission', () => {
         )
       })
 
-      test('passes when noPropertiesAtFloodRisk="true" (string)', () => {
+      test('passes when noPropertiesAtRisk="true" (string)', () => {
         const errors = validateSubmission(
-          validDefProject({ noPropertiesAtFloodRisk: 'true' })
+          validDefProject({ noPropertiesAtRisk: 'true' })
         )
         expect(errors).not.toContain(
           PROJECT_VALIDATION_MESSAGES.SUBMISSION_RISK_PROPERTIES_INCOMPLETE
@@ -719,7 +889,7 @@ describe('validateSubmission', () => {
       test('passes when at least one flood property count is positive', () => {
         const errors = validateSubmission(
           validDefProject({
-            noPropertiesAtFloodRisk: false,
+            noPropertiesAtRisk: false,
             maintainingExistingAssets: 1
           })
         )
@@ -733,6 +903,8 @@ describe('validateSubmission', () => {
       test('returns INCOMPLETE when no coastal condition is satisfied', () => {
         const errors = validateSubmission(
           validDefProject({
+            risks: [PROJECT_RISK_TYPES.COASTAL_EROSION],
+            currentCoastalErosionRisk: 'medium_term',
             noPropertiesAtCoastalErosionRisk: false,
             propertiesBenefitMaintainingAssetsCoastal: 0,
             propertiesBenefitInvestmentCoastalErosion: 0
@@ -1289,7 +1461,7 @@ describe('validateSubmission', () => {
         financialEndYear: null,
         benefitAreaFileName: null,
         pafs_core_funding_values: [],
-        noPropertiesAtFloodRisk: false,
+        noPropertiesAtRisk: false,
         noPropertiesAtCoastalErosionRisk: false,
         percentProperties20PercentDeprived: null,
         percentProperties40PercentDeprived: null,
@@ -1308,7 +1480,8 @@ describe('validateSubmission', () => {
       expect(errors).toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_START_YEAR_INCOMPLETE
       )
-      expect(errors).toContain(
+      // Combined validator returns start year error first; end year error fires only when start is present
+      expect(errors).not.toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_INCOMPLETE
       )
       expect(errors).toContain(

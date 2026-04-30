@@ -15,7 +15,7 @@ export const externalSubmissionSchema = {
     endpoint: {
       doc: 'Route path for submitting a proposal (appended to baseUrl)',
       format: String,
-      default: '/api/proposals',
+      default: '/api/UpsertPipelineItem',
       env: 'EXTERNAL_SUBMISSION_ENDPOINT'
     },
     accessCode: {

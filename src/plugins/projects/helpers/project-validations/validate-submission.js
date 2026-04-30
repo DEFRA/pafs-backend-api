@@ -6,14 +6,26 @@ import {
   URGENCY_REASONS
 } from '../../../../common/constants/project.js'
 import { canUpdateProject } from '../project-permissions.js'
+import {
+  toDateOrdinal,
+  fyStartOrdinal,
+  fyEndOrdinal,
+  currentFYStartYear
+} from './submission/submission-date-utils.js'
+import {
+  hasValue,
+  MANDATORY_WL_TYPES,
+  NFM_INTERVENTION_TYPES
+} from './submission/submission-utils.js'
+import {
+  validateFundingSources,
+  validateFundingSourceValues,
+  validateFundingContributors
+} from './submission/validate-funding-sources.js'
+import { validateEnvironmentalBenefits } from './submission/validate-environmental-benefits.js'
+import { validateNfm } from './submission/validate-nfm.js'
 
 // Project type groupings used across validation rules
-const MANDATORY_WL_TYPES = new Set([
-  PROJECT_TYPES.DEF,
-  PROJECT_TYPES.REF,
-  PROJECT_TYPES.REP
-])
-
 const OPTIONAL_WL_TYPES = new Set([PROJECT_TYPES.HCR, PROJECT_TYPES.ELO])
 
 const FULL_TYPES = new Set([...MANDATORY_WL_TYPES, ...OPTIONAL_WL_TYPES])
@@ -24,18 +36,20 @@ const VALID_INTERVENTION_TYPES = new Set(
   Object.values(PROJECT_INTERVENTION_TYPES)
 )
 
-const NFM_INTERVENTION_TYPES = new Set([
-  PROJECT_INTERVENTION_TYPES.NFM,
-  PROJECT_INTERVENTION_TYPES.SUDS
-])
-
 const FLUVIAL_COASTAL_RISK_TYPES = new Set([
   PROJECT_RISK_TYPES.FLUVIAL,
   PROJECT_RISK_TYPES.TIDAL,
   PROJECT_RISK_TYPES.SEA
 ])
 
-const hasValue = (v) => v !== null && v !== undefined && v !== ''
+const FLOOD_RISK_TYPES = new Set([
+  PROJECT_RISK_TYPES.FLUVIAL,
+  PROJECT_RISK_TYPES.TIDAL,
+  PROJECT_RISK_TYPES.GROUNDWATER,
+  PROJECT_RISK_TYPES.SURFACE_WATER,
+  PROJECT_RISK_TYPES.SEA,
+  PROJECT_RISK_TYPES.RESERVOIR
+])
 
 const isPositive = (v) => {
   if (v === null || v === undefined || v === '') {
@@ -66,16 +80,6 @@ const parseRisks = (risks) => {
     .filter(Boolean)
 }
 
-/**
- * Convert a financial year number to a comparable financial-year start.
- */
-const toFinancialYear = (month, year) => {
-  if (!hasValue(month) || !hasValue(year)) {
-    return null
-  }
-  return Number(month) >= 4 ? Number(year) : Number(year) - 1
-}
-
 // Individual section validators
 // Each returns an errorCode string on failure, or null when the section passes.
 const validateProjectType = (p) => {
@@ -103,16 +107,19 @@ const validateProjectType = (p) => {
   return null
 }
 
-const validateFinancialStartYear = (p) => {
+// Validates start year present, end year present, and end >= start.
+// Returns the first error found so each problem is reported distinctly.
+const validateFinancialYears = (p) => {
   if (!hasValue(p.financialStartYear)) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_START_YEAR_INCOMPLETE
   }
-  return null
-}
-
-const validateFinancialEndYear = (p) => {
   if (!hasValue(p.financialEndYear)) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_INCOMPLETE
+  }
+  const start = Number(p.financialStartYear)
+  const end = Number(p.financialEndYear)
+  if (!Number.isNaN(start) && !Number.isNaN(end) && end <= start) {
+    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_NOT_AFTER_START
   }
   return null
 }
@@ -137,100 +144,107 @@ const REQUIRED_DATE_FIELDS = [
   'readyForServiceYear'
 ]
 
-const DATE_RANGE_PAIRS = [
+const DATE_SEQUENCE = [
   ['startOutlineBusinessCaseMonth', 'startOutlineBusinessCaseYear'],
   ['completeOutlineBusinessCaseMonth', 'completeOutlineBusinessCaseYear'],
   ['awardContractMonth', 'awardContractYear'],
   ['startConstructionMonth', 'startConstructionYear'],
   ['readyForServiceMonth', 'readyForServiceYear']
 ]
+
 const INCOMPLETE =
   PROJECT_VALIDATION_MESSAGES.SUBMISSION_RISK_PROPERTIES_INCOMPLETE
 
-const isDatesInFYRange = (p, startFY, endFY) => {
-  for (const [monthField, yearField] of DATE_RANGE_PAIRS) {
-    const fy = toFinancialYear(p[monthField], p[yearField])
-    if (fy !== null && (fy < startFY || fy > endFY)) {
+const areDatesInProposalRange = (p, startYear, endYear) => {
+  const lower = fyStartOrdinal(startYear)
+  const upper = fyEndOrdinal(endYear)
+  return DATE_SEQUENCE.every(([monthField, yearField]) => {
+    const ordinal = toDateOrdinal(p[monthField], p[yearField])
+    return ordinal === null || (ordinal >= lower && ordinal <= upper)
+  })
+}
+
+const areDatesChronological = (p) => {
+  let prev = null
+  for (const [monthField, yearField] of DATE_SEQUENCE) {
+    const ordinal = toDateOrdinal(p[monthField], p[yearField])
+    if (ordinal === null) {
+      continue
+    }
+    if (prev !== null && ordinal <= prev) {
       return false
     }
+    prev = ordinal
   }
   return true
 }
 
-const validateEarliestGia = (p, startFY) => {
-  const couldStartEarly =
-    p.couldStartEarly === true || p.couldStartEarly === 'true'
-  const monthMissing = !hasValue(p.earliestWithGiaMonth)
-  const yearMissing = !hasValue(p.earliestWithGiaYear)
-
-  if (couldStartEarly && (monthMissing || yearMissing)) {
-    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
+// Validates the earliestWithGia date is within the allowed window:
+// April of the current financial year (inclusive) to startOutlineBusinessCase (inclusive).
+const validateGiaRange = (p, now) => {
+  const giaOrdinal = toDateOrdinal(
+    p.earliestWithGiaMonth,
+    p.earliestWithGiaYear
+  )
+  if (giaOrdinal === null) {
+    return null
   }
-
-  if (!monthMissing && !yearMissing) {
-    const earliestFY = toFinancialYear(
-      p.earliestWithGiaMonth,
-      p.earliestWithGiaYear
-    )
-    if (earliestFY !== null && earliestFY >= startFY) {
-      return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
-    }
+  const lower = fyStartOrdinal(currentFYStartYear(now))
+  const sobcOrdinal = toDateOrdinal(
+    p.startOutlineBusinessCaseMonth,
+    p.startOutlineBusinessCaseYear
+  )
+  if (giaOrdinal < lower || giaOrdinal > sobcOrdinal) {
+    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
   }
-
   return null
 }
 
-const validateImportantDates = (p) => {
+// Validates the 'Could start earlier with GIA' answer and, when yes,
+// the earliest start date.
+const validateCouldStartEarly = (p, now) => {
+  if (p.couldStartEarly === null || p.couldStartEarly === undefined) {
+    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
+  }
+  const isYes = p.couldStartEarly === true || p.couldStartEarly === 'true'
+  if (!isYes) {
+    return null
+  }
+  if (!hasValue(p.earliestWithGiaMonth) || !hasValue(p.earliestWithGiaYear)) {
+    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
+  }
+  return validateGiaRange(p, now)
+}
+
+const validateImportantDates = (p, now) => {
   if (REQUIRED_DATE_FIELDS.some((f) => !hasValue(p[f]))) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
   }
 
-  if (!hasValue(p.financialStartYear) || !hasValue(p.financialEndYear)) {
-    return null
-  }
-
-  const startFY = Number(p.financialStartYear)
-  const endFY = Number(p.financialEndYear)
-
-  if (Number.isNaN(startFY) || Number.isNaN(endFY)) {
-    return null
-  }
-
-  if (!isDatesInFYRange(p, startFY, endFY)) {
+  if (!areDatesChronological(p)) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
   }
 
-  return validateEarliestGia(p, startFY)
-}
-
-const validateFundingSources = (p) => {
-  const fundingValues = p.pafs_core_funding_values ?? p.fundingValues ?? []
+  // Range check only runs when both financial years are valid numbers
   const startYear = Number(p.financialStartYear)
   const endYear = Number(p.financialEndYear)
-  const hasRange =
+  const hasValidRange =
     hasValue(p.financialStartYear) &&
     hasValue(p.financialEndYear) &&
     !Number.isNaN(startYear) &&
     !Number.isNaN(endYear)
 
-  const inRange = hasRange
-    ? fundingValues.filter((fv) => {
-        const fy = Number(fv.financialYear)
-        return fy >= startYear && fy <= endYear
-      })
-    : fundingValues
-
-  const total = inRange.reduce((sum, fv) => sum + Number(fv.total || 0), 0)
-
-  if (total <= 0) {
-    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_FUNDING_SOURCES_INCOMPLETE
+  if (hasValidRange && !areDatesInProposalRange(p, startYear, endYear)) {
+    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
   }
-  return null
+
+  // GIA check always runs last — one call, one exit point
+  return validateCouldStartEarly(p, now)
 }
 
 const isFloodPropertiesSatisfied = (p) =>
-  p.noPropertiesAtFloodRisk === true ||
-  p.noPropertiesAtFloodRisk === 'true' ||
+  p.noPropertiesAtRisk === true ||
+  p.noPropertiesAtRisk === 'true' ||
   isPositive(p.maintainingExistingAssets) ||
   isPositive(p.reducingFloodRisk50Plus) ||
   isPositive(p.reducingFloodRiskLess50) ||
@@ -268,11 +282,17 @@ const validateRisksByType = (risks, p) => {
 }
 
 const validateRiskAndProperties = (p) => {
-  if (!isFloodPropertiesSatisfied(p)) {
+  const risks = parseRisks(p.risks ?? p.projectRisksProtectedAgainst)
+
+  const hasFloodRisk = risks.some((r) => FLOOD_RISK_TYPES.has(r))
+  if (hasFloodRisk && !isFloodPropertiesSatisfied(p)) {
     return INCOMPLETE
   }
 
-  if (!isCoastalPropertiesSatisfied(p)) {
+  const hasCoastalErosionRisk = risks.includes(
+    PROJECT_RISK_TYPES.COASTAL_EROSION
+  )
+  if (hasCoastalErosionRisk && !isCoastalPropertiesSatisfied(p)) {
     return INCOMPLETE
   }
 
@@ -283,7 +303,6 @@ const validateRiskAndProperties = (p) => {
     return INCOMPLETE
   }
 
-  const risks = parseRisks(p.risks ?? p.projectRisksProtectedAgainst)
   return validateRisksByType(risks, p)
 }
 
@@ -291,43 +310,6 @@ const validateGoals = (p) => {
   if (!hasValue(p.approach)) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_GOALS_INCOMPLETE
   }
-  return null
-}
-
-const validateEnvironmentalBenefits = (p) => {
-  if (!hasValue(p.environmentalBenefits)) {
-    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_ENVIRONMENTAL_BENEFITS_INCOMPLETE
-  }
-  return null
-}
-
-const validateNfm = (p) => {
-  const type = p.projectType
-  if (!MANDATORY_WL_TYPES.has(type)) {
-    return null
-  }
-
-  const interventions = Array.isArray(p.projectInterventionTypes)
-    ? p.projectInterventionTypes
-    : String(p.projectInterventionTypes || '')
-        .split(',')
-        .map((s) => s.trim())
-
-  const hasNfm = interventions.some((i) => NFM_INTERVENTION_TYPES.has(i))
-  if (!hasNfm) {
-    return null
-  }
-
-  // NFM section is required: at least one measure selected
-  const measures = p.nfmSelectedMeasures ?? p.pafs_core_nfm_measures
-  const hasMeasures = Array.isArray(measures)
-    ? measures.length > 0
-    : hasValue(measures)
-
-  if (!hasMeasures) {
-    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_NFM_INCOMPLETE
-  }
-
   return null
 }
 
@@ -400,16 +382,17 @@ const validateCarbon = (p) => {
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
-export function validateSubmission(project) {
+export function validateSubmission(project, now = new Date()) {
   const errors = []
 
   const checks = [
     validateProjectType,
-    validateFinancialStartYear,
-    validateFinancialEndYear,
+    validateFinancialYears,
     validateBenefitArea,
-    validateImportantDates,
+    (p) => validateImportantDates(p, now),
     validateFundingSources,
+    validateFundingSourceValues,
+    validateFundingContributors,
     validateRiskAndProperties,
     validateGoals,
     validateEnvironmentalBenefits,

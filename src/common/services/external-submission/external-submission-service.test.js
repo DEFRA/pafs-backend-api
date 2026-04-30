@@ -145,6 +145,56 @@ describe('ExternalSubmissionService', () => {
 
   // ── Non-OK HTTP response ────────────────────────────────────────────────
 
+  test('returns success=false for non-200 2xx (e.g. HTTP 201)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: vi.fn().mockResolvedValue('Created')
+    })
+    const result = await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: SAMPLE_PAYLOAD,
+      isResend: false
+    })
+    expect(result.success).toBe(false)
+    expect(result.httpStatus).toBe(201)
+  })
+
+  test('does not update submitted_to_pol for HTTP 201', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: vi.fn().mockResolvedValue('Created')
+    })
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: SAMPLE_PAYLOAD,
+      isResend: false
+    })
+    expect(prisma.pafs_core_projects.updateMany).not.toHaveBeenCalled()
+  })
+
+  test('records failed attempt for HTTP 201', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: vi.fn().mockResolvedValue('Created')
+    })
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: SAMPLE_PAYLOAD,
+      isResend: false
+    })
+    expect(prisma.pafs_proposal_submissions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: SUBMISSION_STATUS.FAILED })
+      })
+    )
+  })
+
   test('returns success=false for HTTP 4xx', async () => {
     fetchMock.mockResolvedValue({
       ok: false,

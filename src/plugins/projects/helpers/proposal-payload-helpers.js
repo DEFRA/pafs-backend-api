@@ -98,13 +98,19 @@ export function deriveRfccRegion(referenceNumber) {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a comma-separated string into a Set of trimmed tokens.
- * @param {string|null|undefined} str
+ * Parse a comma-separated string or array into a Set of trimmed tokens.
+ * @param {string|string[]|null|undefined} str
  * @returns {Set<string>}
  */
 function parseCommaSeparated(str) {
+  if (!str) {
+    return new Set()
+  }
+  if (Array.isArray(str)) {
+    return new Set(str.map((s) => String(s).trim()).filter(Boolean))
+  }
   return new Set(
-    (str || '')
+    String(str)
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)

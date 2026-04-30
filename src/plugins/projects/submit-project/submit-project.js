@@ -62,39 +62,14 @@ const loadProjectArea = async (areaService, projectAreaId, h) => {
   }
 }
 
-const handler = async (request, h) => {
-  const referenceNumber = request.params.referenceNumber.replaceAll('-', '/')
-  const { credentials } = request.auth
-  const { logger } = request.server
-
-  const projectService = new ProjectService(request.prisma, logger)
-  const areaService = new AreaService(request.prisma, logger)
-
-  // 1. Load project
-  const {
-    project,
-    response: projectErr,
-    logError: projectLogErr
-  } = await loadProject(projectService, referenceNumber, h)
-  if (projectLogErr) {
-    logger.error(projectLogErr, 'Failed to load project for submission')
-  }
-  if (projectErr) {
-    return projectErr
-  }
-
-  // 2. Must be in draft state
-  const projectState = project.projectState ?? project.state ?? project.status
-  if (!EDITABLE_STATUSES.includes(projectState)) {
-    return buildErrorResponse(h, HTTP_STATUS.UNPROCESSABLE_ENTITY, [
-      {
-        errorCode: PROJECT_VALIDATION_MESSAGES.PROJECT_NOT_DRAFT,
-        field: 'status'
-      }
-    ])
-  }
-
-  // 3. Permission check
+const checkPermission = async (
+  areaService,
+  project,
+  credentials,
+  referenceNumber,
+  h,
+  logger
+) => {
   const {
     area,
     response: areaErr,
@@ -107,7 +82,7 @@ const handler = async (request, h) => {
     )
   }
   if (areaErr) {
-    return areaErr
+    return { errorResponse: areaErr }
   }
 
   const permissionCheck = canSubmitProject(credentials, area)
@@ -120,34 +95,31 @@ const handler = async (request, h) => {
       },
       'User does not have permission to submit project'
     )
-    return buildErrorResponse(
-      h,
-      HTTP_STATUS.FORBIDDEN,
-      [
-        {
-          errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_SUBMIT,
-          message: permissionCheck.reason
-        }
-      ],
-      true
-    )
+    return {
+      errorResponse: buildErrorResponse(
+        h,
+        HTTP_STATUS.FORBIDDEN,
+        [
+          {
+            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_SUBMIT,
+            message: permissionCheck.reason
+          }
+        ],
+        true
+      )
+    }
   }
+  return { errorResponse: null }
+}
 
-  // 4. Submission validation
-  const validationErrors = validateSubmission(project)
-  if (validationErrors.length > 0) {
-    logger.info(
-      { referenceNumber, errorCount: validationErrors.length },
-      'Submission validation failed'
-    )
-    return buildValidationErrorResponse(
-      h,
-      HTTP_STATUS.UNPROCESSABLE_ENTITY,
-      validationErrors.map((errorCode) => ({ errorCode }))
-    )
-  }
-
-  // 5. Transition to submitted
+const transitionToSubmitted = async (
+  projectService,
+  project,
+  credentials,
+  referenceNumber,
+  h,
+  logger
+) => {
   try {
     await projectService.upsertProjectState(
       project.id,
@@ -157,6 +129,7 @@ const handler = async (request, h) => {
       { referenceNumber, userId: credentials.userId },
       'Project submitted successfully'
     )
+    return null
   } catch (error) {
     logger.error(
       { error: error.message, referenceNumber },
@@ -166,31 +139,34 @@ const handler = async (request, h) => {
       .response({ error: 'Failed to submit project' })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
   }
+}
 
-  // 6. Look up the creator's email address for the payload
-  let creatorEmail = null
+const lookupCreatorEmail = async (prisma, project, referenceNumber, logger) => {
   try {
-    const creator = await request.prisma.pafs_core_users.findFirst({
+    const creator = await prisma.pafs_core_users.findFirst({
       where: { id: Number(project.creatorId ?? project.creator_id) },
       select: { email: true }
     })
-    creatorEmail = creator?.email ?? null
+    return creator?.email ?? null
   } catch (emailLookupError) {
     logger.warn(
       { error: emailLookupError.message, referenceNumber },
       'Could not look up creator email for external submission'
     )
+    return null
   }
+}
 
-  // 7. Build payload and fire off to the external system.
-  //    We do NOT fail the submission if the external call fails — the project
-  //    is already marked submitted in our system and can be resent by an admin.
+const sendToExternalSystem = async (
+  prisma,
+  project,
+  creatorEmail,
+  referenceNumber,
+  logger
+) => {
   try {
     const payload = buildProposalPayload(project, creatorEmail)
-    const submissionService = new ExternalSubmissionService(
-      request.prisma,
-      logger
-    )
+    const submissionService = new ExternalSubmissionService(prisma, logger)
     const result = await submissionService.send({
       projectId: project.id,
       referenceNumber,
@@ -209,6 +185,117 @@ const handler = async (request, h) => {
       'Unexpected error during external submission — project is submitted in PAFS'
     )
   }
+}
+
+const validateProjectForSubmission = async (
+  projectService,
+  areaService,
+  referenceNumber,
+  credentials,
+  h,
+  logger
+) => {
+  const {
+    project,
+    response: projectErr,
+    logError: projectLogErr
+  } = await loadProject(projectService, referenceNumber, h)
+  if (projectLogErr) {
+    logger.error(projectLogErr, 'Failed to load project for submission')
+  }
+  if (projectErr) {
+    return { project: null, errorResponse: projectErr }
+  }
+
+  const projectState = project.projectState ?? project.state ?? project.status
+  if (!EDITABLE_STATUSES.includes(projectState)) {
+    return {
+      project: null,
+      errorResponse: buildErrorResponse(h, HTTP_STATUS.UNPROCESSABLE_ENTITY, [
+        {
+          errorCode: PROJECT_VALIDATION_MESSAGES.PROJECT_NOT_DRAFT,
+          field: 'status'
+        }
+      ])
+    }
+  }
+
+  const { errorResponse: permissionErr } = await checkPermission(
+    areaService,
+    project,
+    credentials,
+    referenceNumber,
+    h,
+    logger
+  )
+  if (permissionErr) {
+    return { project: null, errorResponse: permissionErr }
+  }
+
+  const validationErrors = validateSubmission(project)
+  if (validationErrors.length > 0) {
+    logger.info(
+      { referenceNumber, errorCount: validationErrors.length },
+      'Submission validation failed'
+    )
+    return {
+      project: null,
+      errorResponse: buildValidationErrorResponse(
+        h,
+        HTTP_STATUS.UNPROCESSABLE_ENTITY,
+        validationErrors.map((errorCode) => ({ errorCode }))
+      )
+    }
+  }
+
+  return { project, errorResponse: null }
+}
+
+const handler = async (request, h) => {
+  const referenceNumber = request.params.referenceNumber.replaceAll('-', '/')
+  const { credentials } = request.auth
+  const { logger } = request.server
+
+  const projectService = new ProjectService(request.prisma, logger)
+  const areaService = new AreaService(request.prisma, logger)
+
+  const { project, errorResponse } = await validateProjectForSubmission(
+    projectService,
+    areaService,
+    referenceNumber,
+    credentials,
+    h,
+    logger
+  )
+  if (errorResponse) {
+    return errorResponse
+  }
+
+  const transitionErr = await transitionToSubmitted(
+    projectService,
+    project,
+    credentials,
+    referenceNumber,
+    h,
+    logger
+  )
+  if (transitionErr) {
+    return transitionErr
+  }
+
+  const creatorEmail = await lookupCreatorEmail(
+    request.prisma,
+    project,
+    referenceNumber,
+    logger
+  )
+  await sendToExternalSystem(
+    request.prisma,
+    project,
+    creatorEmail,
+    referenceNumber,
+    logger
+  )
 
   return buildSuccessResponse(h, {
     success: true,
