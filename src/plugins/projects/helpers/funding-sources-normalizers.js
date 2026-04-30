@@ -411,6 +411,25 @@ export const clearDeselectedFundingSourceColumns = async (
 }
 
 /**
+ * Syncs the growthFunding boolean flag with the virtual additionalFcermGia field.
+ * When additionalFcermGia is true → growthFunding = true.
+ * When additionalFcermGia is false → growthFunding = false.
+ *
+ * Runs for FUNDING_SOURCES_SELECTED level only.
+ */
+export const syncGrowthFundingFlag = (enrichedPayload, validationLevel) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED) {
+    return
+  }
+
+  if (enrichedPayload.additionalFcermGia === true) {
+    enrichedPayload.growthFunding = true
+  } else if (enrichedPayload.additionalFcermGia === false) {
+    enrichedPayload.growthFunding = false
+  }
+}
+
+/**
  * Clears all additional FCRM GIA boolean flags in the payload and nulls their
  * spend columns in pafs_core_funding_values when additionalFcermGia is deselected.
  *
@@ -554,7 +573,7 @@ export const cleanupRemovedContributors = async (
   const currentNames =
     namesValue && typeof namesValue === 'string' && namesValue.trim()
       ? namesValue
-          .split(',')
+          .split('|||')
           .map((n) => n.trim())
           .filter(Boolean)
       : []
@@ -563,6 +582,48 @@ export const cleanupRemovedContributors = async (
     referenceNumber,
     contributorType: config.contributorType,
     currentNames
+  })
+}
+
+/**
+ * Ensures funding_value rows exist for each financial year of the project and
+ * upserts funding_contributor rows (with null amounts) for each contributor name
+ * when saving contributor names.
+ *
+ * Runs only at PUBLIC_SECTOR_CONTRIBUTORS, PRIVATE_SECTOR_CONTRIBUTORS,
+ * OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS validation levels.
+ */
+export const ensureContributorFundingRows = async (
+  enrichedPayload,
+  validationLevel,
+  projectService
+) => {
+  const config = CONTRIBUTOR_CLEANUP_CONFIG.find(
+    (c) => c.level === validationLevel
+  )
+
+  if (!config) {
+    return
+  }
+
+  const { referenceNumber } = enrichedPayload
+  const namesValue = enrichedPayload[config.namesField]
+  const currentNames =
+    namesValue && typeof namesValue === 'string' && namesValue.trim()
+      ? namesValue
+          .split('|||')
+          .map((n) => n.trim())
+          .filter(Boolean)
+      : []
+
+  if (!currentNames.length) {
+    return
+  }
+
+  await projectService.ensureContributorFundingRows({
+    referenceNumber,
+    contributorType: config.contributorType,
+    contributorNames: currentNames
   })
 }
 

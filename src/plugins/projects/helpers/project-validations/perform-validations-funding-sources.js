@@ -38,18 +38,15 @@ const FUNDING_SOURCE_FIELD_CONFIG = [
 const CONTRIBUTOR_CONFIG = [
   {
     rowField: 'publicContributors',
-    projectField: 'publicContributions',
-    projectNamesField: 'publicContributorNames'
+    projectField: 'publicContributions'
   },
   {
     rowField: 'privateContributors',
-    projectField: 'privateContributions',
-    projectNamesField: 'privateContributorNames'
+    projectField: 'privateContributions'
   },
   {
     rowField: 'otherEaContributors',
-    projectField: 'otherEaContributions',
-    projectNamesField: 'otherEaContributorNames'
+    projectField: 'otherEaContributions'
   }
 ]
 
@@ -72,19 +69,6 @@ const createValidationError = (field, message, h) => {
 
 const hasValue = (value) => {
   return value !== null && value !== undefined && value !== ''
-}
-
-const parseContributorNames = (names) => {
-  if (typeof names !== 'string') {
-    return new Set()
-  }
-
-  return new Set(
-    names
-      .split(',')
-      .map((name) => name.trim().toLowerCase())
-      .filter((name) => name.length > 0)
-  )
 }
 
 const validateFundingValuesYearRange = (
@@ -134,40 +118,11 @@ const validateEnabledFundingSourceFields = (
   return null
 }
 
-const validateContributorNamesForGroup = (
-  contributors,
-  allowedNames,
-  rowIndex,
-  rowField,
-  h
-) => {
-  for (
-    let contributorIndex = 0;
-    contributorIndex < contributors.length;
-    contributorIndex++
-  ) {
-    const contributor = contributors[contributorIndex]
-    const contributorName = contributor?.name?.trim()?.toLowerCase()
-
-    if (!contributorName || allowedNames.has(contributorName)) {
-      continue
-    }
-
-    return createValidationError(
-      `fundingValues[${rowIndex}].${rowField}[${contributorIndex}].name`,
-      `${contributor?.name} is not configured for this project`,
-      h
-    )
-  }
-
-  return null
-}
-
 const validateContributorGroup = (
   row,
   rowIndex,
   existingProject,
-  { rowField, projectField, projectNamesField },
+  { rowField, projectField },
   h
 ) => {
   const contributors = row[rowField]
@@ -183,24 +138,7 @@ const validateContributorGroup = (
     )
   }
 
-  const allowedNames = parseContributorNames(
-    existingProject?.[projectNamesField]
-  )
-  if (allowedNames.size === 0) {
-    return createValidationError(
-      `fundingValues[${rowIndex}].${rowField}`,
-      `No contributors are configured for ${rowField}`,
-      h
-    )
-  }
-
-  return validateContributorNamesForGroup(
-    contributors,
-    allowedNames,
-    rowIndex,
-    rowField,
-    h
-  )
+  return null
 }
 
 const validateContributorFields = (row, rowIndex, existingProject, h) => {

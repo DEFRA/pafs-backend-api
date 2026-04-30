@@ -219,7 +219,9 @@ export {
   clearDeselectedAdditionalGiaData,
   clearDeselectedFundingSourceColumns,
   cleanupRemovedContributors,
-  flushOutOfRangeFundingData
+  ensureContributorFundingRows,
+  flushOutOfRangeFundingData,
+  syncGrowthFundingFlag
 } from './funding-sources-normalizers.js'
 
 /**

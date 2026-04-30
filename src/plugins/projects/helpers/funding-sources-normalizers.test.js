@@ -1086,7 +1086,7 @@ describe('funding-sources-normalizers', () => {
 
     it('calls service with public contributors when at PUBLIC_SECTOR_CONTRIBUTORS level', async () => {
       const payload = {
-        publicContributorNames: 'Alice, Bob',
+        publicContributorNames: 'Alice|||Bob',
         referenceNumber: 'ANC501E/000A/001A'
       }
 
@@ -1103,9 +1103,9 @@ describe('funding-sources-normalizers', () => {
       })
     })
 
-    it('parses comma-separated names and trims whitespace', async () => {
+    it('parses |||-separated names and trims whitespace', async () => {
       const payload = {
-        publicContributorNames: '  Alice  ,  Bob  ,  Charlie  ',
+        publicContributorNames: '  Alice  |||  Bob  |||  Charlie  ',
         referenceNumber: 'ANC501E/000A/001A'
       }
 

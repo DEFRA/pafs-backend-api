@@ -360,12 +360,12 @@ describe.each(contributorNameCases)(
     })
 
     it('fails for duplicate contributor names (case-insensitive)', () => {
-      const { error } = schema.validate('Alice, alice')
+      const { error } = schema.validate('Alice|||alice')
       expect(error).toBeDefined()
     })
 
     it('fails for duplicate names with different casing and extra spaces', () => {
-      const { error } = schema.validate('Local Authority, local authority')
+      const { error } = schema.validate('Local Authority|||local authority')
       expect(error).toBeDefined()
     })
   }

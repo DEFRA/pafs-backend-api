@@ -574,4 +574,109 @@ export class ProjectFundingContributorsService {
       throw error
     }
   }
+
+  /**
+   * Ensures funding_value rows exist for each financial year of the project and
+   * upserts contributor rows (with null amounts) for new contributor names.
+   * Existing contributors with amounts are preserved (rename-in-place is handled
+   * by cleanupContributorsByName).
+   *
+   * @param {Object} data
+   * @param {string} data.referenceNumber - Project reference number
+   * @param {string} data.contributorType - e.g. 'public_contributions'
+   * @param {string[]} data.contributorNames - Array of contributor names
+   */
+  async ensureContributorFundingRows({
+    referenceNumber,
+    contributorType,
+    contributorNames
+  }) {
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+
+      // Get the project's financial year range
+      const project = await this.prisma.pafs_core_projects.findFirst({
+        where: { id: projectId },
+        select: {
+          earliest_start_year: true,
+          project_end_financial_year: true
+        }
+      })
+
+      if (
+        !project?.earliest_start_year ||
+        !project?.project_end_financial_year
+      ) {
+        this.logger.info(
+          { referenceNumber },
+          'Project has no financial year range, skipping contributor funding rows'
+        )
+        return
+      }
+
+      const startYear = project.earliest_start_year
+      const endYear = project.project_end_financial_year
+
+      for (let year = startYear; year <= endYear; year++) {
+        // Ensure funding_value row exists for this year
+        let fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
+          {
+            where: { project_id: projectId, financial_year: year },
+            select: { id: true }
+          }
+        )
+
+        if (!fundingValue) {
+          fundingValue = await this.prisma.pafs_core_funding_values.create({
+            data: {
+              project_id: projectId,
+              financial_year: year,
+              total: 0n
+            }
+          })
+        }
+
+        // Upsert contributor rows with null amount for each name
+        for (const name of contributorNames) {
+          const existing =
+            await this.prisma.pafs_core_funding_contributors.findFirst({
+              where: {
+                funding_value_id: fundingValue.id,
+                name,
+                contributor_type: contributorType
+              },
+              select: { id: true }
+            })
+
+          if (!existing) {
+            await this.prisma.pafs_core_funding_contributors.create({
+              data: {
+                funding_value_id: fundingValue.id,
+                name,
+                contributor_type: contributorType,
+                amount: null,
+                created_at: new Date(),
+                updated_at: new Date()
+              }
+            })
+          }
+        }
+      }
+
+      this.logger.info(
+        {
+          referenceNumber,
+          contributorType,
+          nameCount: contributorNames.length
+        },
+        'Contributor funding rows ensured successfully'
+      )
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, contributorType },
+        'Error ensuring contributor funding rows'
+      )
+      throw error
+    }
+  }
 }

@@ -143,11 +143,8 @@ describe('project-config', () => {
         localLevy: 'local_levy',
         internalDrainageBoards: 'internal_drainage_boards',
         publicContributions: 'public_contributions',
-        publicContributorNames: 'public_contributor_names',
         privateContributions: 'private_contributions',
-        privateContributorNames: 'private_contributor_names',
         otherEaContributions: 'other_ea_contributions',
-        otherEaContributorNames: 'other_ea_contributor_names',
         growthFunding: 'growth_funding',
         notYetIdentified: 'not_yet_identified',
         fundingSourcesVisited: 'funding_sources_visited',
@@ -234,8 +231,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 125 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(125)
+    it('should have 122 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(122)
     })
   })
 
@@ -302,9 +299,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 125 fields', () => {
+    it('should return an object with 122 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(125)
+      expect(Object.keys(result)).toHaveLength(122)
     })
 
     it('should return a new object each time', () => {
