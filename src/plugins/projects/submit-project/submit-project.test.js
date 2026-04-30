@@ -21,7 +21,8 @@ vi.mock('../helpers/project-validations/validate-submission.js', () => ({
 vi.mock('../helpers/proposal-payload-builder.js', () => ({
   buildProposalPayload: vi
     .fn()
-    .mockReturnValue({ national_project_number: 'LCR/123/456' })
+    .mockReturnValue({ national_project_number: 'LCR/123/456' }),
+  fetchShapefileBase64: vi.fn().mockResolvedValue('base64shapefile==')
 }))
 vi.mock(
   '../../../common/services/external-submission/external-submission-service.js',
@@ -47,6 +48,10 @@ import {
   canSubmitProject
 } from '../helpers/project-validations/validate-submission.js'
 import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
+import {
+  buildProposalPayload,
+  fetchShapefileBase64
+} from '../helpers/proposal-payload-builder.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -73,6 +78,9 @@ const buildMockRequest = (overrides = {}) => ({
   },
   server: { logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
   prisma: {
+    pafs_core_projects: {
+      findFirst: vi.fn().mockResolvedValue({ creator_id: 7 })
+    },
     pafs_core_users: {
       findFirst: vi.fn().mockResolvedValue({ email: 'user@example.com' })
     }
@@ -133,7 +141,8 @@ describe('submit-project handler', () => {
 
     mockProjectService = {
       getProjectByReferenceNumber: vi.fn().mockResolvedValue(DRAFT_PROJECT),
-      upsertProjectState: vi.fn().mockResolvedValue({})
+      upsertProjectState: vi.fn().mockResolvedValue({}),
+      setSubmittedAt: vi.fn().mockResolvedValue(undefined)
     }
     mockAreaService = {
       getAreaByIdWithParents: vi.fn().mockResolvedValue(AREA)
@@ -368,6 +377,21 @@ describe('submit-project handler', () => {
     )
   })
 
+  test('stamps submitted_at on the project on success', async () => {
+    await submitProjectRoute.options.handler(request, h)
+    expect(mockProjectService.setSubmittedAt).toHaveBeenCalledWith(
+      'LCR/123/456'
+    )
+  })
+
+  test('returns 500 when setSubmittedAt throws', async () => {
+    mockProjectService.setSubmittedAt.mockRejectedValue(
+      new Error('DB write failed')
+    )
+    await submitProjectRoute.options.handler(request, h)
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  })
+
   test('returns 200 with success=true on successful submission', async () => {
     await submitProjectRoute.options.handler(request, h)
     expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
@@ -451,10 +475,26 @@ describe('submit-project handler', () => {
     expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
   })
 
-  test('looks up creator email before building payload', async () => {
+  test('looks up creator_id from projects then email from users', async () => {
     await submitProjectRoute.options.handler(request, h)
+    expect(request.prisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { creator_id: true } })
+    )
     expect(request.prisma.pafs_core_users.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ select: { email: true } })
+    )
+  })
+
+  test('fetches shapefile before building payload and passes it to buildProposalPayload', async () => {
+    await submitProjectRoute.options.handler(request, h)
+    expect(fetchShapefileBase64).toHaveBeenCalledWith(
+      expect.objectContaining({ referenceNumber: 'LCR/123/456' }),
+      expect.anything()
+    )
+    expect(buildProposalPayload).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'base64shapefile=='
     )
   })
 })

@@ -347,7 +347,7 @@ describe('ExternalSubmissionService', () => {
     )
   })
 
-  // ── _markSubmittedToPol DB error does not propagate ──────────────────────
+  // ── markSubmittedToPol DB error does not propagate ──────────────────────
 
   test('does not throw when submitted_to_pol update fails', async () => {
     prisma.pafs_core_projects.updateMany.mockRejectedValue(

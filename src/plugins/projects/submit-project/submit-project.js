@@ -17,7 +17,11 @@ import {
   validateSubmission,
   canSubmitProject
 } from '../helpers/project-validations/validate-submission.js'
-import { buildProposalPayload } from '../helpers/proposal-payload-builder.js'
+import {
+  buildProposalPayload,
+  fetchShapefileBase64
+} from '../helpers/proposal-payload-builder.js'
+import { validateProposalPayload } from '../helpers/proposal-payload-validator.js'
 import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
 
 const loadProject = async (projectService, referenceNumber, h) => {
@@ -125,6 +129,7 @@ const transitionToSubmitted = async (
       project.id,
       PROJECT_STATUS.SUBMITTED
     )
+    await projectService.setSubmittedAt(referenceNumber)
     logger.info(
       { referenceNumber, userId: credentials.userId },
       'Project submitted successfully'
@@ -141,10 +146,19 @@ const transitionToSubmitted = async (
   }
 }
 
-const lookupCreatorEmail = async (prisma, project, referenceNumber, logger) => {
+const lookupCreatorEmail = async (prisma, referenceNumber, logger) => {
   try {
+    const projectRow = await prisma.pafs_core_projects.findFirst({
+      where: { reference_number: referenceNumber },
+      select: { creator_id: true }
+    })
+
+    if (!projectRow?.creator_id) {
+      return null
+    }
+
     const creator = await prisma.pafs_core_users.findFirst({
-      where: { id: Number(project.creatorId ?? project.creator_id) },
+      where: { id: BigInt(projectRow.creator_id) },
       select: { email: true }
     })
     return creator?.email ?? null
@@ -165,7 +179,13 @@ const sendToExternalSystem = async (
   logger
 ) => {
   try {
-    const payload = buildProposalPayload(project, creatorEmail)
+    const shapefileBase64 = await fetchShapefileBase64(project, logger)
+    const payload = buildProposalPayload(project, creatorEmail, shapefileBase64)
+    logger.info(
+      { referenceNumber, payload },
+      'Proposal payload built for external submission'
+    )
+    validateProposalPayload(payload, referenceNumber, logger)
     const submissionService = new ExternalSubmissionService(prisma, logger)
     const result = await submissionService.send({
       projectId: project.id,
@@ -285,7 +305,6 @@ const handler = async (request, h) => {
 
   const creatorEmail = await lookupCreatorEmail(
     request.prisma,
-    project,
     referenceNumber,
     logger
   )

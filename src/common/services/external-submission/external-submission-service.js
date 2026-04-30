@@ -192,7 +192,7 @@ export class ExternalSubmissionService {
       responseBody: responseText,
       isResend
     })
-    await this._markSubmittedToPol(referenceNumber)
+    await this.markSubmittedToPol(referenceNumber)
     return { success: true, httpStatus }
   }
 
@@ -234,9 +234,10 @@ export class ExternalSubmissionService {
 
   /**
    * Update submitted_to_pol timestamp on the project record.
-   * @private
+   * Public so callers (e.g. admin mark-submitted-to-pol endpoint) can reuse
+   * this without duplicating the Prisma call.
    */
-  async _markSubmittedToPol(referenceNumber) {
+  async markSubmittedToPol(referenceNumber) {
     try {
       await this.prisma.pafs_core_projects.updateMany({
         where: { reference_number: referenceNumber },

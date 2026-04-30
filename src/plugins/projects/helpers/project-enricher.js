@@ -29,6 +29,7 @@ async function enrichAreaHierarchy(prisma, rawProject, apiData) {
 
   // rmaName may already be set by ProjectMapper; use hierarchy as fallback
   apiData.rmaName = apiData.rmaName || hierarchy.rmaName || null
+  apiData.rmaSubType = hierarchy.rmaSubType ?? null
   apiData.psoName = hierarchy.psoName ?? null
   apiData.rfccName = hierarchy.rfccName ?? null
   apiData.eaAreaName = hierarchy.eaAreaName ?? null

@@ -117,7 +117,7 @@ const FULL_PROJECT = {
   pafs_core_funding_contributors: [
     {
       fundingValueId: BigInt(1),
-      contributorType: 'public',
+      contributorType: 'public_contributions',
       name: 'District Council',
       amount: 25000
     }
@@ -654,7 +654,7 @@ describe('alias field fallbacks', () => {
         fundingContributors: [
           {
             fundingValueId: BigInt(1),
-            contributorType: 'public',
+            contributorType: 'public_contributions',
             name: 'Alias Council',
             amount: 1000
           }
@@ -800,13 +800,13 @@ describe('buildFundingSources — multiple contributors per funding year', () =>
         pafs_core_funding_contributors: [
           {
             fundingValueId: BigInt(1),
-            contributorType: 'public',
+            contributorType: 'public_contributions',
             name: 'Council A',
             amount: 1000
           },
           {
             fundingValueId: BigInt(1),
-            contributorType: 'public',
+            contributorType: 'public_contributions',
             name: 'Council B',
             amount: 2000
           }
@@ -869,13 +869,13 @@ describe('buildFundingSources — contributor type coverage', () => {
         pafs_core_funding_contributors: [
           {
             fundingValueId: BigInt(10),
-            contributorType: 'private',
+            contributorType: 'private_contributions',
             name: 'Private Co',
             amount: 10000
           },
           {
             fundingValueId: BigInt(10),
-            contributorType: 'other_ea',
+            contributorType: 'other_ea_contributions',
             name: null,
             amount: 5000
           }
@@ -929,7 +929,7 @@ describe('buildFundingSources — contributor type coverage', () => {
         pafs_core_funding_contributors: [
           {
             fundingValueId: BigInt(2),
-            contributorType: 'public',
+            contributorType: 'public_contributions',
             name: 'Year 2 Contributor',
             amount: 3000
           }

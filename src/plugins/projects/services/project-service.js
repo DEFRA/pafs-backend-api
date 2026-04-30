@@ -419,4 +419,11 @@ export class ProjectService extends ProjectNfmService {
       'Error upserting project area'
     )
   }
+
+  async setSubmittedAt(referenceNumber) {
+    await this.prisma.pafs_core_projects.updateMany({
+      where: { reference_number: referenceNumber },
+      data: { submitted_at: new Date() }
+    })
+  }
 }

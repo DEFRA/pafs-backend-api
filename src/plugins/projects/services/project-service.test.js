@@ -762,6 +762,33 @@ describe('ProjectService', () => {
     })
   })
 
+  describe('setSubmittedAt', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.updateMany = vi.fn()
+    })
+
+    test('updates submitted_at on the matching project row', async () => {
+      mockPrisma.pafs_core_projects.updateMany.mockResolvedValue({ count: 1 })
+
+      await service.setSubmittedAt('LCR/123/456')
+
+      expect(mockPrisma.pafs_core_projects.updateMany).toHaveBeenCalledWith({
+        where: { reference_number: 'LCR/123/456' },
+        data: expect.objectContaining({ submitted_at: expect.any(Date) })
+      })
+    })
+
+    test('throws when updateMany fails', async () => {
+      mockPrisma.pafs_core_projects.updateMany.mockRejectedValue(
+        new Error('DB write error')
+      )
+
+      await expect(service.setSubmittedAt('LCR/123/456')).rejects.toThrow(
+        'DB write error'
+      )
+    })
+  })
+
   describe('getProjectByReference', () => {
     test('Should return project when found with version 1', async () => {
       const referenceNumber = 'RGT1DMQR01'

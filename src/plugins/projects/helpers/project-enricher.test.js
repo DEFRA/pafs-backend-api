@@ -95,6 +95,7 @@ describe('enrichProjectResponse', () => {
     // Default mock behaviour for area hierarchy
     resolveAreaHierarchy.mockResolvedValue({
       rmaName: 'Resolved RMA',
+      rmaSubType: 'ea',
       psoName: 'Yorkshire RFCC',
       rfccName: 'Yorkshire RFCC',
       eaAreaName: 'North East'
@@ -126,6 +127,7 @@ describe('enrichProjectResponse', () => {
 
       await enrichProjectResponse(prisma, raw, api)
 
+      expect(api.rmaSubType).toBe('ea')
       expect(api.psoName).toBe('Yorkshire RFCC')
       expect(api.rfccName).toBe('Yorkshire RFCC')
       expect(api.eaAreaName).toBe('North East')

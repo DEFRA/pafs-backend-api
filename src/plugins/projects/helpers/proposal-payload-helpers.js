@@ -158,7 +158,9 @@ export function buildInterventionTypes(typesString) {
     sustainable_drainage_systems: 'sustainable_drainage_systems'
   }
   const rawTokens = parseCommaSeparated(typesString)
-  const active = new Set([...rawTokens].map((t) => typeKeyMap[t] ?? t))
+  const active = new Set(
+    [...rawTokens].map((t) => typeKeyMap[t.toLowerCase()] ?? t.toLowerCase())
+  )
   return Object.fromEntries(allTypes.map((t) => [t, active.has(t)]))
 }
 
@@ -243,9 +245,9 @@ export function buildFundingSources(fundingValues, fundingContributors) {
       summer_economic_fund: toNumber(fv.summerEconomicFund),
       local_levy: toNumber(fv.localLevy),
       internal_drainage_boards: toNumber(fv.internalDrainageBoards),
-      public_contributions: filterContributors('public'),
-      private_contributions: filterContributors('private'),
-      other_ea_contributions: filterContributors('other_ea'),
+      public_contributions: filterContributors('public_contributions'),
+      private_contributions: filterContributors('private_contributions'),
+      other_ea_contributions: filterContributors('other_ea_contributions'),
       not_yet_identified: toNumber(fv.notYetIdentified)
     }
   })

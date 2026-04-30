@@ -116,7 +116,8 @@ beforeEach(() => {
   vi.clearAllMocks()
 
   mockProjectService = {
-    getProjectByReferenceNumber: vi.fn().mockResolvedValue(SUBMITTED_PROJECT)
+    getProjectByReferenceNumber: vi.fn().mockResolvedValue(SUBMITTED_PROJECT),
+    setSubmittedAt: vi.fn().mockResolvedValue(undefined)
   }
   mockExternalService = {
     send: vi
@@ -214,6 +215,31 @@ describe('resubmit-project handler — submission outcome', () => {
     expect(mockExternalService.send).toHaveBeenCalledWith(
       expect.objectContaining({ isResend: true })
     )
+  })
+
+  test('stamps submitted_at regardless of external submission outcome', async () => {
+    await resubmitProjectRoute.options.handler(request, h)
+    expect(mockProjectService.setSubmittedAt).toHaveBeenCalledWith(
+      REFERENCE_NUMBER
+    )
+  })
+
+  test('stamps submitted_at even when external submission fails', async () => {
+    mockExternalService.send.mockResolvedValue({
+      success: false,
+      error: 'Timeout'
+    })
+    await resubmitProjectRoute.options.handler(request, h)
+    expect(mockProjectService.setSubmittedAt).toHaveBeenCalledWith(
+      REFERENCE_NUMBER
+    )
+  })
+
+  test('logs warning and continues when setSubmittedAt throws', async () => {
+    mockProjectService.setSubmittedAt.mockRejectedValue(new Error('DB error'))
+    await resubmitProjectRoute.options.handler(request, h)
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    expect(request.server.logger.warn).toHaveBeenCalled()
   })
 
   test('logs success info on successful resubmit', async () => {

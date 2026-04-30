@@ -129,6 +129,15 @@ const handler = async (request, h) => {
     isResend: true
   })
 
+  try {
+    await projectService.setSubmittedAt(referenceNumber)
+  } catch (stampError) {
+    logger.warn(
+      { error: stampError.message, referenceNumber },
+      'Failed to stamp submitted_at on resubmit'
+    )
+  }
+
   if (result.success) {
     logger.info(
       { referenceNumber, userId: credentials.userId },
