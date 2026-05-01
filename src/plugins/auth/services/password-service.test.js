@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { PasswordService } from './password-service.js'
+import { AUTH_ERROR_CODES } from '../../../common/constants/index.js'
 
 vi.mock('../helpers/secure-token.js', () => ({
   generateSecureToken: vi.fn(() => 'mock-token-123'),
@@ -33,7 +34,8 @@ describe('PasswordService', () => {
       pafs_core_users: {
         findUnique: vi.fn(),
         findFirst: vi.fn(),
-        update: vi.fn()
+        update: vi.fn(),
+        updateMany: vi.fn()
       },
       old_passwords: {
         findMany: vi.fn(),
@@ -44,6 +46,7 @@ describe('PasswordService', () => {
 
     mockLogger = {
       info: vi.fn(),
+      warn: vi.fn(),
       error: vi.fn()
     }
 
@@ -222,6 +225,49 @@ describe('PasswordService', () => {
           id: { in: [6] }
         }
       })
+    })
+
+    it('uses updateMany with token condition when rawToken is provided', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        encrypted_password: 'old-hashed-password'
+      })
+      mockPrisma.old_passwords.findMany.mockResolvedValue([])
+      mockPrisma.pafs_core_users.updateMany.mockResolvedValue({ count: 1 })
+      mockPrisma.old_passwords.create.mockResolvedValue({})
+
+      const result = await service.resetPassword(
+        1,
+        'NewPassword123!',
+        'raw-token-value'
+      )
+
+      expect(result.success).toBe(true)
+      const updateCall = mockPrisma.pafs_core_users.updateMany.mock.calls[0][0]
+      expect(updateCall.where.id).toBe(1)
+      expect(updateCall.where.reset_password_token).toBe(
+        'hashed-raw-token-value'
+      )
+      expect(updateCall.data.reset_password_token).toBeNull()
+      expect(updateCall.data.unique_session_id).toBeNull()
+      expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
+    })
+
+    it('returns token error when token already consumed (concurrent request)', async () => {
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        encrypted_password: 'old-hashed-password'
+      })
+      mockPrisma.old_passwords.findMany.mockResolvedValue([])
+      // updateMany returns count: 0 — another request already consumed the token
+      mockPrisma.pafs_core_users.updateMany.mockResolvedValue({ count: 0 })
+
+      const result = await service.resetPassword(
+        1,
+        'NewPassword123!',
+        'raw-token-value'
+      )
+
+      expect(result.success).toBe(false)
+      expect(result.errorCode).toBe(AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID)
     })
   })
 

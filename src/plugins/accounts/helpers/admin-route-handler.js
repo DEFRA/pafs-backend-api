@@ -7,6 +7,24 @@ import { AreaService } from '../../areas/services/area-service.js'
 import { getEmailService } from '../../../common/services/email/notify-service.js'
 
 /**
+ * Throws a ForbiddenError when the caller is not an admin.
+ * Use inside a try/catch that delegates to handleError so the error is
+ * automatically mapped to a 403 Forbidden response.
+ *
+ * @param {Object} credentials - JWT credentials from request.auth.credentials
+ * @throws {ForbiddenError} when credentials.isAdmin is falsy
+ */
+export function requireAdmin(credentials) {
+  if (!credentials?.isAdmin) {
+    throw new ForbiddenError(
+      'Admin access required',
+      ACCOUNT_ERROR_CODES.UNAUTHORIZED,
+      null
+    )
+  }
+}
+
+/**
  * Creates a service initializer for AccountUpsertService
  * Initializes email and area services, then creates AccountUpsertService
  *

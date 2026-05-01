@@ -66,6 +66,7 @@ const buildPrisma = () => ({ pafs_core_areas: { findFirst: vi.fn() } })
 const buildRawProject = (overrides = {}) => ({
   id: 1,
   reference_number: 'ANC501E/000A/001A',
+  slug: 'ANC501E-000A-001A',
   rma_name: 'Test RMA',
   pafs_core_area_projects: { area_id: 10 },
   ...overrides
@@ -95,6 +96,7 @@ describe('enrichProjectResponse', () => {
     // Default mock behaviour for area hierarchy
     resolveAreaHierarchy.mockResolvedValue({
       rmaName: 'Resolved RMA',
+      rmaSubType: 'ea',
       psoName: 'Yorkshire RFCC',
       rfccName: 'Yorkshire RFCC',
       eaAreaName: 'North East'
@@ -126,6 +128,7 @@ describe('enrichProjectResponse', () => {
 
       await enrichProjectResponse(prisma, raw, api)
 
+      expect(api.rmaSubType).toBe('ea')
       expect(api.psoName).toBe('Yorkshire RFCC')
       expect(api.rfccName).toBe('Yorkshire RFCC')
       expect(api.eaAreaName).toBe('North East')
@@ -447,6 +450,7 @@ describe('enrichProjectResponse', () => {
       })
       const raw = buildRawProject({
         reference_number: 'YOC501E/000A/005A',
+        slug: 'YOC501E-000A-005A',
         benefit_area_file_name: 'map.zip',
         benefit_area_file_s3_bucket: null,
         benefit_area_file_s3_key: null,
@@ -467,7 +471,7 @@ describe('enrichProjectResponse', () => {
         'pafs-uploads',
         'legacy/YOC501E-000A-005A/1/map.zip',
         undefined,
-        'map.zip'
+        'YOC501E-000A-005A_benefit_area.zip'
       )
       expect(api.benefitAreaFileDownloadUrl).toBe(
         'https://mock-signed.example.com/file.zip'
@@ -511,7 +515,7 @@ describe('enrichProjectResponse', () => {
         'my-bucket',
         'uploads/map.zip',
         undefined, // logger — not passed in these tests
-        'map.zip'
+        'ANC501E-000A-001A_benefit_area.zip'
       )
       expect(updateBenefitAreaDownloadUrl).toHaveBeenCalledWith(
         prisma,
@@ -625,7 +629,7 @@ describe('enrichProjectResponse', () => {
         'test-bucket',
         'legacy/SLUG/1/calc.xlsx',
         undefined, // logger — not passed in these tests
-        'calc.xlsx'
+        'ANC501E-000A-001A_PFcalculator.xlsx'
       )
       expect(api.fundingCalculatorDownloadUrl).toBe(
         'https://mock-signed.example.com/calc.xlsx'

@@ -20,12 +20,13 @@ describe('session helper', () => {
       expect(id1).not.toBe(id2)
     })
 
-    it('generates session id with timestamp and random parts', () => {
+    it('generates a UUID v4 with full cryptographic entropy', () => {
       const sessionId = generateSessionId()
 
-      expect(sessionId.length).toBeGreaterThan(10)
-      expect(sessionId.length).toBeLessThanOrEqual(20)
-      expect(typeof sessionId).toBe('string')
+      // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx (36 chars)
+      expect(sessionId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      )
     })
   })
 

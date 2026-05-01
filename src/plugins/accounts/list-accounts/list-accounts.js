@@ -3,10 +3,9 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { getAccountsQuerySchema } from '../schema.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
-import {
-  buildErrorResponse,
-  buildSuccessResponse
-} from '../../../common/helpers/response-builder.js'
+import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
+import { handleError } from '../../../common/helpers/error-handler.js'
+import { requireAdmin } from '../helpers/admin-route-handler.js'
 
 const listAccounts = {
   method: 'GET',
@@ -23,6 +22,8 @@ const listAccounts = {
   },
   handler: async (request, h) => {
     try {
+      requireAdmin(request.auth.credentials)
+
       const { status, search, areaId, page, pageSize } = request.query
 
       const accountService = new AccountFilterService(
@@ -40,12 +41,13 @@ const listAccounts = {
 
       return buildSuccessResponse(h, result, HTTP_STATUS.OK)
     } catch (error) {
-      request.server.logger.error({ error }, 'Failed to retrieve accounts')
-      return buildErrorResponse(h, HTTP_STATUS.INTERNAL_SERVER_ERROR, [
-        {
-          errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED
-        }
-      ])
+      return handleError(
+        error,
+        request,
+        h,
+        ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED,
+        'Failed to retrieve accounts'
+      )
     }
   }
 }

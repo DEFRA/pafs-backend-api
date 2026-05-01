@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
+  requireAdmin,
   createAdminHandler,
   createSimpleAdminHandler
 } from './admin-route-handler.js'
+import { ForbiddenError } from '../../../common/errors/index.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 
@@ -13,6 +15,39 @@ vi.mock('../../../common/helpers/error-handler.js', () => ({
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
   })
 }))
+
+describe('requireAdmin', () => {
+  it('should not throw when credentials.isAdmin is true', () => {
+    expect(() => requireAdmin({ isAdmin: true })).not.toThrow()
+  })
+
+  it('should throw ForbiddenError when credentials.isAdmin is false', () => {
+    expect(() => requireAdmin({ isAdmin: false })).toThrow(ForbiddenError)
+  })
+
+  it('should throw ForbiddenError when credentials.isAdmin is undefined', () => {
+    expect(() => requireAdmin({ isAdmin: undefined })).toThrow(ForbiddenError)
+  })
+
+  it('should throw ForbiddenError when credentials is null', () => {
+    expect(() => requireAdmin(null)).toThrow(ForbiddenError)
+  })
+
+  it('should throw ForbiddenError when credentials is undefined', () => {
+    expect(() => requireAdmin(undefined)).toThrow(ForbiddenError)
+  })
+
+  it('should throw with UNAUTHORIZED error code', () => {
+    let thrown
+    try {
+      requireAdmin({ isAdmin: false })
+    } catch (e) {
+      thrown = e
+    }
+    expect(thrown).toBeInstanceOf(ForbiddenError)
+    expect(thrown.code).toBe(ACCOUNT_ERROR_CODES.UNAUTHORIZED)
+  })
+})
 
 describe('createAdminHandler', () => {
   let mockRequest

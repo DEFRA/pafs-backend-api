@@ -3,6 +3,8 @@ import Hapi from '@hapi/hapi'
 import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
+
+const isProduction = process.env.NODE_ENV === 'production'
 import healthPlugin from './plugins/health/index.js'
 import authPlugin from './plugins/auth/index.js'
 import areasPlugin from './plugins/areas/index.js'
@@ -122,8 +124,60 @@ async function registerSwagger(server) {
   await server.register(swaggerPlugin)
 }
 
+/**
+ * Returns an array of error strings for any insecure config values that must
+ * be overridden before production startup. Exported so it can be unit-tested
+ * directly without needing to spin up the full Hapi server.
+ *
+ * @param {boolean} isProd - Whether the current environment is production.
+ * @param {(path: string) => string} getConfigValue - Function to read a config key.
+ * @returns {string[]} List of human-readable error descriptions; empty = OK.
+ */
+export function collectProductionConfigErrors(isProd, getConfigValue) {
+  if (!isProd) {
+    return []
+  }
+
+  const required = [
+    {
+      path: 'auth.jwt.accessSecret',
+      env: 'JWT_ACCESS_SECRET',
+      insecureDefault: 'changeme-access-secret-key-for-development'
+    },
+    {
+      path: 'auth.jwt.refreshSecret',
+      env: 'JWT_REFRESH_SECRET',
+      insecureDefault: 'changeme-refresh-secret-key-for-development'
+    },
+    { path: 'auth.jwt.issuer', env: 'JWT_ISSUER', insecureDefault: '' },
+    { path: 'auth.jwt.audience', env: 'JWT_AUDIENCE', insecureDefault: '' }
+  ]
+
+  return required
+    .filter(({ path, insecureDefault }) => {
+      const val = getConfigValue(path)
+      return !val || val === insecureDefault
+    })
+    .map(
+      ({ env }) =>
+        `${env} must be set to a non-empty, non-default value in production`
+    )
+}
+
+async function validateProductionConfig() {
+  const errors = collectProductionConfigErrors(isProduction, (path) =>
+    config.get(path)
+  )
+  if (errors.length > 0) {
+    throw new Error(
+      `Server startup aborted — insecure configuration detected:\n  ${errors.join('\n  ')}`
+    )
+  }
+}
+
 async function createServer() {
   setupProxy()
+  await validateProductionConfig()
   const server = Hapi.server(createServerConfig())
   await registerCorePlugins(server)
   await server.register(sqsClientPlugin)

@@ -8,6 +8,8 @@ import { authSchema } from './config/auth.js'
 import { notifySchema } from './config/notify.js'
 import { awsSchema } from './config/aws.js'
 import { schedulerSchema } from './config/scheduler.js'
+import { externalSubmissionSchema } from './config/external-submission.js'
+import { auditArchiveSchema } from './config/audit.js'
 
 convict.addFormats(convictFormatWithValidator)
 
@@ -18,7 +20,9 @@ const config = convict({
   ...authSchema,
   ...notifySchema,
   ...awsSchema,
-  ...schedulerSchema
+  ...schedulerSchema,
+  ...externalSubmissionSchema,
+  ...auditArchiveSchema
 })
 
 config.validate({ allowed: 'strict' })

@@ -46,7 +46,8 @@ const resetPassword = {
 
       const result = await resetService.resetPassword(
         tokenResult.userId,
-        password
+        password,
+        token
       )
 
       if (!result.success) {
@@ -60,7 +61,6 @@ const resetPassword = {
           })
           .code(statusCode)
       }
-      tokenService.clearResetToken(tokenResult.userId)
 
       return h.response({ success: true }).code(HTTP_STATUS.OK)
     } catch (error) {

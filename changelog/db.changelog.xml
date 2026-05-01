@@ -26,6 +26,8 @@
   <include file="2-008-numeric-precision.xml" relativeToChangelogFile="true"/>
   <!-- Schema change to drop main_source_of_risk column, which is redundant with main_risk. -->
   <include file="2-009-drop-main-source-of-risk.xml" relativeToChangelogFile="true"/>
+  <!-- Schema change to widen unique_session_id column to prevent P2000 errors on login. -->
+  <include file="2-010-widen-unique-session-id.xml" relativeToChangelogFile="true"/>
 
   <!-- Legacy tables - these are maintained for historical purposes, but new system should not use these tables. -->
   <include file="3-001-account-requests-legacy-table.xml" relativeToChangelogFile="true"/>
@@ -35,5 +37,11 @@
   <include file="3-005-asite-submissions-legacy-table.xml" relativeToChangelogFile="true"/>
   <include file="3-006-asite-files-legacy-table.xml" relativeToChangelogFile="true"/>
   <include file="3-007-bootstraps-legacy-table.xml" relativeToChangelogFile="true"/>
+
+  <!-- New audit log table for tracking all data changes with before/after snapshots -->
+  <include file="4-001-audit-log.xml" relativeToChangelogFile="true"/>
+
+  <!-- Proposal submission tracking — records every attempt to send to the external system -->
+  <include file="4-002-create-proposal-submissions.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

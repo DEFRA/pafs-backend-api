@@ -1,18 +1,14 @@
 import crypto from 'node:crypto'
 import { config } from '../../../config.js'
-import { SESSION } from '../../../common/constants/index.js'
 
 /**
- * Generate a unique session identifier
- * @returns {string} Unique session ID combining timestamp and random bytes
+ * Generate a cryptographically secure unique session identifier.
+ * Uses crypto.randomUUID() which produces 128 bits of cryptographic randomness,
+ * removing any timing-derived (predictable) component.
+ * @returns {string} UUID v4 session ID
  */
 export function generateSessionId() {
-  const timestamp = Date.now().toString(SESSION.BASE_36)
-  const randomBytes = crypto.randomBytes(SESSION.RANDOM_BYTES_8)
-  const randomPart = randomBytes
-    .toString('hex')
-    .substring(SESSION.RANDOM_STRING_START, SESSION.RANDOM_STRING_END)
-  return `${timestamp}${randomPart}`
+  return crypto.randomUUID()
 }
 
 /**

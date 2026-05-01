@@ -3,6 +3,8 @@ import { ACCOUNT_ERROR_CODES } from '../../../common/constants/accounts.js'
 import { validationFailAction } from '../../../common/helpers/validation-fail-action.js'
 import { getAccountByIdSchema } from '../schema.js'
 import { AccountService } from '../services/account-service.js'
+import { handleError } from '../../../common/helpers/error-handler.js'
+import { requireAdmin } from '../helpers/admin-route-handler.js'
 import { buildErrorResponse } from '../../../common/helpers/response-builder.js'
 
 const getAccount = {
@@ -20,6 +22,8 @@ const getAccount = {
   },
   handler: async (request, h) => {
     try {
+      requireAdmin(request.auth.credentials)
+
       const { id } = request.params
 
       const accountService = new AccountService(
@@ -37,15 +41,13 @@ const getAccount = {
 
       return h.response(account).code(HTTP_STATUS.OK)
     } catch (error) {
-      request.server.logger.error(
-        { error, accountId: request.params.id },
+      return handleError(
+        error,
+        request,
+        h,
+        ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED,
         'Failed to retrieve account'
       )
-      return buildErrorResponse(h, HTTP_STATUS.INTERNAL_SERVER_ERROR, [
-        {
-          errorCode: ACCOUNT_ERROR_CODES.RETRIEVAL_FAILED
-        }
-      ])
     }
   }
 }

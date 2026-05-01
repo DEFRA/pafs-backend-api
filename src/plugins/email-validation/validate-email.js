@@ -8,7 +8,10 @@ const validateEmail = {
   method: 'POST',
   path: '/api/v1/validate-email',
   options: {
-    auth: false,
+    // Optional auth: authenticated callers (admins updating a user's email) may
+    // pass excludeUserId. Unauthenticated callers (registration flow) cannot —
+    // the field is stripped before reaching the service to prevent cross-probing.
+    auth: { mode: 'try', strategy: 'jwt' },
     description: 'Validate email address',
     notes:
       'Validates email for disposable domains, DNS MX records, and duplicates',
@@ -25,8 +28,13 @@ const validateEmail = {
         checkDisposable,
         checkDnsMx,
         checkDuplicate,
-        excludeUserId
+        excludeUserId: rawExcludeUserId
       } = request.payload
+
+      // Only authenticated users may use excludeUserId (admin email-update flow).
+      // Strip it for unauthenticated requests to prevent user enumeration by ID.
+      const isAuthenticated = request.auth?.isAuthenticated === true
+      const excludeUserId = isAuthenticated ? rawExcludeUserId : undefined
 
       const emailValidationService = new EmailValidationService(
         request.prisma,

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="4-002-create-proposal-submissions" author="migration-team">
+    <comment>
+      Track every attempt to send a submitted FCERM proposal to the external
+      system (AIMS PD / Pipeline).  A new row is created for each attempt so
+      the full history (initial submit + any admin resends) is preserved.
+    </comment>
+
+    <createTable tableName="pafs_proposal_submissions">
+      <column name="id" type="BIGSERIAL" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <column name="project_id" type="BIGINT">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="reference_number" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
+
+      <!-- pending | success | failed -->
+      <column name="status" type="VARCHAR(50)" defaultValue="pending">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="http_status_code" type="INT">
+        <constraints nullable="true"/>
+      </column>
+
+      <column name="error_message" type="TEXT">
+        <constraints nullable="true"/>
+      </column>
+
+      <column name="response_body" type="TEXT">
+        <constraints nullable="true"/>
+      </column>
+
+      <!-- true = triggered by admin resend; false = triggered on submission -->
+      <column name="is_resend" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="attempted_at" type="TIMESTAMP WITHOUT TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+
+    <createIndex indexName="idx_proposal_submissions_project_id" tableName="pafs_proposal_submissions">
+      <column name="project_id"/>
+    </createIndex>
+
+    <createIndex indexName="idx_proposal_submissions_reference_number" tableName="pafs_proposal_submissions">
+      <column name="reference_number"/>
+    </createIndex>
+
+    <createIndex indexName="idx_proposal_submissions_status" tableName="pafs_proposal_submissions">
+      <column name="status"/>
+    </createIndex>
+  </changeSet>
+
+</databaseChangeLog>

@@ -13,6 +13,20 @@ vi.mock('../services/account-filter-service.js', () => ({
   }
 }))
 
+vi.mock('../../../common/helpers/error-handler.js', () => ({
+  handleError: vi.fn((error, _request, h, errorCode) => {
+    const statusCode = error?.statusCode ?? HTTP_STATUS.INTERNAL_SERVER_ERROR
+    const code = error?.code ?? errorCode
+    return h.response({ errors: [{ errorCode: code }] }).code(statusCode)
+  })
+}))
+
+// requireAdmin throws ForbiddenError — mock to control behaviour per test
+const mockRequireAdmin = vi.fn()
+vi.mock('../helpers/admin-route-handler.js', () => ({
+  requireAdmin: (...args) => mockRequireAdmin(...args)
+}))
+
 describe('list-accounts route', () => {
   let mockRequest
   let mockH
@@ -25,6 +39,9 @@ describe('list-accounts route', () => {
         status: 'active',
         page: 1,
         pageSize: 20
+      },
+      auth: {
+        credentials: { isAdmin: true }
       },
       prisma: {},
       server: {
@@ -68,7 +85,23 @@ describe('list-accounts route', () => {
   })
 
   describe('handler', () => {
+    it('returns 403 forbidden for non-admin users', async () => {
+      const { ForbiddenError } = await import('../../../common/errors/index.js')
+      mockRequireAdmin.mockImplementation(() => {
+        throw new ForbiddenError(
+          'Admin access required',
+          ACCOUNT_ERROR_CODES.UNAUTHORIZED
+        )
+      })
+
+      await listAccountsRoute.handler(mockRequest, mockH)
+
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
+      expect(mockGetAccounts).not.toHaveBeenCalled()
+    })
+
     it('returns accounts with OK status', async () => {
+      mockRequireAdmin.mockReturnValue(undefined)
       const mockResult = {
         data: [
           {
@@ -94,6 +127,7 @@ describe('list-accounts route', () => {
     })
 
     it('passes all query params to service', async () => {
+      mockRequireAdmin.mockReturnValue(undefined)
       mockRequest.query = {
         status: 'pending',
         search: 'john',
@@ -116,6 +150,7 @@ describe('list-accounts route', () => {
     })
 
     it('handles empty search parameter', async () => {
+      mockRequireAdmin.mockReturnValue(undefined)
       mockRequest.query = {
         status: 'active',
         search: '',
@@ -135,6 +170,7 @@ describe('list-accounts route', () => {
     })
 
     it('returns empty data array when no results', async () => {
+      mockRequireAdmin.mockReturnValue(undefined)
       mockGetAccounts.mockResolvedValue({
         data: [],
         pagination: { page: 1, pageSize: 20, total: 0 }
@@ -149,6 +185,7 @@ describe('list-accounts route', () => {
     })
 
     it('returns error response when service throws', async () => {
+      mockRequireAdmin.mockReturnValue(undefined)
       mockGetAccounts.mockRejectedValue(new Error('Database connection failed'))
 
       await listAccountsRoute.handler(mockRequest, mockH)
@@ -159,16 +196,14 @@ describe('list-accounts route', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     })
 
-    it('logs error when service throws', async () => {
-      const testError = new Error('Test error')
-      mockGetAccounts.mockRejectedValue(testError)
-      mockRequest.server.logger = { error: vi.fn() }
+    it('passes credentials to requireAdmin', async () => {
+      mockRequireAdmin.mockReturnValue(undefined)
+      mockGetAccounts.mockResolvedValue({ data: [], pagination: {} })
 
       await listAccountsRoute.handler(mockRequest, mockH)
 
-      expect(mockRequest.server.logger.error).toHaveBeenCalledWith(
-        { error: testError },
-        'Failed to retrieve accounts'
+      expect(mockRequireAdmin).toHaveBeenCalledWith(
+        mockRequest.auth.credentials
       )
     })
   })

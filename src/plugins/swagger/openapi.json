@@ -94,35 +94,49 @@
         "in": "path",
         "required": true,
         "description": "UUID of the user account",
-        "schema": { "type": "string", "format": "uuid" }
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
       },
       "ReferenceNumber": {
         "name": "referenceNumber",
         "in": "path",
         "required": true,
         "description": "Project reference number. Forward slashes (`/`) should be replaced with hyphens (`-`) in the URL path. E.g. `2425/YNEJ/01/01` becomes `2425-YNEJ-01-01`.",
-        "schema": { "type": "string", "example": "2425-YNEJ-01-01" }
+        "schema": {
+          "type": "string",
+          "example": "2425-YNEJ-01-01"
+        }
       },
       "UploadId": {
         "name": "uploadId",
         "in": "path",
         "required": true,
         "description": "CDP Uploader upload session ID",
-        "schema": { "type": "string" }
+        "schema": {
+          "type": "string"
+        }
       },
       "TaskName": {
         "name": "taskName",
         "in": "path",
         "required": true,
         "description": "Name of the scheduled task",
-        "schema": { "type": "string" }
+        "schema": {
+          "type": "string"
+        }
       },
       "Page": {
         "name": "page",
         "in": "query",
         "required": false,
         "description": "Page number (1-indexed)",
-        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
       },
       "PageSize": {
         "name": "pageSize",
@@ -141,7 +155,10 @@
         "in": "query",
         "required": false,
         "description": "Free-text search term",
-        "schema": { "type": "string", "maxLength": 100 }
+        "schema": {
+          "type": "string",
+          "maxLength": 100
+        }
       }
     },
     "schemas": {
@@ -207,7 +224,9 @@
         "properties": {
           "errors": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/ErrorItem" }
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            }
           }
         }
       },
@@ -216,14 +235,19 @@
         "properties": {
           "validationErrors": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/ErrorItem" }
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            }
           }
         }
       },
       "SuccessResponse": {
         "type": "object",
         "properties": {
-          "success": { "type": "boolean", "example": true }
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
         }
       },
       "PaginationMeta": {
@@ -233,8 +257,14 @@
             "type": "integer",
             "description": "Total number of records"
           },
-          "page": { "type": "integer", "description": "Current page number" },
-          "pageSize": { "type": "integer", "description": "Records per page" },
+          "page": {
+            "type": "integer",
+            "description": "Current page number"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Records per page"
+          },
           "totalPages": {
             "type": "integer",
             "description": "Total number of pages"
@@ -244,18 +274,29 @@
       "HealthCheck": {
         "type": "object",
         "properties": {
-          "status": { "type": "string", "enum": ["healthy", "unhealthy"] },
-          "message": { "type": "string", "example": "success" },
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "unhealthy"]
+          },
+          "message": {
+            "type": "string",
+            "example": "success"
+          },
           "uptime": {
             "type": "number",
             "description": "Process uptime in seconds"
           },
-          "timestamp": { "type": "string", "format": "date-time" }
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "HealthCheckDetailed": {
         "allOf": [
-          { "$ref": "#/components/schemas/HealthCheck" },
+          {
+            "$ref": "#/components/schemas/HealthCheck"
+          },
           {
             "type": "object",
             "properties": {
@@ -265,15 +306,23 @@
                   "postgres": {
                     "type": "object",
                     "properties": {
-                      "healthy": { "type": "boolean" },
-                      "message": { "type": "string" }
+                      "healthy": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
                     }
                   },
                   "notify": {
                     "type": "object",
                     "properties": {
-                      "healthy": { "type": "boolean" },
-                      "message": { "type": "string" }
+                      "healthy": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
                     }
                   }
                 }
@@ -305,11 +354,22 @@
           "user": {
             "type": "object",
             "properties": {
-              "id": { "type": "integer" },
-              "email": { "type": "string", "format": "email" },
-              "firstName": { "type": "string" },
-              "lastName": { "type": "string" },
-              "isAdmin": { "type": "boolean" }
+              "id": {
+                "type": "integer"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "firstName": {
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "isAdmin": {
+                "type": "boolean"
+              }
             }
           },
           "accessToken": {
@@ -339,9 +399,15 @@
       "RefreshResponse": {
         "type": "object",
         "properties": {
-          "accessToken": { "type": "string" },
-          "refreshToken": { "type": "string" },
-          "expiresIn": { "type": "integer" }
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          }
         }
       },
       "ValidateTokenRequest": {
@@ -415,9 +481,18 @@
             "format": "uuid",
             "description": "If provided, performs an update. Requires admin JWT."
           },
-          "firstName": { "type": "string", "maxLength": 100 },
-          "lastName": { "type": "string", "maxLength": 100 },
-          "email": { "type": "string", "format": "email" },
+          "firstName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "lastName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
           "admin": {
             "type": "boolean",
             "default": false,
@@ -446,7 +521,9 @@
           },
           "areas": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/AccountArea" },
+            "items": {
+              "$ref": "#/components/schemas/AccountArea"
+            },
             "description": "Required for non-admin accounts (min 1 area)"
           }
         }
@@ -454,25 +531,57 @@
       "AccountResponse": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "firstName": { "type": "string" },
-          "lastName": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "admin": { "type": "boolean" },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "admin": {
+            "type": "boolean"
+          },
           "status": {
             "type": "string",
             "enum": ["pending", "active", "disabled", "locked"]
           },
-          "responsibility": { "type": "string", "nullable": true },
-          "jobTitle": { "type": "string", "nullable": true },
-          "organisation": { "type": "string", "nullable": true },
-          "telephoneNumber": { "type": "string", "nullable": true },
+          "responsibility": {
+            "type": "string",
+            "nullable": true
+          },
+          "jobTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "organisation": {
+            "type": "string",
+            "nullable": true
+          },
+          "telephoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
           "areas": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/AccountArea" }
+            "items": {
+              "$ref": "#/components/schemas/AccountArea"
+            }
           },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "AccountListResponse": {
@@ -480,24 +589,45 @@
         "properties": {
           "data": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/AccountResponse" }
+            "items": {
+              "$ref": "#/components/schemas/AccountResponse"
+            }
           },
-          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
         }
       },
       "AreaItem": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "name": { "type": "string" },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
           "areaType": {
             "type": "string",
             "enum": ["ea_area", "pso_area", "rma", "authority"]
           },
-          "identifier": { "type": "string", "nullable": true },
-          "subType": { "type": "string", "nullable": true },
-          "parentId": { "type": "integer", "nullable": true },
-          "endDate": { "type": "string", "format": "date", "nullable": true }
+          "identifier": {
+            "type": "string",
+            "nullable": true
+          },
+          "subType": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
         }
       },
       "AreasByTypeResponse": {
@@ -505,10 +635,18 @@
         "description": "Areas keyed by areaType",
         "additionalProperties": {
           "type": "array",
-          "items": { "$ref": "#/components/schemas/AreaItem" }
+          "items": {
+            "$ref": "#/components/schemas/AreaItem"
+          }
         },
         "example": {
-          "ea_area": [{ "id": 1, "name": "Anglian", "areaType": "ea_area" }],
+          "ea_area": [
+            {
+              "id": 1,
+              "name": "Anglian",
+              "areaType": "ea_area"
+            }
+          ],
           "pso_area": [
             {
               "id": 10,
@@ -524,9 +662,13 @@
         "properties": {
           "data": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/AreaItem" }
+            "items": {
+              "$ref": "#/components/schemas/AreaItem"
+            }
           },
-          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
         }
       },
       "UpsertAreaRequest": {
@@ -543,7 +685,10 @@
             "enum": ["authority", "pso_area", "rma"],
             "description": "EA Area cannot be created/updated via this endpoint"
           },
-          "name": { "type": "string", "maxLength": 255 },
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
           "identifier": {
             "type": "string",
             "description": "Authority Code (for Authority) or Identifier Code (for RMA)"
@@ -566,12 +711,16 @@
       "ProjectSummary": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
+          "id": {
+            "type": "integer"
+          },
           "referenceNumber": {
             "type": "string",
             "example": "2425/YNEJ/01/01"
           },
-          "name": { "type": "string" },
+          "name": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -579,13 +728,22 @@
               "draft",
               "submitted",
               "approved",
-              "completed",
+              "rejected",
               "archived"
             ]
           },
-          "areaId": { "type": "integer", "nullable": true },
-          "rmaName": { "type": "string", "nullable": true },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "areaId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "rmaName": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "ProjectListResponse": {
@@ -593,19 +751,32 @@
         "properties": {
           "data": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/ProjectSummary" }
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            }
           },
-          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
         }
       },
       "ProjectDetail": {
         "type": "object",
         "description": "Full project proposal data. Fields vary based on what has been saved.",
         "properties": {
-          "id": { "type": "integer" },
-          "referenceNumber": { "type": "string", "example": "2425/YNEJ/01/01" },
-          "slug": { "type": "string" },
-          "name": { "type": "string" },
+          "id": {
+            "type": "integer"
+          },
+          "referenceNumber": {
+            "type": "string",
+            "example": "2425/YNEJ/01/01"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -613,7 +784,7 @@
               "draft",
               "submitted",
               "approved",
-              "completed",
+              "rejected",
               "archived"
             ]
           },
@@ -629,10 +800,22 @@
               "enum": ["NFM", "SUDS", "PFR", "Other"]
             }
           },
-          "areaId": { "type": "integer", "nullable": true },
-          "rmaName": { "type": "string", "nullable": true },
-          "financialStartYear": { "type": "integer", "nullable": true },
-          "financialEndYear": { "type": "integer", "nullable": true },
+          "areaId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "rmaName": {
+            "type": "string",
+            "nullable": true
+          },
+          "financialStartYear": {
+            "type": "integer",
+            "nullable": true
+          },
+          "financialEndYear": {
+            "type": "integer",
+            "nullable": true
+          },
           "urgencyReason": {
             "type": "string",
             "enum": [
@@ -660,15 +843,27 @@
               ]
             }
           },
-          "benefitAreaFileName": { "type": "string", "nullable": true },
-          "benefitAreaFileSize": { "type": "integer", "nullable": true },
+          "benefitAreaFileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "benefitAreaFileSize": {
+            "type": "integer",
+            "nullable": true
+          },
           "benefitAreaFileDownloadUrl": {
             "type": "string",
             "format": "uri",
             "nullable": true
           },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "UpsertProjectRequest": {
@@ -765,8 +960,13 @@
                 "nullable": true,
                 "description": "Omit on initial create; required on all subsequent updates"
               },
-              "name": { "type": "string", "maxLength": 100 },
-              "areaId": { "type": "integer" },
+              "name": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "areaId": {
+                "type": "integer"
+              },
               "projectType": {
                 "type": "string",
                 "enum": ["DEF", "REP", "REF", "HCR", "STR", "STU", "ELO"]
@@ -778,45 +978,63 @@
                   "enum": ["NFM", "SUDS", "PFR", "Other"]
                 }
               },
-              "financialStartYear": { "type": "integer" },
-              "financialEndYear": { "type": "integer" },
+              "financialStartYear": {
+                "type": "integer"
+              },
+              "financialEndYear": {
+                "type": "integer"
+              },
               "startOutlineBusinessCaseMonth": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 12
               },
-              "startOutlineBusinessCaseYear": { "type": "integer" },
+              "startOutlineBusinessCaseYear": {
+                "type": "integer"
+              },
               "completeOutlineBusinessCaseMonth": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 12
               },
-              "completeOutlineBusinessCaseYear": { "type": "integer" },
+              "completeOutlineBusinessCaseYear": {
+                "type": "integer"
+              },
               "awardContractMonth": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 12
               },
-              "awardContractYear": { "type": "integer" },
+              "awardContractYear": {
+                "type": "integer"
+              },
               "startConstructionMonth": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 12
               },
-              "startConstructionYear": { "type": "integer" },
+              "startConstructionYear": {
+                "type": "integer"
+              },
               "readyForServiceMonth": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 12
               },
-              "readyForServiceYear": { "type": "integer" },
-              "couldStartEarly": { "type": "boolean" },
+              "readyForServiceYear": {
+                "type": "integer"
+              },
+              "couldStartEarly": {
+                "type": "boolean"
+              },
               "earliestStartMonth": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 12
               },
-              "earliestStartYear": { "type": "integer" },
+              "earliestStartYear": {
+                "type": "integer"
+              },
               "risks": {
                 "type": "array",
                 "items": {
@@ -844,7 +1062,10 @@
                   "coastal_erosion"
                 ]
               },
-              "noPropertiesAtFloodRisk": { "type": "integer", "minimum": 0 },
+              "noPropertiesAtFloodRisk": {
+                "type": "integer",
+                "minimum": 0
+              },
               "noPropertiesAtCoastalErosionRisk": {
                 "type": "integer",
                 "minimum": 0
@@ -871,7 +1092,10 @@
                 "type": "string",
                 "enum": ["medium_term", "longer_term"]
               },
-              "approach": { "type": "string", "maxLength": 1000 },
+              "approach": {
+                "type": "string",
+                "maxLength": 1000
+              },
               "urgencyReason": {
                 "type": "string",
                 "enum": [
@@ -883,7 +1107,10 @@
                   "time_limited"
                 ]
               },
-              "urgencyDetails": { "type": "string", "maxLength": 1000 },
+              "urgencyDetails": {
+                "type": "string",
+                "maxLength": 1000
+              },
               "confidenceHomesBetterProtected": {
                 "type": "string",
                 "enum": [
@@ -922,17 +1149,26 @@
       "UpsertProjectResponse": {
         "type": "object",
         "properties": {
-          "success": { "type": "boolean", "example": true },
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
           "data": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
+              "id": {
+                "type": "string"
+              },
               "referenceNumber": {
                 "type": "string",
                 "example": "2425/YNEJ/01/01"
               },
-              "slug": { "type": "string" },
-              "name": { "type": "string" }
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
             }
           }
         }
@@ -948,7 +1184,7 @@
               "draft",
               "submitted",
               "approved",
-              "completed",
+              "rejected",
               "archived"
             ],
             "description": "New project status"
@@ -974,7 +1210,9 @@
       "BenefitAreaFileDownloadResponse": {
         "type": "object",
         "properties": {
-          "success": { "type": "boolean" },
+          "success": {
+            "type": "boolean"
+          },
           "data": {
             "type": "object",
             "properties": {
@@ -983,10 +1221,20 @@
                 "format": "uri",
                 "description": "Presigned S3 URL valid for 7 days"
               },
-              "expiresAt": { "type": "string", "format": "date-time" },
-              "filename": { "type": "string" },
-              "fileSize": { "type": "integer", "nullable": true },
-              "contentType": { "type": "string" }
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "filename": {
+                "type": "string"
+              },
+              "fileSize": {
+                "type": "integer",
+                "nullable": true
+              },
+              "contentType": {
+                "type": "string"
+              }
             }
           }
         }
@@ -1017,7 +1265,10 @@
           },
           "downloadUrls": {
             "type": "array",
-            "items": { "type": "string", "format": "uri" },
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
             "description": "If provided, CDP Uploader will download from these URLs instead of accepting a file upload. Sets initial status to PROCESSING."
           }
         }
@@ -1025,7 +1276,9 @@
       "UploadSessionResponse": {
         "type": "object",
         "properties": {
-          "success": { "type": "boolean" },
+          "success": {
+            "type": "boolean"
+          },
           "data": {
             "type": "object",
             "properties": {
@@ -1038,7 +1291,10 @@
                 "format": "uri",
                 "description": "CDP Uploader URL to POST the file to"
               },
-              "reference": { "type": "string", "nullable": true }
+              "reference": {
+                "type": "string",
+                "nullable": true
+              }
             }
           }
         }
@@ -1046,28 +1302,68 @@
       "UploadStatusResponse": {
         "type": "object",
         "properties": {
-          "success": { "type": "boolean" },
+          "success": {
+            "type": "boolean"
+          },
           "data": {
             "type": "object",
             "properties": {
-              "uploadId": { "type": "string" },
+              "uploadId": {
+                "type": "string"
+              },
               "uploadStatus": {
                 "type": "string",
                 "enum": ["pending", "processing", "ready", "failed"],
                 "description": "Current upload status"
               },
-              "fileStatus": { "type": "string", "nullable": true },
-              "filename": { "type": "string", "nullable": true },
-              "contentType": { "type": "string", "nullable": true },
-              "contentLength": { "type": "integer", "nullable": true },
-              "s3Bucket": { "type": "string", "nullable": true },
-              "s3Key": { "type": "string", "nullable": true },
-              "reference": { "type": "string", "nullable": true },
-              "entityType": { "type": "string", "nullable": true },
-              "entityId": { "type": "integer", "nullable": true },
-              "rejectionReason": { "type": "string", "nullable": true },
-              "numberOfRejectedFiles": { "type": "integer", "nullable": true },
-              "createdAt": { "type": "string", "format": "date-time" },
+              "fileStatus": {
+                "type": "string",
+                "nullable": true
+              },
+              "filename": {
+                "type": "string",
+                "nullable": true
+              },
+              "contentType": {
+                "type": "string",
+                "nullable": true
+              },
+              "contentLength": {
+                "type": "integer",
+                "nullable": true
+              },
+              "s3Bucket": {
+                "type": "string",
+                "nullable": true
+              },
+              "s3Key": {
+                "type": "string",
+                "nullable": true
+              },
+              "reference": {
+                "type": "string",
+                "nullable": true
+              },
+              "entityType": {
+                "type": "string",
+                "nullable": true
+              },
+              "entityId": {
+                "type": "integer",
+                "nullable": true
+              },
+              "rejectionReason": {
+                "type": "string",
+                "nullable": true
+              },
+              "numberOfRejectedFiles": {
+                "type": "integer",
+                "nullable": true
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
               "completedAt": {
                 "type": "string",
                 "format": "date-time",
@@ -1107,9 +1403,17 @@
       "TaskItem": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
-          "schedule": { "type": "string", "description": "Cron expression" },
-          "status": { "type": "string", "enum": ["idle", "running", "failed"] },
+          "name": {
+            "type": "string"
+          },
+          "schedule": {
+            "type": "string",
+            "description": "Cron expression"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["idle", "running", "failed"]
+          },
           "lastRun": {
             "type": "string",
             "format": "date-time",
@@ -1125,34 +1429,59 @@
       "TaskStatsResponse": {
         "type": "object",
         "properties": {
-          "success": { "type": "boolean" },
+          "success": {
+            "type": "boolean"
+          },
           "data": {
             "type": "object",
             "properties": {
               "stats": {
                 "type": "object",
                 "properties": {
-                  "totalRuns": { "type": "integer" },
-                  "successfulRuns": { "type": "integer" },
-                  "failedRuns": { "type": "integer" },
-                  "averageDurationMs": { "type": "number" }
+                  "totalRuns": {
+                    "type": "integer"
+                  },
+                  "successfulRuns": {
+                    "type": "integer"
+                  },
+                  "failedRuns": {
+                    "type": "integer"
+                  },
+                  "averageDurationMs": {
+                    "type": "number"
+                  }
                 }
               },
               "latestExecution": {
                 "type": "object",
                 "nullable": true,
                 "properties": {
-                  "id": { "type": "integer" },
-                  "taskName": { "type": "string" },
-                  "status": { "type": "string" },
-                  "startedAt": { "type": "string", "format": "date-time" },
+                  "id": {
+                    "type": "integer"
+                  },
+                  "taskName": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "startedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
                   "completedAt": {
                     "type": "string",
                     "format": "date-time",
                     "nullable": true
                   },
-                  "durationMs": { "type": "integer", "nullable": true },
-                  "error": { "type": "string", "nullable": true }
+                  "durationMs": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "error": {
+                    "type": "string",
+                    "nullable": true
+                  }
                 }
               }
             }
@@ -1162,21 +1491,37 @@
       "LogItem": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "taskName": { "type": "string" },
+          "id": {
+            "type": "integer"
+          },
+          "taskName": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": ["running", "success", "failed", "timeout"]
           },
-          "startedAt": { "type": "string", "format": "date-time" },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "completedAt": {
             "type": "string",
             "format": "date-time",
             "nullable": true
           },
-          "durationMs": { "type": "integer", "nullable": true },
-          "triggeredBy": { "type": "string", "nullable": true },
-          "error": { "type": "string", "nullable": true }
+          "durationMs": {
+            "type": "integer",
+            "nullable": true
+          },
+          "triggeredBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
         }
       },
       "TriggerTaskRequest": {
@@ -1195,9 +1540,15 @@
         "description": "Authentication required or credentials invalid",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
             "example": {
-              "errors": [{ "errorCode": "TOKEN_EXPIRED_OR_INVALID" }]
+              "errors": [
+                {
+                  "errorCode": "TOKEN_EXPIRED_OR_INVALID"
+                }
+              ]
             }
           }
         }
@@ -1206,8 +1557,16 @@
         "description": "Authenticated but not authorised (e.g. non-admin accessing admin route)",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-            "example": { "errors": [{ "errorCode": "UNAUTHORIZED" }] }
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "errors": [
+                {
+                  "errorCode": "UNAUTHORIZED"
+                }
+              ]
+            }
           }
         }
       },
@@ -1215,8 +1574,16 @@
         "description": "Resource not found",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-            "example": { "errors": [{ "errorCode": "NOT_FOUND" }] }
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "errors": [
+                {
+                  "errorCode": "NOT_FOUND"
+                }
+              ]
+            }
           }
         }
       },
@@ -1224,7 +1591,9 @@
         "description": "Request payload or parameter validation failed",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
             "example": {
               "errors": [
                 {
@@ -1241,8 +1610,16 @@
         "description": "Unexpected internal server error",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-            "example": { "errors": [{ "errorCode": "INTERNAL_ERROR" }] }
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "errors": [
+                {
+                  "errorCode": "INTERNAL_ERROR"
+                }
+              ]
+            }
           }
         }
       }
@@ -1261,7 +1638,9 @@
             "description": "Service is healthy",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthCheck" },
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheck"
+                },
                 "example": {
                   "status": "healthy",
                   "message": "success",
@@ -1275,7 +1654,9 @@
             "description": "Service is unhealthy",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthCheck" }
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheck"
+                }
               }
             }
           }
@@ -1294,7 +1675,9 @@
             "description": "All services healthy",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthCheckDetailed" }
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheckDetailed"
+                }
               }
             }
           },
@@ -1302,7 +1685,9 @@
             "description": "One or more services unhealthy",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthCheckDetailed" }
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheckDetailed"
+                }
               }
             }
           }
@@ -1320,7 +1705,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
             }
           }
         },
@@ -1329,21 +1716,31 @@
             "description": "Login successful",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
           "401": {
             "description": "Authentication failed",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
                 "examples": {
                   "invalid_credentials": {
                     "summary": "Invalid email or password",
                     "value": {
-                      "errors": [{ "errorCode": "INVALID_CREDENTIALS" }]
+                      "errors": [
+                        {
+                          "errorCode": "INVALID_CREDENTIALS"
+                        }
+                      ]
                     }
                   },
                   "account_locked": {
@@ -1359,7 +1756,13 @@
                   },
                   "account_disabled": {
                     "summary": "Account has been disabled",
-                    "value": { "errors": [{ "errorCode": "ACCOUNT_DISABLED" }] }
+                    "value": {
+                      "errors": [
+                        {
+                          "errorCode": "ACCOUNT_DISABLED"
+                        }
+                      ]
+                    }
                   }
                 }
               }
@@ -1374,17 +1777,25 @@
         "summary": "Logout",
         "description": "Invalidates the current JWT session. The user's `unique_session_id` is rotated, making the current access token and refresh token immediately invalid.",
         "operationId": "logout",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Logout successful",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
         }
       }
     },
@@ -1399,7 +1810,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/RefreshRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
             }
           }
         },
@@ -1408,7 +1821,9 @@
             "description": "Token refreshed successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/RefreshResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResponse"
+                }
               }
             }
           },
@@ -1416,9 +1831,15 @@
             "description": "Refresh token invalid or expired",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
                 "example": {
-                  "errors": [{ "errorCode": "TOKEN_EXPIRED_OR_INVALID" }]
+                  "errors": [
+                    {
+                      "errorCode": "TOKEN_EXPIRED_OR_INVALID"
+                    }
+                  ]
                 }
               }
             }
@@ -1432,7 +1853,11 @@
         "summary": "Validate current session",
         "description": "Lightweight endpoint to verify that the JWT token is valid and the session is still active. Used by frontend to check authentication state.",
         "operationId": "validateSession",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Session is valid",
@@ -1441,13 +1866,18 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "valid": { "type": "boolean", "example": true }
+                    "valid": {
+                      "type": "boolean",
+                      "example": true
+                    }
                   }
                 }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
         }
       }
     },
@@ -1462,7 +1892,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ValidateTokenRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/ValidateTokenRequest"
+              }
             }
           }
         },
@@ -1474,8 +1906,14 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean", "example": true },
-                    "email": { "type": "string", "format": "email" }
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    }
                   }
                 }
               }
@@ -1485,9 +1923,15 @@
             "description": "Token invalid or expired",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
                 "example": {
-                  "errors": [{ "errorCode": "TOKEN_EXPIRED_OR_INVALID" }],
+                  "errors": [
+                    {
+                      "errorCode": "TOKEN_EXPIRED_OR_INVALID"
+                    }
+                  ],
                   "email": "user@example.gov.uk"
                 }
               }
@@ -1507,7 +1951,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ForgotPasswordRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
             }
           }
         },
@@ -1516,11 +1962,15 @@
             "description": "Request received (email sent if account exists)",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
         }
       }
     },
@@ -1535,7 +1985,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PasswordFormRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/PasswordFormRequest"
+              }
             }
           }
         },
@@ -1544,7 +1996,9 @@
             "description": "Password reset successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
@@ -1552,7 +2006,9 @@
             "description": "Token invalid/expired or passwords do not match",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -1560,8 +2016,16 @@
             "description": "Account disabled",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-                "example": { "errors": [{ "errorCode": "ACCOUNT_DISABLED" }] }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "errors": [
+                    {
+                      "errorCode": "ACCOUNT_DISABLED"
+                    }
+                  ]
+                }
               }
             }
           }
@@ -1579,7 +2043,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PasswordFormRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/PasswordFormRequest"
+              }
             }
           }
         },
@@ -1588,7 +2054,9 @@
             "description": "Password set and invitation accepted",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
@@ -1596,7 +2064,9 @@
             "description": "Token invalid/expired or passwords do not match",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -1604,7 +2074,9 @@
             "description": "Account disabled",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -1617,7 +2089,11 @@
         "summary": "List accounts",
         "description": "Returns a paginated list of user accounts. Supports filtering by status, area, and free-text search. Requires JWT.",
         "operationId": "listAccounts",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "status",
@@ -1629,29 +2105,45 @@
               "enum": ["pending", "active", "disabled", "locked"]
             }
           },
-          { "$ref": "#/components/parameters/Search" },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
           {
             "name": "areaId",
             "in": "query",
             "required": false,
             "description": "Filter accounts assigned to this area ID",
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           },
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/PageSize" }
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
         ],
         "responses": {
           "200": {
             "description": "Accounts retrieved successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AccountListResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AccountListResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       },
       "post": {
@@ -1659,12 +2151,18 @@
         "summary": "Create or update account",
         "description": "Creates a new user account (no `id` in payload) or updates an existing one (`id` required, admin JWT required). New accounts are auto-approved if the email domain matches the configured auto-approve list, otherwise left pending for admin approval. Admin accounts (`admin: true`) always require an admin JWT.",
         "operationId": "upsertAccount",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpsertAccountRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UpsertAccountRequest"
+              }
             }
           }
         },
@@ -1673,7 +2171,9 @@
             "description": "Account updated successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
               }
             }
           },
@@ -1681,13 +2181,21 @@
             "description": "Account created successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1697,20 +2205,36 @@
         "summary": "Get account by ID",
         "description": "Returns full account details including area assignments. Requires JWT.",
         "operationId": "getAccount",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Account found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       },
       "delete": {
@@ -1718,21 +2242,39 @@
         "summary": "Delete account",
         "description": "Permanently deletes a user account. **Admin only.** Works on both pending and active accounts.",
         "operationId": "deleteAccount",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Account deleted successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1742,21 +2284,39 @@
         "summary": "Approve a pending account",
         "description": "Approves a pending account and sends the user a password-set invitation email via GOV.UK Notify. **Admin only.**",
         "operationId": "approveAccount",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Account approved and invitation email sent",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1766,21 +2326,39 @@
         "summary": "Reactivate a disabled account",
         "description": "Reactivates a disabled account and sends a reactivation notification email. **Admin only.**",
         "operationId": "reactivateAccount",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Account reactivated successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1790,21 +2368,39 @@
         "summary": "Resend invitation email",
         "description": "Generates a new invitation token and resends the password-set invitation email. Only valid for approved accounts that have not yet set their password. **Admin only.**",
         "operationId": "resendInvitation",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Invitation email resent",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1820,11 +2416,15 @@
             "description": "Areas grouped by type",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AreasByTypeResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AreasByTypeResponse"
+                }
               }
             }
           },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1834,31 +2434,52 @@
         "summary": "List areas with filtering and pagination",
         "description": "Returns a paginated list of areas, optionally filtered by search term and/or area type. Requires JWT.",
         "operationId": "listAreasByList",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "$ref": "#/components/parameters/Search" },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
           {
             "name": "type",
             "in": "query",
             "required": false,
             "description": "Filter by area type",
-            "schema": { "type": "string", "maxLength": 50 }
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
           },
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/PageSize" }
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
         ],
         "responses": {
           "200": {
             "description": "Areas retrieved successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AreaListResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AreaListResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1868,14 +2489,20 @@
         "summary": "Get single area by ID",
         "description": "Returns area details for the specified ID. **Admin only.** Country and EA Area types are excluded from results.",
         "operationId": "getAreaById",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "Area ID",
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1883,14 +2510,24 @@
             "description": "Area found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AreaItem" }
+                "schema": {
+                  "$ref": "#/components/schemas/AreaItem"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1900,12 +2537,18 @@
         "summary": "Create or update an area",
         "description": "Creates a new area (no `id`) or updates an existing one (`id` required). **Admin only.** EA Area type cannot be created or updated. Supported types: `authority`, `pso_area`, `rma`. Each type has specific required fields:\n- **Authority**: `identifier` (Authority Code), `name`\n- **PSO Area**: `name`, `parentId` (EA Area ID), `subType` (RFCC Code)\n- **RMA**: `name`, `identifier` (Identifier Code), `parentId` (PSO ID), `subType` (Authority Code)",
         "operationId": "upsertArea",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpsertAreaRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UpsertAreaRequest"
+              }
             }
           }
         },
@@ -1914,7 +2557,9 @@
             "description": "Area updated",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AreaItem" }
+                "schema": {
+                  "$ref": "#/components/schemas/AreaItem"
+                }
               }
             }
           },
@@ -1922,14 +2567,24 @@
             "description": "Area created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AreaItem" }
+                "schema": {
+                  "$ref": "#/components/schemas/AreaItem"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1939,15 +2594,23 @@
         "summary": "List projects",
         "description": "Returns a paginated list of FCRM project proposals. **Role-filtered**: non-admin users only see projects for their assigned areas. Admins can optionally filter by a specific `areaId`.",
         "operationId": "listProjects",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "$ref": "#/components/parameters/Search" },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
           {
             "name": "areaId",
             "in": "query",
             "required": false,
             "description": "Filter by area ID. Admins only — non-admin users are restricted to their assigned areas.",
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           },
           {
             "name": "status",
@@ -1959,21 +2622,33 @@
               "enum": ["draft", "submitted", "archived"]
             }
           },
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/PageSize" }
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
         ],
         "responses": {
           "200": {
             "description": "Projects retrieved successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectListResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectListResponse"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -1983,19 +2658,33 @@
         "summary": "Get project by reference number",
         "description": "Returns the full project proposal data for the given reference number. Replace forward slashes with hyphens in the URL (e.g. `2425/YNEJ/01/01` → `2425-YNEJ-01-01`).",
         "operationId": "getProject",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ReferenceNumber"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Project found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectDetail" }
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDetail"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2005,12 +2694,18 @@
         "summary": "Create or update a project",
         "description": "Creates a new project (no `referenceNumber` in `payload`) or updates an existing one. The `level` field controls which fields in `payload` are validated.\n\n**Create:** Only RMA users with access to the specified `areaId` can create projects.\n\n**Update:** Admin users, RMA users with access to the project area, or users with access to the parent PSO area can update.\n\nSave is performed field-by-field as the user progresses through the proposal form — each `level` corresponds to a form step.",
         "operationId": "upsertProject",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpsertProjectRequest" },
+              "schema": {
+                "$ref": "#/components/schemas/UpsertProjectRequest"
+              },
               "examples": {
                 "initial_create": {
                   "summary": "Initial project creation",
@@ -2058,10 +2753,18 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2071,13 +2774,26 @@
         "summary": "Update project status",
         "description": "Updates the status of an existing project. Accepts either a JWT Bearer token — designed for service-to-service calls from the frontend or workflow engine.",
         "operationId": "updateProjectStatus",
-        "security": [{ "bearerAuth": [] }, { "apiKey": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ReferenceNumber"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateStatusRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusRequest"
+              }
             }
           }
         },
@@ -2089,12 +2805,18 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
+                    "success": {
+                      "type": "boolean"
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "referenceNumber": { "type": "string" },
-                        "status": { "type": "string" }
+                        "referenceNumber": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        }
                       }
                     }
                   }
@@ -2102,10 +2824,18 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2115,7 +2845,11 @@
         "summary": "Check if project name is unique",
         "description": "Checks whether a project name already exists in the system. Pass `referenceNumber` to exclude the current project from the duplicate check (used during edits).",
         "operationId": "checkProjectName",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2134,8 +2868,13 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "name": { "type": "string" },
-                    "valid": { "type": "boolean", "example": true }
+                    "name": {
+                      "type": "string"
+                    },
+                    "valid": {
+                      "type": "boolean",
+                      "example": true
+                    }
                   }
                 }
               }
@@ -2145,17 +2884,26 @@
             "description": "Name is already taken",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
                 "example": {
                   "errors": [
-                    { "errorCode": "PROJECT_NAME_DUPLICATE", "field": "name" }
+                    {
+                      "errorCode": "PROJECT_NAME_DUPLICATE",
+                      "field": "name"
+                    }
                   ]
                 }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2165,8 +2913,16 @@
         "summary": "Get benefit area file download URL",
         "description": "Regenerates a presigned S3 download URL for the project's benefit area shapefile (ZIP containing .dbf, .shx, .shp, .prj files). The URL is valid for 7 days and is also persisted to the project record.",
         "operationId": "downloadBenefitAreaFile",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ReferenceNumber"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Download URL generated",
@@ -2178,16 +2934,22 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
           "404": {
             "description": "Project not found or no benefit area file attached",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2197,8 +2959,16 @@
         "summary": "Delete benefit area file",
         "description": "Deletes the benefit area shapefile from S3 and clears the associated file metadata from the project record.",
         "operationId": "deleteBenefitAreaFile",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ReferenceNumber"
+          }
+        ],
         "responses": {
           "200": {
             "description": "File deleted successfully",
@@ -2207,7 +2977,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
+                    "success": {
+                      "type": "boolean"
+                    },
                     "message": {
                       "type": "string",
                       "example": "Benefit area file deleted successfully"
@@ -2217,16 +2989,22 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
           "404": {
             "description": "Project not found or no file to delete",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2236,7 +3014,11 @@
         "summary": "Initiate a file upload session",
         "description": "Creates a new upload session with the CDP Uploader service and records it in the database. Returns a `uploadId` for status polling and an `uploadUrl` to POST the file to. If `downloadUrls` are provided, CDP Uploader downloads from those URLs instead of accepting a direct file POST (status begins as `processing`).",
         "operationId": "initiateUpload",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": false,
           "content": {
@@ -2263,7 +3045,9 @@
               }
             }
           },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2273,8 +3057,16 @@
         "summary": "Get file upload status",
         "description": "Returns the current status of a file upload session. On each call, if the status is `pending`, it syncs with the CDP Uploader service. If the upload reaches `ready` status, it also triggers host-application validation (ZIP content check) and updates the associated project's benefit area file metadata.",
         "operationId": "getUploadStatus",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/UploadId" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UploadId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Upload status retrieved",
@@ -2328,14 +3120,20 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
-                    "message": { "type": "string" }
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2350,7 +3148,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ValidateEmailRequest" },
+              "schema": {
+                "$ref": "#/components/schemas/ValidateEmailRequest"
+              },
               "examples": {
                 "full_check": {
                   "summary": "All checks enabled (new registration)",
@@ -2381,8 +3181,14 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "email": { "type": "string", "format": "email" },
-                    "valid": { "type": "boolean", "example": true }
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "valid": {
+                      "type": "boolean",
+                      "example": true
+                    }
                   }
                 }
               }
@@ -2397,13 +3203,18 @@
                 },
                 "example": {
                   "validationErrors": [
-                    { "errorCode": "EMAIL_DISPOSABLE_DOMAIN", "field": "email" }
+                    {
+                      "errorCode": "EMAIL_DISPOSABLE_DOMAIN",
+                      "field": "email"
+                    }
                   ]
                 }
               }
             }
           },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2413,7 +3224,11 @@
         "summary": "List all scheduled tasks",
         "description": "Returns the status of all registered scheduled tasks including their cron schedule, last run time, and next scheduled run. **Admin only.**",
         "operationId": "getSchedulerTasks",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Tasks retrieved",
@@ -2422,15 +3237,21 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
+                    "success": {
+                      "type": "boolean"
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
                         "tasks": {
                           "type": "array",
-                          "items": { "$ref": "#/components/schemas/TaskItem" }
+                          "items": {
+                            "$ref": "#/components/schemas/TaskItem"
+                          }
                         },
-                        "totalCount": { "type": "integer" }
+                        "totalCount": {
+                          "type": "integer"
+                        }
                       }
                     }
                   }
@@ -2438,9 +3259,15 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2450,20 +3277,36 @@
         "summary": "Get task execution statistics",
         "description": "Returns aggregate execution statistics and the most recent execution log entry for a named scheduled task. **Admin only.**",
         "operationId": "getTaskStats",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/TaskName" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskName"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Statistics retrieved",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/TaskStatsResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/TaskStatsResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2473,14 +3316,20 @@
         "summary": "Get scheduler execution logs",
         "description": "Returns execution log entries for scheduled tasks with optional filtering. **Admin only.**",
         "operationId": "getSchedulerLogs",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "taskName",
             "in": "query",
             "required": false,
             "description": "Filter logs by task name",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "status",
@@ -2513,21 +3362,35 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
+                    "success": {
+                      "type": "boolean"
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
                         "logs": {
                           "type": "array",
-                          "items": { "$ref": "#/components/schemas/LogItem" }
+                          "items": {
+                            "$ref": "#/components/schemas/LogItem"
+                          }
                         },
-                        "totalCount": { "type": "integer" },
+                        "totalCount": {
+                          "type": "integer"
+                        },
                         "filters": {
                           "type": "object",
                           "properties": {
-                            "taskName": { "type": "string", "nullable": true },
-                            "status": { "type": "string", "nullable": true },
-                            "limit": { "type": "integer" }
+                            "taskName": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "status": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "limit": {
+                              "type": "integer"
+                            }
                           }
                         }
                       }
@@ -2537,9 +3400,15 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
@@ -2549,12 +3418,18 @@
         "summary": "Manually trigger a scheduled task",
         "description": "Immediately executes a named scheduled task outside of its normal schedule. Uses distributed locking to prevent concurrent executions. **Admin only.**",
         "operationId": "triggerTask",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/TriggerTaskRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/TriggerTaskRequest"
+              }
             }
           }
         },
@@ -2566,13 +3441,21 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
+                    "success": {
+                      "type": "boolean"
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "taskName": { "type": "string" },
-                        "triggeredBy": { "type": "string" },
-                        "status": { "type": "string" }
+                        "taskName": {
+                          "type": "string"
+                        },
+                        "triggeredBy": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        }
                       }
                     }
                   }
@@ -2584,32 +3467,56 @@
             "description": "Task not found or already running",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-                "example": { "errors": [{ "errorCode": "TASK_NOT_FOUND" }] }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "errors": [
+                    {
+                      "errorCode": "TASK_NOT_FOUND"
+                    }
+                  ]
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "403": { "$ref": "#/components/responses/ForbiddenError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
-
     "/api/v1/project/{referenceNumber}/fcerm1/legacy": {
       "get": {
         "summary": "Download legacy FCERM1 spreadsheet",
         "description": "Generates and streams the legacy FCERM1 Excel spreadsheet for the given project. Requires JWT authentication.",
         "operationId": "downloadFcerm1Legacy",
         "tags": ["Downloads"],
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ReferenceNumber"
+          }
+        ],
         "responses": {
           "200": {
             "description": "FCERM1 spreadsheet (XLSX)",
             "content": {
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
-                "schema": { "type": "string", "format": "binary" }
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
               }
             }
           },
@@ -2617,7 +3524,9 @@
             "description": "Project not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -2625,30 +3534,46 @@
             "description": "Format not yet available",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
-
     "/api/v1/project/{referenceNumber}/fcerm1/new": {
       "get": {
         "summary": "Download new FCERM1 spreadsheet",
         "description": "Generates and streams the new-format FCERM1 Excel spreadsheet for the given project. Requires JWT authentication.",
         "operationId": "downloadFcerm1New",
         "tags": ["Downloads"],
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/ReferenceNumber" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ReferenceNumber"
+          }
+        ],
         "responses": {
           "200": {
             "description": "FCERM1 spreadsheet (XLSX)",
             "content": {
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
-                "schema": { "type": "string", "format": "binary" }
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
               }
             }
           },
@@ -2656,7 +3581,9 @@
             "description": "Project not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -2664,23 +3591,32 @@
             "description": "Format not yet available",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/UnauthorizedError" },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     },
-
     "/api/v1/external/proposals/status": {
       "post": {
         "summary": "Update proposal status (external)",
         "description": "Updates the status of one or more FCRM project proposals. Accepts `draft` or `approved` only.\n\n**Authentication:** Handled at the CDP public API Gateway level using AWS Cognito client-credentials (OAuth 2.0). Callers must obtain a Bearer token from the Cognito token endpoint and include it in the `Authorization` header. The gateway validates the token before forwarding the request — the backend does not re-validate it.\n\n**This endpoint must be accessed via the public API Gateway URL only.** Direct calls to the internal service URL will be rejected by the gateway guard middleware.",
         "operationId": "externalUpdateProposalStatus",
         "tags": ["External"],
-        "security": [{ "cognitoBearer": [] }],
+        "security": [
+          {
+            "cognitoBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2861,7 +3797,9 @@
             "description": "Request did not arrive via the public API Gateway",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
                 "example": {
                   "errors": [
                     {
@@ -2877,11 +3815,15 @@
             "description": "All proposals failed to update",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
-          "500": { "$ref": "#/components/responses/InternalServerError" }
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
         }
       }
     }

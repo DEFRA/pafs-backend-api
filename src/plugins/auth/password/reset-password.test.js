@@ -7,7 +7,6 @@ import {
 
 const mockResetPassword = vi.fn()
 const mockValidateToken = vi.fn()
-const mockClearResetToken = vi.fn()
 
 vi.mock('../services/index.js', () => ({
   PasswordService: class {
@@ -15,7 +14,6 @@ vi.mock('../services/index.js', () => ({
   },
   TokenService: class {
     validateToken = mockValidateToken
-    clearResetToken = mockClearResetToken
   }
 }))
 
@@ -78,6 +76,18 @@ describe('reset-password route', () => {
 
       expect(mockH.response).toHaveBeenCalledWith({ success: true })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('passes the raw token to resetPassword for atomic consumption', async () => {
+      mockResetPassword.mockResolvedValue({ success: true })
+
+      await resetPasswordRoute.handler(mockRequest, mockH)
+
+      expect(mockResetPassword).toHaveBeenCalledWith(
+        1,
+        mockRequest.payload.password,
+        mockRequest.payload.token
+      )
     })
 
     it('returns error for invalid token', async () => {
