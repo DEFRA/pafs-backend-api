@@ -101,7 +101,7 @@ async function enrichBenefitAreaDownloadUrl(
     rawProject.benefit_area_file_s3_bucket,
     rawProject.benefit_area_file_s3_key,
     logger,
-    rawProject.benefit_area_file_name
+    `${rawProject.slug}_benefit_area.zip`
   )
 
   await updateBenefitAreaDownloadUrl(prisma, rawProject.reference_number, {
@@ -134,7 +134,7 @@ async function enrichFundingCalculatorDownloadUrl(
     s3Bucket,
     s3Key,
     logger,
-    rawProject.funding_calculator_file_name
+    `${rawProject.slug}_PFcalculator.xlsx`
   )
 
   apiData.fundingCalculatorDownloadUrl = downloadUrl
