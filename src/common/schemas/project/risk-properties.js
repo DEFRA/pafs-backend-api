@@ -13,10 +13,9 @@ import { SIZE } from '../../constants/common.js'
 const PROPERTY_DIGITS_PATTERN = /^\d{1,18}$/
 
 /**
- * Regex pattern for whole number percentage values 1-100
+ * Regex pattern for whole number percentage values 0-100
  */
-const PERCENTAGE_PATTERN = /^([1-9]\d?|100)$/
-
+const PERCENTAGE_PATTERN = /^(0|[1-9]\d?|100)$/ //
 /**
  * Creates a Joi schema for optional BigInt-compatible property count fields.
  * Accepts either a safe integer or a digit-string up to 18 digits.

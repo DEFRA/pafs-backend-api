@@ -290,9 +290,9 @@ describe('project schemas - risk and properties', () => {
   })
 
   describe('percentProperties20PercentDeprivedSchema', () => {
-    it('should reject zero', () => {
+    it('should accept zero', () => {
       const { error } = percentProperties20PercentDeprivedSchema.validate('0')
-      expect(error).toBeDefined()
+      expect(error).toBeUndefined()
     })
 
     it('should validate 1', () => {
@@ -339,9 +339,9 @@ describe('project schemas - risk and properties', () => {
   })
 
   describe('percentProperties40PercentDeprivedSchema', () => {
-    it('should reject zero', () => {
+    it('should accept zero', () => {
       const { error } = percentProperties40PercentDeprivedSchema.validate('0')
-      expect(error).toBeDefined()
+      expect(error).toBeUndefined()
     })
 
     it('should validate 1', () => {

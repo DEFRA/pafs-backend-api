@@ -347,7 +347,7 @@ describe('project-level - risk and properties validation', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject zero', () => {
+    it('should accept zero', () => {
       const schema = generateSchemaForLevel(
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
@@ -355,7 +355,7 @@ describe('project-level - risk and properties validation', () => {
         referenceNumber: 'EAC501E/001A/002A',
         percentProperties20PercentDeprived: '0'
       })
-      expect(error).toBeDefined()
+      expect(error).toBeUndefined()
     })
 
     it('should validate 100', () => {
@@ -435,7 +435,7 @@ describe('project-level - risk and properties validation', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject zero', () => {
+    it('should accept zero', () => {
       const schema = generateSchemaForLevel(
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
@@ -443,7 +443,7 @@ describe('project-level - risk and properties validation', () => {
         referenceNumber: 'EAC501E/001A/002A',
         percentProperties40PercentDeprived: '0'
       })
-      expect(error).toBeDefined()
+      expect(error).toBeUndefined()
     })
 
     it('should validate 100', () => {
