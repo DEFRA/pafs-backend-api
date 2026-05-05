@@ -114,7 +114,7 @@ const validateFinancialYears = (p) => {
   }
   const start = Number(p.financialStartYear)
   const end = Number(p.financialEndYear)
-  if (!Number.isNaN(start) && !Number.isNaN(end) && end <= start) {
+  if (!Number.isNaN(start) && !Number.isNaN(end) && end < start) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_NOT_AFTER_START
   }
   return null
