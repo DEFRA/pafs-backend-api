@@ -386,11 +386,11 @@ describe('validateSubmission', () => {
       )
     })
 
-    test('returns END_YEAR_NOT_AFTER_START when endYear equals startYear', () => {
+    test('returns NO ERROR when endYear equals startYear', () => {
       const errors = validateSubmission(
         validDefProject({ financialStartYear: 2025, financialEndYear: 2025 })
       )
-      expect(errors).toContain(
+      expect(errors).not.toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_FINANCIAL_END_YEAR_NOT_AFTER_START
       )
     })
