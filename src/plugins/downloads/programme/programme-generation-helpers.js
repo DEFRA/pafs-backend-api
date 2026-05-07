@@ -1,11 +1,13 @@
 import AdmZip from 'adm-zip'
-import { buildMultiWorkbook } from '../helpers/fcerm1/fcerm1-builder.js'
+import {
+  buildMultiWorkbook,
+  NEW_TEMPLATE_PATH
+} from '../helpers/fcerm1/fcerm1-builder.js'
 import { FcermPresenter } from '../helpers/fcerm1/fcerm1-presenter.js'
 import {
   NEW_COLUMNS,
   NEW_FCERM1_YEARS
 } from '../helpers/fcerm1/fcerm1-new-columns.js'
-import { NEW_TEMPLATE_PATH } from '../get-project-fcerm1/get-project-fcerm1.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
 import { resolveLegacyBenefitAreaFile } from '../../projects/helpers/legacy-file-resolver.js'
 
@@ -17,6 +19,41 @@ export function userS3Key(userId, filename) {
 
 export function adminS3Key(filename) {
   return `programme/admin/${filename}`
+}
+
+/**
+ * Build a presigned S3 download URL and return the standard download response.
+ *
+ * Wraps the S3 call in a `request.metrics.timer` span so latency is tracked
+ * consistently across all programme file endpoints.
+ *
+ * @param {object} request     Hapi request (provides prisma, metrics)
+ * @param {object} s3Service   Initialised S3 service instance
+ * @param {string} s3Bucket    Bucket name
+ * @param {string} s3Key       Object key of the file to pre-sign
+ * @param {string} filename    Suggested download filename sent in the response
+ * @param {number} [expiresIn] Presigned URL TTL in seconds (default 3600)
+ * @returns {Promise<{downloadUrl: string, expiresAt: string, filename: string}>}
+ */
+export async function buildPresignedResponse(
+  request,
+  s3Service,
+  s3Bucket,
+  s3Key,
+  filename,
+  expiresIn = 3600
+) {
+  const downloadUrl = await request.metrics.timer(
+    'externalCallDuration',
+    () =>
+      s3Service.getPresignedDownloadUrl(s3Bucket, s3Key, expiresIn, filename),
+    { service: 's3', operation: 'getPresignedDownloadUrl' }
+  )
+  return {
+    downloadUrl,
+    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    filename
+  }
 }
 
 // ── FCERM1 project loader ─────────────────────────────────────────────────────

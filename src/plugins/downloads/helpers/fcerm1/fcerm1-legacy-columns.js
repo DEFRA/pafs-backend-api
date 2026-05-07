@@ -93,9 +93,11 @@ export const FCERM1_COLUMN_MAP = [
   { column: 'AK', field: 'startConstructionDate' },
   { column: 'AL', field: 'readyForServiceDate' },
 
-  // ── Formula columns — project totals (AM-BQ, BO-BX) — skip write ───────
+  // ── Formula columns — project totals (AM-BN) — skip write ──────────────────
   { column: 'AM', field: 'projectTotals', export: false },
-  { column: 'BO', field: 'projectTotals', export: false },
+
+  // ── Project year totals BO-BX (sum of all 14 funding streams per year) ────
+  { column: 'BO', field: 'projectYearTotal', dateRange: true },
 
   // ── Funding streams BY-HH (10 years each, columns run consecutively) ────
   // GiA BY-CH

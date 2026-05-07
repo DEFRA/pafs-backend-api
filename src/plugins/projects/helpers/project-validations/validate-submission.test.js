@@ -1418,27 +1418,9 @@ describe('validateSubmission', () => {
       computeCarbonResults.mockReturnValue({ hasValuesChanged: false })
     })
 
-    test('returns CARBON_INCOMPLETE when carbonCostBuild is null', () => {
-      const errors = validateSubmission(
-        validDefProject({ carbonCostBuild: null })
-      )
-      expect(errors).toContain(
-        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
-      )
-    })
-
     test('returns CARBON_INCOMPLETE when carbonOperationalCostForecast is null', () => {
       const errors = validateSubmission(
         validDefProject({ carbonOperationalCostForecast: null })
-      )
-      expect(errors).toContain(
-        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
-      )
-    })
-
-    test('returns CARBON_INCOMPLETE when carbonValuesHexdigest is null', () => {
-      const errors = validateSubmission(
-        validDefProject({ carbonValuesHexdigest: null })
       )
       expect(errors).toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
@@ -1458,16 +1440,6 @@ describe('validateSubmission', () => {
       )
     })
 
-    test('does not return carbon error when all required carbon fields are present and hexdigest matches', () => {
-      const errors = validateSubmission(validDefProject())
-      expect(errors).not.toContain(
-        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
-      )
-      expect(errors).not.toContain(
-        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_HEXDIGEST_MISMATCH
-      )
-    })
-
     test('returns CARBON_INCOMPLETE when carbon values have changed (hexdigest mismatch)', () => {
       computeCarbonResults.mockReturnValue({ hasValuesChanged: true })
       const errors = validateSubmission(validDefProject())
@@ -1480,7 +1452,7 @@ describe('validateSubmission', () => {
       const errors = validateSubmission(
         validEloProject({ carbonCostBuild: null })
       )
-      expect(errors).toContain(
+      expect(errors).not.toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
       )
     })

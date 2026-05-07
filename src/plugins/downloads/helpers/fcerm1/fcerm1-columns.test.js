@@ -52,7 +52,16 @@ describe('fcerm1-columns', () => {
       expect(formulaOnly.length).toBeGreaterThan(0)
       const cols = formulaOnly.map((c) => c.column)
       expect(cols).toContain('AM')
-      expect(cols).toContain('BO')
+      expect(cols).not.toContain('BO')
+    })
+
+    test('BO is a dateRange column for project year totals', () => {
+      const boCol = FCERM1_COLUMN_MAP.find((c) => c.column === 'BO')
+      expect(boCol).toMatchObject({
+        column: 'BO',
+        field: 'projectYearTotal',
+        dateRange: true
+      })
     })
 
     test('date-range columns are correctly marked', () => {

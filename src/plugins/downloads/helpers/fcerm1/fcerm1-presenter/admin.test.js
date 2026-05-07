@@ -84,6 +84,15 @@ describe('projectStatus', () => {
     })
     expect(p.projectStatus()).toBe('Draft')
   })
+
+  test('returns capitalized state when legacy submitted project is not yet revised', () => {
+    const p = makePresenter({
+      _state: 'submitted',
+      is_legacy: true,
+      is_revised: false
+    })
+    expect(p.projectStatus()).toBe('Submitted')
+  })
 })
 
 // ── carbonCostBuild ───────────────────────────────────────────────────────────

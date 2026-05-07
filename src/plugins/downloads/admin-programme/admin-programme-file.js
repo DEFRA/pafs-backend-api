@@ -5,6 +5,7 @@ import {
   getAdminDownloadRecord,
   DOWNLOAD_STATUS
 } from '../programme/programme-service.js'
+import { buildPresignedResponse } from '../programme/programme-generation-helpers.js'
 
 /**
  * GET /api/v1/admin/downloads/programme/file
@@ -39,27 +40,16 @@ export const getAdminProgrammeFile = {
 
       const s3Service = getS3Service(logger)
       const s3Bucket = config.get('cdpUploader.s3Bucket')
-      const expiresIn = 3600
 
-      const downloadUrl = await request.metrics.timer(
-        'externalCallDuration',
-        () =>
-          s3Service.getPresignedDownloadUrl(
-            s3Bucket,
-            record?.fcerm1_filename,
-            expiresIn,
-            'All_Proposals.xlsx'
-          ),
-        { service: 's3', operation: 'getPresignedDownloadUrl' }
+      const responseBody = await buildPresignedResponse(
+        request,
+        s3Service,
+        s3Bucket,
+        record.fcerm1_filename,
+        'All_Proposals.xlsx'
       )
 
-      return h
-        .response({
-          downloadUrl,
-          expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
-          filename: 'All_Proposals.xlsx'
-        })
-        .code(HTTP_STATUS.OK)
+      return h.response(responseBody).code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error({ error }, 'Failed to get admin programme file URL')
       return h

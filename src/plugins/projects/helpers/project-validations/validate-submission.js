@@ -374,11 +374,7 @@ const validateCarbon = (p) => {
     return null
   }
 
-  if (
-    !hasValue(p.carbonCostBuild) ||
-    !hasValue(p.carbonOperationalCostForecast) ||
-    !hasValue(p.carbonValuesHexdigest)
-  ) {
+  if (!hasValue(p.carbonOperationalCostForecast)) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
   }
 

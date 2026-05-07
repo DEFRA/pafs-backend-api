@@ -12,6 +12,7 @@
  */
 
 import {
+  RFCC_CODE_NAMES,
   FLOOD_RISK_LEVEL_LABELS,
   COASTAL_EROSION_RISK_LABELS,
   MODERATION_LABELS
@@ -32,9 +33,11 @@ export const newTemplateMixin = {
   // ── Project identity — new-template-only fields (C, G–I, L–O) ─────────────
 
   rfccCode() {
-    return (
+    const code =
       (this._p.reference_number ?? '').substring(0, 2).toUpperCase() || null
-    )
+    if (!code) return null
+    const label = RFCC_CODE_NAMES[code]
+    return label ? `${code} - ${label}` : code
   },
   authorityCode() {
     return this._area.rmaSubType ?? null
