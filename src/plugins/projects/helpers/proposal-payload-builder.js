@@ -2,6 +2,8 @@
  * Proposal Payload Builder
  */
 
+import { PROJECT_TYPES } from '../../../common/constants/project.js'
+import { computeCarbonResults } from '../carbon-impact/carbon-impact.js'
 import {
   MODERATION_LABELS,
   RISK_LABELS
@@ -203,6 +205,21 @@ function buildNfmDetails(project) {
 }
 
 function buildFinancials(project) {
+  const isCarbonFreeType =
+    project.projectType === PROJECT_TYPES.STU ||
+    project.projectType === PROJECT_TYPES.STR
+
+  let calculatedCapitalCarbon = null
+  if (isCarbonFreeType) {
+    const fundingValues =
+      project.pafs_core_funding_values ?? project.fundingValues ?? []
+    const { constructionTotalFunding } = computeCarbonResults(
+      project,
+      fundingValues
+    )
+    calculatedCapitalCarbon = constructionTotalFunding ?? null
+  }
+
   return {
     pv_appraisal_approach: toNumber(project.wlcEstimatedWholeLifePvCosts),
     pv_design_and_construction_costs: toNumber(
@@ -221,16 +238,24 @@ function buildFinancials(project) {
     growth_and_regeneration_benefits: toNumber(
       project.wlbEstimatedLandValueUpliftBenefits
     ),
-    capital_carbon: toNumber(project.carbonCostBuild),
-    carbon_operational_cost_forecast: toNumber(
-      project.carbonOperationalCostForecast
-    ),
-    carbon_lifecycle: toNumber(project.carbonCostOperation),
-    carbon_sequestered: toNumber(project.carbonCostSequestered),
-    carbon_avoided: toNumber(project.carbonCostAvoided),
-    carbon_net_economic_benefit: toNumber(
-      project.carbonSavingsNetEconomicBenefit
-    ),
+    capital_carbon: isCarbonFreeType
+      ? calculatedCapitalCarbon
+      : toNumber(project.carbonCostBuild),
+    carbon_operational_cost_forecast: isCarbonFreeType
+      ? null
+      : toNumber(project.carbonOperationalCostForecast),
+    carbon_lifecycle: isCarbonFreeType
+      ? 0
+      : toNumber(project.carbonCostOperation),
+    carbon_sequestered: isCarbonFreeType
+      ? null
+      : toNumber(project.carbonCostSequestered),
+    carbon_avoided: isCarbonFreeType
+      ? null
+      : toNumber(project.carbonCostAvoided),
+    carbon_net_economic_benefit: isCarbonFreeType
+      ? null
+      : toNumber(project.carbonSavingsNetEconomicBenefit),
     funding_sources: {
       values: buildFundingSources(
         project.pafs_core_funding_values ?? project.fundingValues,

@@ -129,6 +129,11 @@ async function performResubmission(
     )
   }
 
+  request.metrics.counter('proposalOperation', 1, {
+    operation: 'resubmit',
+    outcome: result.success ? 'success' : 'failure'
+  })
+
   return buildSuccessResponse(h, {
     success: result.success,
     data: {

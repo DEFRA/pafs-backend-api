@@ -26,6 +26,7 @@ function buildH() {
 function buildRequest(proposals = [], overrides = {}) {
   return {
     payload: { proposals },
+    metrics: { counter: vi.fn() },
     prisma: {
       pafs_core_states: {
         findFirst: vi.fn().mockResolvedValue({ state: 'submitted' })

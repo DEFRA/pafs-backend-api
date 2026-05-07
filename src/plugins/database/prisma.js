@@ -19,9 +19,16 @@ function setupPrismaListeners(prismaClient, server, isDevelopment) {
     })
   }
 
-  prismaClient.$on('error', (e) =>
-    server.logger.error({ err: e }, 'Prisma error')
-  )
+  prismaClient.$on('error', (e) => {
+    if (e.code === 'P2024') {
+      server.logger.error(
+        { err: e, errorCode: 'P2024' },
+        'Prisma connection pool timeout'
+      )
+    } else {
+      server.logger.error({ err: e }, 'Prisma error')
+    }
+  })
   prismaClient.$on('warn', (e) =>
     server.logger.warn({ warning: e }, 'Prisma warning')
   )

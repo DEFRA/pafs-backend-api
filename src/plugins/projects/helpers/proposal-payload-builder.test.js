@@ -8,7 +8,12 @@ vi.mock('../../../common/services/file-upload/s3-service.js', () => ({
   getS3Service: vi.fn()
 }))
 
+vi.mock('../carbon-impact/carbon-impact.js', () => ({
+  computeCarbonResults: vi.fn().mockReturnValue({ constructionTotalFunding: 0 })
+}))
+
 import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
+import { computeCarbonResults } from '../carbon-impact/carbon-impact.js'
 
 // ─── Minimal project fixture ─────────────────────────────────────────────────
 // Only fields needed to confirm mapping; undefined fields should produce null.
@@ -380,7 +385,7 @@ describe('buildProposalPayload', () => {
 
   // ── Carbon ────────────────────────────────────────────────────────────────
 
-  test('maps carbon fields', () => {
+  test('maps carbon fields for a standard project type', () => {
     const payload = buildProposalPayload(FULL_PROJECT, null)
     expect(payload.capital_carbon).toBe(1000)
     expect(payload.carbon_lifecycle).toBe(200)
@@ -388,6 +393,70 @@ describe('buildProposalPayload', () => {
     expect(payload.carbon_avoided).toBe(75)
     expect(payload.carbon_net_economic_benefit).toBe(300)
     expect(payload.carbon_operational_cost_forecast).toBe(180)
+  })
+
+  test('overrides carbon fields to null/0 for STU project type', () => {
+    computeCarbonResults.mockReturnValue({ constructionTotalFunding: 9876.5 })
+    const stuProject = {
+      ...FULL_PROJECT,
+      projectType: 'STU',
+      carbonCostBuild: 1000,
+      carbonCostOperation: 200,
+      carbonCostSequestered: 50,
+      carbonCostAvoided: 75,
+      carbonSavingsNetEconomicBenefit: 300,
+      carbonOperationalCostForecast: 180
+    }
+    const payload = buildProposalPayload(stuProject, null)
+    expect(payload.capital_carbon).toBe(9876.5)
+    expect(payload.carbon_operational_cost_forecast).toBeNull()
+    expect(payload.carbon_lifecycle).toBe(0)
+    expect(payload.carbon_sequestered).toBeNull()
+    expect(payload.carbon_avoided).toBeNull()
+    expect(payload.carbon_net_economic_benefit).toBeNull()
+  })
+
+  test('overrides carbon fields to null/0 for STR project type', () => {
+    computeCarbonResults.mockReturnValue({ constructionTotalFunding: 4321.0 })
+    const strProject = {
+      ...FULL_PROJECT,
+      projectType: 'STR',
+      carbonCostBuild: 500,
+      carbonCostOperation: 100,
+      carbonCostSequestered: 25,
+      carbonCostAvoided: 40,
+      carbonSavingsNetEconomicBenefit: 150,
+      carbonOperationalCostForecast: 90
+    }
+    const payload = buildProposalPayload(strProject, null)
+    expect(payload.capital_carbon).toBe(4321.0)
+    expect(payload.carbon_operational_cost_forecast).toBeNull()
+    expect(payload.carbon_lifecycle).toBe(0)
+    expect(payload.carbon_sequestered).toBeNull()
+    expect(payload.carbon_avoided).toBeNull()
+    expect(payload.carbon_net_economic_benefit).toBeNull()
+  })
+
+  test('sets capital_carbon to 0 for STU when no construction funding exists', () => {
+    computeCarbonResults.mockReturnValue({ constructionTotalFunding: 0 })
+    const stuProject = { ...FULL_PROJECT, projectType: 'STU' }
+    const payload = buildProposalPayload(stuProject, null)
+    expect(payload.capital_carbon).toBe(0)
+  })
+
+  test('calls computeCarbonResults with project funding values for STU/STR', () => {
+    computeCarbonResults.mockReturnValue({ capitalCarbonTarget: 100 })
+    const fundingValues = [{ financial_year: 2026, total: 50000 }]
+    const stuProject = {
+      ...FULL_PROJECT,
+      projectType: 'STU',
+      pafs_core_funding_values: fundingValues
+    }
+    buildProposalPayload(stuProject, null)
+    expect(computeCarbonResults).toHaveBeenCalledWith(
+      expect.objectContaining({ projectType: 'STU' }),
+      fundingValues
+    )
   })
 
   // ── NFM meta fields ───────────────────────────────────────────────────────

@@ -26,6 +26,12 @@ vi.mock('../project-permissions.js', () => ({
 }))
 import { canUpdateProject } from '../project-permissions.js'
 
+// ─── computeCarbonResults mock ────────────────────────────────────────────────
+vi.mock('../../carbon-impact/carbon-impact.js', () => ({
+  computeCarbonResults: vi.fn().mockReturnValue({ hasValuesChanged: false })
+}))
+import { computeCarbonResults } from '../../carbon-impact/carbon-impact.js'
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -98,6 +104,8 @@ const validDefProject = (overrides = {}) => ({
   // Carbon
   carbonCostBuild: 50,
   carbonOperationalCostForecast: 10,
+  carbonValuesHexdigest:
+    'abc123def456abc123def456abc123def456abc123def456abc123def456abc1',
   ...overrides
 })
 
@@ -132,6 +140,8 @@ const validEloProject = (overrides = {}) => ({
   urgencyReason: URGENCY_REASONS.NOT_URGENT,
   carbonCostBuild: 100,
   carbonOperationalCostForecast: 20,
+  carbonValuesHexdigest:
+    'abc123def456abc123def456abc123def456abc123def456abc123def456abc1',
   ...overrides
 })
 
@@ -1404,6 +1414,10 @@ describe('validateSubmission', () => {
   // ─── Carbon ───────────────────────────────────────────────────────────────
 
   describe('carbon impact validation', () => {
+    beforeEach(() => {
+      computeCarbonResults.mockReturnValue({ hasValuesChanged: false })
+    })
+
     test('returns CARBON_INCOMPLETE when carbonCostBuild is null', () => {
       const errors = validateSubmission(
         validDefProject({ carbonCostBuild: null })
@@ -1422,11 +1436,21 @@ describe('validateSubmission', () => {
       )
     })
 
-    test('returns CARBON_INCOMPLETE when both carbon fields are missing', () => {
+    test('returns CARBON_INCOMPLETE when carbonValuesHexdigest is null', () => {
+      const errors = validateSubmission(
+        validDefProject({ carbonValuesHexdigest: null })
+      )
+      expect(errors).toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
+      )
+    })
+
+    test('returns CARBON_INCOMPLETE when all three carbon fields are missing', () => {
       const errors = validateSubmission(
         validDefProject({
           carbonCostBuild: null,
-          carbonOperationalCostForecast: null
+          carbonOperationalCostForecast: null,
+          carbonValuesHexdigest: null
         })
       )
       expect(errors).toContain(
@@ -1434,19 +1458,76 @@ describe('validateSubmission', () => {
       )
     })
 
-    test('does not return carbon error when both fields are present', () => {
+    test('does not return carbon error when all required carbon fields are present and hexdigest matches', () => {
       const errors = validateSubmission(validDefProject())
       expect(errors).not.toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
       )
+      expect(errors).not.toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_HEXDIGEST_MISMATCH
+      )
     })
 
-    test('returns carbon error for non-MANDATORY types too (all project types)', () => {
+    test('returns CARBON_INCOMPLETE when carbon values have changed (hexdigest mismatch)', () => {
+      computeCarbonResults.mockReturnValue({ hasValuesChanged: true })
+      const errors = validateSubmission(validDefProject())
+      expect(errors).toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
+      )
+    })
+
+    test('returns carbon error for ELO type (non-STU/STR) when fields are missing', () => {
       const errors = validateSubmission(
         validEloProject({ carbonCostBuild: null })
       )
       expect(errors).toContain(
         PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
+      )
+    })
+
+    test('does not validate carbon for STU project type', () => {
+      const stuProject = {
+        ...validEloProject(),
+        projectType: PROJECT_TYPES.STU,
+        carbonCostBuild: null,
+        carbonOperationalCostForecast: null,
+        carbonValuesHexdigest: null
+      }
+      const errors = validateSubmission(stuProject)
+      expect(errors).not.toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
+      )
+      expect(errors).not.toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_HEXDIGEST_MISMATCH
+      )
+    })
+
+    test('does not validate carbon for STR project type', () => {
+      const strProject = {
+        ...validEloProject(),
+        projectType: PROJECT_TYPES.STR,
+        carbonCostBuild: null,
+        carbonOperationalCostForecast: null,
+        carbonValuesHexdigest: null
+      }
+      const errors = validateSubmission(strProject)
+      expect(errors).not.toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
+      )
+      expect(errors).not.toContain(
+        PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_HEXDIGEST_MISMATCH
+      )
+    })
+
+    test('passes computeCarbonResults the project funding values', () => {
+      const fundingValues = [{ financialYear: 2025, total: 5000 }]
+      const project = validDefProject({
+        pafs_core_funding_values: fundingValues
+      })
+      validateSubmission(project)
+      expect(computeCarbonResults).toHaveBeenCalledWith(
+        expect.objectContaining({ pafs_core_funding_values: fundingValues }),
+        fundingValues
       )
     })
   })

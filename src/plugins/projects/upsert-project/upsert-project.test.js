@@ -105,6 +105,7 @@ describe('upsertProject handler', () => {
         }
       },
       prisma: mockPrisma,
+      metrics: { counter: vi.fn() },
       server: {
         logger: mockLogger
       }

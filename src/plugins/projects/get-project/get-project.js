@@ -37,8 +37,11 @@ const getProject = {
         request.prisma,
         request.server.logger
       )
-      const result =
-        await projectService.getProjectByReferenceNumber(referenceNumber)
+      const result = await request.metrics.timer(
+        'dbQueryDuration',
+        () => projectService.getProjectByReferenceNumber(referenceNumber),
+        { operation: 'getProject' }
+      )
 
       if (result && hasCarbonData(result)) {
         try {

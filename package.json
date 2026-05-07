@@ -21,8 +21,8 @@
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "prisma:db:pull": "node src/plugins/database/helpers/prisma-db-pull.js",
-    "server:debug": "nodemon --inspect-brk=0.0.0.0 --ext js,json --legacy-watch ./src",
-    "server:watch": "nodemon --inspect=0.0.0.0 --ext js,json --legacy-watch ./src",
+    "server:debug": "AWS_EMF_ENVIRONMENT=Local nodemon --inspect-brk=0.0.0.0 --ext js,json --legacy-watch ./src",
+    "server:watch": "AWS_EMF_ENVIRONMENT=Local nodemon --inspect=0.0.0.0 --ext js,json --legacy-watch ./src",
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
     "start": "NODE_ENV=production node --use-strict .",
     "test": "cross-env TZ=UTC vitest run --coverage",
@@ -37,6 +37,7 @@
     "@aws-sdk/rds-signer": "3.1031.0",
     "@aws-sdk/s3-request-presigner": "3.1031.0",
     "@defra/cdp-auditing": "0.6.0",
+    "@defra/cdp-metrics": "0.6.0",
     "@defra/hapi-secure-context": "0.4.0",
     "@defra/hapi-tracing": "1.30.0",
     "@elastic/ecs-pino-format": "1.5.0",
@@ -94,7 +95,7 @@
     "@prisma/config": {
       "effect": "3.21.0"
     },
-    "hono": "4.12.14",
+    "hono": "4.12.18",
     "@hono/node-server": "1.19.13",
     "minimatch": "10.2.4",
     "fast-xml-parser": "5.7.1",

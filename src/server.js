@@ -28,6 +28,7 @@ import gatewayGuardPlugin from './plugins/gateway-guard/index.js'
 import externalPlugin from './plugins/external/index.js'
 import { sqsClientPlugin } from './common/helpers/sqs/sqs-client.js'
 import { sqsProgrammeConsumerPlugin } from './plugins/sqs-consumer/index.js'
+import { metrics } from '@defra/cdp-metrics'
 
 function createServerConfig() {
   return {
@@ -75,6 +76,7 @@ async function registerCorePlugins(server) {
     requestTracing,
     secureContext,
     pulse,
+    metrics, // AWS EMF metrics (must be after requestTracing)
     {
       plugin: postgres,
       options: {
