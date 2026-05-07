@@ -291,13 +291,18 @@ const handler = async (request, h) => {
     return errorResponse
   }
 
-  const transitionErr = await transitionToSubmitted(
-    projectService,
-    project,
-    credentials,
-    referenceNumber,
-    h,
-    logger
+  const transitionErr = await request.metrics.timer(
+    'dbQueryDuration',
+    () =>
+      transitionToSubmitted(
+        projectService,
+        project,
+        credentials,
+        referenceNumber,
+        h,
+        logger
+      ),
+    { operation: 'submitProject' }
   )
   if (transitionErr) {
     return transitionErr
