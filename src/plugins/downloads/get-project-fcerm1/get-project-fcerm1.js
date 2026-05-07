@@ -23,6 +23,76 @@ export { LEGACY_TEMPLATE_PATH, NEW_TEMPLATE_PATH }
 const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
+function createFcerm1Handler({
+  format,
+  templatePath,
+  columns,
+  years,
+  presenterClass: PresenterClass,
+  buildOptions
+}) {
+  return async (request, h) => {
+    if (columns.length === 0) {
+      return h
+        .response({
+          error: `FCERM1 ${format} format is not yet available`
+        })
+        .code(HTTP_STATUS.NOT_IMPLEMENTED)
+    }
+
+    try {
+      const referenceNumber = request.params.referenceNumber.replaceAll(
+        '-',
+        '/'
+      )
+
+      const service = new ProjectFcerm1Service(
+        request.prisma,
+        request.server.logger
+      )
+      const data = await service.getProjectForFcerm1(referenceNumber)
+
+      if (!data) {
+        return h
+          .response({ error: 'Project not found' })
+          .code(HTTP_STATUS.NOT_FOUND)
+      }
+
+      const { project, contributors, areaId } = data
+      const areaHierarchy = await resolveAreaHierarchy(request.prisma, areaId)
+      const presenter = new PresenterClass(project, areaHierarchy, contributors)
+
+      const buffer = await buildSingleWorkbook(
+        templatePath,
+        presenter,
+        columns,
+        years,
+        buildOptions
+      )
+
+      const baseName = referenceNumber.replaceAll('/', '-')
+      const filename =
+        format === 'legacy'
+          ? `${baseName}_legacy_proposal.xlsx`
+          : `${baseName}_proposal.xlsx`
+
+      return h
+        .response(buffer)
+        .code(HTTP_STATUS.OK)
+        .header('Content-Type', XLSX_CONTENT_TYPE)
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+    } catch (error) {
+      request.server.logger.error(
+        { error },
+        `Failed to generate FCERM1 ${format} download`
+      )
+      return h
+        .response({ error: 'Failed to generate FCERM1 download' })
+        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    }
+  }
+}
+
 export function createFcerm1Route({
   format,
   templatePath,
@@ -43,67 +113,14 @@ export function createFcerm1Route({
       notes: `Generates the ${format} FCERM1 template on demand and streams it as an XLSX download`,
       tags: ['api', 'downloads', 'fcerm1']
     },
-    handler: async (request, h) => {
-      if (columns.length === 0) {
-        return h
-          .response({
-            error: `FCERM1 ${format} format is not yet available`
-          })
-          .code(HTTP_STATUS.NOT_IMPLEMENTED)
-      }
-
-      try {
-        const referenceNumber = request.params.referenceNumber.replaceAll(
-          '-',
-          '/'
-        )
-
-        const service = new ProjectFcerm1Service(
-          request.prisma,
-          request.server.logger
-        )
-        const data = await service.getProjectForFcerm1(referenceNumber)
-
-        if (!data) {
-          return h
-            .response({ error: 'Project not found' })
-            .code(HTTP_STATUS.NOT_FOUND)
-        }
-
-        const { project, contributors, areaId } = data
-        const areaHierarchy = await resolveAreaHierarchy(request.prisma, areaId)
-        const Presenter = presenterClass
-        const presenter = new Presenter(project, areaHierarchy, contributors)
-
-        const buffer = await buildSingleWorkbook(
-          templatePath,
-          presenter,
-          columns,
-          years,
-          buildOptions
-        )
-
-        const baseName = referenceNumber.replaceAll('/', '-')
-        const filename =
-          format === 'legacy'
-            ? `${baseName}_legacy_proposal.xlsx`
-            : `${baseName}_proposal.xlsx`
-
-        return h
-          .response(buffer)
-          .code(HTTP_STATUS.OK)
-          .header('Content-Type', XLSX_CONTENT_TYPE)
-          .header('Content-Disposition', `attachment; filename="${filename}"`)
-      } catch (error) {
-        request.server.logger.error(
-          { error },
-          `Failed to generate FCERM1 ${format} download`
-        )
-        return h
-          .response({ error: 'Failed to generate FCERM1 download' })
-          .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-      }
-    }
+    handler: createFcerm1Handler({
+      format,
+      templatePath,
+      columns,
+      years,
+      presenterClass,
+      buildOptions
+    })
   }
 }
 

@@ -5,6 +5,7 @@
 import { FcermPresenter } from './fcerm1-presenter.js'
 import { PSO_TO_COASTAL_GROUP_MAP } from './fcerm1-labels.js'
 import { sumFunding, sumContributors } from './fcerm1-presenter-utils.js'
+import { SIZE } from '../../../../common/constants/common.js'
 
 // ── Risk labels matching pafs_core config/locales/spreadsheet.en.yml ─────────
 
@@ -79,23 +80,15 @@ function contributorNames(contributors, type) {
   return names.length > 0 ? names.join(', ') : null
 }
 
-// ── LegacyFcermPresenter ──────────────────────────────────────────────────────
-
 export class LegacyFcermPresenter extends FcermPresenter {
-  // ── Bug 2: project_type determines household protection, not stale booleans ─
-
   projectProtectsHouseholds() {
     return this._p.project_type !== 'ENV_WITHOUT_HOUSEHOLDS'
   }
-
-  // ── Bug 1 / data gap: mainRisk uses Ruby risk labels ─────────────────────
 
   mainRisk() {
     const risk = this._p.main_risk
     return risk ? (LEGACY_RISK_LABELS[risk] ?? risk) : null
   }
-
-  // ── Data gap: secondaryRiskSources from individual boolean columns ─────────
 
   secondaryRiskSources() {
     const main = this._p.main_risk
@@ -103,8 +96,6 @@ export class LegacyFcermPresenter extends FcermPresenter {
       .map((r) => LEGACY_RISK_LABELS[r] ?? r)
       .join(' | ')
   }
-
-  // ── Data gap: coastalGroup from individual boolean columns ────────────────
 
   coastalGroup() {
     const hasCoastalRisk =
@@ -115,20 +106,14 @@ export class LegacyFcermPresenter extends FcermPresenter {
     return PSO_TO_COASTAL_GROUP_MAP[this._area.psoName] ?? null
   }
 
-  // ── Bug 3: strip whitespace and uppercase (Ruby GridReference#to_s) ───────
-
   gridReference() {
     const ref = this._p.grid_reference
-    return ref ? ref.replace(/\s/g, '').toUpperCase() : null
+    return ref ? ref.replaceAll(/\s/g, '').toUpperCase() : null
   }
-
-  // ── Bug 4: 'Yes'/'No' (pafs_core yes_option i18n key) ────────────────────
 
   containsNaturalMeasures() {
     return this._p.natural_flood_risk_measures_included ? 'Yes' : 'No'
   }
-
-  // ── Data gap: mainNaturalMeasure from individual boolean columns ──────────
 
   mainNaturalMeasure() {
     if (!this._p.natural_flood_risk_measures_included) {
@@ -141,8 +126,6 @@ export class LegacyFcermPresenter extends FcermPresenter {
     ).map(([, label]) => label)
     return labels.length > 0 ? labels.join(' | ') : null
   }
-
-  // ── Bug 6: coerce Prisma Decimal objects to JS numbers ───────────────────
 
   hectaresOfIntertidalHabitatCreatedOrEnhanced() {
     return toNum(this._p.hectares_of_intertidal_habitat_created_or_enhanced)
@@ -194,8 +177,6 @@ export class LegacyFcermPresenter extends FcermPresenter {
     return toNum(this._p.kilometres_of_watercourse_enhanced_or_created_single)
   }
 
-  // ── Bug 7: contributor name columns from contributors array ───────────────
-
   publicContributors() {
     return contributorNames(this._contributors, 'public_contributions')
   }
@@ -208,20 +189,13 @@ export class LegacyFcermPresenter extends FcermPresenter {
     return contributorNames(this._contributors, 'other_ea_contributions')
   }
 
-  // ── Data gap: lastUpdated in Ruby strftime format YYYY-MM-DD_HH-MM-SS ─────
-
   lastUpdated() {
     if (!this._p.updated_at) {
       return null
     }
     const iso = this._p.updated_at.toISOString()
-    return `${iso.slice(0, 10)}_${iso.slice(11, 19).replace(/:/g, '-')}`
+    return `${iso.slice(0, 10)}_${iso.slice(SIZE.LENGTH_11, SIZE.LENGTH_19).replaceAll(':', '-')}`
   }
-
-  // ── BP7-BX7: project total funding per year (sum of all 14 streams) ───────
-  // Calls sumFunding/sumContributors directly rather than through inherited
-  // methods to bypass the newTemplateMixin _inYearRange guard, which would
-  // filter out years when earliest_start_year is unset on legacy projects.
 
   projectYearTotal(year) {
     const fv = this._p.pafs_core_funding_values

@@ -35,7 +35,9 @@ export const newTemplateMixin = {
   rfccCode() {
     const code =
       (this._p.reference_number ?? '').substring(0, 2).toUpperCase() || null
-    if (!code) return null
+    if (!code) {
+      return null
+    }
     const label = RFCC_CODE_NAMES[code]
     return label ? `${code} - ${label}` : code
   },
