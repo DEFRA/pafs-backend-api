@@ -1,7 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 
 vi.mock('../helpers/fcerm1/fcerm1-builder.js', () => ({
-  buildMultiWorkbook: vi.fn().mockResolvedValue(Buffer.from('xlsx'))
+  buildMultiWorkbook: vi.fn().mockResolvedValue(Buffer.from('xlsx')),
+  NEW_TEMPLATE_PATH: '/fake/template.xlsx'
 }))
 vi.mock('../helpers/fcerm1/fcerm1-presenter.js', () => ({
   FcermPresenter: vi.fn(
@@ -16,9 +17,7 @@ vi.mock('../helpers/fcerm1/fcerm1-new-columns.js', () => ({
   NEW_COLUMNS: [],
   NEW_FCERM1_YEARS: []
 }))
-vi.mock('../get-project-fcerm1/get-project-fcerm1.js', () => ({
-  NEW_TEMPLATE_PATH: '/fake/template.xlsx'
-}))
+vi.mock('../get-project-fcerm1/get-project-fcerm1.js', () => ({}))
 vi.mock('../../projects/helpers/area-hierarchy.js', () => ({
   resolveAreaHierarchy: vi.fn().mockResolvedValue({})
 }))

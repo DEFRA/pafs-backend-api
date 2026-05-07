@@ -8,7 +8,7 @@ import {
 } from './get-project-fcerm1.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ProjectFcerm1Service } from '../services/project-fcerm1-service.js'
-import { FcermPresenter } from '../helpers/fcerm1/fcerm1-presenter.js'
+import { LegacyFcermPresenter } from '../helpers/fcerm1/fcerm1-legacy-presenter.js'
 import { buildSingleWorkbook } from '../helpers/fcerm1/fcerm1-builder.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
 import { FCERM1_YEARS } from '../helpers/fcerm1/fcerm1-legacy-columns.js'
@@ -16,6 +16,7 @@ import { NEW_FCERM1_YEARS } from '../helpers/fcerm1/fcerm1-new-columns.js'
 
 vi.mock('../services/project-fcerm1-service.js')
 vi.mock('../helpers/fcerm1/fcerm1-presenter.js')
+vi.mock('../helpers/fcerm1/fcerm1-legacy-presenter.js')
 vi.mock('../helpers/fcerm1/fcerm1-builder.js')
 vi.mock('../../projects/helpers/area-hierarchy.js')
 
@@ -112,7 +113,7 @@ describe('getProjectFcerm1Legacy', () => {
       expect(resolveAreaHierarchy).toHaveBeenCalledWith({}, 5)
     })
 
-    test('constructs FcermPresenter with project, areaHierarchy and contributors', async () => {
+    test('constructs LegacyFcermPresenter with project, areaHierarchy and contributors', async () => {
       const mockProject = { id: BigInt(1) }
       const mockContributors = [{ id: BigInt(99) }]
       const mockAreaHierarchy = { rmaName: 'Example RMA' }
@@ -126,7 +127,7 @@ describe('getProjectFcerm1Legacy', () => {
 
       await getProjectFcerm1Legacy.handler(mockRequest, mockH)
 
-      expect(FcermPresenter).toHaveBeenCalledWith(
+      expect(LegacyFcermPresenter).toHaveBeenCalledWith(
         mockProject,
         mockAreaHierarchy,
         mockContributors

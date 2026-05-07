@@ -1,3 +1,5 @@
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
 import AdmZip from 'adm-zip'
 import { FCERM1_YEARS } from './fcerm1-legacy-columns.js'
@@ -18,6 +20,12 @@ import {
   CONTRIBUTORS_SHEET_NAME,
   addContributorsSheetToZip
 } from './fcerm1-contributors-sheet.js'
+
+// ── Template paths (templates live alongside this builder) ────────────────────
+
+const TEMPLATES_DIR = fileURLToPath(new URL('.', import.meta.url))
+export const LEGACY_TEMPLATE_PATH = join(TEMPLATES_DIR, 'fcerm1_template.xlsx')
+export const NEW_TEMPLATE_PATH = join(TEMPLATES_DIR, 'fcerm1_new_template.xlsx')
 
 // ── Title cell helper ────────────────────────────────────────────────────────
 

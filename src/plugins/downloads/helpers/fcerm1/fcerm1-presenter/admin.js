@@ -1,3 +1,4 @@
+import { PROJECT_STATUS } from '../../../../../common/constants/project.js'
 import { toNumber } from '../fcerm1-presenter-utils.js'
 
 export const adminMixin = {
@@ -8,7 +9,11 @@ export const adminMixin = {
     if (!state) {
       return null
     }
-    if (this._p.is_legacy && !this._p.is_revised) {
+    if (
+      state === PROJECT_STATUS.DRAFT &&
+      this._p.is_legacy &&
+      !this._p.is_revised
+    ) {
       return 'Revise'
     }
     return state.charAt(0).toUpperCase() + state.slice(1)

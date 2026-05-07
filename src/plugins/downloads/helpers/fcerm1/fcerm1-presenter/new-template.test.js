@@ -44,9 +44,9 @@ function fundingValue(overrides = {}) {
 // ── rfccCode ──────────────────────────────────────────────────────────────────
 
 describe('rfccCode', () => {
-  test('returns the first two characters of reference_number uppercased', () => {
+  test('returns code and full label for a known RFCC code', () => {
     const p = makePresenter({ reference_number: 'AC/2023/00001/000' })
-    expect(p.rfccCode()).toBe('AC')
+    expect(p.rfccCode()).toBe('AC - Anglian (Great Ouse)')
   })
 
   test('returns null when reference_number is empty string', () => {
@@ -59,9 +59,14 @@ describe('rfccCode', () => {
     expect(p.rfccCode()).toBeNull()
   })
 
-  test('uppercases lowercase prefix', () => {
-    const p = makePresenter({ reference_number: 'wc/2024/00042/000' })
-    expect(p.rfccCode()).toBe('WC')
+  test('uppercases lowercase prefix and includes label', () => {
+    const p = makePresenter({ reference_number: 'wx/2024/00042/000' })
+    expect(p.rfccCode()).toBe('WX - Wessex')
+  })
+
+  test('returns just the code when RFCC code is unrecognised', () => {
+    const p = makePresenter({ reference_number: 'ZZ/2024/00042/000' })
+    expect(p.rfccCode()).toBe('ZZ')
   })
 })
 

@@ -3,6 +3,7 @@ import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { config } from '../../../config.js'
 import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
 import { getUserDownloadRecord, DOWNLOAD_STATUS } from './programme-service.js'
+import { buildPresignedResponse } from './programme-generation-helpers.js'
 
 const FILE_TYPE_LABELS = {
   fcerm1: 'All_Proposals.xlsx',
@@ -63,27 +64,16 @@ export const getUserProgrammeFile = {
 
       const s3Service = getS3Service(logger)
       const s3Bucket = config.get('cdpUploader.s3Bucket')
-      const expiresIn = 3600 // 1 hour
 
-      const downloadUrl = await request.metrics.timer(
-        'externalCallDuration',
-        () =>
-          s3Service.getPresignedDownloadUrl(
-            s3Bucket,
-            s3Key,
-            expiresIn,
-            FILE_TYPE_LABELS[type]
-          ),
-        { service: 's3', operation: 'getPresignedDownloadUrl' }
+      const responseBody = await buildPresignedResponse(
+        request,
+        s3Service,
+        s3Bucket,
+        s3Key,
+        FILE_TYPE_LABELS[type]
       )
 
-      return h
-        .response({
-          downloadUrl,
-          expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
-          filename: FILE_TYPE_LABELS[type]
-        })
-        .code(HTTP_STATUS.OK)
+      return h.response(responseBody).code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error({ error, userId, type }, 'Failed to get programme file URL')
       return h
