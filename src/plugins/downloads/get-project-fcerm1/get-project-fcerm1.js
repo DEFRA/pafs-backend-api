@@ -18,7 +18,10 @@ import {
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
 
 // Re-export template paths so existing tests and consumers keep working
-export { LEGACY_TEMPLATE_PATH, NEW_TEMPLATE_PATH }
+export {
+  LEGACY_TEMPLATE_PATH,
+  NEW_TEMPLATE_PATH
+} from '../helpers/fcerm1/fcerm1-builder.js'
 
 const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
