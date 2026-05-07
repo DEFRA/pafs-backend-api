@@ -201,6 +201,43 @@ export const clearWlFieldsOnProjectTypeChange = (
 }
 
 /**
+ * Clears carbon impact fields when project type is changed to STR or STU at PROJECT_TYPE level.
+ * STR and STU project types do not support carbon impact calculations, so any carbon data must be cleared.
+ */
+export const clearCarbonFieldsOnProjectTypeChange = (
+  enrichedPayload,
+  validationLevel,
+  _existingProject
+) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.PROJECT_TYPE) {
+    return
+  }
+
+  const nextProjectType = enrichedPayload?.projectType
+
+  if (!nextProjectType) {
+    return
+  }
+
+  // Only clear carbon fields if changing TO STR or STU
+  const strOrStuTypes = [PROJECT_TYPES.STR, PROJECT_TYPES.STU]
+  if (!strOrStuTypes.includes(nextProjectType)) {
+    return
+  }
+
+  // Clear all carbon input fields
+  enrichedPayload.carbonCostBuild = null
+  enrichedPayload.carbonCostOperation = null
+  enrichedPayload.carbonCostSequestered = null
+  enrichedPayload.carbonCostAvoided = null
+  enrichedPayload.carbonSavingsNetEconomicBenefit = null
+  enrichedPayload.carbonOperationalCostForecast = null
+
+  // Clear carbon hexdigest to invalidate any cached calculations
+  enrichedPayload.carbonValuesHexdigest = null
+}
+
+/**
  * Handle NFM measure data - save to separate pafs_core_nfm_measures table
  * or delete measures when they are unselected
  * Re-exported from nfm-normalizers.js for backward compatibility
