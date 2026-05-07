@@ -37,6 +37,9 @@ describe('getProject', () => {
       prisma: {},
       server: {
         logger: mockLogger
+      },
+      metrics: {
+        timer: vi.fn(async (_name, fn) => fn())
       }
     }
 
@@ -183,6 +186,20 @@ describe('getProject', () => {
         error: 'Failed to retrieve project proposal'
       })
       expect(result.statusCode).toBe(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    })
+
+    test('Should record dbQueryDuration timer metric', async () => {
+      ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue({
+        referenceNumber: 'RM/2023/001'
+      })
+
+      await getProject.handler(mockRequest, mockH)
+
+      expect(mockRequest.metrics.timer).toHaveBeenCalledWith(
+        'dbQueryDuration',
+        expect.any(Function),
+        { operation: 'getProject' }
+      )
     })
   })
 })

@@ -48,12 +48,18 @@ export class AccountAreaValidator {
    * @private
    */
   _ensureAllAreasExist(areaIds, areaDetails) {
-    if (areaDetails.length === areaIds.length) {
+    const uniqueAreaIds = [
+      ...new Map(areaIds.map((id) => [String(id), id])).values()
+    ]
+
+    if (areaDetails.length === uniqueAreaIds.length) {
       return
     }
 
     const foundAreaIds = new Set(areaDetails.map((a) => String(a.id)))
-    const missingAreaIds = areaIds.filter((id) => !foundAreaIds.has(String(id)))
+    const missingAreaIds = uniqueAreaIds.filter(
+      (id) => !foundAreaIds.has(String(id))
+    )
 
     this.logger.warn(
       {

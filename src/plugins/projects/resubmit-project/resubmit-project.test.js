@@ -62,6 +62,7 @@ const buildMockRequest = (overrides = {}) => ({
     }
   },
   server: { logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
+  metrics: { counter: vi.fn() },
   prisma: {
     pafs_core_users: {
       findFirst: vi.fn().mockResolvedValue({ email: 'creator@example.com' })

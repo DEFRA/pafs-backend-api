@@ -100,6 +100,10 @@ const externalUpdateProposalStatus = {
             await projectService.getProjectByReference(referenceNumber)
 
           if (!project) {
+            request.metrics.counter('externalStatusUpdateItem', 1, {
+              outcome: 'not_found',
+              status
+            })
             results.push({
               referenceNumber: raw,
               success: false,
@@ -116,6 +120,10 @@ const externalUpdateProposalStatus = {
           })
           const currentState = stateRecord?.state ?? null
           if (currentState !== PROJECT_STATUS.SUBMITTED) {
+            request.metrics.counter('externalStatusUpdateItem', 1, {
+              outcome: 'invalid_state',
+              status
+            })
             results.push({
               referenceNumber: raw,
               success: false,
@@ -128,6 +136,10 @@ const externalUpdateProposalStatus = {
 
           await projectService.upsertProjectState(project.id, status)
 
+          request.metrics.counter('externalStatusUpdateItem', 1, {
+            outcome: 'success',
+            status
+          })
           results.push({
             referenceNumber: raw,
             success: true,
@@ -139,6 +151,10 @@ const externalUpdateProposalStatus = {
             { error: error.message, referenceNumber: raw, status },
             'External API: failed to update proposal status'
           )
+          request.metrics.counter('externalStatusUpdateItem', 1, {
+            outcome: 'error',
+            status
+          })
           results.push({
             referenceNumber: raw,
             success: false,
@@ -151,6 +167,9 @@ const externalUpdateProposalStatus = {
 
       if (!hasSuccess && hasFailure) {
         // All failed — return 422 with full result set
+        request.metrics.counter('externalStatusUpdateCall', 1, {
+          outcome: 'all_failed'
+        })
         return buildErrorResponse(
           h,
           HTTP_STATUS.UNPROCESSABLE_ENTITY,
@@ -160,10 +179,16 @@ const externalUpdateProposalStatus = {
 
       if (hasSuccess && hasFailure) {
         // Partial success — 207 Multi-Status
+        request.metrics.counter('externalStatusUpdateCall', 1, {
+          outcome: 'partial'
+        })
         return h.response({ results }).code(207)
       }
 
       // All succeeded
+      request.metrics.counter('externalStatusUpdateCall', 1, {
+        outcome: 'success'
+      })
       return buildSuccessResponse(h, { results })
     }
   }

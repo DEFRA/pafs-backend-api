@@ -78,9 +78,16 @@ export const buildCalcProject = (project) => ({
 })
 
 export const computeCarbonResults = (project, fundingValues) => {
+  // Normalise funding value field names: the project API returns camelCase
+  // (financialYear) but the calculator expects snake_case (financial_year).
+  const normalisedFundingValues = (fundingValues ?? []).map((fv) => ({
+    financial_year: fv.financial_year ?? fv.financialYear,
+    total: fv.total
+  }))
+
   const calculator = new CarbonImpactCalculator(
     buildCalcProject(project),
-    fundingValues
+    normalisedFundingValues
   )
   const summary = calculator.getSummary()
   const legacyHexdigest = calculator.computeLegacyHexdigest()

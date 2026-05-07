@@ -65,11 +65,16 @@ export const getUserProgrammeFile = {
       const s3Bucket = config.get('cdpUploader.s3Bucket')
       const expiresIn = 3600 // 1 hour
 
-      const downloadUrl = await s3Service.getPresignedDownloadUrl(
-        s3Bucket,
-        s3Key,
-        expiresIn,
-        FILE_TYPE_LABELS[type]
+      const downloadUrl = await request.metrics.timer(
+        'externalCallDuration',
+        () =>
+          s3Service.getPresignedDownloadUrl(
+            s3Bucket,
+            s3Key,
+            expiresIn,
+            FILE_TYPE_LABELS[type]
+          ),
+        { service: 's3', operation: 'getPresignedDownloadUrl' }
       )
 
       return h

@@ -41,11 +41,16 @@ export const getAdminProgrammeFile = {
       const s3Bucket = config.get('cdpUploader.s3Bucket')
       const expiresIn = 3600
 
-      const downloadUrl = await s3Service.getPresignedDownloadUrl(
-        s3Bucket,
-        record?.fcerm1_filename,
-        expiresIn,
-        'All_Proposals.xlsx'
+      const downloadUrl = await request.metrics.timer(
+        'externalCallDuration',
+        () =>
+          s3Service.getPresignedDownloadUrl(
+            s3Bucket,
+            record?.fcerm1_filename,
+            expiresIn,
+            'All_Proposals.xlsx'
+          ),
+        { service: 's3', operation: 'getPresignedDownloadUrl' }
       )
 
       return h

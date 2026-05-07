@@ -267,9 +267,18 @@ const upsertProject = {
       const { name } = apiPayload.payload
 
       try {
-        return await processUpsert(request, h, apiPayload)
+        const result = await processUpsert(request, h, apiPayload)
+        request.metrics.counter('proposalOperation', 1, {
+          operation: 'upsert',
+          outcome: 'success'
+        })
+        return result
       } catch (error) {
         logUpsertError(request, error, name)
+        request.metrics.counter('proposalOperation', 1, {
+          operation: 'upsert',
+          outcome: 'error'
+        })
 
         return buildErrorResponse(
           h,

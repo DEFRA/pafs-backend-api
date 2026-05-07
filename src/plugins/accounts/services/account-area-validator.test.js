@@ -292,6 +292,28 @@ describe('AccountAreaValidator', () => {
         validator._ensureAllAreasExist(areaIds, areaDetails)
       }).not.toThrow()
     })
+
+    it('does not throw when area IDs are duplicated but all exist', () => {
+      // Duplicate IDs: DB returns 1 unique row, but input has 2 entries
+      const areaIds = [5, 5]
+      const areaDetails = [{ id: 5, name: 'Area 5' }]
+
+      expect(() => {
+        validator._ensureAllAreasExist(areaIds, areaDetails)
+      }).not.toThrow()
+    })
+
+    it('throws with correct missing IDs when some areas do not exist', () => {
+      const areaIds = [1, 2, 999]
+      const areaDetails = [
+        { id: 1, name: 'Area 1' },
+        { id: 2, name: 'Area 2' }
+      ]
+
+      expect(() => {
+        validator._ensureAllAreasExist(areaIds, areaDetails)
+      }).toThrow('The following area IDs do not exist: 999')
+    })
   })
 
   describe('_mapResponsibilityToAreaType', () => {

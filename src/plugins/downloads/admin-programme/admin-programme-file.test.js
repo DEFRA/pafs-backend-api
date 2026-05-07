@@ -41,7 +41,8 @@ function makeH() {
 
 function makeRequest() {
   return {
-    server: { logger: { error: vi.fn() }, prisma: {} }
+    server: { logger: { error: vi.fn() }, prisma: {} },
+    metrics: { timer: vi.fn(async (_name, fn) => fn()) }
   }
 }
 
@@ -140,5 +141,23 @@ describe('getAdminProgrammeFile route', () => {
 
     expect(h._status).toBe(500)
     expect(request.server.logger.error).toHaveBeenCalled()
+  })
+
+  test('records externalCallDuration timer metric for S3 call', async () => {
+    getAdminDownloadRecord.mockResolvedValue({
+      status: 'ready',
+      fcerm1_filename: 'programme/admin/all_proposals.xlsx'
+    })
+    makeS3Service('https://s3.example.com/admin.xlsx')
+
+    const request = makeRequest()
+    const h = makeH()
+    await getAdminProgrammeFile.handler(request, h)
+
+    expect(request.metrics.timer).toHaveBeenCalledWith(
+      'externalCallDuration',
+      expect.any(Function),
+      { service: 's3', operation: 'getPresignedDownloadUrl' }
+    )
   })
 })

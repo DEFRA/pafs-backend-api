@@ -46,13 +46,18 @@ const listProjects = {
         request.server.logger
       )
 
-      const result = await projectService.getProjects({
-        search,
-        areaIds,
-        status,
-        page,
-        pageSize
-      })
+      const result = await request.metrics.timer(
+        'dbQueryDuration',
+        () =>
+          projectService.getProjects({
+            search,
+            areaIds,
+            status,
+            page,
+            pageSize
+          }),
+        { operation: 'listProjects' }
+      )
 
       return buildSuccessResponse(h, result, HTTP_STATUS.OK)
     } catch (error) {

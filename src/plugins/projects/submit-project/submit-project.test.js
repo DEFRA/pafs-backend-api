@@ -77,6 +77,7 @@ const buildMockRequest = (overrides = {}) => ({
     }
   },
   server: { logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
+  metrics: { counter: vi.fn() },
   prisma: {
     pafs_core_projects: {
       findFirst: vi.fn().mockResolvedValue({ creator_id: 7 })

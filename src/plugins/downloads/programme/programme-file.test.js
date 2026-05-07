@@ -42,7 +42,8 @@ function makeRequest(type = 'fcerm1', userId = 5) {
   return {
     server: { logger: { error: vi.fn() }, prisma: {} },
     auth: { credentials: { userId } },
-    params: { type }
+    params: { type },
+    metrics: { timer: vi.fn(async (_name, fn) => fn()) }
   }
 }
 
@@ -160,5 +161,23 @@ describe('getUserProgrammeFile route', () => {
 
     expect(h._status).toBe(500)
     expect(request.server.logger.error).toHaveBeenCalled()
+  })
+
+  test('records externalCallDuration timer metric for S3 call', async () => {
+    getUserDownloadRecord.mockResolvedValue({
+      status: 'ready',
+      fcerm1_filename: 'programme/user_5/fcerm1.xlsx'
+    })
+    makeS3Service('https://s3.example.com/fcerm1.xlsx')
+
+    const request = makeRequest('fcerm1')
+    const h = makeH()
+    await getUserProgrammeFile.handler(request, h)
+
+    expect(request.metrics.timer).toHaveBeenCalledWith(
+      'externalCallDuration',
+      expect.any(Function),
+      { service: 's3', operation: 'getPresignedDownloadUrl' }
+    )
   })
 })

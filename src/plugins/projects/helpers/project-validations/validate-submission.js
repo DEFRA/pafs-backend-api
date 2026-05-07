@@ -20,9 +20,13 @@ import {
 } from './submission/validate-funding-sources.js'
 import { validateEnvironmentalBenefits } from './submission/validate-environmental-benefits.js'
 import { validateNfm } from './submission/validate-nfm.js'
+import { computeCarbonResults } from '../../carbon-impact/carbon-impact.js'
 
 // Project type groupings used across validation rules
 const OPTIONAL_WL_TYPES = new Set([PROJECT_TYPES.HCR, PROJECT_TYPES.ELO])
+
+// Project types exempt from carbon impact validation
+const CARBON_FREE_TYPES = new Set([PROJECT_TYPES.STU, PROJECT_TYPES.STR])
 
 const FULL_TYPES = new Set([...MANDATORY_WL_TYPES, ...OPTIONAL_WL_TYPES])
 
@@ -366,12 +370,24 @@ const validateConfidence = (p) => {
 }
 
 const validateCarbon = (p) => {
+  if (CARBON_FREE_TYPES.has(p.projectType)) {
+    return null
+  }
+
   if (
     !hasValue(p.carbonCostBuild) ||
-    !hasValue(p.carbonOperationalCostForecast)
+    !hasValue(p.carbonOperationalCostForecast) ||
+    !hasValue(p.carbonValuesHexdigest)
   ) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
   }
+
+  const fundingValues = p.pafs_core_funding_values ?? p.fundingValues ?? []
+  const { hasValuesChanged } = computeCarbonResults(p, fundingValues)
+  if (hasValuesChanged) {
+    return PROJECT_VALIDATION_MESSAGES.SUBMISSION_CARBON_INCOMPLETE
+  }
+
   return null
 }
 

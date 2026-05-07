@@ -316,6 +316,11 @@ const handler = async (request, h) => {
     logger
   )
 
+  request.metrics.counter('proposalOperation', 1, {
+    operation: 'submit',
+    outcome: 'success'
+  })
+
   return buildSuccessResponse(h, {
     success: true,
     data: {

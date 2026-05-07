@@ -63,6 +63,9 @@ describe('list-projects route', () => {
           isEa: false,
           areas: []
         }
+      },
+      metrics: {
+        timer: vi.fn(async (_name, fn) => fn())
       }
     }
 
@@ -553,6 +556,16 @@ describe('list-projects route', () => {
       // The areaId query param is ignored; user area IDs [10] are used instead
       expect(resolveUserAreaIds).toHaveBeenCalled()
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    test('Should record dbQueryDuration timer metric', async () => {
+      await listProjects.handler(mockRequest, mockH)
+
+      expect(mockRequest.metrics.timer).toHaveBeenCalledWith(
+        'dbQueryDuration',
+        expect.any(Function),
+        { operation: 'listProjects' }
+      )
     })
   })
 })
