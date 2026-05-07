@@ -15,6 +15,7 @@ import {
   normalizeWlcFields,
   handleNfmMeasureData,
   clearWlFieldsOnProjectTypeChange,
+  clearCarbonFieldsOnProjectTypeChange,
   sanitizeWlbFields,
   normalizeWlbFields,
   clearNfmFieldsOnInterventionTypeChange,
@@ -2305,5 +2306,283 @@ describe('normalizeCarbonFields', () => {
     expect(payload.carbonCostOperation).toBeNull()
     expect(payload.carbonCostSequestered).toBe(0)
     expect(payload.carbonCostAvoided).toBe(false)
+  })
+})
+
+describe('clearCarbonFieldsOnProjectTypeChange', () => {
+  it('clears all carbon fields when changing to STR project type', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STR,
+      carbonCostBuild: '100.00',
+      carbonCostOperation: '50.00',
+      carbonCostSequestered: '10.00',
+      carbonCostAvoided: '5.00',
+      carbonSavingsNetEconomicBenefit: '25000',
+      carbonOperationalCostForecast: '5000',
+      carbonValuesHexdigest: 'abc123def456'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBeNull()
+    expect(payload.carbonCostAvoided).toBeNull()
+    expect(payload.carbonSavingsNetEconomicBenefit).toBeNull()
+    expect(payload.carbonOperationalCostForecast).toBeNull()
+    expect(payload.carbonValuesHexdigest).toBeNull()
+  })
+
+  it('clears all carbon fields when changing to STU project type', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STU,
+      carbonCostBuild: '200.50',
+      carbonCostOperation: '75.25',
+      carbonCostSequestered: '15.00',
+      carbonCostAvoided: '8.50',
+      carbonSavingsNetEconomicBenefit: '50000',
+      carbonOperationalCostForecast: '10000',
+      carbonValuesHexdigest: 'xyz789uvw012'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.REF }
+    )
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBeNull()
+    expect(payload.carbonCostAvoided).toBeNull()
+    expect(payload.carbonSavingsNetEconomicBenefit).toBeNull()
+    expect(payload.carbonOperationalCostForecast).toBeNull()
+    expect(payload.carbonValuesHexdigest).toBeNull()
+  })
+
+  it('does not clear carbon fields when changing to non-STR/STU project types', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.DEF,
+      carbonCostBuild: '100.00',
+      carbonCostOperation: '50.00',
+      carbonCostSequestered: '10.00',
+      carbonCostAvoided: '5.00',
+      carbonSavingsNetEconomicBenefit: '25000',
+      carbonOperationalCostForecast: '5000',
+      carbonValuesHexdigest: 'abc123def456'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.REP }
+    )
+
+    expect(payload.carbonCostBuild).toBe('100.00')
+    expect(payload.carbonCostOperation).toBe('50.00')
+    expect(payload.carbonCostSequestered).toBe('10.00')
+    expect(payload.carbonCostAvoided).toBe('5.00')
+    expect(payload.carbonSavingsNetEconomicBenefit).toBe('25000')
+    expect(payload.carbonOperationalCostForecast).toBe('5000')
+    expect(payload.carbonValuesHexdigest).toBe('abc123def456')
+  })
+
+  it('does not clear carbon fields for HCR project type (supports carbon)', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.HCR,
+      carbonCostBuild: '150.00',
+      carbonCostOperation: '60.00',
+      carbonCostSequestered: '12.00',
+      carbonCostAvoided: '6.00',
+      carbonSavingsNetEconomicBenefit: '30000',
+      carbonOperationalCostForecast: '6000',
+      carbonValuesHexdigest: 'hcr123hash456'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.REF }
+    )
+
+    expect(payload.carbonCostBuild).toBe('150.00')
+    expect(payload.carbonCostOperation).toBe('60.00')
+    expect(payload.carbonCostSequestered).toBe('12.00')
+    expect(payload.carbonCostAvoided).toBe('6.00')
+    expect(payload.carbonSavingsNetEconomicBenefit).toBe('30000')
+    expect(payload.carbonOperationalCostForecast).toBe('6000')
+    expect(payload.carbonValuesHexdigest).toBe('hcr123hash456')
+  })
+
+  it('does not clear carbon fields for ELO project type (supports carbon)', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.ELO,
+      carbonCostBuild: '80.00',
+      carbonCostOperation: '40.00',
+      carbonCostSequestered: '8.00',
+      carbonCostAvoided: '4.00',
+      carbonSavingsNetEconomicBenefit: '20000',
+      carbonOperationalCostForecast: '4000',
+      carbonValuesHexdigest: 'elo456hash789'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.carbonCostBuild).toBe('80.00')
+    expect(payload.carbonCostOperation).toBe('40.00')
+    expect(payload.carbonCostSequestered).toBe('8.00')
+    expect(payload.carbonCostAvoided).toBe('4.00')
+    expect(payload.carbonSavingsNetEconomicBenefit).toBe('20000')
+    expect(payload.carbonOperationalCostForecast).toBe('4000')
+    expect(payload.carbonValuesHexdigest).toBe('elo456hash789')
+  })
+
+  it('does not clear carbon fields outside PROJECT_TYPE level', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STR,
+      carbonCostBuild: '100.00',
+      carbonCostOperation: '50.00',
+      carbonCostSequestered: '10.00',
+      carbonCostAvoided: '5.00',
+      carbonSavingsNetEconomicBenefit: '25000',
+      carbonOperationalCostForecast: '5000',
+      carbonValuesHexdigest: 'abc123def456'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.CARBON_IMPACT,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.carbonCostBuild).toBe('100.00')
+    expect(payload.carbonCostOperation).toBe('50.00')
+    expect(payload.carbonCostSequestered).toBe('10.00')
+    expect(payload.carbonCostAvoided).toBe('5.00')
+    expect(payload.carbonSavingsNetEconomicBenefit).toBe('25000')
+    expect(payload.carbonOperationalCostForecast).toBe('5000')
+    expect(payload.carbonValuesHexdigest).toBe('abc123def456')
+  })
+
+  it('does not clear carbon fields when next projectType is missing', () => {
+    const payload = {
+      carbonCostBuild: '100.00',
+      carbonCostOperation: '50.00',
+      carbonCostSequestered: '10.00',
+      carbonCostAvoided: '5.00',
+      carbonSavingsNetEconomicBenefit: '25000',
+      carbonOperationalCostForecast: '5000',
+      carbonValuesHexdigest: 'abc123def456'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.carbonCostBuild).toBe('100.00')
+    expect(payload.carbonCostOperation).toBe('50.00')
+    expect(payload.carbonCostSequestered).toBe('10.00')
+    expect(payload.carbonCostAvoided).toBe('5.00')
+    expect(payload.carbonSavingsNetEconomicBenefit).toBe('25000')
+    expect(payload.carbonOperationalCostForecast).toBe('5000')
+    expect(payload.carbonValuesHexdigest).toBe('abc123def456')
+  })
+
+  it('clears carbon fields even when some are already null', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STR,
+      carbonCostBuild: '100.00',
+      carbonCostOperation: null,
+      carbonCostSequestered: '10.00',
+      carbonCostAvoided: null,
+      carbonSavingsNetEconomicBenefit: '25000',
+      carbonOperationalCostForecast: null,
+      carbonValuesHexdigest: 'abc123def456'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBeNull()
+    expect(payload.carbonCostAvoided).toBeNull()
+    expect(payload.carbonSavingsNetEconomicBenefit).toBeNull()
+    expect(payload.carbonOperationalCostForecast).toBeNull()
+    expect(payload.carbonValuesHexdigest).toBeNull()
+  })
+
+  it('clears carbon fields when changing from STR to STU (both restrict carbon)', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STU,
+      carbonCostBuild: '100.00',
+      carbonCostOperation: '50.00',
+      carbonCostSequestered: '10.00',
+      carbonCostAvoided: '5.00',
+      carbonSavingsNetEconomicBenefit: '25000',
+      carbonOperationalCostForecast: '5000',
+      carbonValuesHexdigest: 'abc123def456'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.STR }
+    )
+
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBeNull()
+    expect(payload.carbonCostAvoided).toBeNull()
+    expect(payload.carbonSavingsNetEconomicBenefit).toBeNull()
+    expect(payload.carbonOperationalCostForecast).toBeNull()
+    expect(payload.carbonValuesHexdigest).toBeNull()
+  })
+
+  it('clears only carbon fields, leaving other payload fields intact', () => {
+    const payload = {
+      projectType: PROJECT_TYPES.STR,
+      referenceNumber: 'REF123',
+      name: 'Test Project',
+      carbonCostBuild: '100.00',
+      carbonCostOperation: '50.00',
+      carbonCostSequestered: '10.00',
+      carbonCostAvoided: '5.00',
+      carbonSavingsNetEconomicBenefit: '25000',
+      carbonOperationalCostForecast: '5000',
+      carbonValuesHexdigest: 'abc123def456',
+      wlbEstimatedWholeLifePvBenefits: '1000000'
+    }
+
+    clearCarbonFieldsOnProjectTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      { projectType: PROJECT_TYPES.DEF }
+    )
+
+    expect(payload.referenceNumber).toBe('REF123')
+    expect(payload.name).toBe('Test Project')
+    expect(payload.projectType).toBe(PROJECT_TYPES.STR)
+    expect(payload.wlbEstimatedWholeLifePvBenefits).toBe('1000000')
+    expect(payload.carbonCostBuild).toBeNull()
+    expect(payload.carbonCostOperation).toBeNull()
+    expect(payload.carbonCostSequestered).toBeNull()
+    expect(payload.carbonCostAvoided).toBeNull()
+    expect(payload.carbonSavingsNetEconomicBenefit).toBeNull()
+    expect(payload.carbonOperationalCostForecast).toBeNull()
+    expect(payload.carbonValuesHexdigest).toBeNull()
   })
 })

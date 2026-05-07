@@ -30,6 +30,7 @@ import {
   sanitizeWlbFields,
   normalizeWlbFields,
   clearWlFieldsOnProjectTypeChange,
+  clearCarbonFieldsOnProjectTypeChange,
   clearNfmFieldsOnInterventionTypeChange,
   sanitizeCarbonFields,
   normalizeCarbonFields,
@@ -99,6 +100,13 @@ const applyPayloadNormalizers = async (
 
   // Clear WLB and WLC fields when project type changes
   clearWlFieldsOnProjectTypeChange(
+    enrichedPayload,
+    validationLevel,
+    existingProject
+  )
+
+  // Clear carbon fields when project type changes to STR or STU
+  clearCarbonFieldsOnProjectTypeChange(
     enrichedPayload,
     validationLevel,
     existingProject
