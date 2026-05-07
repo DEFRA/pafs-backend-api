@@ -204,6 +204,31 @@ function buildNfmDetails(project) {
   }
 }
 
+function buildCarbonFields(isCarbonFreeType, project, calculatedCapitalCarbon) {
+  if (isCarbonFreeType) {
+    return {
+      capital_carbon: calculatedCapitalCarbon,
+      carbon_operational_cost_forecast: null,
+      carbon_lifecycle: 0,
+      carbon_sequestered: null,
+      carbon_avoided: null,
+      carbon_net_economic_benefit: null
+    }
+  }
+  return {
+    capital_carbon: toNumber(project.carbonCostBuild),
+    carbon_operational_cost_forecast: toNumber(
+      project.carbonOperationalCostForecast
+    ),
+    carbon_lifecycle: toNumber(project.carbonCostOperation),
+    carbon_sequestered: toNumber(project.carbonCostSequestered),
+    carbon_avoided: toNumber(project.carbonCostAvoided),
+    carbon_net_economic_benefit: toNumber(
+      project.carbonSavingsNetEconomicBenefit
+    )
+  }
+}
+
 function buildFinancials(project) {
   const isCarbonFreeType =
     project.projectType === PROJECT_TYPES.STU ||
@@ -238,24 +263,7 @@ function buildFinancials(project) {
     growth_and_regeneration_benefits: toNumber(
       project.wlbEstimatedLandValueUpliftBenefits
     ),
-    capital_carbon: isCarbonFreeType
-      ? calculatedCapitalCarbon
-      : toNumber(project.carbonCostBuild),
-    carbon_operational_cost_forecast: isCarbonFreeType
-      ? null
-      : toNumber(project.carbonOperationalCostForecast),
-    carbon_lifecycle: isCarbonFreeType
-      ? 0
-      : toNumber(project.carbonCostOperation),
-    carbon_sequestered: isCarbonFreeType
-      ? null
-      : toNumber(project.carbonCostSequestered),
-    carbon_avoided: isCarbonFreeType
-      ? null
-      : toNumber(project.carbonCostAvoided),
-    carbon_net_economic_benefit: isCarbonFreeType
-      ? null
-      : toNumber(project.carbonSavingsNetEconomicBenefit),
+    ...buildCarbonFields(isCarbonFreeType, project, calculatedCapitalCarbon),
     funding_sources: {
       values: buildFundingSources(
         project.pafs_core_funding_values ?? project.fundingValues,

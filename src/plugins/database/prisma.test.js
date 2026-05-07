@@ -157,6 +157,24 @@ describe('Prisma Plugin', () => {
     )
   })
 
+  test('logs connection pool timeout with errorCode for P2024 errors', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const errorHandler = mockPrismaOn.mock.calls.find(
+      (call) => call[0] === 'error'
+    )[1]
+    const p2024Error = Object.assign(new Error('Connection pool timeout'), {
+      code: 'P2024'
+    })
+
+    errorHandler(p2024Error)
+
+    expect(mockServer.logger.error).toHaveBeenCalledWith(
+      { err: p2024Error, errorCode: 'P2024' },
+      'Prisma connection pool timeout'
+    )
+  })
+
   test('logs Prisma warnings', async () => {
     await prisma.plugin.register(mockServer, {})
 

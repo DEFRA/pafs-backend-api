@@ -354,6 +354,61 @@ describe('Carbon Impact Helper Functions', () => {
       expect(result).toHaveProperty('storedHexdigest')
       expect(result).toHaveProperty('hasValuesChanged')
     })
+
+    it('should handle null fundingValues by treating it as empty array', () => {
+      const project = {
+        startConstructionMonth: 6,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonOperationalCostForecast: null,
+        carbonValuesHexdigest: null
+      }
+
+      // Passing null should not throw and should behave like passing []
+      const resultWithNull = computeCarbonResults(project, null)
+      const resultWithEmpty = computeCarbonResults(project, [])
+
+      expect(resultWithNull.hexdigest).toBe(resultWithEmpty.hexdigest)
+      expect(resultWithNull.constructionTotalFunding).toBe(
+        resultWithEmpty.constructionTotalFunding
+      )
+    })
+
+    it('should normalise camelCase financialYear to snake_case financial_year', () => {
+      const project = {
+        startConstructionMonth: 4,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 3,
+        readyForServiceYear: 2027,
+        carbonCostBuild: '100',
+        carbonCostOperation: '50',
+        carbonOperationalCostForecast: null,
+        carbonValuesHexdigest: null
+      }
+
+      // camelCase keys (as returned by the project API layer)
+      const camelCaseFundingValues = [
+        { financialYear: 2025, total: 500000 },
+        { financialYear: 2026, total: 750000 }
+      ]
+      // snake_case keys (DB / calculator native format)
+      const snakeCaseFundingValues = [
+        { financial_year: 2025, total: 500000 },
+        { financial_year: 2026, total: 750000 }
+      ]
+
+      const resultCamel = computeCarbonResults(project, camelCaseFundingValues)
+      const resultSnake = computeCarbonResults(project, snakeCaseFundingValues)
+
+      // Both formats should produce identical hexdigests after normalisation
+      expect(resultCamel.hexdigest).toBe(resultSnake.hexdigest)
+      expect(resultCamel.constructionTotalFunding).toBe(
+        resultSnake.constructionTotalFunding
+      )
+    })
   })
 
   describe('Carbon calculator integration', () => {

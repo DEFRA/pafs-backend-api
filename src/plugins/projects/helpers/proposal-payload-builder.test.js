@@ -459,6 +459,44 @@ describe('buildProposalPayload', () => {
     )
   })
 
+  test('uses fundingValues alias for STU/STR when pafs_core_funding_values is absent', () => {
+    computeCarbonResults.mockReturnValue({ constructionTotalFunding: 7777 })
+    const fundingValues = [{ financial_year: 2025, total: 100000 }]
+    const stuProject = {
+      ...FULL_PROJECT,
+      projectType: 'STU',
+      pafs_core_funding_values: undefined,
+      fundingValues
+    }
+    buildProposalPayload(stuProject, null)
+    expect(computeCarbonResults).toHaveBeenCalledWith(
+      expect.objectContaining({ projectType: 'STU' }),
+      fundingValues
+    )
+  })
+
+  test('passes empty array to computeCarbonResults for STU/STR when no funding values present', () => {
+    computeCarbonResults.mockReturnValue({ constructionTotalFunding: null })
+    const stuProject = {
+      ...FULL_PROJECT,
+      projectType: 'STU',
+      pafs_core_funding_values: undefined,
+      fundingValues: undefined
+    }
+    buildProposalPayload(stuProject, null)
+    expect(computeCarbonResults).toHaveBeenCalledWith(
+      expect.objectContaining({ projectType: 'STU' }),
+      []
+    )
+  })
+
+  test('sets capital_carbon to null for STU/STR when constructionTotalFunding is null', () => {
+    computeCarbonResults.mockReturnValue({ constructionTotalFunding: null })
+    const stuProject = { ...FULL_PROJECT, projectType: 'STU' }
+    const payload = buildProposalPayload(stuProject, null)
+    expect(payload.capital_carbon).toBeNull()
+  })
+
   // ── NFM meta fields ───────────────────────────────────────────────────────
 
   test('maps NFM meta fields', () => {

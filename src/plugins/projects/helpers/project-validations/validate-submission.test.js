@@ -1530,6 +1530,28 @@ describe('validateSubmission', () => {
         fundingValues
       )
     })
+
+    test('passes fundingValues alias to computeCarbonResults when pafs_core_funding_values is absent', () => {
+      const fundingValues = [{ financialYear: 2025, total: 5000 }]
+      const project = validDefProject({
+        pafs_core_funding_values: undefined,
+        fundingValues
+      })
+      validateSubmission(project)
+      expect(computeCarbonResults).toHaveBeenCalledWith(
+        expect.objectContaining({ fundingValues }),
+        fundingValues
+      )
+    })
+
+    test('passes empty array to computeCarbonResults when no funding values present', () => {
+      const project = validDefProject({
+        pafs_core_funding_values: undefined,
+        fundingValues: undefined
+      })
+      validateSubmission(project)
+      expect(computeCarbonResults).toHaveBeenCalledWith(expect.any(Object), [])
+    })
   })
 
   // ─── Multiple errors accumulate ───────────────────────────────────────────
