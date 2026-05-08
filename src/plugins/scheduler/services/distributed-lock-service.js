@@ -33,7 +33,7 @@ export class DistributedLockService {
       const hasLock = await this.dbService.verifyLock(taskName, this.instanceId)
 
       if (hasLock) {
-        this.logger.info(
+        this.logger.debug(
           { taskName, instanceId: this.instanceId },
           'Acquired distributed lock for scheduled task'
         )
@@ -65,7 +65,7 @@ export class DistributedLockService {
       // Delete the lock
       await this.dbService.releaseLock(taskName, this.instanceId)
 
-      this.logger.info(
+      this.logger.debug(
         { taskName, instanceId: this.instanceId },
         'Released distributed lock'
       )

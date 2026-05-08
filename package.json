@@ -5,15 +5,15 @@
   "main": "src/index.js",
   "type": "module",
   "engines": {
-    "node": ">=22.16.0"
+    "node": ">=24"
   },
   "scripts": {
-    "dev": "NODE_ENV=development npm run server:watch",
-    "dev:debug": "NODE_ENV=development npm run server:debug",
+    "dev": "AWS_EMF_ENVIRONMENT=Local NODE_ENV=development npm run server:watch",
+    "dev:debug": "AWS_EMF_ENVIRONMENT=Local NODE_ENV=development npm run server:debug",
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
-    "git:pre-commit-hook": "npm run format:check && npm run lint && npm test",
+    "git:pre-commit-hook": "npm run security-audit && npm run format:check && npm run lint && npm test",
     "lint": "eslint --cache --cache-strategy content \"**/*.{cjs,js}\"",
     "lint:fix": "npm run lint -- --fix",
     "postinstall": "npm run setup:husky && npm run prisma:generate",
@@ -21,10 +21,11 @@
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "prisma:db:pull": "node src/plugins/database/helpers/prisma-db-pull.js",
-    "server:debug": "AWS_EMF_ENVIRONMENT=Local nodemon --inspect-brk=0.0.0.0 --ext js,json --legacy-watch ./src",
-    "server:watch": "AWS_EMF_ENVIRONMENT=Local nodemon --inspect=0.0.0.0 --ext js,json --legacy-watch ./src",
+    "security-audit": "npm audit --audit-level=critical",
+    "server:debug": "node --watch --inspect-brk=0.0.0.0 --env-file-if-exists=.env ./src",
+    "server:watch": "node --watch --inspect=0.0.0.0 --env-file-if-exists=.env ./src",
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
-    "start": "NODE_ENV=production node --use-strict .",
+    "start": "NODE_ENV=production node --use-strict . --env-file-if-exists=.env",
     "test": "cross-env TZ=UTC vitest run --coverage",
     "test:watch": "TZ=UTC vitest"
   },
@@ -82,7 +83,6 @@
     "eslint": "9.39.4",
     "husky": "9.1.7",
     "neostandard": "0.13.0",
-    "nodemon": "3.1.14",
     "npm-run-all": "4.1.5",
     "prettier": "3.8.3",
     "vitest": "4.1.4",

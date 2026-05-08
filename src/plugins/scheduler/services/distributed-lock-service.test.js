@@ -87,7 +87,7 @@ describe('DistributedLockService', () => {
         'test-task',
         expect.stringContaining('test-hostname')
       )
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.objectContaining({ taskName: 'test-task' }),
         'Acquired distributed lock for scheduled task'
       )
@@ -144,7 +144,7 @@ describe('DistributedLockService', () => {
         'test-task',
         expect.stringContaining('test-hostname')
       )
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.objectContaining({ taskName: 'test-task' }),
         'Released distributed lock'
       )
