@@ -9,6 +9,7 @@ describe('cleanup-expired-locks task', () => {
   beforeEach(() => {
     mockLogger = {
       info: vi.fn(),
+      debug: vi.fn(),
       error: vi.fn()
     }
 
@@ -34,7 +35,7 @@ describe('cleanup-expired-locks task', () => {
   it('should cleanup expired locks successfully', async () => {
     const result = await cleanupExpiredLocksTask.handler(mockContext)
 
-    expect(mockLogger.info).toHaveBeenCalledWith(
+    expect(mockLogger.debug).toHaveBeenCalledWith(
       'Running cleanup-expired-locks task'
     )
     expect(mockPrisma.scheduler_locks.deleteMany).toHaveBeenCalled()

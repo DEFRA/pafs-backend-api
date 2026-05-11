@@ -27,20 +27,23 @@ const baseProject = (overrides = {}) => ({
 // ─── DIRECT_SPENDING_SOURCE_FLAGS ─────────────────────────────────────────────
 
 describe('DIRECT_SPENDING_SOURCE_FLAGS', () => {
-  test('contains 13 sources', () => {
-    expect(DIRECT_SPENDING_SOURCE_FLAGS).toHaveLength(13)
+  test('contains 10 direct spend sources', () => {
+    expect(DIRECT_SPENDING_SOURCE_FLAGS).toHaveLength(10)
   })
 
   test('does not include additionalFcermGia (virtual flag, no DB column)', () => {
     expect(DIRECT_SPENDING_SOURCE_FLAGS).not.toContain('additionalFcermGia')
   })
 
-  test('includes all real spending sources', () => {
+  test('does not include contributor-backed sources (validated by validateFundingContributors)', () => {
+    expect(DIRECT_SPENDING_SOURCE_FLAGS).not.toContain('publicContributions')
+    expect(DIRECT_SPENDING_SOURCE_FLAGS).not.toContain('privateContributions')
+    expect(DIRECT_SPENDING_SOURCE_FLAGS).not.toContain('otherEaContributions')
+  })
+
+  test('includes all direct spend sources', () => {
     expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain('fcermGia')
     expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain('localLevy')
-    expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain('publicContributions')
-    expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain('privateContributions')
-    expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain('otherEaContributions')
     expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain('notYetIdentified')
     expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain('assetReplacementAllowance')
     expect(DIRECT_SPENDING_SOURCE_FLAGS).toContain(

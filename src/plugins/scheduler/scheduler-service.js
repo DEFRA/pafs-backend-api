@@ -169,7 +169,7 @@ export class SchedulerService {
       durationMs: duration,
       result
     })
-    this.logger.info(
+    this.logger.debug(
       { taskName: name, durationMs: duration },
       'Scheduled task completed successfully'
     )
@@ -211,7 +211,7 @@ export class SchedulerService {
     triggerType = TRIGGER_TYPE.SCHEDULED,
     triggeredByUserId = null
   ) {
-    this.logger.info(
+    this.logger.debug(
       { taskName: name, triggerType },
       'Attempting to execute scheduled task'
     )
@@ -244,7 +244,7 @@ export class SchedulerService {
       )
       logId = log.id
 
-      this.logger.info({ taskName: name, logId }, 'Executing scheduled task')
+      this.logger.debug({ taskName: name, logId }, 'Executing scheduled task')
 
       // Execute the task
       const result = await this.executeTaskLogic(task, name)

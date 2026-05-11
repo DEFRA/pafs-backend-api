@@ -14,13 +14,13 @@ export default {
     const { logger, prisma } = context
     const dbService = new SchedulerDbService(prisma, logger)
 
-    logger.info('Running cleanup-expired-locks task')
+    logger.debug('Running cleanup-expired-locks task')
 
     try {
       // Delete expired locks using the database service
       const deletedCount = await dbService.cleanupExpiredLocks()
 
-      logger.info({ deletedCount }, 'Cleaned up expired scheduler locks')
+      logger.debug({ deletedCount }, 'Cleaned up expired scheduler locks')
 
       return { success: true, deletedCount }
     } catch (error) {
