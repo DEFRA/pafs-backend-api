@@ -66,14 +66,20 @@ export function validateZipContents(filenames) {
  * @param {Object} logger - Logger instance
  * @returns {Promise<{isValid: boolean, message?: string, filenames?: Array<string>}>} Validation result
  */
-export async function validateZipFileFromS3(bucket, key, logger) {
+export async function validateZipFileFromS3(bucket, key, logger, metrics) {
   try {
     // Get S3 service instance
     const s3Service = getS3Service(logger)
 
     // Download the ZIP file from S3
     logger.info({ bucket, key }, 'Downloading ZIP file from S3 for validation')
-    const fileBuffer = await s3Service.getObject(bucket, key)
+    const fileBuffer = metrics
+      ? await metrics.timer(
+          'externalCallDuration',
+          () => s3Service.getObject(bucket, key),
+          { service: 's3', operation: 'validateZip' }
+        )
+      : await s3Service.getObject(bucket, key)
 
     // Read ZIP contents
     const zip = new AdmZip(fileBuffer)

@@ -118,7 +118,8 @@ async function performHostApplicationValidation(
   fileData,
   actualStatus,
   errorMessages,
-  logger
+  logger,
+  metrics
 ) {
   let updatedStatus = actualStatus
   let hasErrors = false
@@ -136,7 +137,8 @@ async function performHostApplicationValidation(
   const zipValidation = await validateZipFileFromS3(
     fileData.s3Bucket,
     fileData.s3Key,
-    logger
+    logger,
+    metrics
   )
 
   if (zipValidation.isValid) {
@@ -168,7 +170,13 @@ async function performHostApplicationValidation(
 /**
  * Sync upload status with CDP Uploader
  */
-async function syncWithCdpUploader(uploadRecord, uploadId, logger, prisma) {
+async function syncWithCdpUploader(
+  uploadRecord,
+  uploadId,
+  logger,
+  prisma,
+  metrics
+) {
   const cdpUploader = getCdpUploaderService(logger)
   const cdpStatus = await cdpUploader.getUploadStatus(uploadId)
 
@@ -189,7 +197,8 @@ async function syncWithCdpUploader(uploadRecord, uploadId, logger, prisma) {
       fileData,
       actualStatus,
       errorMessages,
-      logger
+      logger,
+      metrics
     )
     actualStatus = validationResult.actualStatus
     hasErrors = hasErrors || validationResult.hasErrors
@@ -332,6 +341,40 @@ function buildErrorResponse(h, error) {
     .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
 }
 
+/**
+ * Emit CloudWatch metrics for a completed file upload operation.
+ * Called once after syncWithCdpUploader mutates uploadRecord away from PENDING.
+ * @param {Object} request - Hapi request
+ * @param {Object} uploadRecord - Mutated upload record with final status
+ */
+function emitFileUploadMetrics(request, uploadRecord) {
+  if (uploadRecord.upload_status === UPLOAD_STATUS.READY) {
+    request.metrics?.counter('fileUploadOperation', 1, {
+      operation: 'validateZip',
+      outcome: 'success'
+    })
+    if (uploadRecord.reference) {
+      request.metrics?.counter('fileUploadOperation', 1, {
+        operation: 'presignedUrl',
+        outcome: 'success'
+      })
+    }
+  }
+  if (
+    uploadRecord.upload_status === UPLOAD_STATUS.FAILED &&
+    uploadRecord.s3_key
+  ) {
+    request.metrics?.counter('fileUploadOperation', 1, {
+      operation: 'validateZip',
+      outcome: 'error'
+    })
+    request.metrics?.counter('fileUploadOperation', 1, {
+      operation: 'deleteFile',
+      outcome: 'success'
+    })
+  }
+}
+
 const getUploadStatus = {
   method: 'GET',
   path: '/api/v1/file-uploads/{uploadId}/status',
@@ -363,8 +406,10 @@ const getUploadStatus = {
           uploadRecord,
           uploadId,
           logger,
-          request.prisma
+          request.prisma,
+          request.metrics
         )
+        emitFileUploadMetrics(request, uploadRecord)
       }
 
       // Update project with benefit area file metadata if upload is complete
