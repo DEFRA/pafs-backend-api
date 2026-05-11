@@ -79,6 +79,10 @@ describe('getUploadStatus', () => {
       prisma: mockPrisma,
       params: {
         uploadId: 'test-upload-123'
+      },
+      metrics: {
+        counter: vi.fn(),
+        timer: vi.fn((_name, fn) => fn())
       }
     }
 
@@ -670,7 +674,8 @@ describe('getUploadStatus', () => {
       expect(mockValidationHelpers.validateZipFileFromS3).toHaveBeenCalledWith(
         'test-bucket',
         'uploads/shapefile.zip',
-        mockLogger
+        mockLogger,
+        mockRequest.metrics
       )
 
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -851,6 +856,171 @@ describe('getUploadStatus', () => {
             'Uploaded file failed validation - required files are missing'
         })
       })
+    })
+  })
+
+  describe('metrics emission', () => {
+    test('should emit validateZip success and presignedUrl metrics on PENDING → READY with reference', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending',
+        reference: 'SOME-REF'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            fileId: 'file-1',
+            filename: 'shapes.zip',
+            s3Bucket: 'bucket',
+            s3Key: 'key'
+          }
+        }
+      })
+
+      mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
+        isValid: true,
+        filenames: ['a.shp', 'a.dbf']
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({})
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockRequest.metrics.counter).toHaveBeenCalledWith(
+        'fileUploadOperation',
+        1,
+        { operation: 'validateZip', outcome: 'success' }
+      )
+      expect(mockRequest.metrics.counter).toHaveBeenCalledWith(
+        'fileUploadOperation',
+        1,
+        { operation: 'presignedUrl', outcome: 'success' }
+      )
+      expect(mockRequest.metrics.counter).toHaveBeenCalledTimes(2)
+    })
+
+    test('should emit only validateZip success metric on PENDING → READY without reference', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending',
+        reference: null
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: { fileId: 'f1', s3Bucket: 'bucket', s3Key: 'key' }
+        }
+      })
+
+      mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
+        isValid: true,
+        filenames: ['a.shp']
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({})
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockRequest.metrics.counter).toHaveBeenCalledWith(
+        'fileUploadOperation',
+        1,
+        { operation: 'validateZip', outcome: 'success' }
+      )
+      expect(mockRequest.metrics.counter).not.toHaveBeenCalledWith(
+        'fileUploadOperation',
+        1,
+        { operation: 'presignedUrl', outcome: 'success' }
+      )
+      expect(mockRequest.metrics.counter).toHaveBeenCalledTimes(1)
+    })
+
+    test('should emit validateZip error and deleteFile metrics on PENDING → FAILED with s3_key (ZIP reached S3)', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: { s3Bucket: 'bucket', s3Key: 'the-key' }
+        }
+      })
+
+      mockValidationHelpers.validateZipFileFromS3.mockResolvedValue({
+        isValid: false,
+        message: 'Missing .shp'
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({})
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockRequest.metrics.counter).toHaveBeenCalledWith(
+        'fileUploadOperation',
+        1,
+        { operation: 'validateZip', outcome: 'error' }
+      )
+      expect(mockRequest.metrics.counter).toHaveBeenCalledWith(
+        'fileUploadOperation',
+        1,
+        { operation: 'deleteFile', outcome: 'success' }
+      )
+      expect(mockRequest.metrics.counter).toHaveBeenCalledTimes(2)
+    })
+
+    test('should emit only validateZip error metric on PENDING → FAILED without s3_key', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: { errorMessage: 'Virus detected', fileStatus: 'rejected' }
+          // no s3Bucket / s3Key
+        }
+      })
+
+      mockPrisma.file_uploads.update.mockResolvedValue({})
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      // CDP pre-S3 rejection: file never reached S3, no ZIP validation ran, no metric emitted
+      expect(mockRequest.metrics.counter).not.toHaveBeenCalled()
+    })
+
+    test('should not emit metrics when upload stays PENDING after sync', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'pending'
+      })
+
+      mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+        uploadStatus: 'pending',
+        form: {}
+      })
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockRequest.metrics.counter).not.toHaveBeenCalled()
+    })
+
+    test('should not emit metrics when upload is already READY on entry', async () => {
+      mockPrisma.file_uploads.findUnique.mockResolvedValue({
+        upload_id: 'test-upload-123',
+        upload_status: 'ready',
+        reference: 'REF'
+      })
+
+      await getUploadStatus.handler(mockRequest, mockH)
+
+      expect(mockRequest.metrics.counter).not.toHaveBeenCalled()
     })
   })
 })

@@ -26,6 +26,7 @@ const { validateZipContents, validateZipFileFromS3, getAllowedMimeTypes } =
 
 describe('validation-helpers', () => {
   let mockLogger
+  let mockMetrics
 
   beforeEach(() => {
     mockLogger = {
@@ -34,6 +35,7 @@ describe('validation-helpers', () => {
       error: vi.fn(),
       debug: vi.fn()
     }
+    mockMetrics = { timer: vi.fn((_name, fn) => fn()) }
 
     vi.clearAllMocks()
   })
@@ -229,9 +231,19 @@ describe('validation-helpers', () => {
         { isDirectory: false, entryName: 'document.prj' }
       )
 
-      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+      const result = await validateZipFileFromS3(
+        bucket,
+        key,
+        mockLogger,
+        mockMetrics
+      )
 
       expect(mockS3Service.getObject).toHaveBeenCalledWith(bucket, key)
+      expect(mockMetrics.timer).toHaveBeenCalledWith(
+        'externalCallDuration',
+        expect.any(Function),
+        { service: 's3', operation: 'validateZip' }
+      )
       expect(result.isValid).toBe(true)
       expect(result.filenames).toHaveLength(4)
       expect(mockS3Service.deleteObject).not.toHaveBeenCalled()
@@ -255,7 +267,12 @@ describe('validation-helpers', () => {
         { isDirectory: false, entryName: 'document.shx' }
       )
 
-      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+      const result = await validateZipFileFromS3(
+        bucket,
+        key,
+        mockLogger,
+        mockMetrics
+      )
 
       expect(result.isValid).toBe(false)
       expect(result.message).toContain('missing required files')
@@ -291,7 +308,12 @@ describe('validation-helpers', () => {
         { isDirectory: false, entryName: 'document.prj' }
       )
 
-      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+      const result = await validateZipFileFromS3(
+        bucket,
+        key,
+        mockLogger,
+        mockMetrics
+      )
 
       expect(result.isValid).toBe(true)
       // Should only count files, not directories
@@ -310,7 +332,12 @@ describe('validation-helpers', () => {
 
       // Empty ZIP - no entries (mockZipEntries is already empty from beforeEach)
 
-      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+      const result = await validateZipFileFromS3(
+        bucket,
+        key,
+        mockLogger,
+        mockMetrics
+      )
 
       expect(result.isValid).toBe(false)
       expect(result.message).toBe('The uploaded zip file is empty or invalid')
@@ -324,7 +351,12 @@ describe('validation-helpers', () => {
 
       mockS3Service.getObject.mockRejectedValue(error)
 
-      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+      const result = await validateZipFileFromS3(
+        bucket,
+        key,
+        mockLogger,
+        mockMetrics
+      )
 
       expect(result.isValid).toBe(false)
       expect(result.message).toBe(
@@ -356,7 +388,12 @@ describe('validation-helpers', () => {
         throw new Error('Invalid ZIP format')
       })
 
-      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+      const result = await validateZipFileFromS3(
+        bucket,
+        key,
+        mockLogger,
+        mockMetrics
+      )
 
       expect(result.isValid).toBe(false)
       expect(result.message).toBe(
@@ -383,7 +420,12 @@ describe('validation-helpers', () => {
       mockZipEntries.push({ isDirectory: false, entryName: 'document.pdf' })
 
       // The function catches delete errors and continues returning validation failure
-      const result = await validateZipFileFromS3(bucket, key, mockLogger)
+      const result = await validateZipFileFromS3(
+        bucket,
+        key,
+        mockLogger,
+        mockMetrics
+      )
 
       expect(result.isValid).toBe(false)
       // Should attempt to delete despite validation failure
@@ -411,7 +453,7 @@ describe('validation-helpers', () => {
         { isDirectory: false, entryName: 'file11.jpeg' }
       )
 
-      await validateZipFileFromS3(bucket, key, mockLogger)
+      await validateZipFileFromS3(bucket, key, mockLogger, mockMetrics)
 
       // Should log both download and extraction
       expect(mockLogger.info).toHaveBeenCalledWith(
