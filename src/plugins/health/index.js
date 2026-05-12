@@ -1,4 +1,10 @@
-import { checkPostgresHealth, checkNotifyHealth } from './checks/index.js'
+import {
+  checkPostgresHealth,
+  checkNotifyHealth,
+  checkS3Health,
+  checkSqsHealth,
+  checkExternalSubmissionHealth
+} from './checks/index.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
 
 /**
@@ -7,12 +13,24 @@ import { HTTP_STATUS } from '../../common/constants/index.js'
  * @returns {Promise<Object>} Complete health status
  */
 async function performHealthChecks(request) {
-  const [postgresHealth, notifyHealth] = await Promise.all([
-    checkPostgresHealth(request),
-    checkNotifyHealth(request)
-  ])
+  const [postgresHealth, notifyHealth, s3Health, sqsHealth] = await Promise.all(
+    [
+      checkPostgresHealth(request),
+      checkNotifyHealth(request),
+      checkS3Health(),
+      checkSqsHealth(request)
+    ]
+  )
 
-  const checks = [postgresHealth, notifyHealth]
+  const externalSubmissionHealth = checkExternalSubmissionHealth()
+
+  const checks = [
+    postgresHealth,
+    notifyHealth,
+    s3Health,
+    sqsHealth,
+    externalSubmissionHealth
+  ]
   const allHealthy = checks.every((check) => check.healthy)
 
   return {
@@ -22,7 +40,10 @@ async function performHealthChecks(request) {
     timestamp: new Date().toISOString(),
     checks: {
       postgres: postgresHealth,
-      notify: notifyHealth
+      notify: notifyHealth,
+      s3: s3Health,
+      sqs: sqsHealth,
+      externalSubmission: externalSubmissionHealth
     }
   }
 }

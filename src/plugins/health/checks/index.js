@@ -1,2 +1,5 @@
 export { checkPostgresHealth } from './postgres-health.js'
 export { checkNotifyHealth } from './notify-health.js'
+export { checkS3Health } from './s3-health.js'
+export { checkSqsHealth } from './sqs-health.js'
+export { checkExternalSubmissionHealth } from './external-submission-health.js'
