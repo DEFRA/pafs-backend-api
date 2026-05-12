@@ -90,7 +90,7 @@ describe('download-benefit-area-file endpoint', () => {
   })
 
   describe('successful download URL generation', () => {
-    it('should generate a presigned URL and return it with the filename', async () => {
+    it('should generate a presigned URL with a slug-based filename', async () => {
       const mockProject = {
         reference_number: 'TEST/001/001',
         slug: 'TEST-001-001',
@@ -115,17 +115,17 @@ describe('download-benefit-area-file endpoint', () => {
         'pafs-bucket',
         'projects/TEST-001-001/1/benefit_area.zip',
         mockLogger,
-        'benefit_area.zip'
+        'TEST-001-001_benefit_area.zip'
       )
       expect(mockH.response).toHaveBeenCalledWith({
         downloadUrl:
           'https://s3.amazonaws.com/pafs-bucket/key?X-Amz-Token=fresh',
-        filename: 'benefit_area.zip'
+        filename: 'TEST-001-001_benefit_area.zip'
       })
       expect(mockH.code).toHaveBeenCalledWith(200)
     })
 
-    it('should fall back to a slug-based filename when benefit_area_file_name is null', async () => {
+    it('should use slug-based filename even when benefit_area_file_name is null', async () => {
       const mockProject = {
         reference_number: 'TEST/001/001',
         slug: 'TEST-001-001',

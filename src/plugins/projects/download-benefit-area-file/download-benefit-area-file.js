@@ -37,8 +37,7 @@ const downloadBenefitAreaFile = {
       h,
       async (project, req) => {
         const { logger } = req.server
-        const filename =
-          project.benefit_area_file_name ?? `${project.slug}_benefit_area.zip`
+        const filename = `${project.slug}_benefit_area.zip`
 
         const { downloadUrl } = await generateDownloadUrl(
           project.benefit_area_file_s3_bucket,
