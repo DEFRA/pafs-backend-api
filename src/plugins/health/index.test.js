@@ -5,9 +5,15 @@ import { HTTP_STATUS } from '../../common/constants/index.js'
 // Mock the health checks
 const mockCheckPostgresHealth = vi.fn()
 const mockCheckNotifyHealth = vi.fn()
+const mockCheckS3Health = vi.fn()
+const mockCheckSqsHealth = vi.fn()
+const mockCheckExternalSubmissionHealth = vi.fn()
 vi.mock('./checks/index.js', () => ({
   checkPostgresHealth: mockCheckPostgresHealth,
-  checkNotifyHealth: mockCheckNotifyHealth
+  checkNotifyHealth: mockCheckNotifyHealth,
+  checkS3Health: mockCheckS3Health,
+  checkSqsHealth: mockCheckSqsHealth,
+  checkExternalSubmissionHealth: mockCheckExternalSubmissionHealth
 }))
 
 const module = await import('./index.js')
@@ -23,8 +29,26 @@ describe('health plugin', () => {
       mockRequest = {
         logger: {
           error: vi.fn()
+        },
+        server: {
+          sqs: { send: vi.fn() }
         }
       }
+      // Default healthy responses for all new checks
+      mockCheckS3Health.mockResolvedValue({
+        status: 'connected',
+        healthy: true,
+        responseTime: 3
+      })
+      mockCheckSqsHealth.mockResolvedValue({
+        status: 'connected',
+        healthy: true,
+        responseTime: 4
+      })
+      mockCheckExternalSubmissionHealth.mockReturnValue({
+        status: 'disabled',
+        healthy: true
+      })
     })
 
     test('Should return healthy status when all checks pass', async () => {
@@ -262,13 +286,29 @@ describe('health plugin', () => {
       mockRequest = {
         logger: {
           error: vi.fn()
-        }
+        },
+        server: { sqs: { send: vi.fn() } }
       }
 
       mockH = {
         response: vi.fn().mockReturnThis(),
         code: vi.fn().mockReturnThis()
       }
+
+      mockCheckS3Health.mockResolvedValue({
+        status: 'connected',
+        healthy: true,
+        responseTime: 3
+      })
+      mockCheckSqsHealth.mockResolvedValue({
+        status: 'connected',
+        healthy: true,
+        responseTime: 4
+      })
+      mockCheckExternalSubmissionHealth.mockReturnValue({
+        status: 'disabled',
+        healthy: true
+      })
     })
 
     test('Should return 200 status code when healthy', async () => {
@@ -328,8 +368,23 @@ describe('health plugin', () => {
         healthy: true,
         responseTime: 12
       }
+      const mockS3Health = {
+        status: 'connected',
+        healthy: true,
+        responseTime: 3
+      }
+      const mockSqsHealth = {
+        status: 'connected',
+        healthy: true,
+        responseTime: 4
+      }
+      const mockExtHealth = { status: 'disabled', healthy: true }
+
       mockCheckPostgresHealth.mockResolvedValue(mockPostgresHealth)
       mockCheckNotifyHealth.mockResolvedValue(mockNotifyHealth)
+      mockCheckS3Health.mockResolvedValue(mockS3Health)
+      mockCheckSqsHealth.mockResolvedValue(mockSqsHealth)
+      mockCheckExternalSubmissionHealth.mockReturnValue(mockExtHealth)
 
       await healthFull.handler(mockRequest, mockH)
 
@@ -341,7 +396,10 @@ describe('health plugin', () => {
           timestamp: expect.any(String),
           checks: {
             postgres: mockPostgresHealth,
-            notify: mockNotifyHealth
+            notify: mockNotifyHealth,
+            s3: mockS3Health,
+            sqs: mockSqsHealth,
+            externalSubmission: mockExtHealth
           }
         })
       )
@@ -358,13 +416,29 @@ describe('health plugin', () => {
       mockRequest = {
         logger: {
           error: vi.fn()
-        }
+        },
+        server: { sqs: { send: vi.fn() } }
       }
 
       mockH = {
         response: vi.fn().mockReturnThis(),
         code: vi.fn().mockReturnThis()
       }
+
+      mockCheckS3Health.mockResolvedValue({
+        status: 'connected',
+        healthy: true,
+        responseTime: 3
+      })
+      mockCheckSqsHealth.mockResolvedValue({
+        status: 'connected',
+        healthy: true,
+        responseTime: 4
+      })
+      mockCheckExternalSubmissionHealth.mockReturnValue({
+        status: 'disabled',
+        healthy: true
+      })
     })
 
     test('Should return 200 status code when healthy', async () => {
