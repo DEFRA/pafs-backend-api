@@ -49,14 +49,16 @@ export function label(map, value) {
 }
 
 /**
- * Assign a field when the value is not null/undefined.
+ * Assign a field whenever the map declares a key for it.
+ * Always emits the field — as null when rawValue is absent — so
+ * the payload contract is complete regardless of data presence.
  * Extracted to keep buildNfmMeasures below complexity threshold.
  * @param {Object} result
  * @param {string|undefined} key
  * @param {*} rawValue
  */
 export function assignIfPresent(result, key, rawValue) {
-  if (key && rawValue != null) {
+  if (key) {
     result[key] = toNumber(rawValue)
   }
 }

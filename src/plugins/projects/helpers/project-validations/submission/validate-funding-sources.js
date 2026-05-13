@@ -79,12 +79,6 @@ export const validateFundingSourceValues = (p) => {
   return null
 }
 
-/**
- * Each contributor linked to a funding_value row within the proposal year
- * range must have an amount > 0.
- * Returns SUBMISSION_FUNDING_SOURCES_INCOMPLETE on the first violation.
- * Contributors whose fundingValueId does not match any in-range row are ignored.
- */
 export const validateFundingContributors = (p) => {
   const contributors = p.pafs_core_funding_contributors ?? []
   if (contributors.length === 0) {
@@ -98,15 +92,23 @@ export const validateFundingContributors = (p) => {
     inRange.map((fv) => Number(fv.id)).filter((id) => !Number.isNaN(id))
   )
 
+  // Group in-range contributor rows by unique contributor identity
+  const contributorTotals = new Map()
   for (const contributor of contributors) {
     const fvId = Number(contributor.fundingValueId)
-    if (
-      !Number.isNaN(fvId) &&
-      inRangeIds.has(fvId) &&
-      Number(contributor.amount || 0) <= 0
-    ) {
+    if (Number.isNaN(fvId) || !inRangeIds.has(fvId)) {
+      continue
+    }
+    const key = `${contributor.contributorType}::${contributor.name}`
+    const current = contributorTotals.get(key) ?? 0
+    contributorTotals.set(key, current + Number(contributor.amount || 0))
+  }
+
+  for (const total of contributorTotals.values()) {
+    if (total <= 0) {
       return PROJECT_VALIDATION_MESSAGES.SUBMISSION_FUNDING_SOURCES_INCOMPLETE
     }
   }
+
   return null
 }

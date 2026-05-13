@@ -419,25 +419,85 @@ describe('validateFundingContributors', () => {
     ).toBeNull()
   })
 
-  test('stops at the first zero-amount contributor', () => {
+  test('returns null when contributor has zero amount in one year but positive in another', () => {
+    // Contributor linked to two in-range years: 2025 (amount=0) and 2026 (amount=500)
+    // Their total across the range is 500 — should pass
     expect(
       validateFundingContributors(
         baseProject({
+          financialStartYear: 2025,
+          financialEndYear: 2027,
           pafs_core_funding_values: [
-            { id: 1, financialYear: 2025, total: 1000 }
+            { id: 1, financialYear: 2025, total: 500 },
+            { id: 2, financialYear: 2026, total: 500 }
           ],
           pafs_core_funding_contributors: [
             {
               fundingValueId: 1,
               contributorType: 'public_contributions',
               name: 'Council A',
-              amount: 500
+              amount: 0 // no contribution this year
+            },
+            {
+              fundingValueId: 2,
+              contributorType: 'public_contributions',
+              name: 'Council A',
+              amount: 500 // contributing in year 2026
+            }
+          ]
+        })
+      )
+    ).toBeNull()
+  })
+
+  test('returns FUNDING_SOURCES_INCOMPLETE when contributor has zero across ALL in-range years', () => {
+    expect(
+      validateFundingContributors(
+        baseProject({
+          pafs_core_funding_values: [
+            { id: 1, financialYear: 2025, total: 1000 },
+            { id: 2, financialYear: 2026, total: 1000 }
+          ],
+          pafs_core_funding_contributors: [
+            {
+              fundingValueId: 1,
+              contributorType: 'public_contributions',
+              name: 'Council A',
+              amount: 0
+            },
+            {
+              fundingValueId: 2,
+              contributorType: 'public_contributions',
+              name: 'Council A',
+              amount: 0
+            }
+          ]
+        })
+      )
+    ).toBe(PROJECT_VALIDATION_MESSAGES.SUBMISSION_FUNDING_SOURCES_INCOMPLETE)
+  })
+
+  test('treats contributors with same name but different type as distinct', () => {
+    // 'Council A' as public (total=0) and private (total=500)
+    // public contributor has no valid amount — should fail
+    expect(
+      validateFundingContributors(
+        baseProject({
+          pafs_core_funding_values: [
+            { id: 1, financialYear: 2025, total: 500 }
+          ],
+          pafs_core_funding_contributors: [
+            {
+              fundingValueId: 1,
+              contributorType: 'public_contributions',
+              name: 'Council A',
+              amount: 0
             },
             {
               fundingValueId: 1,
               contributorType: 'private_contributions',
-              name: 'Firm B',
-              amount: 0 // zero — triggers error
+              name: 'Council A',
+              amount: 500
             }
           ]
         })
