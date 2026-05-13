@@ -625,6 +625,48 @@ describe('buildNfmMeasures — unknown measure type is skipped', () => {
     )
     expect(payload.woodland_area).toBe(7)
   })
+
+  test('emits null for a declared field when value is absent', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_measures: [
+          { measureType: 'woodland', areaHectares: null }
+        ]
+      },
+      null
+    )
+    expect(payload.woodland_area).toBeNull()
+  })
+
+  test('emits null for all declared fields of a multi-field measure when values are absent', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_measures: [
+          { measureType: 'leaky_barriers' } // no values provided
+        ]
+      },
+      null
+    )
+    expect(payload.leaky_barriers_volume).toBeNull()
+    expect(payload.leaky_barriers_length).toBeNull()
+    expect(payload.leaky_barriers_width).toBeNull()
+  })
+
+  test('does not emit fields not declared by the measure type', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_measures: [
+          { measureType: 'woodland', areaHectares: null }
+        ]
+      },
+      null
+    )
+    // woodland only declares 'area' — volume/length/width must not appear
+    expect(payload.woodland_volume).toBeUndefined()
+  })
 })
 
 // ─── buildNfmLandUseChanges — unknown land use type is skipped ────────────────
@@ -668,6 +710,41 @@ describe('buildNfmLandUseChanges — unknown land use type is skipped', () => {
     )
     expect(payload.farmland_arable_before).toBe(80)
     expect(payload.farmland_arable_after).toBe(40)
+  })
+
+  test('emits null for declared fields when land use values are absent', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_land_use_changes: [
+          {
+            landUseType: 'enclosed_arable_farmland'
+            // areaBeforeHectares and areaAfterHectares not provided
+          }
+        ]
+      },
+      null
+    )
+    expect(payload.farmland_arable_before).toBeNull()
+    expect(payload.farmland_arable_after).toBeNull()
+  })
+
+  test('emits null for declared fields when land use values are explicitly null', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_land_use_changes: [
+          {
+            landUseType: 'woodland',
+            areaBeforeHectares: null,
+            areaAfterHectares: null
+          }
+        ]
+      },
+      null
+    )
+    expect(payload.woodland_before).toBeNull()
+    expect(payload.woodland_after).toBeNull()
   })
 })
 
