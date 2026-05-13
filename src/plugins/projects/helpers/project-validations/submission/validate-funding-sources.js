@@ -79,6 +79,22 @@ export const validateFundingSourceValues = (p) => {
   return null
 }
 
+const buildInRangeIds = (inRange) =>
+  new Set(inRange.map((fv) => Number(fv.id)).filter((id) => !Number.isNaN(id)))
+
+const buildContributorTotals = (contributors, inRangeIds) => {
+  const totals = new Map()
+  for (const contributor of contributors) {
+    const fvId = Number(contributor.fundingValueId)
+    if (Number.isNaN(fvId) || !inRangeIds.has(fvId)) {
+      continue
+    }
+    const key = `${contributor.contributorType}::${contributor.name}`
+    totals.set(key, (totals.get(key) ?? 0) + Number(contributor.amount || 0))
+  }
+  return totals
+}
+
 export const validateFundingContributors = (p) => {
   const contributors = p.pafs_core_funding_contributors ?? []
   if (contributors.length === 0) {
@@ -87,22 +103,10 @@ export const validateFundingContributors = (p) => {
 
   const fundingValues = p.pafs_core_funding_values ?? p.fundingValues ?? []
   const inRange = filterInRange(fundingValues, p)
-
-  const inRangeIds = new Set(
-    inRange.map((fv) => Number(fv.id)).filter((id) => !Number.isNaN(id))
+  const contributorTotals = buildContributorTotals(
+    contributors,
+    buildInRangeIds(inRange)
   )
-
-  // Group in-range contributor rows by unique contributor identity
-  const contributorTotals = new Map()
-  for (const contributor of contributors) {
-    const fvId = Number(contributor.fundingValueId)
-    if (Number.isNaN(fvId) || !inRangeIds.has(fvId)) {
-      continue
-    }
-    const key = `${contributor.contributorType}::${contributor.name}`
-    const current = contributorTotals.get(key) ?? 0
-    contributorTotals.set(key, current + Number(contributor.amount || 0))
-  }
 
   for (const total of contributorTotals.values()) {
     if (total <= 0) {
