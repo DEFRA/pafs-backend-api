@@ -52,6 +52,12 @@ const serverSchema = {
     default: 'http://localhost:3000',
     env: 'FRONTEND_URL'
   },
+  serviceUrl: {
+    doc: 'This service public URL, used for CDP Uploader callbacks',
+    format: 'url',
+    default: 'http://localhost:3001',
+    env: 'SERVICE_URL'
+  },
   httpProxy: {
     doc: 'HTTP Proxy URL',
     format: String,

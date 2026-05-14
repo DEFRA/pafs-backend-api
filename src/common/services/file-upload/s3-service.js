@@ -89,6 +89,20 @@ export class S3Service {
   }
 
   /**
+   * Get a file object from S3 as a Node.js Readable stream.
+   * The caller is responsible for consuming or destroying the stream.
+   *
+   * @param {string} bucket - S3 bucket name
+   * @param {string} key - S3 object key
+   * @returns {Promise<import('stream').Readable>} Node.js Readable stream of file contents
+   */
+  async getObjectStream(bucket, key) {
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key })
+    const response = await this.s3Client.send(command)
+    return response.Body
+  }
+
+  /**
    * Get a file object from S3
    *
    * @param {string} bucket - S3 bucket name
