@@ -1,58 +1,27 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
-
-// Mutable list of ZIP entries injected per test
-let mockEntries = []
+import AdmZip from 'adm-zip'
 
 /**
- * Create a mock unzipper parse stream that emits configured entries
- * and resolves its .promise() after emitting them.
+ * Build an in-memory ZIP buffer containing empty entries for each given path.
+ * Produces a valid ZIP with a proper Central Directory so the range-based
+ * parser under test can locate and parse it correctly.
  */
-function createMockParseStream() {
-  const handlers = {}
-
-  const stream = {
-    on(event, handler) {
-      if (!handlers[event]) handlers[event] = []
-      handlers[event].push(handler)
-      return this
-    },
-    promise() {
-      return new Promise((resolve) => {
-        process.nextTick(() => {
-          for (const entry of mockEntries) {
-            const entryHandlers = handlers['entry'] || []
-            entryHandlers.forEach((h) =>
-              h({
-                path: entry.path,
-                type: entry.type ?? 'File',
-                autodrain: vi.fn()
-              })
-            )
-          }
-          resolve()
-        })
-      })
-    }
+function createZipBuffer(filenames = []) {
+  const zip = new AdmZip()
+  for (const name of filenames) {
+    zip.addFile(name, Buffer.from(''))
   }
-
-  return stream
+  return zip.toBuffer()
 }
 
-// Mock S3 service – uses getObjectStream (streaming approach)
+// Mock S3 service – uses getObjectRange (range-request approach)
 const mockS3Service = {
-  getObjectStream: vi.fn(),
+  getObjectRange: vi.fn(),
   deleteObject: vi.fn()
 }
 
 vi.mock('../../../common/services/file-upload/s3-service.js', () => ({
   getS3Service: vi.fn(() => mockS3Service)
-}))
-
-// Mock unzipper so Parse() returns a controllable stream
-vi.mock('unzipper', () => ({
-  default: {
-    Parse: vi.fn(() => createMockParseStream())
-  }
 }))
 
 // Import after mocks are set up
@@ -72,14 +41,17 @@ describe('validation-helpers', () => {
     }
     mockMetrics = { timer: vi.fn((_name, fn) => fn()) }
 
-    mockEntries = []
     vi.clearAllMocks()
 
-    // Default: getObjectStream returns a fake Readable whose .pipe() returns
-    // whatever unzipper.Parse() returns (controlled by createMockParseStream).
-    mockS3Service.getObjectStream.mockResolvedValue({
-      pipe: vi.fn((dest) => dest)
-    })
+    // Default: a valid four-extension shapefile ZIP.
+    mockS3Service.getObjectRange.mockResolvedValue(
+      createZipBuffer([
+        'document.dbf',
+        'document.shx',
+        'document.shp',
+        'document.prj'
+      ])
+    )
   })
 
   describe('validateZipContents', () => {
@@ -226,6 +198,21 @@ describe('validation-helpers', () => {
 
       expect(result.isValid).toBe(true)
     })
+
+    test('should handle a dot-only filename producing an empty extension', () => {
+      // '.' splits to ['', ''] — pop() returns '' (falsy) — covers the ternary else branch
+      const filenames = [
+        '.',
+        'document.dbf',
+        'document.shx',
+        'document.shp',
+        'document.prj'
+      ]
+
+      const result = validateZipContents(filenames)
+
+      expect(result.isValid).toBe(true)
+    })
   })
 
   describe('getAllowedMimeTypes', () => {
@@ -256,12 +243,14 @@ describe('validation-helpers', () => {
       const bucket = 'test-bucket'
       const key = 'test-file.zip'
 
-      mockEntries = [
-        { path: 'document.dbf', type: 'File' },
-        { path: 'document.shx', type: 'File' },
-        { path: 'document.shp', type: 'File' },
-        { path: 'document.prj', type: 'File' }
-      ]
+      mockS3Service.getObjectRange.mockResolvedValue(
+        createZipBuffer([
+          'document.dbf',
+          'document.shx',
+          'document.shp',
+          'document.prj'
+        ])
+      )
 
       const result = await validateZipFileFromS3(
         bucket,
@@ -270,7 +259,11 @@ describe('validation-helpers', () => {
         mockMetrics
       )
 
-      expect(mockS3Service.getObjectStream).toHaveBeenCalledWith(bucket, key)
+      expect(mockS3Service.getObjectRange).toHaveBeenCalledWith(
+        bucket,
+        key,
+        expect.stringMatching(/^bytes=-/)
+      )
       expect(mockMetrics.timer).toHaveBeenCalledWith(
         'externalCallDuration',
         expect.any(Function),
@@ -289,10 +282,9 @@ describe('validation-helpers', () => {
       const bucket = 'test-bucket'
       const key = 'incomplete-file.zip'
 
-      mockEntries = [
-        { path: 'document.dbf', type: 'File' },
-        { path: 'document.shx', type: 'File' }
-      ]
+      mockS3Service.getObjectRange.mockResolvedValue(
+        createZipBuffer(['document.dbf', 'document.shx'])
+      )
       mockS3Service.deleteObject.mockResolvedValue()
 
       const result = await validateZipFileFromS3(
@@ -323,13 +315,16 @@ describe('validation-helpers', () => {
       const bucket = 'test-bucket'
       const key = 'test-file.zip'
 
-      mockEntries = [
-        { path: 'folder/', type: 'Directory' },
-        { path: 'document.dbf', type: 'File' },
-        { path: 'document.shx', type: 'File' },
-        { path: 'document.shp', type: 'File' },
-        { path: 'document.prj', type: 'File' }
-      ]
+      // 'folder/' ends with '/' — the CD parser skips it; only 4 file entries counted
+      mockS3Service.getObjectRange.mockResolvedValue(
+        createZipBuffer([
+          'folder/',
+          'document.dbf',
+          'document.shx',
+          'document.shp',
+          'document.prj'
+        ])
+      )
 
       const result = await validateZipFileFromS3(
         bucket,
@@ -347,7 +342,7 @@ describe('validation-helpers', () => {
       const bucket = 'test-bucket'
       const key = 'empty.zip'
 
-      mockEntries = []
+      mockS3Service.getObjectRange.mockResolvedValue(createZipBuffer())
       mockS3Service.deleteObject.mockResolvedValue()
 
       const result = await validateZipFileFromS3(
@@ -362,12 +357,12 @@ describe('validation-helpers', () => {
       expect(mockS3Service.deleteObject).toHaveBeenCalledWith(bucket, key)
     })
 
-    test('should handle S3 getObjectStream errors', async () => {
+    test('should handle S3 range request errors', async () => {
       const bucket = 'test-bucket'
       const key = 'non-existent.zip'
       const error = new Error('NoSuchKey')
 
-      mockS3Service.getObjectStream.mockRejectedValue(error)
+      mockS3Service.getObjectRange.mockRejectedValue(error)
 
       const result = await validateZipFileFromS3(
         bucket,
@@ -387,18 +382,12 @@ describe('validation-helpers', () => {
       expect(mockS3Service.deleteObject).not.toHaveBeenCalled()
     })
 
-    test('should handle unzipper parse errors', async () => {
+    test('should handle invalid ZIP buffer (no EOCD signature)', async () => {
       const bucket = 'test-bucket'
       const key = 'corrupted.zip'
 
-      // Make the pipe return a stream whose promise rejects
-      const brokenStream = {
-        on: vi.fn().mockReturnThis(),
-        promise: vi.fn().mockRejectedValue(new Error('Invalid ZIP format'))
-      }
-      mockS3Service.getObjectStream.mockResolvedValue({
-        pipe: vi.fn(() => brokenStream)
-      })
+      // Random bytes — no EOCD signature present
+      mockS3Service.getObjectRange.mockResolvedValue(Buffer.alloc(64, 0xab))
 
       const result = await validateZipFileFromS3(
         bucket,
@@ -418,7 +407,10 @@ describe('validation-helpers', () => {
       const bucket = 'test-bucket'
       const key = 'test-file.zip'
 
-      mockEntries = [{ path: 'document.pdf', type: 'File' }]
+      // Only a .pdf — missing all required extensions → validation fails → deleteObject called
+      mockS3Service.getObjectRange.mockResolvedValue(
+        createZipBuffer(['document.pdf'])
+      )
       mockS3Service.deleteObject.mockRejectedValue(new Error('Delete failed'))
 
       const result = await validateZipFileFromS3(
@@ -437,35 +429,34 @@ describe('validation-helpers', () => {
       const bucket = 'test-bucket'
       const key = 'test-file.zip'
 
-      mockEntries = [
-        { path: 'document.dbf', type: 'File' },
-        { path: 'document.shx', type: 'File' },
-        { path: 'document.shp', type: 'File' },
-        { path: 'document.prj', type: 'File' }
-      ]
+      mockS3Service.getObjectRange.mockResolvedValue(
+        createZipBuffer([
+          'document.dbf',
+          'document.shx',
+          'document.shp',
+          'document.prj'
+        ])
+      )
 
       const result = await validateZipFileFromS3(bucket, key, mockLogger)
 
       expect(result.isValid).toBe(true)
-      expect(mockS3Service.getObjectStream).toHaveBeenCalledWith(bucket, key)
+      expect(mockS3Service.getObjectRange).toHaveBeenCalledWith(
+        bucket,
+        key,
+        expect.stringMatching(/^bytes=-/)
+      )
     })
 
-    test('should log streaming info message at start', async () => {
+    test('should log central directory read info message at start', async () => {
       const bucket = 'test-bucket'
       const key = 'test-file.zip'
-
-      mockEntries = [
-        { path: 'document.dbf', type: 'File' },
-        { path: 'document.shx', type: 'File' },
-        { path: 'document.shp', type: 'File' },
-        { path: 'document.prj', type: 'File' }
-      ]
 
       await validateZipFileFromS3(bucket, key, mockLogger, mockMetrics)
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         { bucket, key },
-        'Streaming ZIP from S3 for validation'
+        'Reading ZIP central directory from S3'
       )
     })
   })

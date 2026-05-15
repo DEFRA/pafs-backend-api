@@ -103,6 +103,29 @@ export class S3Service {
   }
 
   /**
+   * Fetch a byte range of an S3 object and return it as a Buffer.
+   * Uses the HTTP Range header (e.g. "bytes=-65536" for the last 64 KB).
+   *
+   * @param {string} bucket - S3 bucket name
+   * @param {string} key - S3 object key
+   * @param {string} range - HTTP Range header value (e.g. "bytes=0-1023" or "bytes=-65536")
+   * @returns {Promise<Buffer>}
+   */
+  async getObjectRange(bucket, key, range) {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Range: range
+    })
+    const response = await this.s3Client.send(command)
+    const chunks = []
+    for await (const chunk of response.Body) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    }
+    return Buffer.concat(chunks)
+  }
+
+  /**
    * Get a file object from S3
    *
    * @param {string} bucket - S3 bucket name

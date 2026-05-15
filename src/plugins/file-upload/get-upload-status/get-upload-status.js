@@ -71,22 +71,6 @@ async function syncWithCdpUploader(
   updateRecordFromCdp(uploadRecord, actualStatus, updateData)
 }
 
-const STALE_UPLOAD_THRESHOLD_MS = 2 * 60 * 1000
-
-/**
- * Returns true when an upload has been PENDING for longer than the stale threshold.
- * Used as a fallback to re-check CDP when no callback has arrived yet.
- * @param {Object} uploadRecord
- * @returns {boolean}
- */
-function isStalePending(uploadRecord) {
-  if (uploadRecord.upload_status !== UPLOAD_STATUS.PENDING) return false
-  return (
-    Date.now() - new Date(uploadRecord.created_at).getTime() >
-    STALE_UPLOAD_THRESHOLD_MS
-  )
-}
-
 /**
  * Build success response from upload record
  */
@@ -200,17 +184,38 @@ const getUploadStatus = {
         return buildNotFoundResponse(h)
       }
 
-      // Stale-pending fallback: sync with CDP only when callback hasn't arrived yet
-      if (isStalePending(uploadRecord)) {
-        await syncWithCdpUploader(
-          uploadRecord,
-          uploadId,
-          logger,
-          request.prisma,
-          request.metrics
-        )
-        emitFileUploadMetrics(request, uploadRecord)
-        await updateProjectAfterUpload(uploadRecord, request.prisma, logger)
+      // Always sync with CDP when the upload is still PENDING.
+      // Primary path: the SQS callback updates the DB before this runs, so
+      // the record is already non-PENDING and this block is skipped entirely.
+      // No-file submissions: CDP marks 'ready' immediately but never fires the
+      // SQS callback, so we must poll CDP to detect the empty-upload quickly.
+      // Active scans: CDP returns 'pending' → syncWithCdpUploader no-ops (both
+      // sides match) so there is no wasted DB write.
+      // CDP errors during an active scan are swallowed so a transient CDP
+      // failure does not turn the status response into a 500, which the
+      // frontend interprets as still-PENDING and loops forever.
+      if (uploadRecord.upload_status === UPLOAD_STATUS.PENDING) {
+        try {
+          await syncWithCdpUploader(
+            uploadRecord,
+            uploadId,
+            logger,
+            request.prisma,
+            request.metrics
+          )
+        } catch (syncError) {
+          logger.warn(
+            { err: syncError, uploadId },
+            'CDP sync failed - returning current DB status, will retry on next poll'
+          )
+        }
+
+        // Only emit metrics and update the project when the sync actually
+        // transitioned the record out of PENDING (i.e. scan is now resolved).
+        if (uploadRecord.upload_status !== UPLOAD_STATUS.PENDING) {
+          emitFileUploadMetrics(request, uploadRecord)
+          await updateProjectAfterUpload(uploadRecord, request.prisma, logger)
+        }
       }
 
       return buildSuccessResponse(uploadRecord, h)
