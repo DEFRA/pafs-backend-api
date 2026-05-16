@@ -154,7 +154,8 @@ describe('project-config', () => {
         otherAdditionalGrantInAid: 'other_additional_grant_in_aid',
         otherGovernmentDepartment: 'other_government_department',
         recovery: 'recovery',
-        summerEconomicFund: 'summer_economic_fund'
+        summerEconomicFund: 'summer_economic_fund',
+        staleDataCleared: 'stale_data_cleared'
       })
     })
 
@@ -231,8 +232,8 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 122 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(122)
+    it('should have 123 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(123)
     })
   })
 
@@ -299,9 +300,9 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 122 fields', () => {
+    it('should return an object with 123 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(122)
+      expect(Object.keys(result)).toHaveLength(123)
     })
 
     it('should return a new object each time', () => {

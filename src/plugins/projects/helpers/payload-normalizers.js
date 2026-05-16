@@ -258,6 +258,7 @@ export {
   cleanupRemovedContributors,
   ensureContributorFundingRows,
   flushOutOfRangeFundingData,
+  flushAllFundingData,
   syncGrowthFundingFlag
 } from './funding-sources-normalizers.js'
 

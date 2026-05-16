@@ -213,7 +213,8 @@ export const PROJECT_FIELDS_MAP = {
   otherAdditionalGrantInAid: 'other_additional_grant_in_aid',
   otherGovernmentDepartment: 'other_government_department',
   recovery: 'recovery',
-  summerEconomicFund: 'summer_economic_fund'
+  summerEconomicFund: 'summer_economic_fund',
+  staleDataCleared: 'stale_data_cleared'
 }
 
 /**

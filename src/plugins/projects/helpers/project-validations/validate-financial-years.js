@@ -21,8 +21,8 @@ export const validateFinancialYears = (
 
   // Validate if both years are available and start > end
   if (
-    effectiveStartYear !== undefined &&
-    effectiveEndYear !== undefined &&
+    effectiveStartYear != null &&
+    effectiveEndYear != null &&
     effectiveStartYear > effectiveEndYear
   ) {
     logger.warn(
