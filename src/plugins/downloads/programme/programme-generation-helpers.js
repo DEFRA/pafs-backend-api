@@ -10,6 +10,9 @@ import {
 } from '../helpers/fcerm1/fcerm1-new-columns.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
 import { resolveLegacyBenefitAreaFile } from '../../projects/helpers/legacy-file-resolver.js'
+import { config } from '../../../config.js'
+import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
+import { HTTP_STATUS } from '../../../common/constants/index.js'
 
 // ── S3 path helpers ────────────────────────────────────────────────────────────
 
@@ -54,6 +57,30 @@ export async function buildPresignedResponse(
     expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
     filename
   }
+}
+
+/**
+ * Fetch a presigned S3 URL and return a 200 Hapi response.
+ * Shared by user and admin programme file handlers.
+ *
+ * @param {object} request  Hapi request
+ * @param {object} h        Hapi response toolkit
+ * @param {string} s3Key    S3 object key
+ * @param {string} filename Suggested download filename
+ * @returns {Promise<object>} Hapi response with presigned URL body
+ */
+export async function fetchPresignedFileResponse(request, h, s3Key, filename) {
+  const { logger } = request.server
+  const s3Service = getS3Service(logger)
+  const s3Bucket = config.get('cdpUploader.s3Bucket')
+  const responseBody = await buildPresignedResponse(
+    request,
+    s3Service,
+    s3Bucket,
+    s3Key,
+    filename
+  )
+  return h.response(responseBody).code(HTTP_STATUS.OK)
 }
 
 // ── FCERM1 project loader ─────────────────────────────────────────────────────
