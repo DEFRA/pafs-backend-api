@@ -6,9 +6,12 @@ import {
   userS3Key,
   adminS3Key,
   loadProjectsForFcerm1,
-  uploadFcerm1IfAny,
-  uploadUserBenefitAreas
+  uploadFcerm1IfAny
 } from './programme-generation-helpers.js'
+import {
+  uploadUserBenefitAreas,
+  uploadAdminBenefitAreas
+} from './benefit-area-upload-helpers.js'
 import {
   DOWNLOAD_STATUS as DownloadStatus,
   getAdminDownloadRecord,
@@ -292,15 +295,42 @@ async function generateAdminSpreadsheet({
     presenters
   )
 
+  return { count: presenters.length, fcerm1Filename, projectIds }
+}
+
+async function finaliseAdminDownload({
+  prisma,
+  logger,
+  downloadId,
+  s3Bucket,
+  count,
+  fcerm1Filename,
+  projectIds
+}) {
+  const s3Service = getS3Service(logger)
+  const { filename: benefitAreasFilename, count: benefitAreasCount } =
+    await uploadAdminBenefitAreas(
+      prisma,
+      s3Service,
+      s3Bucket,
+      projectIds,
+      logger
+    )
+
   await updateDownloadRecord(prisma, downloadId, {
     status: DownloadStatus.READY,
-    number_of_proposals: presenters.length,
+    number_of_proposals: count,
     fcerm1_filename: fcerm1Filename,
-    progress_current: total,
+    benefit_areas_filename: benefitAreasFilename,
+    number_of_benefit_areas: benefitAreasCount,
+    progress_current: projectIds.length,
     progress_message: 'Complete'
   })
 
-  return presenters.length
+  logger.info(
+    { downloadId, count, benefitAreasCount },
+    'Admin programme generation complete'
+  )
 }
 
 export async function runAdminGeneration({
@@ -325,22 +355,27 @@ export async function runAdminGeneration({
     return
   }
 
+  const downloadUrl = `${config.get('frontendUrl')}${DOWNLOAD_PATH}`
+
   try {
     logger.info(
       { downloadId, requestingUserId },
       'Starting admin programme generation'
     )
 
-    const count = await generateAdminSpreadsheet({
+    const { count, fcerm1Filename, projectIds } =
+      await generateAdminSpreadsheet({ prisma, logger, downloadId, s3Bucket })
+
+    await finaliseAdminDownload({
       prisma,
       logger,
       downloadId,
-      s3Bucket
+      s3Bucket,
+      count,
+      fcerm1Filename,
+      projectIds
     })
 
-    logger.info({ downloadId, count }, 'Admin programme generation complete')
-
-    const downloadUrl = `${config.get('frontendUrl')}${DOWNLOAD_PATH}`
     await notifyByEmail(
       prisma,
       logger,
@@ -357,7 +392,6 @@ export async function runAdminGeneration({
       progress_message: 'Generation failed'
     }).catch(() => {})
 
-    const downloadUrl = `${config.get('frontendUrl')}${DOWNLOAD_PATH}`
     await notifyByEmail(
       prisma,
       logger,

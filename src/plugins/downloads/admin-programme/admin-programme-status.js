@@ -33,6 +33,8 @@ export const getAdminProgrammeStatus = {
           requestedOn: record?.requested_on ?? null,
           numberOfProposals: record?.number_of_proposals ?? null,
           hasFcerm1: !!record?.fcerm1_filename,
+          hasBenefitAreas: !!record?.benefit_areas_filename,
+          numberOfBenefitAreas: record?.number_of_benefit_areas ?? null,
           progressCurrent: record?.progress_current ?? 0,
           progressTotal: record?.progress_total ?? 0,
           progressMessage: record?.progress_message ?? null,
