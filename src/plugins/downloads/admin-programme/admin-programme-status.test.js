@@ -62,6 +62,8 @@ describe('getAdminProgrammeStatus route', () => {
       status: 'empty',
       requestedOn: null,
       hasFcerm1: false,
+      hasBenefitAreas: false,
+      numberOfBenefitAreas: null,
       progressCurrent: 0,
       progressTotal: 0,
       progressMessage: null,
@@ -75,6 +77,8 @@ describe('getAdminProgrammeStatus route', () => {
       requested_on: new Date('2026-04-01'),
       number_of_proposals: 980,
       fcerm1_filename: 'programme/admin/all_proposals.xlsx',
+      benefit_areas_filename: 'programme/admin/all_benefit_areas.zip',
+      number_of_benefit_areas: 120,
       progress_current: 980,
       progress_total: 980,
       progress_message: 'Complete'
@@ -89,6 +93,8 @@ describe('getAdminProgrammeStatus route', () => {
       status: 'ready',
       numberOfProposals: 980,
       hasFcerm1: true,
+      hasBenefitAreas: true,
+      numberOfBenefitAreas: 120,
       progressCurrent: 980,
       progressTotal: 980,
       progressMessage: 'Complete',
@@ -102,6 +108,8 @@ describe('getAdminProgrammeStatus route', () => {
       requested_on: null,
       number_of_proposals: null,
       fcerm1_filename: null,
+      benefit_areas_filename: null,
+      number_of_benefit_areas: null,
       progress_current: 10,
       progress_total: 100,
       progress_message: 'Processing...'
@@ -112,6 +120,8 @@ describe('getAdminProgrammeStatus route', () => {
     await getAdminProgrammeStatus.handler(makeRequest(), h)
 
     expect(h._body.hasFcerm1).toBe(false)
+    expect(h._body.hasBenefitAreas).toBe(false)
+    expect(h._body.numberOfBenefitAreas).toBeNull()
     expect(h._body.status).toBe('generating')
   })
 
