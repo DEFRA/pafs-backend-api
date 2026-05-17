@@ -20,7 +20,14 @@ export class S3Service {
     // Configure S3 client
     const clientConfig = {
       region: this.region,
-      forcePathStyle: !!this.endpoint // Required for localstack
+      forcePathStyle: !!this.endpoint, // Required for localstack
+      // Do not auto-validate checksums on range-request responses.
+      // CDP Uploader stores a checksum for the full object; when we fetch a
+      // byte range the SDK would compare the partial response against the
+      // full-file checksum and always fail.  WHEN_REQUIRED means checksums are
+      // only validated when the operation itself mandates it (e.g. multipart
+      // upload completion), not whenever S3 happens to return a checksum header.
+      responseChecksumValidation: 'WHEN_REQUIRED'
     }
 
     if (this.endpoint) {
