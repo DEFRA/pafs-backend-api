@@ -12,6 +12,7 @@ import { wlcLevels } from './levels/wlc.js'
 import { wlbLevels } from './levels/wlb.js'
 import { carbonLevels } from './levels/carbon.js'
 import { fundingSourceLevels } from './levels/funding-sources.js'
+import { staleLevels } from './levels/stale.js'
 
 const referenceNumber = projectReferenceNumberSchema.required().messages({
   'any.required': PROJECT_VALIDATION_MESSAGES.REFERENCE_NUMBER_REQUIRED
@@ -20,6 +21,7 @@ const referenceNumber = projectReferenceNumberSchema.required().messages({
 export const VALIDATION_LEVELS = {
   ...initialLevels(referenceNumber),
   ...timelineLevels(referenceNumber),
+  ...staleLevels(referenceNumber),
   ...approachLevels(referenceNumber),
   ...confidenceLevels(referenceNumber),
   ...environmentalBenefitsLevels(referenceNumber),

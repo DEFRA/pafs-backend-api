@@ -499,3 +499,20 @@ export const flushOutOfRangeFundingData = async (
     Number(endYear)
   )
 }
+
+export const flushAllFundingData = async (
+  enrichedPayload,
+  validationLevel,
+  projectService
+) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.CLEAR_STALE_DATA) {
+    return
+  }
+
+  const { referenceNumber } = enrichedPayload
+  if (!referenceNumber) {
+    return
+  }
+
+  await projectService.deleteAllFundingData(referenceNumber)
+}

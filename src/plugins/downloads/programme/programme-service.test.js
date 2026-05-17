@@ -546,6 +546,9 @@ describe('runAdminGeneration', () => {
     )
     const lastUpdate = updateCalls.at(-1)
     expect(lastUpdate.status).toBe(DOWNLOAD_STATUS.READY)
+    expect(lastUpdate).toHaveProperty('fcerm1_filename')
+    expect(lastUpdate).toHaveProperty('benefit_areas_filename')
+    expect(lastUpdate).toHaveProperty('number_of_benefit_areas')
   })
 
   test('marks record as FAILED when an error occurs', async () => {
@@ -1458,6 +1461,62 @@ describe('runAdminGeneration — projects, batching, and email paths', () => {
       (d) => d.status === DOWNLOAD_STATUS.READY
     )
     expect(readyUpdate.fcerm1_filename).toContain('all_proposals.xlsx')
+    expect(readyUpdate).toHaveProperty('benefit_areas_filename')
+    expect(readyUpdate).toHaveProperty('number_of_benefit_areas')
+  })
+
+  test('builds and uploads benefit areas ZIP for all non-archived projects', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { project_id: 1 },
+      { project_id: 2 }
+    ])
+    prisma.pafs_core_projects.findMany.mockResolvedValue([
+      {
+        reference_number: 'ADM010',
+        benefit_area_file_s3_bucket: 'src-bucket',
+        benefit_area_file_s3_key: 'benefit/adm010.zip',
+        benefit_area_file_name: 'adm010.zip'
+      }
+    ])
+
+    const { buildMultiWorkbook } =
+      await import('../helpers/fcerm1/fcerm1-builder.js')
+    buildMultiWorkbook.mockResolvedValue(Buffer.from('xlsx'))
+    const mockPutObject = vi.fn().mockResolvedValue({})
+    const { getS3Service } =
+      await import('../../../common/services/file-upload/s3-service.js')
+    getS3Service.mockReturnValue({
+      getObject: vi.fn().mockResolvedValue(Buffer.from('zip-data')),
+      putObject: mockPutObject
+    })
+
+    await runAdminGeneration({
+      prisma,
+      logger: makeLogger(),
+      downloadId: BigInt(105),
+      s3Bucket: 'admin-bucket',
+      requestingUserId: null
+    })
+
+    // Benefit areas zip uploaded under the admin S3 prefix
+    const benefitPutCall = mockPutObject.mock.calls.find(([, key]) =>
+      key.includes('all_benefit_areas.zip')
+    )
+    expect(benefitPutCall).toBeDefined()
+    expect(benefitPutCall[0]).toBe('admin-bucket')
+    expect(benefitPutCall[2]).toBeInstanceOf(Buffer)
+
+    const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
+      (c) => c[0].data
+    )
+    const readyUpdate = updateCalls.find(
+      (d) => d.status === DOWNLOAD_STATUS.READY
+    )
+    expect(readyUpdate.benefit_areas_filename).toContain(
+      'all_benefit_areas.zip'
+    )
+    expect(readyUpdate.number_of_benefit_areas).toBe(1)
   })
 
   test('skips email and user lookup when requestingUserId is null', async () => {

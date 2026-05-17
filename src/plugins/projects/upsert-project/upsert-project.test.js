@@ -558,6 +558,50 @@ describe('upsertProject handler', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
     })
 
+    it('should accept updating start year when existing end year is null (stale data cleared)', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.financialStartYear = 2028
+      mockRequest.payload.payload.name = undefined
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: null,
+        financialEndYear: null
+      })
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+      expect(mockLogger.warn).not.toHaveBeenCalled()
+    })
+
+    it('should accept updating end year when existing start year is null (stale data cleared)', async () => {
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.financialEndYear = 2030
+      mockRequest.payload.payload.name = undefined
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        financialStartYear: null,
+        financialEndYear: null
+      })
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+      expect(mockLogger.warn).not.toHaveBeenCalled()
+    })
+
     it('should accept valid financial year update', async () => {
       mockRequest.payload.payload.referenceNumber = 'REF123'
       mockRequest.payload.payload.financialStartYear = 2027

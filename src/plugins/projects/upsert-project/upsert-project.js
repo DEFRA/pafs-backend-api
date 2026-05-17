@@ -35,6 +35,7 @@ import {
   sanitizeCarbonFields,
   normalizeCarbonFields,
   flushOutOfRangeFundingData,
+  flushAllFundingData,
   syncGrowthFundingFlag
 } from '../helpers/payload-normalizers.js'
 
@@ -183,6 +184,9 @@ const applyPayloadNormalizers = async (
     existingProject,
     projectService
   )
+
+  // Delete ALL funding values and contributors when stale data is being cleared
+  await flushAllFundingData(enrichedPayload, validationLevel, projectService)
 }
 
 const setAreaNameIfPresent = async (enrichedPayload, areaId, areaService) => {
