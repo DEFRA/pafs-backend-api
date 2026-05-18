@@ -28,6 +28,8 @@
   <include file="2-009-drop-main-source-of-risk.xml" relativeToChangelogFile="true"/>
   <!-- Schema change to widen unique_session_id column to prevent P2000 errors on login. -->
   <include file="2-010-widen-unique-session-id.xml" relativeToChangelogFile="true"/>
+  <!-- Add stale_data_cleared flag for persistent warning banner after auto-flush of stale financial years -->
+  <include file="2-011-stale-data-cleared.xml" relativeToChangelogFile="true"/>
 
   <!-- Legacy tables - these are maintained for historical purposes, but new system should not use these tables. -->
   <include file="3-001-account-requests-legacy-table.xml" relativeToChangelogFile="true"/>

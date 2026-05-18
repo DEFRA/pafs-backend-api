@@ -1,9 +1,7 @@
 import Joi from 'joi'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
-import { config } from '../../../config.js'
-import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
 import { getUserDownloadRecord, DOWNLOAD_STATUS } from './programme-service.js'
-import { buildPresignedResponse } from './programme-generation-helpers.js'
+import { fetchPresignedFileResponse } from './programme-generation-helpers.js'
 
 const FILE_TYPE_LABELS = {
   fcerm1: 'All_Proposals.xlsx',
@@ -62,18 +60,12 @@ export const getUserProgrammeFile = {
           .code(HTTP_STATUS.NOT_FOUND)
       }
 
-      const s3Service = getS3Service(logger)
-      const s3Bucket = config.get('cdpUploader.s3Bucket')
-
-      const responseBody = await buildPresignedResponse(
+      return await fetchPresignedFileResponse(
         request,
-        s3Service,
-        s3Bucket,
+        h,
         s3Key,
         FILE_TYPE_LABELS[type]
       )
-
-      return h.response(responseBody).code(HTTP_STATUS.OK)
     } catch (error) {
       logger.error({ error, userId, type }, 'Failed to get programme file URL')
       return h

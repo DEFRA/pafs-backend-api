@@ -1019,6 +1019,7 @@ describe('ProjectService', () => {
           other_government_department: true,
           recovery: true,
           summer_economic_fund: true,
+          stale_data_cleared: true,
           funding_calculator_file_name: true,
           funding_calculator_file_size: true,
           funding_calculator_content_type: true,

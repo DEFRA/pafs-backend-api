@@ -164,5 +164,48 @@ describe('project-level', () => {
       const schema = generateSchemaForLevel(allLevels)
       expect(schema.validate).toBeDefined()
     })
+
+    it('should define CLEAR_STALE_DATA level with all expected fields', () => {
+      const level = VALIDATION_LEVELS.CLEAR_STALE_DATA
+      expect(level).toBeDefined()
+      expect(level.name).toBe('CLEAR_STALE_DATA')
+      expect(level.fields.referenceNumber).toBeDefined()
+      expect(level.fields.financialStartYear).toBeDefined()
+      expect(level.fields.financialEndYear).toBeDefined()
+      expect(level.fields.startOutlineBusinessCaseMonth).toBeDefined()
+      expect(level.fields.couldStartEarly).toBeDefined()
+      expect(level.fields.fcermGia).toBeDefined()
+      expect(level.fields.growthFunding).toBeDefined()
+      expect(level.fields.publicContributorNames).toBeDefined()
+      expect(level.fields.staleDataCleared).toBeDefined()
+    })
+
+    it('CLEAR_STALE_DATA schema accepts null for all nullable fields', () => {
+      const schema = generateSchemaForLevel('CLEAR_STALE_DATA')
+      const { error } = schema.validate({
+        referenceNumber: 'ANC501E/000A/001A',
+        financialStartYear: null,
+        financialEndYear: null,
+        startOutlineBusinessCaseMonth: null,
+        startOutlineBusinessCaseYear: null,
+        completeOutlineBusinessCaseMonth: null,
+        completeOutlineBusinessCaseYear: null,
+        awardContractMonth: null,
+        awardContractYear: null,
+        startConstructionMonth: null,
+        startConstructionYear: null,
+        readyForServiceMonth: null,
+        readyForServiceYear: null,
+        couldStartEarly: null,
+        earliestWithGiaMonth: null,
+        earliestWithGiaYear: null,
+        fcermGia: false,
+        localLevy: false,
+        growthFunding: null,
+        publicContributorNames: null,
+        staleDataCleared: true
+      })
+      expect(error).toBeUndefined()
+    })
   })
 })

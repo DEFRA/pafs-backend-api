@@ -34,7 +34,7 @@ const fundingYearSchema = Joi.object({
   fcerm_gia: nullableWhole,
   asset_replacement_allowance: nullableWhole,
   environment_statutory_funding: nullableWhole,
-  frequently_floodded_communities: nullableWhole,
+  frequently_flooded_communities: nullableWhole,
   other_additional_grant_in_aid: nullableWhole,
   other_government_department: nullableWhole,
   recovery: nullableWhole,

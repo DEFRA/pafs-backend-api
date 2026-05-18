@@ -17,12 +17,12 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Convert a BigInt or Decimal-like value to a plain number (or null).
- * Prisma returns BigInt for some fields and Decimal objects for others.
- * @param {BigInt|import('@prisma/client').Decimal|number|null|undefined} value
+ * Coerce a BigInt, Decimal-like object, or primitive to a plain JS number.
+ * Returns null when the input is absent or non-numeric; returns 0 for zero.
+ * @param {*} value
  * @returns {number|null}
  */
-export function toNumber(value) {
+function toRawNumber(value) {
   if (value === null || value === undefined) {
     return null
   }
@@ -32,7 +32,35 @@ export function toNumber(value) {
   if (typeof value === 'object' && typeof value.toNumber === 'function') {
     return value.toNumber()
   }
-  return Number(value) || null
+  const n = Number(value)
+  return Number.isNaN(n) ? null : n
+}
+
+/**
+ * Convert a BigInt or Decimal-like value to a plain number (or null).
+ * Prisma returns BigInt for some fields and Decimal objects for others.
+ * Returns null for zero (0 is treated as absent for legacy compatibility).
+ * @param {BigInt|import('@prisma/client').Decimal|number|null|undefined} value
+ * @returns {number|null}
+ */
+export function toNumber(value) {
+  return toRawNumber(value) || null
+}
+
+/**
+ * Convert a value to a fixed-point decimal string ("X.YY") for external API
+ * fields that require string representation with two decimal places.
+ * Returns null only when the value is absent or non-numeric. Zero is formatted
+ * as "0.00" (unlike toNumber, which treats zero as null).
+ * @param {BigInt|import('@prisma/client').Decimal|number|null|undefined} value
+ * @returns {string|null}
+ */
+export function toDecimalString(value) {
+  const n = toRawNumber(value)
+  if (n === null) {
+    return null
+  }
+  return n.toFixed(2)
 }
 
 /**
@@ -59,7 +87,7 @@ export function label(map, value) {
  */
 export function assignIfPresent(result, key, rawValue) {
   if (key) {
-    result[key] = toNumber(rawValue)
+    result[key] = toDecimalString(rawValue)
   }
 }
 
@@ -177,6 +205,11 @@ export function buildInterventionTypes(typesString) {
  */
 export function buildNfmMeasures(measures) {
   const result = {}
+  for (const fields of Object.values(NFM_MEASURE_FIELD_MAP)) {
+    for (const fieldName of Object.values(fields)) {
+      result[fieldName] = null
+    }
+  }
   for (const measure of measures ?? []) {
     const fields = NFM_MEASURE_FIELD_MAP[measure.measureType]
     if (!fields) {
@@ -197,6 +230,11 @@ export function buildNfmMeasures(measures) {
  */
 export function buildNfmLandUseChanges(landUseChanges) {
   const result = {}
+  for (const fields of Object.values(NFM_LAND_USE_FIELD_MAP)) {
+    for (const fieldName of Object.values(fields)) {
+      result[fieldName] = null
+    }
+  }
   for (const change of landUseChanges ?? []) {
     const fields = NFM_LAND_USE_FIELD_MAP[change.landUseType]
     if (!fields) {
@@ -238,9 +276,7 @@ export function buildFundingSources(fundingValues, fundingContributors) {
       fcerm_gia: toNumber(fv.fcermGia),
       asset_replacement_allowance: toNumber(fv.assetReplacementAllowance),
       environment_statutory_funding: toNumber(fv.environmentStatutoryFunding),
-      frequently_floodded_communities: toNumber(
-        fv.frequentlyFloodedCommunities
-      ),
+      frequently_flooded_communities: toNumber(fv.frequentlyFloodedCommunities),
       other_additional_grant_in_aid: toNumber(fv.otherAdditionalGrantInAid),
       other_government_department: toNumber(fv.otherGovernmentDepartment),
       recovery: toNumber(fv.recovery),

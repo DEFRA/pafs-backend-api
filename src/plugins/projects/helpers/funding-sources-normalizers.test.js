@@ -9,6 +9,7 @@ import {
   clearDeselectedFundingSourceColumns,
   cleanupRemovedContributors,
   flushOutOfRangeFundingData,
+  flushAllFundingData,
   syncGrowthFundingFlag,
   ensureContributorFundingRows
 } from './funding-sources-normalizers.js'
@@ -1642,6 +1643,54 @@ describe('funding-sources-normalizers', () => {
 
       // Both years null → returns early, clearOutOfRangeFundingData not called
       expect(projectService.clearOutOfRangeFundingData).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('flushAllFundingData', () => {
+    let projectService
+
+    beforeEach(() => {
+      projectService = {
+        deleteAllFundingData: vi.fn().mockResolvedValue(undefined)
+      }
+    })
+
+    it('calls deleteAllFundingData at CLEAR_STALE_DATA level', async () => {
+      const payload = { referenceNumber: 'ANC501E/000A/001A' }
+
+      await flushAllFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.CLEAR_STALE_DATA,
+        projectService
+      )
+
+      expect(projectService.deleteAllFundingData).toHaveBeenCalledWith(
+        'ANC501E/000A/001A'
+      )
+    })
+
+    it('skips for any other validation level', async () => {
+      const payload = { referenceNumber: 'ANC501E/000A/001A' }
+
+      await flushAllFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FINANCIAL_START_YEAR,
+        projectService
+      )
+
+      expect(projectService.deleteAllFundingData).not.toHaveBeenCalled()
+    })
+
+    it('skips when referenceNumber is missing', async () => {
+      const payload = {}
+
+      await flushAllFundingData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.CLEAR_STALE_DATA,
+        projectService
+      )
+
+      expect(projectService.deleteAllFundingData).not.toHaveBeenCalled()
     })
   })
 })
