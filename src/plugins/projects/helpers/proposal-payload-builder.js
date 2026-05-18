@@ -71,7 +71,7 @@ function buildGatewayDates(project) {
       project.awardContractMonth,
       project.awardContractYear
     ),
-    aspirational_start_of_construction: formatDate(
+    aspirational_gateway_start_of_construction: formatDate(
       project.startConstructionMonth,
       project.startConstructionYear
     ),
