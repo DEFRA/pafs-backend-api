@@ -19,6 +19,7 @@ import {
 } from './proposal-payload-constants.js'
 import {
   toNumber,
+  toDecimalString,
   label,
   formatDate,
   deriveRfccRegion,
@@ -126,39 +127,39 @@ function buildRisksAndProperties(project) {
 function buildEnvironmentalBenefits(project) {
   return {
     om4a: {
-      om4a_hectares_intertidal: toNumber(
+      om4a_hectares_intertidal: toDecimalString(
         project.hectaresOfIntertidalHabitatCreatedOrEnhanced
       ),
-      om4a_hectares_woodland: toNumber(
+      om4a_hectares_woodland: toDecimalString(
         project.hectaresOfWoodlandHabitatCreatedOrEnhanced
       ),
-      om4a_hectares_wet_woodland: toNumber(
+      om4a_hectares_wet_woodland: toDecimalString(
         project.hectaresOfWetWoodlandHabitatCreatedOrEnhanced
       ),
-      om4a_hectares_wetland_or_wet_grassland: toNumber(
+      om4a_hectares_wetland_or_wet_grassland: toDecimalString(
         project.hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced
       ),
-      om4a_hectares_grassland: toNumber(
+      om4a_hectares_grassland: toDecimalString(
         project.hectaresOfGrasslandHabitatCreatedOrEnhanced
       ),
-      om4a_hectares_heathland: toNumber(
+      om4a_hectares_heathland: toDecimalString(
         project.hectaresOfHeathlandCreatedOrEnhanced
       ),
-      om4a_hectares_ponds_lakes: toNumber(
+      om4a_hectares_ponds_lakes: toDecimalString(
         project.hectaresOfPondOrLakeHabitatCreatedOrEnhanced
       ),
-      om4a_hectares_arable_land: toNumber(
+      om4a_hectares_arable_land: toDecimalString(
         project.hectaresOfArableLandLakeHabitatCreatedOrEnhanced
       )
     },
     om4b: {
-      om4b_kilometres_of_watercourse_comprehensive: toNumber(
+      om4b_kilometres_of_watercourse_comprehensive: toDecimalString(
         project.kilometresOfWatercourseEnhancedOrCreatedComprehensive
       ),
-      om4b_kilometres_of_watercourse_partial: toNumber(
+      om4b_kilometres_of_watercourse_partial: toDecimalString(
         project.kilometresOfWatercourseEnhancedOrCreatedPartial
       ),
-      om4b_kilometres_of_watercourse_single: toNumber(
+      om4b_kilometres_of_watercourse_single: toDecimalString(
         project.kilometresOfWatercourseEnhancedOrCreatedSingle
       )
     }
@@ -207,22 +208,22 @@ function buildNfmDetails(project) {
 function buildCarbonFields(isCarbonFreeType, project, calculatedCapitalCarbon) {
   if (isCarbonFreeType) {
     return {
-      capital_carbon: calculatedCapitalCarbon,
+      capital_carbon: toDecimalString(calculatedCapitalCarbon),
       carbon_operational_cost_forecast: null,
-      carbon_lifecycle: 0,
+      carbon_lifecycle: '0.00',
       carbon_sequestered: null,
       carbon_avoided: null,
       carbon_net_economic_benefit: null
     }
   }
   return {
-    capital_carbon: toNumber(project.carbonCostBuild),
+    capital_carbon: toDecimalString(project.carbonCostBuild),
     carbon_operational_cost_forecast: toNumber(
       project.carbonOperationalCostForecast
     ),
-    carbon_lifecycle: toNumber(project.carbonCostOperation),
-    carbon_sequestered: toNumber(project.carbonCostSequestered),
-    carbon_avoided: toNumber(project.carbonCostAvoided),
+    carbon_lifecycle: toDecimalString(project.carbonCostOperation),
+    carbon_sequestered: toDecimalString(project.carbonCostSequestered),
+    carbon_avoided: toDecimalString(project.carbonCostAvoided),
     carbon_net_economic_benefit: toNumber(
       project.carbonSavingsNetEconomicBenefit
     )

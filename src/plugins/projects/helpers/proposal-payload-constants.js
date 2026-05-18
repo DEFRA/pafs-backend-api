@@ -74,7 +74,7 @@ export const NFM_MEASURE_FIELD_MAP = {
     area: 'river_and_floodplain_area',
     volume: 'river_and_floodplain_volume'
   },
-  leaky_barriers: {
+  leaky_barriers_in_channel_storage: {
     volume: 'leaky_barriers_volume',
     length: 'leaky_barriers_length',
     width: 'leaky_barriers_width'
@@ -84,8 +84,8 @@ export const NFM_MEASURE_FIELD_MAP = {
     volume: 'offline_storage_volume'
   },
   woodland: { area: 'woodland_area' },
-  headwater_drainage: { area: 'headwater_area' },
-  runoff_management: {
+  headwater_drainage_management: { area: 'headwater_area' },
+  runoff_attenuation_management: {
     area: 'runoff_attenuation_area',
     volume: 'runoff_attenuation_volume'
   },
