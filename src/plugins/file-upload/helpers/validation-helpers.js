@@ -1,5 +1,6 @@
 import { config } from '../../../config.js'
 import { getS3Service } from '../../../common/services/file-upload/s3-service.js'
+import { SIZE } from '../../../common/constants/common.js'
 
 // Get allowed ZIP extensions from config
 const getAllowedZipExtensions = () =>
@@ -86,7 +87,9 @@ const TAIL_CHUNK_SIZE = 65536
  */
 function findEocdOffset(buf) {
   for (let i = buf.length - EOCD_MIN_SIZE; i >= 0; i--) {
-    if (buf.readUInt32LE(i) === EOCD_SIG) return i
+    if (buf.readUInt32LE(i) === EOCD_SIG) {
+      return i
+    }
   }
   return -1
 }
@@ -100,14 +103,22 @@ function findEocdOffset(buf) {
 function parseCentralDirectory(cdBuf) {
   const filenames = []
   let pos = 0
-  while (pos <= cdBuf.length - 46) {
-    if (cdBuf.readUInt32LE(pos) !== CD_SIG) break
-    const filenameLen = cdBuf.readUInt16LE(pos + 28)
-    const extraLen = cdBuf.readUInt16LE(pos + 30)
-    const commentLen = cdBuf.readUInt16LE(pos + 32)
-    const filename = cdBuf.toString('utf8', pos + 46, pos + 46 + filenameLen)
-    if (!filename.endsWith('/')) filenames.push(filename)
-    pos += 46 + filenameLen + extraLen + commentLen
+  while (pos <= cdBuf.length - SIZE.LENGTH_46) {
+    if (cdBuf.readUInt32LE(pos) !== CD_SIG) {
+      break
+    }
+    const filenameLen = cdBuf.readUInt16LE(pos + SIZE.LENGTH_28)
+    const extraLen = cdBuf.readUInt16LE(pos + SIZE.LENGTH_30)
+    const commentLen = cdBuf.readUInt16LE(pos + SIZE.LENGTH_32)
+    const filename = cdBuf.toString(
+      'utf8',
+      pos + SIZE.LENGTH_46,
+      pos + SIZE.LENGTH_46 + filenameLen
+    )
+    if (!filename.endsWith('/')) {
+      filenames.push(filename)
+    }
+    pos += SIZE.LENGTH_46 + filenameLen + extraLen + commentLen
   }
   return filenames
 }

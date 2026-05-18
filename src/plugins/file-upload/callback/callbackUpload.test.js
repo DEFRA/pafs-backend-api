@@ -33,7 +33,9 @@ vi.mock('../helpers/upload-processing-helpers.js', () => ({
     mockProcessHelpers.updateProjectAfterUpload(...args)
 }))
 
-const callbackUpload = await import('./callback.js').then((m) => m.default)
+const callbackUpload = await import('./callbackUpload.js').then(
+  (m) => m.default
+)
 
 describe('callbackUpload', () => {
   let mockRequest
