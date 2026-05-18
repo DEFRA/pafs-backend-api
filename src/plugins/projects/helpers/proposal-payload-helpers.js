@@ -48,19 +48,18 @@ export function toNumber(value) {
 }
 
 /**
- * Convert a value to a fixed-point decimal string ("X.YY") for external API
- * fields that require string representation with two decimal places.
- * Returns null only when the value is absent or non-numeric. Zero is formatted
- * as "0.00" (unlike toNumber, which treats zero as null).
+ * Convert a value to a number rounded to two decimal places for external API
+ * fields. Returns null only when the value is absent or non-numeric. Zero is
+ * returned as 0 (unlike toNumber, which treats zero as null).
  * @param {BigInt|import('@prisma/client').Decimal|number|null|undefined} value
- * @returns {string|null}
+ * @returns {number|null}
  */
-export function toDecimalString(value) {
+export function toDecimal(value) {
   const n = toRawNumber(value)
   if (n === null) {
     return null
   }
-  return n.toFixed(2)
+  return Number.parseFloat(n.toFixed(2))
 }
 
 /**
@@ -87,7 +86,7 @@ export function label(map, value) {
  */
 export function assignIfPresent(result, key, rawValue) {
   if (key) {
-    result[key] = toDecimalString(rawValue)
+    result[key] = toDecimal(rawValue)
   }
 }
 
