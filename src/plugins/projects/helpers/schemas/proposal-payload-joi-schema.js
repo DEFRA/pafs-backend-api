@@ -135,7 +135,7 @@ export const proposalPayloadSchema = Joi.object({
   aspirational_gateway_2: monthYear.required(),
   aspirational_gateway_3: monthYear.required(),
   aspirational_gateway_4: monthYear.required(),
-  aspirational_gateway_start_of_construction: monthYear.required(),
+  aspirational_start_of_construction: monthYear.required(),
   earliest_start_date_with_gia_available: monthYear.required(),
   earliest_start_date: monthYear.required(),
 

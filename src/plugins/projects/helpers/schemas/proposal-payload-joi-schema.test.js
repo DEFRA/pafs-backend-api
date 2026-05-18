@@ -28,7 +28,7 @@ const base = () => ({
   aspirational_gateway_2: null,
   aspirational_gateway_3: null,
   aspirational_gateway_4: null,
-  aspirational_gateway_start_of_construction: null,
+  aspirational_start_of_construction: null,
   earliest_start_date_with_gia_available: null,
   earliest_start_date: null,
   secondary_risk_sources: {
