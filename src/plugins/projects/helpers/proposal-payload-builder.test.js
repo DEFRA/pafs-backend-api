@@ -3,7 +3,7 @@ import {
   buildProposalPayload,
   fetchShapefileBase64
 } from './proposal-payload-builder.js'
-import { toDecimalString } from './proposal-payload-helpers.js'
+import { toDecimal } from './proposal-payload-helpers.js'
 
 vi.mock('../../../common/services/file-upload/s3-service.js', () => ({
   getS3Service: vi.fn()
@@ -313,14 +313,14 @@ describe('buildProposalPayload', () => {
 
   test('maps leaky_barriers_in_channel_storage volume to leaky_barriers_volume', () => {
     const payload = buildProposalPayload(FULL_PROJECT, null)
-    expect(payload.leaky_barriers_volume).toBe('500.00')
-    expect(payload.leaky_barriers_length).toBe('2.50')
-    expect(payload.leaky_barriers_width).toBe('3.00')
+    expect(payload.leaky_barriers_volume).toBe(500)
+    expect(payload.leaky_barriers_length).toBe(2.5)
+    expect(payload.leaky_barriers_width).toBe(3)
   })
 
   test('maps woodland area to woodland_area', () => {
     const payload = buildProposalPayload(FULL_PROJECT, null)
-    expect(payload.woodland_area).toBe('10.00')
+    expect(payload.woodland_area).toBe(10)
   })
 
   test('emits null for NFM fields when no measures provided', () => {
@@ -332,8 +332,8 @@ describe('buildProposalPayload', () => {
 
   test('maps arable farmland before/after', () => {
     const payload = buildProposalPayload(FULL_PROJECT, null)
-    expect(payload.farmland_arable_before).toBe('100.00')
-    expect(payload.farmland_arable_after).toBe('60.00')
+    expect(payload.farmland_arable_before).toBe(100)
+    expect(payload.farmland_arable_after).toBe(60)
   })
 
   // ── Funding sources ───────────────────────────────────────────────────────
@@ -388,10 +388,10 @@ describe('buildProposalPayload', () => {
 
   test('maps carbon fields for a standard project type', () => {
     const payload = buildProposalPayload(FULL_PROJECT, null)
-    expect(payload.capital_carbon).toBe('1000.00')
-    expect(payload.carbon_lifecycle).toBe('200.00')
-    expect(payload.carbon_sequestered).toBe('50.00')
-    expect(payload.carbon_avoided).toBe('75.00')
+    expect(payload.capital_carbon).toBe(1000)
+    expect(payload.carbon_lifecycle).toBe(200)
+    expect(payload.carbon_sequestered).toBe(50)
+    expect(payload.carbon_avoided).toBe(75)
     expect(payload.carbon_net_economic_benefit).toBe(300)
     expect(payload.carbon_operational_cost_forecast).toBe(180)
   })
@@ -409,9 +409,9 @@ describe('buildProposalPayload', () => {
       carbonOperationalCostForecast: 180
     }
     const payload = buildProposalPayload(stuProject, null)
-    expect(payload.capital_carbon).toBe('9876.50')
+    expect(payload.capital_carbon).toBe(9876.5)
     expect(payload.carbon_operational_cost_forecast).toBeNull()
-    expect(payload.carbon_lifecycle).toBe('0.00')
+    expect(payload.carbon_lifecycle).toBe(0)
     expect(payload.carbon_sequestered).toBeNull()
     expect(payload.carbon_avoided).toBeNull()
     expect(payload.carbon_net_economic_benefit).toBeNull()
@@ -430,19 +430,19 @@ describe('buildProposalPayload', () => {
       carbonOperationalCostForecast: 90
     }
     const payload = buildProposalPayload(strProject, null)
-    expect(payload.capital_carbon).toBe('4321.00')
+    expect(payload.capital_carbon).toBe(4321)
     expect(payload.carbon_operational_cost_forecast).toBeNull()
-    expect(payload.carbon_lifecycle).toBe('0.00')
+    expect(payload.carbon_lifecycle).toBe(0)
     expect(payload.carbon_sequestered).toBeNull()
     expect(payload.carbon_avoided).toBeNull()
     expect(payload.carbon_net_economic_benefit).toBeNull()
   })
 
-  test('sets capital_carbon to "0.00" for STU when construction funding is zero', () => {
+  test('sets capital_carbon to 0 for STU when construction funding is zero', () => {
     computeCarbonResults.mockReturnValue({ constructionTotalFunding: 0 })
     const stuProject = { ...FULL_PROJECT, projectType: 'STU' }
     const payload = buildProposalPayload(stuProject, null)
-    expect(payload.capital_carbon).toBe('0.00')
+    expect(payload.capital_carbon).toBe(0)
   })
 
   test('calls computeCarbonResults with project funding values for STU/STR', () => {
@@ -587,52 +587,52 @@ describe('toNumber — edge cases', () => {
     expect(payload.pv_appraisal_approach).toBe(42.5)
   })
 
-  test('formats numeric zero as "0.00"', () => {
+  test('formats numeric zero as 0', () => {
     const payload = buildProposalPayload(
       { ...FULL_PROJECT, carbonCostBuild: 0 },
       null
     )
-    expect(payload.capital_carbon).toBe('0.00')
+    expect(payload.capital_carbon).toBe(0)
   })
 })
 
-// ─── toDecimalString edge cases ───────────────────────────────────────────────
+// ─── toDecimal edge cases ─────────────────────────────────────────────────────
 
-describe('toDecimalString — edge cases', () => {
+describe('toDecimal — edge cases', () => {
   test('returns null for null', () => {
-    expect(toDecimalString(null)).toBeNull()
+    expect(toDecimal(null)).toBeNull()
   })
 
   test('returns null for undefined', () => {
-    expect(toDecimalString(undefined)).toBeNull()
+    expect(toDecimal(undefined)).toBeNull()
   })
 
-  test('formats zero as "0.00"', () => {
-    expect(toDecimalString(0)).toBe('0.00')
+  test('formats zero as 0', () => {
+    expect(toDecimal(0)).toBe(0)
   })
 
-  test('formats a whole integer as a two-decimal string', () => {
-    expect(toDecimalString(500)).toBe('500.00')
+  test('formats a whole integer to two decimal places', () => {
+    expect(toDecimal(500)).toBe(500)
   })
 
-  test('formats a decimal value preserving two decimal places', () => {
-    expect(toDecimalString(2.5)).toBe('2.50')
+  test('formats a decimal value to two decimal places', () => {
+    expect(toDecimal(2.5)).toBe(2.5)
   })
 
-  test('formats a value with two existing decimal places unchanged', () => {
-    expect(toDecimalString(9876.5)).toBe('9876.50')
+  test('rounds a value to two decimal places', () => {
+    expect(toDecimal(9876.5)).toBe(9876.5)
   })
 
-  test('converts a BigInt value to a decimal string', () => {
-    expect(toDecimalString(BigInt(100))).toBe('100.00')
+  test('converts a BigInt value to a decimal number', () => {
+    expect(toDecimal(BigInt(100))).toBe(100)
   })
 
-  test('converts a Prisma Decimal-like object to a decimal string', () => {
-    expect(toDecimalString({ toNumber: () => 42.5 })).toBe('42.50')
+  test('converts a Prisma Decimal-like object to a decimal number', () => {
+    expect(toDecimal({ toNumber: () => 42.5 })).toBe(42.5)
   })
 
   test('returns null for a non-numeric string', () => {
-    expect(toDecimalString('abc')).toBeNull()
+    expect(toDecimal('abc')).toBeNull()
   })
 })
 
@@ -664,7 +664,7 @@ describe('buildNfmMeasures — unknown measure type is skipped', () => {
       },
       null
     )
-    expect(payload.woodland_area).toBe('7.00')
+    expect(payload.woodland_area).toBe(7)
   })
 
   test('emits null for a declared field when value is absent', () => {
@@ -750,8 +750,8 @@ describe('buildNfmLandUseChanges — unknown land use type is skipped', () => {
       },
       null
     )
-    expect(payload.farmland_arable_before).toBe('80.00')
-    expect(payload.farmland_arable_after).toBe('40.00')
+    expect(payload.farmland_arable_before).toBe(80)
+    expect(payload.farmland_arable_after).toBe(40)
   })
 
   test('emits null for declared fields when land use values are absent', () => {
@@ -803,7 +803,7 @@ describe('alias field fallbacks', () => {
       },
       null
     )
-    expect(payload.woodland_area).toBe('3.00')
+    expect(payload.woodland_area).toBe(3)
   })
 
   test('reads nfmLandUseChanges alias when pafs_core_nfm_land_use_changes absent', () => {
@@ -822,8 +822,8 @@ describe('alias field fallbacks', () => {
       },
       null
     )
-    expect(payload.woodland_before).toBe('50.00')
-    expect(payload.woodland_after).toBe('20.00')
+    expect(payload.woodland_before).toBe(50)
+    expect(payload.woodland_after).toBe(20)
   })
 
   test('reads fundingValues alias when pafs_core_funding_values absent', () => {
@@ -1252,9 +1252,9 @@ describe('buildEnvironmentalBenefits', () => {
       },
       null
     )
-    expect(payload.outcome_measures.om4a.om4a_hectares_intertidal).toBe('1.50')
-    expect(payload.outcome_measures.om4a.om4a_hectares_woodland).toBe('2.00')
-    expect(payload.outcome_measures.om4a.om4a_hectares_arable_land).toBe('6.00')
+    expect(payload.outcome_measures.om4a.om4a_hectares_intertidal).toBe(1.5)
+    expect(payload.outcome_measures.om4a.om4a_hectares_woodland).toBe(2)
+    expect(payload.outcome_measures.om4a.om4a_hectares_arable_land).toBe(6)
   })
 
   test('maps om4b watercourse kilometres fields inside outcome_measures', () => {
@@ -1269,13 +1269,13 @@ describe('buildEnvironmentalBenefits', () => {
     )
     expect(
       payload.outcome_measures.om4b.om4b_kilometres_of_watercourse_comprehensive
-    ).toBe('10.50')
+    ).toBe(10.5)
     expect(
       payload.outcome_measures.om4b.om4b_kilometres_of_watercourse_partial
-    ).toBe('5.00')
+    ).toBe(5)
     expect(
       payload.outcome_measures.om4b.om4b_kilometres_of_watercourse_single
-    ).toBe('2.50')
+    ).toBe(2.5)
   })
 
   test('returns null om4a fields when habitat data absent', () => {
