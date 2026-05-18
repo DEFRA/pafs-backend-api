@@ -14,6 +14,7 @@ import {
   buildProposalPayload,
   fetchShapefileBase64
 } from '../helpers/proposal-payload-builder.js'
+import { lookupCreatorEmail } from '../helpers/lookup-creator-email.js'
 import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
 
 /**
@@ -56,25 +57,6 @@ async function loadProjectForResubmit(
 }
 
 /**
- * Look up the creator email for the project, returning null on any error.
- */
-async function lookupCreatorEmail(prisma, project, referenceNumber, logger) {
-  try {
-    const creator = await prisma.pafs_core_users.findFirst({
-      where: { id: Number(project.creatorId ?? project.creator_id) },
-      select: { email: true }
-    })
-    return creator?.email ?? null
-  } catch (error) {
-    logger.warn(
-      { error: error.message, referenceNumber },
-      'Could not look up creator email for resubmission'
-    )
-    return null
-  }
-}
-
-/**
  * Build and send the resubmission payload, stamp submitted_at, and return
  * the success response. Called once access and state checks have passed.
  */
@@ -90,7 +72,6 @@ async function performResubmission(
 
   const creatorEmail = await lookupCreatorEmail(
     request.prisma,
-    project,
     referenceNumber,
     logger
   )

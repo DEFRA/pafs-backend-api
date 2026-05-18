@@ -22,6 +22,7 @@ import {
   fetchShapefileBase64
 } from '../helpers/proposal-payload-builder.js'
 import { validateProposalPayload } from '../helpers/proposal-payload-validator.js'
+import { lookupCreatorEmail } from '../helpers/lookup-creator-email.js'
 import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
 
 const loadProject = async (projectService, referenceNumber, h) => {
@@ -143,31 +144,6 @@ const transitionToSubmitted = async (
     return h
       .response({ error: 'Failed to submit project' })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  }
-}
-
-const lookupCreatorEmail = async (prisma, referenceNumber, logger) => {
-  try {
-    const projectRow = await prisma.pafs_core_projects.findFirst({
-      where: { reference_number: referenceNumber },
-      select: { creator_id: true }
-    })
-
-    if (!projectRow?.creator_id) {
-      return null
-    }
-
-    const creator = await prisma.pafs_core_users.findFirst({
-      where: { id: BigInt(projectRow.creator_id) },
-      select: { email: true }
-    })
-    return creator?.email ?? null
-  } catch (emailLookupError) {
-    logger.warn(
-      { error: emailLookupError.message, referenceNumber },
-      'Could not look up creator email for external submission'
-    )
-    return null
   }
 }
 
