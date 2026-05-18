@@ -152,8 +152,8 @@ async function readZipCentralDirectory(s3Service, bucket, key) {
     throw new Error('Invalid ZIP: End of Central Directory record not found')
   }
 
-  const cdSize = tail.readUInt32LE(eocdOffset + 12)
-  const cdOffset = tail.readUInt32LE(eocdOffset + 16)
+  const cdSize = tail.readUInt32LE(eocdOffset + SIZE.LENGTH_12)
+  const cdOffset = tail.readUInt32LE(eocdOffset + SIZE.LENGTH_16)
 
   // Absolute byte offset where our tail chunk starts in the original file.
   // For a well-formed ZIP: cdOffset + cdSize = absolute position of EOCD.
