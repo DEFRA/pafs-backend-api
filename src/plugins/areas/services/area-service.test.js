@@ -681,11 +681,11 @@ describe('AreaService', () => {
         hasPreviousPage: false
       })
 
-      // Verify EA Area is excluded
+      // Verify only allowed listing types are returned
       expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
         where: {
           area_type: {
-            not: 'EA Area'
+            in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.PSO, AREA_TYPE_MAP.RMA]
           }
         },
         select: AREA_FIELDS,
@@ -695,7 +695,7 @@ describe('AreaService', () => {
       })
     })
 
-    it('should apply search filter and exclude EA Area', async () => {
+    it('should apply search filter and restrict to allowed listing types', async () => {
       mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
       mockPrisma.pafs_core_areas.count.mockResolvedValue(0)
 
@@ -710,7 +710,11 @@ describe('AreaService', () => {
         expect.objectContaining({
           where: {
             area_type: {
-              not: 'EA Area'
+              in: [
+                AREA_TYPE_MAP.AUTHORITY,
+                AREA_TYPE_MAP.PSO,
+                AREA_TYPE_MAP.RMA
+              ]
             },
             name: {
               contains: 'Bristol',
@@ -721,7 +725,7 @@ describe('AreaService', () => {
       )
     })
 
-    it('should apply type filter and exclude EA Area', async () => {
+    it('should apply type filter and restrict to allowed listing types', async () => {
       mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
       mockPrisma.pafs_core_areas.count.mockResolvedValue(0)
 
@@ -736,7 +740,11 @@ describe('AreaService', () => {
         expect.objectContaining({
           where: {
             area_type: {
-              not: 'EA Area'
+              in: [
+                AREA_TYPE_MAP.AUTHORITY,
+                AREA_TYPE_MAP.PSO,
+                AREA_TYPE_MAP.RMA
+              ]
             },
             AND: [
               {
@@ -751,7 +759,7 @@ describe('AreaService', () => {
       )
     })
 
-    it('should apply both search and type filters and exclude EA Area', async () => {
+    it('should apply both search and type filters and restrict to allowed listing types', async () => {
       mockPrisma.pafs_core_areas.findMany.mockResolvedValue([])
       mockPrisma.pafs_core_areas.count.mockResolvedValue(0)
 
@@ -766,7 +774,11 @@ describe('AreaService', () => {
         expect.objectContaining({
           where: {
             area_type: {
-              not: 'EA Area'
+              in: [
+                AREA_TYPE_MAP.AUTHORITY,
+                AREA_TYPE_MAP.PSO,
+                AREA_TYPE_MAP.RMA
+              ]
             },
             name: {
               contains: 'Bristol',
@@ -821,7 +833,11 @@ describe('AreaService', () => {
         expect.objectContaining({
           where: {
             area_type: {
-              not: 'EA Area'
+              in: [
+                AREA_TYPE_MAP.AUTHORITY,
+                AREA_TYPE_MAP.PSO,
+                AREA_TYPE_MAP.RMA
+              ]
             },
             name: {
               contains: 'Bristol',
@@ -851,12 +867,17 @@ describe('AreaService', () => {
         pageSize: 20
       })
 
-      // Should exclude EA Area but also filter by it, resulting in empty set
+      // Whitelist restricts to allowed types; AND clause adds the requested type filter,
+      // resulting in an empty set since EA Area is not in the whitelist
       expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
             area_type: {
-              not: 'EA Area'
+              in: [
+                AREA_TYPE_MAP.AUTHORITY,
+                AREA_TYPE_MAP.PSO,
+                AREA_TYPE_MAP.RMA
+              ]
             },
             AND: [
               {
