@@ -90,10 +90,22 @@ export function serializeArea(area, { rawTimestamps = false } = {}) {
  * @param {string} type - Area type filter
  * @returns {Object} Prisma where clause
  */
+
+/**
+ * Area types shown in the admin organisations listing/filter dropdown.
+ * Only these types are visible to admin users; types such as 'Country' and
+ * 'EA Area' are internal and must never appear in the listing.
+ */
+const ALLOWED_LISTING_TYPES = [
+  AREA_TYPE_MAP.AUTHORITY,
+  AREA_TYPE_MAP.PSO,
+  AREA_TYPE_MAP.RMA
+]
+
 export function buildAreasListWhereClause(search, type) {
   const where = {
     area_type: {
-      not: AREA_TYPE_MAP.EA
+      in: ALLOWED_LISTING_TYPES
     }
   }
 
