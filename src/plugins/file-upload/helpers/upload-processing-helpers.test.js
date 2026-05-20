@@ -6,6 +6,8 @@ import { describe, test, expect, beforeEach, vi } from 'vitest'
 const mockValidateZipFileFromS3 = vi.fn()
 const mockGenerateDownloadUrl = vi.fn()
 const mockUpdateBenefitAreaFile = vi.fn()
+const mockCopyS3Object = vi.fn()
+const mockDeleteFromS3 = vi.fn()
 const mockProjectService = { getProjectByReference: vi.fn() }
 
 class MockProjectService {
@@ -20,7 +22,9 @@ vi.mock('./validation-helpers.js', () => ({
 
 vi.mock('../../projects/helpers/benefit-area-file-helper.js', () => ({
   generateDownloadUrl: (...args) => mockGenerateDownloadUrl(...args),
-  updateBenefitAreaFile: (...args) => mockUpdateBenefitAreaFile(...args)
+  updateBenefitAreaFile: (...args) => mockUpdateBenefitAreaFile(...args),
+  copyS3Object: (...args) => mockCopyS3Object(...args),
+  deleteFromS3: (...args) => mockDeleteFromS3(...args)
 }))
 
 vi.mock('../../projects/services/project-service.js', () => ({
@@ -35,7 +39,8 @@ const {
   addErrorInfo,
   updateRecordFromCdp,
   performHostApplicationValidation,
-  updateProjectAfterUpload
+  updateProjectAfterUpload,
+  buildStandardS3Key
 } = await import('./upload-processing-helpers.js')
 
 describe('upload-processing-helpers', () => {
@@ -438,8 +443,13 @@ describe('upload-processing-helpers', () => {
     test('should call generateDownloadUrl and updateBenefitAreaFile on happy path', async () => {
       mockProjectService.getProjectByReference.mockResolvedValue({
         id: 99,
+        slug: 'ea-01-ae-2024',
+        version: 1,
         reference: 'EA/01/AE/2024'
       })
+      mockCopyS3Object.mockResolvedValue()
+      mockDeleteFromS3.mockResolvedValue()
+      mockPrisma.file_uploads = { update: vi.fn() }
       mockGenerateDownloadUrl.mockResolvedValue({
         downloadUrl: 'https://s3.example.com/shapefile.zip?token=abc',
         downloadExpiry: new Date('2026-06-01')
@@ -450,7 +460,7 @@ describe('upload-processing-helpers', () => {
 
       expect(mockGenerateDownloadUrl).toHaveBeenCalledWith(
         'my-bucket',
-        'uploads/shapefile.zip',
+        'ea-01-ae-2024/1/shapefile.zip',
         mockLogger,
         'shapefile.zip'
       )
@@ -462,7 +472,7 @@ describe('upload-processing-helpers', () => {
           fileSize: 204800,
           contentType: 'application/zip',
           s3Bucket: 'my-bucket',
-          s3Key: 'uploads/shapefile.zip',
+          s3Key: 'ea-01-ae-2024/1/shapefile.zip',
           downloadUrl: 'https://s3.example.com/shapefile.zip?token=abc'
         })
       )
@@ -473,7 +483,14 @@ describe('upload-processing-helpers', () => {
     })
 
     test('should pass null fileSize when content_length is absent', async () => {
-      mockProjectService.getProjectByReference.mockResolvedValue({ id: 99 })
+      mockProjectService.getProjectByReference.mockResolvedValue({
+        id: 99,
+        slug: 'ea-01-ae-2024',
+        version: 1
+      })
+      mockCopyS3Object.mockResolvedValue()
+      mockDeleteFromS3.mockResolvedValue()
+      mockPrisma.file_uploads = { update: vi.fn() }
       mockGenerateDownloadUrl.mockResolvedValue({
         downloadUrl: 'url',
         downloadExpiry: new Date()
@@ -504,6 +521,150 @@ describe('upload-processing-helpers', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({ err: serviceError }),
         'Failed to update project with benefit area file metadata'
+      )
+    })
+
+    test('should relocate file from CDP key to standard path when they differ', async () => {
+      mockProjectService.getProjectByReference.mockResolvedValue({
+        id: 99,
+        slug: 'ea-01-ae-2024',
+        version: 1,
+        reference: 'EA/01/AE/2024'
+      })
+      mockCopyS3Object.mockResolvedValue()
+      mockDeleteFromS3.mockResolvedValue()
+      mockPrisma.file_uploads = { update: vi.fn() }
+      mockGenerateDownloadUrl.mockResolvedValue({
+        downloadUrl: 'https://s3.example.com/file.zip',
+        downloadExpiry: new Date('2026-06-01')
+      })
+      mockUpdateBenefitAreaFile.mockResolvedValue()
+
+      const cdpKey = 'uploads/shapefile.zip' // CDP UUID-style key (different from standard)
+      const standardKey = 'ea-01-ae-2024/1/shapefile.zip'
+
+      await updateProjectAfterUpload(
+        makeReadyRecord({ s3_key: cdpKey }),
+        mockPrisma,
+        mockLogger
+      )
+
+      expect(mockCopyS3Object).toHaveBeenCalledWith(
+        'my-bucket',
+        cdpKey,
+        'my-bucket',
+        standardKey,
+        mockLogger
+      )
+      expect(mockDeleteFromS3).toHaveBeenCalledWith(
+        'my-bucket',
+        cdpKey,
+        mockLogger
+      )
+      expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
+        where: { upload_id: 'upload-1' },
+        data: { s3_key: standardKey }
+      })
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ cdpKey, standardKey }),
+        'Relocated benefit area file from CDP path to standard path'
+      )
+      // generateDownloadUrl and updateBenefitAreaFile should use the relocated key
+      expect(mockGenerateDownloadUrl).toHaveBeenCalledWith(
+        'my-bucket',
+        standardKey,
+        mockLogger,
+        'shapefile.zip'
+      )
+    })
+
+    test('should not copy when s3_key already matches standard path', async () => {
+      const standardKey = 'ea-01-ae-2024/1/shapefile.zip'
+      mockProjectService.getProjectByReference.mockResolvedValue({
+        id: 99,
+        slug: 'ea-01-ae-2024',
+        version: 1,
+        reference: 'EA/01/AE/2024'
+      })
+      mockGenerateDownloadUrl.mockResolvedValue({
+        downloadUrl: 'https://s3.example.com/file.zip',
+        downloadExpiry: new Date('2026-06-01')
+      })
+      mockUpdateBenefitAreaFile.mockResolvedValue()
+
+      await updateProjectAfterUpload(
+        makeReadyRecord({ s3_key: standardKey }),
+        mockPrisma,
+        mockLogger
+      )
+
+      expect(mockCopyS3Object).not.toHaveBeenCalled()
+      expect(mockDeleteFromS3).not.toHaveBeenCalled()
+      expect(mockGenerateDownloadUrl).toHaveBeenCalledWith(
+        'my-bucket',
+        standardKey,
+        mockLogger,
+        'shapefile.zip'
+      )
+    })
+
+    test('should fall back to CDP key when S3 copy fails', async () => {
+      const copyError = new Error('S3 copy failed')
+      mockProjectService.getProjectByReference.mockResolvedValue({
+        id: 99,
+        slug: 'ea-01-ae-2024',
+        version: 1,
+        reference: 'EA/01/AE/2024'
+      })
+      mockCopyS3Object.mockRejectedValue(copyError)
+      mockGenerateDownloadUrl.mockResolvedValue({
+        downloadUrl: 'https://s3.example.com/file.zip',
+        downloadExpiry: new Date('2026-06-01')
+      })
+      mockUpdateBenefitAreaFile.mockResolvedValue()
+
+      const cdpKey = 'uploads/shapefile.zip'
+      const standardKey = 'ea-01-ae-2024/1/shapefile.zip'
+
+      await updateProjectAfterUpload(
+        makeReadyRecord({ s3_key: cdpKey }),
+        mockPrisma,
+        mockLogger
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ err: copyError, cdpKey, standardKey }),
+        'Failed to relocate benefit area file to standard path — keeping CDP key'
+      )
+      // Should fall back and use the original CDP key
+      expect(mockGenerateDownloadUrl).toHaveBeenCalledWith(
+        'my-bucket',
+        cdpKey,
+        mockLogger,
+        'shapefile.zip'
+      )
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // buildStandardS3Key
+  // ---------------------------------------------------------------------------
+  describe('buildStandardS3Key', () => {
+    test('builds {slug}/{version}/{filename}', () => {
+      expect(buildStandardS3Key('proj-slug', 1, 'file.zip')).toBe(
+        'proj-slug/1/file.zip'
+      )
+    })
+
+    test('handles string version', () => {
+      expect(buildStandardS3Key('my-slug', '2', 'file.zip')).toBe(
+        'my-slug/2/file.zip'
+      )
+    })
+
+    test('handles nested filename', () => {
+      expect(buildStandardS3Key('ea-01-ae-2024', 3, 'benefit_area.zip')).toBe(
+        'ea-01-ae-2024/3/benefit_area.zip'
       )
     })
   })

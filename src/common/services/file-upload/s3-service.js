@@ -2,9 +2,11 @@ import {
   S3Client,
   GetObjectCommand,
   DeleteObjectCommand,
-  PutObjectCommand
+  PutObjectCommand,
+  CopyObjectCommand
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { Upload } from '@aws-sdk/lib-storage'
 import { config } from '../../../config.js'
 
 /**
@@ -206,6 +208,65 @@ export class S3Service {
       this.logger.error(
         { err: error, bucket, key },
         'Failed to upload object to S3'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Stream an object to S3 using multipart upload.
+   * Consumes a Readable stream without materialising the full body in memory.
+   *
+   * @param {string}   bucket      - Destination S3 bucket
+   * @param {string}   key         - Destination S3 key
+   * @param {Readable} stream      - Readable stream to upload
+   * @param {string}   contentType - MIME type
+   * @returns {Promise<void>}
+   */
+  async putObjectStream(bucket, key, stream, contentType) {
+    const upload = new Upload({
+      client: this.s3Client,
+      params: {
+        Bucket: bucket,
+        Key: key,
+        Body: stream,
+        ContentType: contentType
+      }
+    })
+    await upload.done()
+    this.logger.info(
+      { bucket, key },
+      'Streamed object to S3 via multipart upload'
+    )
+  }
+
+  /**
+   * Copy an object within S3 (or between buckets)
+   *
+   * @param {string} sourceBucket - Source bucket name
+   * @param {string} sourceKey - Source object key
+   * @param {string} destBucket - Destination bucket name
+   * @param {string} destKey - Destination object key
+   * @returns {Promise<void>}
+   */
+  async copyObject(sourceBucket, sourceKey, destBucket, destKey) {
+    try {
+      const command = new CopyObjectCommand({
+        CopySource: `${sourceBucket}/${sourceKey}`,
+        Bucket: destBucket,
+        Key: destKey
+      })
+
+      await this.s3Client.send(command)
+
+      this.logger.info(
+        { sourceBucket, sourceKey, destBucket, destKey },
+        'Successfully copied S3 object'
+      )
+    } catch (error) {
+      this.logger.error(
+        { err: error, sourceBucket, sourceKey, destBucket, destKey },
+        'Failed to copy S3 object'
       )
       throw error
     }

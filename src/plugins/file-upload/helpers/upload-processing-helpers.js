@@ -1,10 +1,26 @@
 import { UPLOAD_STATUS } from '../../../common/constants/index.js'
 import {
   generateDownloadUrl,
-  updateBenefitAreaFile
+  updateBenefitAreaFile,
+  copyS3Object,
+  deleteFromS3
 } from '../../projects/helpers/benefit-area-file-helper.js'
 import { validateZipFileFromS3 } from './validation-helpers.js'
 import { ProjectService } from '../../projects/services/project-service.js'
+
+/**
+ * Build the canonical S3 key for a benefit area file.
+ * Matches the legacy resolver format but without the 'legacy/' prefix:
+ *   {slug}/{version}/{filename}
+ *
+ * @param {string} slug - Project slug
+ * @param {number|string} version - Project version
+ * @param {string} filename - Original filename from CDP
+ * @returns {string}
+ */
+export function buildStandardS3Key(slug, version, filename) {
+  return `${slug}/${version}/${filename}`
+}
 
 /**
  * Collect all error messages from a CDP status payload
@@ -206,6 +222,54 @@ export async function updateProjectAfterUpload(uploadRecord, prisma, logger) {
         'Project not found for benefit area file update'
       )
       return
+    }
+
+    // Relocate the CDP-assigned UUID key to the canonical project path.
+    // Legacy files (legacy/{slug}/{version}/{filename}) and existing UAT files
+    // at UUID paths already have their correct key stored in the project table —
+    // this only affects new uploads where CDP chose its own UUID-based path.
+    const standardKey = buildStandardS3Key(
+      project.slug,
+      project.version,
+      uploadRecord.filename
+    )
+    const cdpKey = uploadRecord.s3_key
+
+    if (cdpKey !== standardKey) {
+      try {
+        await copyS3Object(
+          uploadRecord.s3_bucket,
+          cdpKey,
+          uploadRecord.s3_bucket,
+          standardKey,
+          logger
+        )
+        await deleteFromS3(uploadRecord.s3_bucket, cdpKey, logger)
+
+        // Keep file_uploads record consistent with what is now in S3
+        await prisma.file_uploads.update({
+          where: { upload_id: uploadRecord.upload_id },
+          data: { s3_key: standardKey }
+        })
+        uploadRecord.s3_key = standardKey
+
+        logger.info(
+          { uploadId: uploadRecord.upload_id, cdpKey, standardKey },
+          'Relocated benefit area file from CDP path to standard path'
+        )
+      } catch (moveError) {
+        // Non-fatal: log and fall back to the CDP UUID key so the file
+        // is still accessible rather than breaking the upload flow.
+        logger.error(
+          {
+            err: moveError,
+            uploadId: uploadRecord.upload_id,
+            cdpKey,
+            standardKey
+          },
+          'Failed to relocate benefit area file to standard path — keeping CDP key'
+        )
+      }
     }
 
     const { downloadUrl, downloadExpiry } = await generateDownloadUrl(

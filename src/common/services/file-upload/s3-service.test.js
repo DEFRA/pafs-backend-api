@@ -19,6 +19,10 @@ vi.mock('@aws-sdk/client-s3', () => {
     PutObjectCommand: vi.fn(function (params) {
       this.input = params
       return this
+    }),
+    CopyObjectCommand: vi.fn(function (params) {
+      this.input = params
+      return this
     })
   }
 })
@@ -26,6 +30,14 @@ vi.mock('@aws-sdk/client-s3', () => {
 const mockGetSignedUrl = vi.fn()
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: mockGetSignedUrl
+}))
+
+const mockUploadDone = vi.fn()
+vi.mock('@aws-sdk/lib-storage', () => ({
+  // Must be a regular function (not arrow) — production code calls it with `new`.
+  Upload: vi.fn(function UploadMock() {
+    this.done = mockUploadDone
+  })
 }))
 
 // Mock config module - use factory function to avoid hoisting issues
@@ -698,6 +710,49 @@ describe('S3Service', () => {
     })
   })
 
+  describe('putObjectStream', () => {
+    it('should construct an Upload with the correct params and call done()', async () => {
+      const service = new S3Service(mockLogger)
+      const stream = { pipe: vi.fn() }
+
+      mockUploadDone.mockResolvedValue({})
+
+      await service.putObjectStream(
+        'test-bucket',
+        'reports/out.zip',
+        stream,
+        'application/zip'
+      )
+
+      const { Upload } = await import('@aws-sdk/lib-storage')
+      expect(Upload).toHaveBeenCalledWith({
+        client: service.s3Client,
+        params: {
+          Bucket: 'test-bucket',
+          Key: 'reports/out.zip',
+          Body: stream,
+          ContentType: 'application/zip'
+        }
+      })
+      expect(mockUploadDone).toHaveBeenCalledTimes(1)
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { bucket: 'test-bucket', key: 'reports/out.zip' },
+        'Streamed object to S3 via multipart upload'
+      )
+    })
+
+    it('should propagate errors thrown by Upload.done()', async () => {
+      const service = new S3Service(mockLogger)
+      const error = new Error('Multipart upload failed')
+
+      mockUploadDone.mockRejectedValue(error)
+
+      await expect(
+        service.putObjectStream('bucket', 'key', {}, 'application/zip')
+      ).rejects.toThrow('Multipart upload failed')
+    })
+  })
+
   describe('getObjectStream', () => {
     it('should return the S3 response body stream directly', async () => {
       const service = new S3Service(mockLogger)
@@ -811,6 +866,83 @@ describe('S3Service', () => {
       await expect(
         service.getObjectRange('test-bucket', 'test-key', 'bytes=0-1023')
       ).rejects.toThrow('S3 range request failed')
+    })
+  })
+
+  describe('copyObject', () => {
+    it('should successfully copy an object in S3', async () => {
+      const service = new S3Service(mockLogger)
+      const sourceBucket = 'src-bucket'
+      const sourceKey = 'src/key.zip'
+      const destBucket = 'dst-bucket'
+      const destKey = 'dst/key.zip'
+
+      service.s3Client.send.mockResolvedValue({})
+
+      await service.copyObject(sourceBucket, sourceKey, destBucket, destKey)
+
+      const { CopyObjectCommand } = await import('@aws-sdk/client-s3')
+      expect(CopyObjectCommand).toHaveBeenCalledWith({
+        CopySource: 'src-bucket/src/key.zip',
+        Bucket: destBucket,
+        Key: destKey
+      })
+
+      expect(service.s3Client.send).toHaveBeenCalledTimes(1)
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { sourceBucket, sourceKey, destBucket, destKey },
+        'Successfully copied S3 object'
+      )
+    })
+
+    it('should handle S3 copy errors', async () => {
+      const service = new S3Service(mockLogger)
+      const error = new Error('S3 copy failed')
+
+      service.s3Client.send.mockRejectedValue(error)
+
+      await expect(
+        service.copyObject(
+          'src-bucket',
+          'src/key.zip',
+          'dst-bucket',
+          'dst/key.zip'
+        )
+      ).rejects.toThrow('S3 copy failed')
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        {
+          err: error,
+          sourceBucket: 'src-bucket',
+          sourceKey: 'src/key.zip',
+          destBucket: 'dst-bucket',
+          destKey: 'dst/key.zip'
+        },
+        'Failed to copy S3 object'
+      )
+    })
+
+    it('should copy object between different buckets', async () => {
+      const service = new S3Service(mockLogger)
+
+      service.s3Client.send.mockResolvedValue({})
+
+      await service.copyObject(
+        'source-bucket',
+        'project/v1/file.zip',
+        'destination-bucket',
+        'archive/v1/file.zip'
+      )
+
+      const { CopyObjectCommand } = await import('@aws-sdk/client-s3')
+      expect(CopyObjectCommand).toHaveBeenCalledWith({
+        CopySource: 'source-bucket/project/v1/file.zip',
+        Bucket: 'destination-bucket',
+        Key: 'archive/v1/file.zip'
+      })
+
+      expect(service.s3Client.send).toHaveBeenCalledTimes(1)
     })
   })
 })

@@ -147,3 +147,18 @@ export async function deleteFromS3(s3Bucket, s3Key, logger) {
   const s3Service = getS3Service(logger)
   return s3Service.deleteObject(s3Bucket, s3Key)
 }
+
+/**
+ * Copy a file within S3 from one key to another.
+ * Used to relocate a CDP-uploaded file to the canonical project path.
+ */
+export async function copyS3Object(
+  sourceBucket,
+  sourceKey,
+  destBucket,
+  destKey,
+  logger
+) {
+  const s3Service = getS3Service(logger)
+  return s3Service.copyObject(sourceBucket, sourceKey, destBucket, destKey)
+}
