@@ -378,7 +378,16 @@ export const newTemplateMixin = {
     return raw ? (COASTAL_EROSION_RISK_LABELS[raw] ?? raw) : null
   },
 
-  // ── Whole-life costs breakdown (HG–HJ) ───────────────────────────────────
+  // ── Properties benefitting in deprived areas (EB–EC) ─────────────────────
+
+  percentProperties20PercentDeprived() {
+    return this._p.percent_properties_20_percent_deprived ?? null
+  },
+  percentProperties40PercentDeprived() {
+    return this._p.percent_properties_40_percent_deprived ?? null
+  },
+
+  // ── Whole-life costs breakdown (ED–EG) ───────────────────────────────────
 
   wlcWholeLifeCosts() {
     return toNumber(this._p, 'wlc_estimated_whole_life_pv_costs')

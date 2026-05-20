@@ -158,9 +158,18 @@ describe('area-utils', () => {
   })
 
   describe('buildAreasListWhereClause', () => {
-    test('should always exclude EA Area type', () => {
+    test('should restrict to allowed listing types (Authority, PSO Area, RMA) when no type filter given', () => {
       const where = buildAreasListWhereClause('', '')
-      expect(where.area_type).toEqual({ not: 'EA Area' })
+      expect(where.area_type).toEqual({
+        in: [AREA_TYPE_MAP.AUTHORITY, AREA_TYPE_MAP.PSO, AREA_TYPE_MAP.RMA]
+      })
+    })
+
+    test('should exclude Country and EA Area when no type filter given', () => {
+      const where = buildAreasListWhereClause('', '')
+      const allowedTypes = where.area_type.in
+      expect(allowedTypes).not.toContain(AREA_TYPE_MAP.COUNTRY)
+      expect(allowedTypes).not.toContain(AREA_TYPE_MAP.EA)
     })
 
     test('should add search filter when provided', () => {

@@ -125,9 +125,9 @@ describe('fcerm1-columns', () => {
       })
     })
 
-    test('ends with column HN', () => {
+    test('ends with column HP', () => {
       const last = NEW_COLUMNS.at(-1)
-      expect(last.column).toBe('HN')
+      expect(last.column).toBe('HP')
     })
 
     test('every entry has column and field properties', () => {
@@ -159,20 +159,20 @@ describe('fcerm1-columns', () => {
       expect(col.field).toBe('additionalFcermGia')
     })
 
-    test('urgency columns EZ and FA are present', () => {
-      const ez = NEW_COLUMNS.find((c) => c.column === 'EZ')
-      const fa = NEW_COLUMNS.find((c) => c.column === 'FA')
-      expect(ez?.field).toBe('urgencyReason')
-      expect(fa?.field).toBe('urgencyDetails')
+    test('urgency columns FB and FC are present', () => {
+      const fb = NEW_COLUMNS.find((c) => c.column === 'FB')
+      const fc = NEW_COLUMNS.find((c) => c.column === 'FC')
+      expect(fb?.field).toBe('urgencyReason')
+      expect(fc?.field).toBe('urgencyDetails')
     })
 
-    test('NHM confidence columns GZ-HB are present', () => {
-      const gz = NEW_COLUMNS.find((c) => c.column === 'GZ')
-      const ha = NEW_COLUMNS.find((c) => c.column === 'HA')
+    test('NHM confidence columns HB-HD are present', () => {
       const hb = NEW_COLUMNS.find((c) => c.column === 'HB')
-      expect(gz?.field).toBe('nfmLandownerConsent')
-      expect(ha?.field).toBe('nfmExperienceLevel')
-      expect(hb?.field).toBe('nfmProjectReadiness')
+      const hc = NEW_COLUMNS.find((c) => c.column === 'HC')
+      const hd = NEW_COLUMNS.find((c) => c.column === 'HD')
+      expect(hb?.field).toBe('nfmLandownerConsent')
+      expect(hc?.field).toBe('nfmExperienceLevel')
+      expect(hd?.field).toBe('nfmProjectReadiness')
     })
 
     test('no duplicate exportable column letters', () => {

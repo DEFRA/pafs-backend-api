@@ -64,6 +64,9 @@ const buildMockRequest = (overrides = {}) => ({
   server: { logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
   metrics: { counter: vi.fn() },
   prisma: {
+    pafs_core_projects: {
+      findFirst: vi.fn().mockResolvedValue({ creator_id: BigInt(42) })
+    },
     pafs_core_users: {
       findFirst: vi.fn().mockResolvedValue({ email: 'creator@example.com' })
     }
@@ -279,7 +282,7 @@ describe('resubmit-project handler — submission outcome', () => {
 
 describe('resubmit-project handler — creator email lookup', () => {
   test('proceeds with null email when findFirst throws', async () => {
-    request.prisma.pafs_core_users.findFirst.mockRejectedValue(
+    request.prisma.pafs_core_projects.findFirst.mockRejectedValue(
       new Error('DB connection lost')
     )
     await resubmitProjectRoute.options.handler(request, h)
@@ -294,16 +297,21 @@ describe('resubmit-project handler — creator email lookup', () => {
     expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
   })
 
-  test('uses creator_id fallback when creatorId is absent', async () => {
-    mockProjectService.getProjectByReferenceNumber.mockResolvedValue({
-      ...SUBMITTED_PROJECT,
-      creatorId: undefined,
-      creator_id: 99
-    })
+  test('looks up creator_id from database', async () => {
     await resubmitProjectRoute.options.handler(request, h)
-    expect(request.prisma.pafs_core_users.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 99 } })
+    expect(request.prisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { reference_number: REFERENCE_NUMBER } })
     )
+    expect(request.prisma.pafs_core_users.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: BigInt(42) } })
+    )
+  })
+
+  test('proceeds with null email when project row has no creator_id', async () => {
+    request.prisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+    await resubmitProjectRoute.options.handler(request, h)
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    expect(request.prisma.pafs_core_users.findFirst).not.toHaveBeenCalled()
   })
 })
 

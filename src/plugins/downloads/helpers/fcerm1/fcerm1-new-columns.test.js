@@ -22,8 +22,8 @@ describe('fcerm1-new-columns', () => {
       })
     })
 
-    test('ends with column HN', () => {
-      expect(NEW_COLUMNS.at(-1).column).toBe('HN')
+    test('ends with column HP', () => {
+      expect(NEW_COLUMNS.at(-1).column).toBe('HP')
     })
 
     test('every entry has column and field properties', () => {
@@ -123,20 +123,35 @@ describe('fcerm1-new-columns', () => {
       expect(col.field).toBe('notYetIdentified')
     })
 
-    test('urgency columns EZ and FA are present (shifted from IG/IH)', () => {
-      const ez = NEW_COLUMNS.find((c) => c.column === 'EZ')
-      const fa = NEW_COLUMNS.find((c) => c.column === 'FA')
-      expect(ez?.field).toBe('urgencyReason')
-      expect(fa?.field).toBe('urgencyDetails')
+    test('urgency columns FB and FC are present (shifted from IG/IH)', () => {
+      const fb = NEW_COLUMNS.find((c) => c.column === 'FB')
+      const fc = NEW_COLUMNS.find((c) => c.column === 'FC')
+      expect(fb?.field).toBe('urgencyReason')
+      expect(fc?.field).toBe('urgencyDetails')
     })
 
-    test('NHM confidence columns GZ–HB are present (shifted from KG–KI)', () => {
-      const gz = NEW_COLUMNS.find((c) => c.column === 'GZ')
-      const ha = NEW_COLUMNS.find((c) => c.column === 'HA')
+    test('NHM confidence columns HB–HD are present (shifted from KG–KI)', () => {
       const hb = NEW_COLUMNS.find((c) => c.column === 'HB')
-      expect(gz?.field).toBe('nfmLandownerConsent')
-      expect(ha?.field).toBe('nfmExperienceLevel')
-      expect(hb?.field).toBe('nfmProjectReadiness')
+      const hc = NEW_COLUMNS.find((c) => c.column === 'HC')
+      const hd = NEW_COLUMNS.find((c) => c.column === 'HD')
+      expect(hb?.field).toBe('nfmLandownerConsent')
+      expect(hc?.field).toBe('nfmExperienceLevel')
+      expect(hd?.field).toBe('nfmProjectReadiness')
+    })
+
+    test('percentProperties20PercentDeprived is at column EB', () => {
+      const col = NEW_COLUMNS.find((c) => c.column === 'EB')
+      expect(col?.field).toBe('percentProperties20PercentDeprived')
+    })
+
+    test('percentProperties40PercentDeprived is at column EC', () => {
+      const col = NEW_COLUMNS.find((c) => c.column === 'EC')
+      expect(col?.field).toBe('percentProperties40PercentDeprived')
+    })
+
+    test('wlcWholeLifeCosts shifted to column ED', () => {
+      const col = NEW_COLUMNS.find((c) => c.column === 'ED')
+      expect(col?.field).toBe('wlcWholeLifeCosts')
     })
 
     test('no duplicate exportable column letters', () => {
