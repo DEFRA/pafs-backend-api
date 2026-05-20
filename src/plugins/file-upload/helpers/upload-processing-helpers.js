@@ -233,71 +233,21 @@ export async function updateProjectAfterUpload(uploadRecord, prisma, logger) {
       project.version,
       uploadRecord.filename
     )
-    const cdpKey = uploadRecord.s3_key
-
-    if (cdpKey !== standardKey) {
-      try {
-        await copyS3Object(
-          uploadRecord.s3_bucket,
-          cdpKey,
-          uploadRecord.s3_bucket,
-          standardKey,
-          logger
-        )
-        await deleteFromS3(uploadRecord.s3_bucket, cdpKey, logger)
-
-        // Keep file_uploads record consistent with what is now in S3
-        await prisma.file_uploads.update({
-          where: { upload_id: uploadRecord.upload_id },
-          data: { s3_key: standardKey }
-        })
-        uploadRecord.s3_key = standardKey
-
-        logger.info(
-          { uploadId: uploadRecord.upload_id, cdpKey, standardKey },
-          'Relocated benefit area file from CDP path to standard path'
-        )
-      } catch (moveError) {
-        // Non-fatal: log and fall back to the CDP UUID key so the file
-        // is still accessible rather than breaking the upload flow.
-        logger.error(
-          {
-            err: moveError,
-            uploadId: uploadRecord.upload_id,
-            cdpKey,
-            standardKey
-          },
-          'Failed to relocate benefit area file to standard path — keeping CDP key'
-        )
-      }
+    if (uploadRecord.s3_key !== standardKey) {
+      await relocateBenefitAreaFile(
+        uploadRecord,
+        standardKey,
+        uploadRecord.s3_key,
+        prisma,
+        logger
+      )
     }
 
-    const { downloadUrl, downloadExpiry } = await generateDownloadUrl(
-      uploadRecord.s3_bucket,
-      uploadRecord.s3_key,
-      logger,
-      uploadRecord.filename
-    )
-
-    await updateBenefitAreaFile(prisma, referenceNumber, {
-      filename: uploadRecord.filename,
-      fileSize: uploadRecord.content_length
-        ? Number(uploadRecord.content_length)
-        : null,
-      contentType: uploadRecord.content_type,
-      s3Bucket: uploadRecord.s3_bucket,
-      s3Key: uploadRecord.s3_key,
-      downloadUrl,
-      downloadExpiry
-    })
-
-    logger.info(
-      {
-        reference: uploadRecord.reference,
-        referenceNumber,
-        uploadId: uploadRecord.upload_id
-      },
-      'Project updated with benefit area file metadata and download URL'
+    await applyBenefitAreaFileMetadata(
+      uploadRecord,
+      referenceNumber,
+      prisma,
+      logger
     )
   } catch (error) {
     logger.error(
@@ -305,4 +255,82 @@ export async function updateProjectAfterUpload(uploadRecord, prisma, logger) {
       'Failed to update project with benefit area file metadata'
     )
   }
+}
+
+async function relocateBenefitAreaFile(
+  uploadRecord,
+  standardKey,
+  cdpKey,
+  prisma,
+  logger
+) {
+  try {
+    await copyS3Object(
+      uploadRecord.s3_bucket,
+      cdpKey,
+      uploadRecord.s3_bucket,
+      standardKey,
+      logger
+    )
+    await deleteFromS3(uploadRecord.s3_bucket, cdpKey, logger)
+
+    // Keep file_uploads record consistent with what is now in S3
+    await prisma.file_uploads.update({
+      where: { upload_id: uploadRecord.upload_id },
+      data: { s3_key: standardKey }
+    })
+    uploadRecord.s3_key = standardKey
+
+    logger.info(
+      { uploadId: uploadRecord.upload_id, cdpKey, standardKey },
+      'Relocated benefit area file from CDP path to standard path'
+    )
+  } catch (moveError) {
+    // Non-fatal: log and fall back to the CDP UUID key so the file
+    // is still accessible rather than breaking the upload flow.
+    logger.error(
+      {
+        err: moveError,
+        uploadId: uploadRecord.upload_id,
+        cdpKey,
+        standardKey
+      },
+      'Failed to relocate benefit area file to standard path — keeping CDP key'
+    )
+  }
+}
+
+async function applyBenefitAreaFileMetadata(
+  uploadRecord,
+  referenceNumber,
+  prisma,
+  logger
+) {
+  const { downloadUrl, downloadExpiry } = await generateDownloadUrl(
+    uploadRecord.s3_bucket,
+    uploadRecord.s3_key,
+    logger,
+    uploadRecord.filename
+  )
+
+  await updateBenefitAreaFile(prisma, referenceNumber, {
+    filename: uploadRecord.filename,
+    fileSize: uploadRecord.content_length
+      ? Number(uploadRecord.content_length)
+      : null,
+    contentType: uploadRecord.content_type,
+    s3Bucket: uploadRecord.s3_bucket,
+    s3Key: uploadRecord.s3_key,
+    downloadUrl,
+    downloadExpiry
+  })
+
+  logger.info(
+    {
+      reference: uploadRecord.reference,
+      referenceNumber,
+      uploadId: uploadRecord.upload_id
+    },
+    'Project updated with benefit area file metadata and download URL'
+  )
 }
