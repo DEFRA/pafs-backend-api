@@ -668,6 +668,32 @@ describe('currentCoastalErosionRisk', () => {
   })
 })
 
+// ── Properties benefitting in deprived areas ──────────────────────────────────
+
+describe('percentProperties20PercentDeprived', () => {
+  test('returns percent_properties_20_percent_deprived value', () => {
+    const p = makePresenter({ percent_properties_20_percent_deprived: 35.5 })
+    expect(p.percentProperties20PercentDeprived()).toBe(35.5)
+  })
+
+  test('returns null when field is absent', () => {
+    const p = makePresenter()
+    expect(p.percentProperties20PercentDeprived()).toBeNull()
+  })
+})
+
+describe('percentProperties40PercentDeprived', () => {
+  test('returns percent_properties_40_percent_deprived value', () => {
+    const p = makePresenter({ percent_properties_40_percent_deprived: 60.0 })
+    expect(p.percentProperties40PercentDeprived()).toBe(60.0)
+  })
+
+  test('returns null when field is absent', () => {
+    const p = makePresenter()
+    expect(p.percentProperties40PercentDeprived()).toBeNull()
+  })
+})
+
 // ── Whole-life cost breakdown ──────────────────────────────────────────────────
 
 describe('whole-life cost breakdown', () => {
