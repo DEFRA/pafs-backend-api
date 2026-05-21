@@ -54,6 +54,7 @@ export class ExternalSubmissionService {
         httpStatusCode: null,
         errorMessage: 'External submission is disabled',
         responseBody: null,
+        requestPayload: this._scrubPayload(payload),
         isResend
       })
       return { success: false, error: 'External submission is disabled' }
@@ -74,6 +75,7 @@ export class ExternalSubmissionService {
           referenceNumber,
           httpStatus,
           responseText,
+          payload,
           isResend
         })
       }
@@ -83,6 +85,7 @@ export class ExternalSubmissionService {
         referenceNumber,
         httpStatus,
         responseText,
+        payload,
         isResend
       })
     } catch (error) {
@@ -102,6 +105,7 @@ export class ExternalSubmissionService {
         httpStatusCode: httpStatus,
         errorMessage,
         responseBody: responseText,
+        requestPayload: this._scrubPayload(payload),
         isResend
       })
       return { success: false, error: errorMessage }
@@ -150,6 +154,7 @@ export class ExternalSubmissionService {
     referenceNumber,
     httpStatus,
     responseText,
+    payload,
     isResend
   }) {
     this.logger.warn(
@@ -163,6 +168,7 @@ export class ExternalSubmissionService {
       httpStatusCode: httpStatus,
       errorMessage: `HTTP ${httpStatus}`,
       responseBody: responseText,
+      requestPayload: this._scrubPayload(payload),
       isResend
     })
     return { success: false, httpStatus, error: `HTTP ${httpStatus}` }
@@ -177,6 +183,7 @@ export class ExternalSubmissionService {
     referenceNumber,
     httpStatus,
     responseText,
+    payload,
     isResend
   }) {
     this.logger.info(
@@ -190,6 +197,7 @@ export class ExternalSubmissionService {
       httpStatusCode: httpStatus,
       errorMessage: null,
       responseBody: responseText,
+      requestPayload: this._scrubPayload(payload),
       isResend
     })
     await this.markSubmittedToPol(referenceNumber)
@@ -200,6 +208,22 @@ export class ExternalSubmissionService {
    * Persist a submission attempt to pafs_proposal_submissions.
    * @private
    */
+  /**
+   * Return a copy of the payload with the shapefile base64 stripped.
+   * The binary data can be multi-megabytes — the S3 key on the project record
+   * is sufficient to retrieve the file when needed.
+   * @private
+   */
+  _scrubPayload(payload) {
+    if (!payload) {
+      return null
+    }
+    if (!payload.shapefile) {
+      return payload
+    }
+    return { ...payload, shapefile: '[base64_omitted]' }
+  }
+
   async _recordAttempt({
     projectId,
     referenceNumber,
@@ -207,6 +231,7 @@ export class ExternalSubmissionService {
     httpStatusCode,
     errorMessage,
     responseBody,
+    requestPayload = null,
     isResend
   }) {
     try {
@@ -218,6 +243,7 @@ export class ExternalSubmissionService {
           http_status_code: httpStatusCode,
           error_message: errorMessage,
           response_body: responseBody,
+          request_payload: requestPayload,
           is_resend: isResend,
           attempted_at: new Date(),
           created_at: new Date()

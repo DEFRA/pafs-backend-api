@@ -88,7 +88,8 @@ export async function updateBenefitAreaFile(
       benefit_area_file_s3_key: fileMetadata.s3Key,
       benefit_area_file_download_url: fileMetadata.downloadUrl,
       benefit_area_file_download_expiry: fileMetadata.downloadExpiry,
-      benefit_area_file_updated_at: new Date()
+      benefit_area_file_updated_at: new Date(),
+      benefit_area_file_base64: null // invalidate stale cache when new file is uploaded
     }
   })
 }

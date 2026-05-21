@@ -8,7 +8,11 @@ const mockGenerateDownloadUrl = vi.fn()
 const mockUpdateBenefitAreaFile = vi.fn()
 const mockCopyS3Object = vi.fn()
 const mockDeleteFromS3 = vi.fn()
-const mockProjectService = { getProjectByReference: vi.fn() }
+const mockFetchShapefileBase64 = vi.fn()
+const mockProjectService = {
+  getProjectByReference: vi.fn(),
+  cacheShapefileBase64: vi.fn()
+}
 
 class MockProjectService {
   constructor() {
@@ -18,6 +22,10 @@ class MockProjectService {
 
 vi.mock('./validation-helpers.js', () => ({
   validateZipFileFromS3: (...args) => mockValidateZipFileFromS3(...args)
+}))
+
+vi.mock('../../projects/helpers/proposal-payload-helpers.js', () => ({
+  fetchShapefileBase64: (...args) => mockFetchShapefileBase64(...args)
 }))
 
 vi.mock('../../projects/helpers/benefit-area-file-helper.js', () => ({
@@ -643,6 +651,80 @@ describe('upload-processing-helpers', () => {
         mockLogger,
         'shapefile.zip'
       )
+    })
+
+    // ─── Shapefile base64 fire-and-forget cache ───────────────────────────────
+
+    function makeHappyProjectAndRecord() {
+      mockProjectService.getProjectByReference.mockResolvedValue({
+        id: 99,
+        slug: 'ea-01-ae-2024',
+        version: 1,
+        reference: 'EA/01/AE/2024'
+      })
+      mockGenerateDownloadUrl.mockResolvedValue({
+        downloadUrl: 'https://s3.example.com/file.zip',
+        downloadExpiry: new Date('2026-06-01')
+      })
+      mockUpdateBenefitAreaFile.mockResolvedValue()
+      return makeReadyRecord({ s3_key: 'ea-01-ae-2024/1/shapefile.zip' })
+    }
+
+    test('fires base64 cache write after a successful upload', async () => {
+      mockFetchShapefileBase64.mockResolvedValue('base64data==')
+      mockProjectService.cacheShapefileBase64.mockResolvedValue()
+
+      await updateProjectAfterUpload(
+        makeHappyProjectAndRecord(),
+        mockPrisma,
+        mockLogger
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0)) // flush microtask queue
+
+      expect(mockFetchShapefileBase64).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceNumber: 'EA/01/AE/2024',
+          benefitAreaFileName: 'shapefile.zip',
+          benefitAreaFileS3Key: 'ea-01-ae-2024/1/shapefile.zip',
+          benefitAreaFileS3Bucket: 'my-bucket'
+        }),
+        mockLogger
+      )
+      expect(mockProjectService.cacheShapefileBase64).toHaveBeenCalledWith(
+        'EA/01/AE/2024',
+        'base64data=='
+      )
+    })
+
+    test('does not call cacheShapefileBase64 when fetchShapefileBase64 returns null', async () => {
+      mockFetchShapefileBase64.mockResolvedValue(null)
+
+      await updateProjectAfterUpload(
+        makeHappyProjectAndRecord(),
+        mockPrisma,
+        mockLogger
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(mockProjectService.cacheShapefileBase64).not.toHaveBeenCalled()
+    })
+
+    test('logs warning but does not throw when base64 cache write fails', async () => {
+      mockFetchShapefileBase64.mockRejectedValue(new Error('S3 timeout'))
+
+      await updateProjectAfterUpload(
+        makeHappyProjectAndRecord(),
+        mockPrisma,
+        mockLogger
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber: 'EA/01/AE/2024' }),
+        'Shapefile base64 cache write failed after upload — will retry on project open'
+      )
+      // upload metadata was still saved
+      expect(mockUpdateBenefitAreaFile).toHaveBeenCalled()
     })
   })
 

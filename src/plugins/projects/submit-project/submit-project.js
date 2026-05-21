@@ -17,13 +17,7 @@ import {
   validateSubmission,
   canSubmitProject
 } from '../helpers/project-validations/validate-submission.js'
-import {
-  buildProposalPayload,
-  fetchShapefileBase64
-} from '../helpers/proposal-payload-builder.js'
-import { validateProposalPayload } from '../helpers/proposal-payload-validator.js'
-import { lookupCreatorEmail } from '../helpers/lookup-creator-email.js'
-import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
+import { sendExternalSubmissionMessage } from '../../../common/helpers/sqs/send-external-submission-message.js'
 
 const loadProject = async (projectService, referenceNumber, h) => {
   try {
@@ -126,11 +120,7 @@ const transitionToSubmitted = async (
   logger
 ) => {
   try {
-    await projectService.upsertProjectState(
-      project.id,
-      PROJECT_STATUS.SUBMITTED
-    )
-    await projectService.setSubmittedAt(referenceNumber)
+    await projectService.transitionToSubmitted(project.id, referenceNumber)
     logger.info(
       { referenceNumber, userId: credentials.userId },
       'Project submitted successfully'
@@ -144,42 +134,6 @@ const transitionToSubmitted = async (
     return h
       .response({ error: 'Failed to submit project' })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  }
-}
-
-const sendToExternalSystem = async (
-  prisma,
-  project,
-  creatorEmail,
-  referenceNumber,
-  logger
-) => {
-  try {
-    const shapefileBase64 = await fetchShapefileBase64(project, logger)
-    const payload = buildProposalPayload(project, creatorEmail, shapefileBase64)
-    logger.info(
-      { referenceNumber, payload },
-      'Proposal payload built for external submission'
-    )
-    validateProposalPayload(payload, referenceNumber, logger)
-    const submissionService = new ExternalSubmissionService(prisma, logger)
-    const result = await submissionService.send({
-      projectId: project.id,
-      referenceNumber,
-      payload,
-      isResend: false
-    })
-    if (!result.success) {
-      logger.warn(
-        { referenceNumber, error: result.error, httpStatus: result.httpStatus },
-        'External submission failed — project is submitted in PAFS but not yet in external system'
-      )
-    }
-  } catch (externalError) {
-    logger.error(
-      { error: externalError.message, referenceNumber },
-      'Unexpected error during external submission — project is submitted in PAFS'
-    )
   }
 }
 
@@ -284,18 +238,19 @@ const handler = async (request, h) => {
     return transitionErr
   }
 
-  const creatorEmail = await lookupCreatorEmail(
-    request.prisma,
-    referenceNumber,
-    logger
-  )
-  await sendToExternalSystem(
-    request.prisma,
-    project,
-    creatorEmail,
-    referenceNumber,
-    logger
-  )
+  try {
+    await sendExternalSubmissionMessage(
+      request.server.sqs,
+      referenceNumber,
+      project.id
+    )
+    logger.info({ referenceNumber }, 'External submission enqueued on SQS')
+  } catch (sqsError) {
+    logger.error(
+      { error: sqsError.message, referenceNumber },
+      'Failed to enqueue external submission — project is submitted in PAFS; use admin resubmit to retry'
+    )
+  }
 
   request.metrics.counter('proposalOperation', 1, {
     operation: 'submit',

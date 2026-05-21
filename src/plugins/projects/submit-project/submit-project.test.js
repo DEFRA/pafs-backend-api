@@ -18,16 +18,10 @@ vi.mock('../helpers/project-validations/validate-submission.js', () => ({
   validateSubmission: vi.fn(),
   canSubmitProject: vi.fn()
 }))
-vi.mock('../helpers/proposal-payload-builder.js', () => ({
-  buildProposalPayload: vi
-    .fn()
-    .mockReturnValue({ national_project_number: 'LCR/123/456' }),
-  fetchShapefileBase64: vi.fn().mockResolvedValue('base64shapefile==')
-}))
 vi.mock(
-  '../../../common/services/external-submission/external-submission-service.js',
+  '../../../common/helpers/sqs/send-external-submission-message.js',
   () => ({
-    ExternalSubmissionService: vi.fn()
+    sendExternalSubmissionMessage: vi.fn().mockResolvedValue(undefined)
   })
 )
 vi.mock('../../../common/helpers/response-builder.js', () => ({
@@ -47,11 +41,7 @@ import {
   validateSubmission,
   canSubmitProject
 } from '../helpers/project-validations/validate-submission.js'
-import { ExternalSubmissionService } from '../../../common/services/external-submission/external-submission-service.js'
-import {
-  buildProposalPayload,
-  fetchShapefileBase64
-} from '../helpers/proposal-payload-builder.js'
+import { sendExternalSubmissionMessage } from '../../../common/helpers/sqs/send-external-submission-message.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -76,16 +66,12 @@ const buildMockRequest = (overrides = {}) => ({
       areas: [10]
     }
   },
-  server: { logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
-  metrics: { counter: vi.fn(), timer: vi.fn(async (_name, fn) => fn()) },
-  prisma: {
-    pafs_core_projects: {
-      findFirst: vi.fn().mockResolvedValue({ creator_id: 7 })
-    },
-    pafs_core_users: {
-      findFirst: vi.fn().mockResolvedValue({ email: 'user@example.com' })
-    }
+  server: {
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    sqs: { send: vi.fn().mockResolvedValue({}) }
   },
+  metrics: { counter: vi.fn(), timer: vi.fn(async (_name, fn) => fn()) },
+  prisma: {},
   ...overrides
 })
 
@@ -133,7 +119,6 @@ describe('submitProject route definition', () => {
 describe('submit-project handler', () => {
   let mockProjectService
   let mockAreaService
-  let mockExternalService
   let request
   let h
 
@@ -142,14 +127,10 @@ describe('submit-project handler', () => {
 
     mockProjectService = {
       getProjectByReferenceNumber: vi.fn().mockResolvedValue(DRAFT_PROJECT),
-      upsertProjectState: vi.fn().mockResolvedValue({}),
-      setSubmittedAt: vi.fn().mockResolvedValue(undefined)
+      transitionToSubmitted: vi.fn().mockResolvedValue(undefined)
     }
     mockAreaService = {
       getAreaByIdWithParents: vi.fn().mockResolvedValue(AREA)
-    }
-    mockExternalService = {
-      send: vi.fn().mockResolvedValue({ success: true, httpStatus: 200 })
     }
 
     ProjectService.mockImplementation(function () {
@@ -157,9 +138,6 @@ describe('submit-project handler', () => {
     })
     AreaService.mockImplementation(function () {
       return mockAreaService
-    })
-    ExternalSubmissionService.mockImplementation(function () {
-      return mockExternalService
     })
 
     validateSubmission.mockReturnValue([])
@@ -370,27 +348,12 @@ describe('submit-project handler', () => {
 
   // ─── Successful submission ────────────────────────────────────────────────
 
-  test('transitions project to SUBMITTED status on success', async () => {
+  test('calls transitionToSubmitted with project id and reference number', async () => {
     await submitProjectRoute.options.handler(request, h)
-    expect(mockProjectService.upsertProjectState).toHaveBeenCalledWith(
+    expect(mockProjectService.transitionToSubmitted).toHaveBeenCalledWith(
       DRAFT_PROJECT.id,
-      PROJECT_STATUS.SUBMITTED
-    )
-  })
-
-  test('stamps submitted_at on the project on success', async () => {
-    await submitProjectRoute.options.handler(request, h)
-    expect(mockProjectService.setSubmittedAt).toHaveBeenCalledWith(
       'LCR/123/456'
     )
-  })
-
-  test('returns 500 when setSubmittedAt throws', async () => {
-    mockProjectService.setSubmittedAt.mockRejectedValue(
-      new Error('DB write failed')
-    )
-    await submitProjectRoute.options.handler(request, h)
-    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
   })
 
   test('returns 200 with success=true on successful submission', async () => {
@@ -421,39 +384,37 @@ describe('submit-project handler', () => {
     )
   })
 
-  test('returns 500 when upsertProjectState throws', async () => {
-    mockProjectService.upsertProjectState.mockRejectedValue(
-      new Error('DB write failed')
+  test('returns 500 when transitionToSubmitted throws', async () => {
+    mockProjectService.transitionToSubmitted.mockRejectedValue(
+      new Error('DB transaction failed')
     )
     await submitProjectRoute.options.handler(request, h)
     expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
   })
 
-  test('logs error when upsertProjectState throws', async () => {
-    mockProjectService.upsertProjectState.mockRejectedValue(
-      new Error('Write error')
+  test('logs error when transitionToSubmitted throws', async () => {
+    mockProjectService.transitionToSubmitted.mockRejectedValue(
+      new Error('Transaction error')
     )
     await submitProjectRoute.options.handler(request, h)
     expect(request.server.logger.error).toHaveBeenCalled()
   })
 
-  // ─── External submission behaviour ───────────────────────────────────────
+  // ─── SQS external submission enqueueing ──────────────────────────────────
 
-  test('calls external submission service after state transition', async () => {
+  test('enqueues external submission on SQS after state transition', async () => {
     await submitProjectRoute.options.handler(request, h)
-    expect(mockExternalService.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        referenceNumber: 'LCR/123/456',
-        isResend: false
-      })
+    expect(sendExternalSubmissionMessage).toHaveBeenCalledWith(
+      request.server.sqs,
+      'LCR/123/456',
+      DRAFT_PROJECT.id
     )
   })
 
-  test('still returns 200 when external submission fails', async () => {
-    mockExternalService.send.mockResolvedValue({
-      success: false,
-      error: 'Connection refused'
-    })
+  test('still returns 200 when SQS enqueue fails', async () => {
+    sendExternalSubmissionMessage.mockRejectedValue(
+      new Error('SQS unavailable')
+    )
     await submitProjectRoute.options.handler(request, h)
     expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     expect(h.response).toHaveBeenCalledWith(
@@ -461,41 +422,12 @@ describe('submit-project handler', () => {
     )
   })
 
-  test('logs warning when external submission fails', async () => {
-    mockExternalService.send.mockResolvedValue({
-      success: false,
-      error: 'Timeout'
-    })
+  test('logs error when SQS enqueue fails', async () => {
+    sendExternalSubmissionMessage.mockRejectedValue(new Error('Queue error'))
     await submitProjectRoute.options.handler(request, h)
-    expect(request.server.logger.warn).toHaveBeenCalled()
-  })
-
-  test('still returns 200 when external submission service throws unexpectedly', async () => {
-    mockExternalService.send.mockRejectedValue(new Error('Unexpected error'))
-    await submitProjectRoute.options.handler(request, h)
-    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
-  })
-
-  test('looks up creator_id from projects then email from users', async () => {
-    await submitProjectRoute.options.handler(request, h)
-    expect(request.prisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ select: { creator_id: true } })
-    )
-    expect(request.prisma.pafs_core_users.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ select: { email: true } })
-    )
-  })
-
-  test('fetches shapefile before building payload and passes it to buildProposalPayload', async () => {
-    await submitProjectRoute.options.handler(request, h)
-    expect(fetchShapefileBase64).toHaveBeenCalledWith(
+    expect(request.server.logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ referenceNumber: 'LCR/123/456' }),
-      expect.anything()
-    )
-    expect(buildProposalPayload).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      'base64shapefile=='
+      expect.stringContaining('enqueue')
     )
   })
 })

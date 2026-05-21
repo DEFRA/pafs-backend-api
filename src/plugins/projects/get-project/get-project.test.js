@@ -6,9 +6,13 @@ import {
   fetchFundingValues,
   computeCarbonResults
 } from '../carbon-impact/carbon-impact.js'
+import { fetchShapefileBase64 } from '../helpers/proposal-payload-helpers.js'
 
 vi.mock('../services/project-service.js')
 vi.mock('../carbon-impact/carbon-impact.js')
+vi.mock('../helpers/proposal-payload-helpers.js', () => ({
+  fetchShapefileBase64: vi.fn().mockResolvedValue(null)
+}))
 
 const MOCK_CARBON_CALC = {
   capitalCarbonBaseline: 100,
@@ -200,6 +204,91 @@ describe('getProject', () => {
         expect.any(Function),
         { operation: 'getProject' }
       )
+    })
+
+    // ─── Shapefile base64 lazy cache ────────────────────────────────────────
+
+    describe('shapefile base64 lazy cache', () => {
+      beforeEach(() => {
+        ProjectService.prototype.cacheShapefileBase64 = vi
+          .fn()
+          .mockResolvedValue(undefined)
+      })
+
+      test('triggers cache write when S3 key present and cache is empty', async () => {
+        const project = {
+          referenceNumber: 'RM/2023/001',
+          benefitAreaFileS3Key: 'some/key.zip',
+          benefitAreaFileName: 'file.zip',
+          benefitAreaFileBase64: null
+        }
+        ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue(
+          project
+        )
+        fetchShapefileBase64.mockResolvedValue('base64data==')
+
+        await getProject.handler(mockRequest, mockH)
+
+        // Allow microtasks to flush (fire-and-forget)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        expect(fetchShapefileBase64).toHaveBeenCalledWith(project, mockLogger)
+        expect(
+          ProjectService.prototype.cacheShapefileBase64
+        ).toHaveBeenCalledWith('RM/2023/001', 'base64data==')
+      })
+
+      test('does not trigger cache write when base64 already cached', async () => {
+        ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue({
+          referenceNumber: 'RM/2023/001',
+          benefitAreaFileS3Key: 'some/key.zip',
+          benefitAreaFileBase64: 'already-cached=='
+        })
+
+        await getProject.handler(mockRequest, mockH)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        expect(
+          ProjectService.prototype.cacheShapefileBase64
+        ).not.toHaveBeenCalled()
+      })
+
+      test('does not trigger cache write when project has no S3 key', async () => {
+        ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue({
+          referenceNumber: 'RM/2023/001',
+          benefitAreaFileS3Key: null,
+          benefitAreaFileBase64: null
+        })
+
+        await getProject.handler(mockRequest, mockH)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        expect(
+          ProjectService.prototype.cacheShapefileBase64
+        ).not.toHaveBeenCalled()
+      })
+
+      test('logs warning but still returns 200 when cache write fails', async () => {
+        const project = {
+          referenceNumber: 'RM/2023/001',
+          benefitAreaFileS3Key: 'some/key.zip',
+          benefitAreaFileName: 'file.zip',
+          benefitAreaFileBase64: null
+        }
+        ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue(
+          project
+        )
+        fetchShapefileBase64.mockRejectedValue(new Error('S3 error'))
+
+        const result = await getProject.handler(mockRequest, mockH)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        expect(result.statusCode).toBe(HTTP_STATUS.OK)
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          expect.objectContaining({ referenceNumber: 'RM/2023/001' }),
+          expect.stringContaining('cache write failed')
+        )
+      })
     })
   })
 })
