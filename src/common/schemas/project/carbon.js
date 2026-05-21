@@ -7,6 +7,7 @@ const MAX_COST_DIGITS = 18
 const MAX_HEXDIGEST_LENGTH = 255
 const DECIMAL_REGEX = /^\d+(\.(\d{1,2}))?$/
 const INTEGER_REGEX = /^\d+$/
+const SIGNED_INTEGER_REGEX = /^-?\d+$/
 
 /**
  * Validates a carbon decimal field value (up to 2 decimal places).
@@ -42,6 +43,23 @@ const validateCarbonIntegerString = (value, helpers) => {
     return helpers.error('string.pattern.base')
   }
   if (value.length > MAX_COST_DIGITS) {
+    return helpers.error('string.max')
+  }
+  return value
+}
+
+/**
+ * Validates a carbon signed integer field value (allows negative numbers).
+ * Used for £ fields that can be negative: net economic benefit.
+ * Max digits excludes the minus sign.
+ */
+const validateCarbonSignedIntegerString = (value, helpers) => {
+  if (!SIGNED_INTEGER_REGEX.test(value)) {
+    return helpers.error('string.pattern.base')
+  }
+  // Count digits excluding minus sign
+  const digits = value.replace(/^-/, '')
+  if (digits.length > MAX_COST_DIGITS) {
     return helpers.error('string.max')
   }
   return value
@@ -90,6 +108,24 @@ const createOptionalCarbonIntegerSchema = (label) =>
       'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID
     })
 
+const createOptionalCarbonSignedIntegerSchema = (label) =>
+  Joi.string()
+    .trim()
+    .allow(null, '')
+    .optional()
+    .custom((value, helpers) => {
+      if (value === null || value === undefined || value === '') {
+        return value
+      }
+      return validateCarbonSignedIntegerString(value, helpers)
+    })
+    .label(label)
+    .messages({
+      'string.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
+      'string.pattern.base': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID,
+      'string.max': PROJECT_VALIDATION_MESSAGES.CARBON_COST_INVALID
+    })
+
 const createRequiredCarbonOperationalCostForecastSchema = (label) =>
   Joi.string()
     .trim()
@@ -117,7 +153,7 @@ export const carbonCostAvoidedOptionalSchema =
 
 // £ integer fields
 export const carbonSavingsNetEconomicBenefitOptionalSchema =
-  createOptionalCarbonIntegerSchema('carbonSavingsNetEconomicBenefit')
+  createOptionalCarbonSignedIntegerSchema('carbonSavingsNetEconomicBenefit')
 export const carbonOperationalCostForecastRequiredSchema =
   createRequiredCarbonOperationalCostForecastSchema(
     'carbonOperationalCostForecast'

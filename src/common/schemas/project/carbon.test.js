@@ -142,6 +142,36 @@ describe('Carbon Impact Schemas', () => {
       expect(error).toBeUndefined()
       expect(value).toBe('500')
     })
+
+    it('should accept negative integers', () => {
+      const { error, value } =
+        carbonSavingsNetEconomicBenefitOptionalSchema.validate('-150000')
+      expect(error).toBeUndefined()
+      expect(value).toBe('-150000')
+    })
+
+    it('should accept negative single digit', () => {
+      const { error, value } =
+        carbonSavingsNetEconomicBenefitOptionalSchema.validate('-5')
+      expect(error).toBeUndefined()
+      expect(value).toBe('-5')
+    })
+
+    it('should reject negative values exceeding max digits (excluding minus)', () => {
+      const oversized = '-1234567890123456789' // 19 digits
+      const { error } =
+        carbonSavingsNetEconomicBenefitOptionalSchema.validate(oversized)
+      expect(error).toBeDefined()
+      expect(error.details[0].message).toBe('CARBON_COST_INVALID')
+    })
+
+    it('should accept negative values at max digits boundary', () => {
+      const maxDigits = '-123456789012345678' // 18 digits
+      const { error, value } =
+        carbonSavingsNetEconomicBenefitOptionalSchema.validate(maxDigits)
+      expect(error).toBeUndefined()
+      expect(value).toBe(maxDigits)
+    })
   })
 
   describe('carbonOperationalCostForecastRequiredSchema', () => {
