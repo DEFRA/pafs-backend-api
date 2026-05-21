@@ -158,7 +158,7 @@ export async function enrichProjectResponse(
   apiData,
   logger
 ) {
-  for (const step of ENRICHMENT_STEPS) {
-    await step(prisma, rawProject, apiData, logger)
-  }
+  await Promise.all(
+    ENRICHMENT_STEPS.map((step) => step(prisma, rawProject, apiData, logger))
+  )
 }

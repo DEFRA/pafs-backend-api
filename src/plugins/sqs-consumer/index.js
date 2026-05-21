@@ -43,6 +43,7 @@ export const sqsProgrammeConsumerPlugin = {
             ReceiptHandle: message.ReceiptHandle
           })
         )
+        return message
       }
     })
 

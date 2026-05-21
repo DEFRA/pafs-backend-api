@@ -1,4 +1,6 @@
 import Joi from 'joi'
+import { randomUUID } from 'node:crypto'
+import { config } from '../../../config.js'
 import { getCdpUploaderService } from '../../../common/services/file-upload/cdp-uploader-service.js'
 import { HTTP_STATUS, UPLOAD_STATUS } from '../../../common/constants/index.js'
 
@@ -123,12 +125,20 @@ const initiateUpload = {
     const cdpUploader = getCdpUploaderService(logger)
 
     try {
-      // Prepare metadata to send to CDP Uploader
-      const uploadMetadata = buildUploadMetadata(payload, userId)
+      // Generate correlationId before calling CDP — the only identifier
+      // that will be returned in the callback payload (via metadata), since CDP
+      // does not include the uploadId in the callback body.
+      const correlationId = randomUUID()
+      const uploadMetadata = {
+        ...buildUploadMetadata(payload, userId),
+        correlationId
+      }
 
-      // Initiate upload with CDP Uploader (no callback - using status polling instead)
+      // Initiate upload with CDP Uploader, providing a callback for scan completion
+      const callbackUrl = `${config.get('serviceUrl')}/api/v1/file-uploads/callback`
       const uploadSession = await cdpUploader.initiate({
         redirect: payload.redirect || '/upload-complete',
+        callback: callbackUrl,
         metadata: uploadMetadata,
         downloadUrls: payload.downloadUrls
       })

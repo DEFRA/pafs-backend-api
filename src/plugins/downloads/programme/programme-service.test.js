@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
+import { PassThrough } from 'node:stream'
 
 // Mock heavy dependencies that require real files / network
 vi.mock('../helpers/fcerm1/fcerm1-builder.js', () => ({
@@ -47,6 +48,19 @@ vi.mock('adm-zip', () => ({
     }
   })
 }))
+
+// ZipArchive mock — constructor returns a shared instance reset in each test that
+// exercises buildBenefitAreasZip.  Must be a regular function so `new` works.
+let mockArchiveInstance
+vi.mock('archiver', () => ({
+  ZipArchive: vi.fn(function ZipArchiveMock() {
+    return mockArchiveInstance
+  })
+}))
+
+function freshArchive() {
+  return { append: vi.fn(), finalize: vi.fn(), on: vi.fn(), pipe: vi.fn() }
+}
 
 const {
   getUserDownloadRecord,
@@ -1007,6 +1021,7 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
 
 describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () => {
   beforeEach(() => {
+    mockArchiveInstance = freshArchive()
     vi.clearAllMocks()
   })
 
@@ -1021,13 +1036,13 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([])
     prisma.pafs_core_projects.findMany.mockResolvedValue([rawProject])
 
-    const mockGetObject = vi.fn().mockResolvedValue(Buffer.from('zip-data'))
-    const mockPutObject = vi.fn().mockResolvedValue({})
+    const mockGetObject = vi.fn().mockResolvedValue({})
+    const mockPutObject = vi.fn().mockResolvedValue(undefined)
     const { getS3Service } =
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({
-      getObject: mockGetObject,
-      putObject: mockPutObject
+      getObjectStream: mockGetObject,
+      putObjectStream: mockPutObject
     })
 
     const logger = makeLogger()
@@ -1046,7 +1061,7 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     expect(mockPutObject).toHaveBeenCalledWith(
       'dest-bucket',
       expect.stringContaining('benefit_areas.zip'),
-      expect.any(Buffer),
+      expect.any(PassThrough),
       'application/zip'
     )
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
@@ -1072,11 +1087,10 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     const { getS3Service } =
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({
-      getObject: vi.fn().mockResolvedValue(Buffer.from('data')),
-      putObject: vi.fn().mockResolvedValue({})
+      getObjectStream: vi.fn().mockResolvedValue({}),
+      putObjectStream: vi.fn().mockResolvedValue(undefined)
     })
 
-    const AdmZipModule = await import('adm-zip')
     await runUserGeneration({
       prisma,
       logger: makeLogger(),
@@ -1085,12 +1099,9 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
       s3Bucket: 'bucket'
     })
 
-    // Retrieve the zip instance Vitest created via new AdmZip() — avoids arrow-function constructor issue
-    const zipInstance = AdmZipModule.default.mock.results.at(-1)?.value
-    expect(zipInstance.addFile).toHaveBeenCalledWith(
-      'REF999_benefit_area.zip',
-      expect.any(Buffer)
-    )
+    expect(mockArchiveInstance.append).toHaveBeenCalledWith(expect.anything(), {
+      name: 'REF999_benefit_area.zip'
+    })
   })
 
   test('warns and skips file when S3 getObject throws', async () => {
@@ -1108,8 +1119,8 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     const { getS3Service } =
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({
-      getObject: vi.fn().mockRejectedValue(s3Error),
-      putObject: vi.fn().mockResolvedValue({})
+      getObjectStream: vi.fn().mockRejectedValue(s3Error),
+      putObjectStream: vi.fn().mockResolvedValue(undefined)
     })
 
     const logger = makeLogger()
@@ -1138,10 +1149,12 @@ describe('buildBenefitAreasZip — internal paths via queueUserGeneration', () =
     prisma.pafs_core_user_areas.findMany.mockResolvedValue([])
     prisma.pafs_core_projects.findMany.mockResolvedValue([rawProject])
 
-    const mockPutObject = vi.fn().mockResolvedValue({})
     const { getS3Service } =
       await import('../../../common/services/file-upload/s3-service.js')
-    getS3Service.mockReturnValue({ putObject: mockPutObject })
+    getS3Service.mockReturnValue({
+      putObject: vi.fn().mockResolvedValue({}),
+      putObjectStream: vi.fn().mockResolvedValue(undefined)
+    })
 
     await runUserGeneration({
       prisma,
@@ -1484,11 +1497,13 @@ describe('runAdminGeneration — projects, batching, and email paths', () => {
       await import('../helpers/fcerm1/fcerm1-builder.js')
     buildMultiWorkbook.mockResolvedValue(Buffer.from('xlsx'))
     const mockPutObject = vi.fn().mockResolvedValue({})
+    const mockPutObjectStream = vi.fn().mockResolvedValue(undefined)
     const { getS3Service } =
       await import('../../../common/services/file-upload/s3-service.js')
     getS3Service.mockReturnValue({
-      getObject: vi.fn().mockResolvedValue(Buffer.from('zip-data')),
-      putObject: mockPutObject
+      getObjectStream: vi.fn().mockResolvedValue({}),
+      putObject: mockPutObject,
+      putObjectStream: mockPutObjectStream
     })
 
     await runAdminGeneration({
@@ -1500,12 +1515,12 @@ describe('runAdminGeneration — projects, batching, and email paths', () => {
     })
 
     // Benefit areas zip uploaded under the admin S3 prefix
-    const benefitPutCall = mockPutObject.mock.calls.find(([, key]) =>
+    const benefitPutCall = mockPutObjectStream.mock.calls.find(([, key]) =>
       key.includes('all_benefit_areas.zip')
     )
     expect(benefitPutCall).toBeDefined()
     expect(benefitPutCall[0]).toBe('admin-bucket')
-    expect(benefitPutCall[2]).toBeInstanceOf(Buffer)
+    expect(benefitPutCall[2]).toBeInstanceOf(PassThrough)
 
     const updateCalls = prisma.pafs_core_area_downloads.update.mock.calls.map(
       (c) => c[0].data

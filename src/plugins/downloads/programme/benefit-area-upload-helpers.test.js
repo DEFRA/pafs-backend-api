@@ -1,14 +1,16 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
+import { PassThrough } from 'stream'
 
 vi.mock('../../projects/helpers/legacy-file-resolver.js', () => ({
   resolveLegacyBenefitAreaFile: vi.fn().mockResolvedValue(null)
 }))
-vi.mock('adm-zip', () => ({
-  default: vi.fn(function AdmZipMock() {
-    return {
-      addFile: vi.fn(),
-      toBuffer: vi.fn().mockReturnValue(Buffer.from('zip'))
-    }
+
+// ZipArchive mock — constructor returns a shared mock instance reset in beforeEach.
+// Must be a regular function (not arrow) because production code calls it with `new`.
+let mockArchiveInstance
+vi.mock('archiver', () => ({
+  ZipArchive: vi.fn(function ZipArchiveMock() {
+    return mockArchiveInstance
   })
 }))
 
@@ -33,12 +35,27 @@ function makePrisma(overrides = {}) {
   }
 }
 
+function makeS3Service(overrides = {}) {
+  return {
+    getObjectStream: vi.fn().mockResolvedValue({}),
+    putObjectStream: vi.fn().mockResolvedValue(undefined),
+    ...overrides
+  }
+}
+
+function freshArchive() {
+  return { append: vi.fn(), finalize: vi.fn(), on: vi.fn(), pipe: vi.fn() }
+}
+
 // ── buildBenefitAreasZip ──────────────────────────────────────────────────────
 
 describe('buildBenefitAreasZip', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    mockArchiveInstance = freshArchive()
+    vi.clearAllMocks()
+  })
 
-  test('returns null when no projects have benefit area files', async () => {
+  test('returns count 0 when no projects have benefit area files', async () => {
     const projects = [
       {
         reference_number: 'REF001',
@@ -46,16 +63,24 @@ describe('buildBenefitAreasZip', () => {
         benefit_area_file_s3_key: null
       }
     ]
-    const s3Service = { getObject: vi.fn() }
-    const result = await buildBenefitAreasZip(projects, s3Service, makeLogger())
-    expect(result).toEqual({ buffer: null, count: 0 })
-    expect(s3Service.getObject).not.toHaveBeenCalled()
+    const s3Service = makeS3Service()
+    const result = await buildBenefitAreasZip(
+      projects,
+      s3Service,
+      'dest-bucket',
+      'test/output.zip',
+      makeLogger()
+    )
+    expect(result).toEqual({ count: 0 })
+    expect(s3Service.getObjectStream).not.toHaveBeenCalled()
+    expect(s3Service.putObjectStream).not.toHaveBeenCalled()
   })
 
-  test('fetches file and adds it to zip when project has benefit area', async () => {
-    const AdmZipModule = await import('adm-zip')
-    AdmZipModule.default.mockClear()
-
+  test('fetches stream and appends it to archive when project has benefit area', async () => {
+    const mockStream = { pipe: vi.fn() }
+    const s3Service = makeS3Service({
+      getObjectStream: vi.fn().mockResolvedValue(mockStream)
+    })
     const projects = [
       {
         reference_number: 'REF001',
@@ -64,28 +89,37 @@ describe('buildBenefitAreasZip', () => {
         benefit_area_file_name: 'ref001_benefit.zip'
       }
     ]
-    const fileBuffer = Buffer.from('file-data')
-    const s3Service = { getObject: vi.fn().mockResolvedValue(fileBuffer) }
 
-    const result = await buildBenefitAreasZip(projects, s3Service, makeLogger())
+    const result = await buildBenefitAreasZip(
+      projects,
+      s3Service,
+      'dest-bucket',
+      'output.zip',
+      makeLogger()
+    )
 
-    expect(s3Service.getObject).toHaveBeenCalledWith(
+    expect(s3Service.getObjectStream).toHaveBeenCalledWith(
       'src-bucket',
       'benefit/ref001.zip'
     )
-    const zipInstance = AdmZipModule.default.mock.results.at(-1)?.value
-    expect(zipInstance.addFile).toHaveBeenCalledWith(
-      'REF001_ref001_benefit.zip',
-      fileBuffer
+    expect(mockArchiveInstance.append).toHaveBeenCalledWith(mockStream, {
+      name: 'REF001_ref001_benefit.zip'
+    })
+    expect(mockArchiveInstance.finalize).toHaveBeenCalled()
+    expect(s3Service.putObjectStream).toHaveBeenCalledWith(
+      'dest-bucket',
+      'output.zip',
+      expect.any(PassThrough),
+      'application/zip'
     )
-    expect(result).toMatchObject({ count: 1 })
-    expect(result.buffer).toBeInstanceOf(Buffer)
+    expect(result).toEqual({ count: 1 })
   })
 
   test('uses default filename (replaces / with -) when benefit_area_file_name is null', async () => {
-    const AdmZipModule = await import('adm-zip')
-    AdmZipModule.default.mockClear()
-
+    const mockStream = {}
+    const s3Service = makeS3Service({
+      getObjectStream: vi.fn().mockResolvedValue(mockStream)
+    })
     const projects = [
       {
         reference_number: 'AC/2021/00001',
@@ -94,21 +128,25 @@ describe('buildBenefitAreasZip', () => {
         benefit_area_file_name: null
       }
     ]
-    const s3Service = {
-      getObject: vi.fn().mockResolvedValue(Buffer.from('data'))
-    }
 
-    await buildBenefitAreasZip(projects, s3Service, makeLogger())
-
-    const zipInstance = AdmZipModule.default.mock.results.at(-1)?.value
-    expect(zipInstance.addFile).toHaveBeenCalledWith(
-      'AC-2021-00001_benefit_area.zip',
-      expect.any(Buffer)
+    await buildBenefitAreasZip(
+      projects,
+      s3Service,
+      'dest-bucket',
+      'output.zip',
+      makeLogger()
     )
+
+    expect(mockArchiveInstance.append).toHaveBeenCalledWith(mockStream, {
+      name: 'AC-2021-00001_benefit_area.zip'
+    })
   })
 
-  test('warns and skips file when S3 getObject throws', async () => {
+  test('warns and skips file when S3 getObjectStream throws', async () => {
     const s3Error = new Error('S3 access denied')
+    const s3Service = makeS3Service({
+      getObjectStream: vi.fn().mockRejectedValue(s3Error)
+    })
     const projects = [
       {
         reference_number: 'FAIL001',
@@ -117,23 +155,31 @@ describe('buildBenefitAreasZip', () => {
         benefit_area_file_name: null
       }
     ]
-    const s3Service = { getObject: vi.fn().mockRejectedValue(s3Error) }
     const logger = makeLogger()
 
-    const result = await buildBenefitAreasZip(projects, s3Service, logger)
+    const result = await buildBenefitAreasZip(
+      projects,
+      s3Service,
+      'dest-bucket',
+      'output.zip',
+      logger
+    )
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: s3Error, referenceNumber: 'FAIL001' }),
       'Skipping benefit area file'
     )
-    expect(result).toEqual({ buffer: null, count: 0 })
+    expect(result).toEqual({ count: 0 })
   })
 })
 
 // ── uploadUserBenefitAreas ────────────────────────────────────────────────────
 
 describe('uploadUserBenefitAreas', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    mockArchiveInstance = freshArchive()
+    vi.clearAllMocks()
+  })
 
   test('returns null when no projects have benefit area files', async () => {
     const prisma = makePrisma()
@@ -144,7 +190,7 @@ describe('uploadUserBenefitAreas', () => {
         benefit_area_file_s3_key: null
       }
     ])
-    const s3Service = { getObject: vi.fn(), putObject: vi.fn() }
+    const s3Service = makeS3Service()
 
     const result = await uploadUserBenefitAreas(
       prisma,
@@ -156,10 +202,10 @@ describe('uploadUserBenefitAreas', () => {
     )
 
     expect(result).toEqual({ filename: null, count: 0 })
-    expect(s3Service.putObject).not.toHaveBeenCalled()
+    expect(s3Service.putObjectStream).not.toHaveBeenCalled()
   })
 
-  test('uploads benefit zip and returns key when benefit files exist', async () => {
+  test('streams benefit zip to S3 and returns key when benefit files exist', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_projects.findMany.mockResolvedValue([
       {
@@ -169,11 +215,7 @@ describe('uploadUserBenefitAreas', () => {
         benefit_area_file_name: 'ref002.zip'
       }
     ])
-    const mockPutObject = vi.fn().mockResolvedValue({})
-    const s3Service = {
-      getObject: vi.fn().mockResolvedValue(Buffer.from('data')),
-      putObject: mockPutObject
-    }
+    const s3Service = makeS3Service()
 
     const result = await uploadUserBenefitAreas(
       prisma,
@@ -184,10 +226,10 @@ describe('uploadUserBenefitAreas', () => {
       makeLogger()
     )
 
-    expect(mockPutObject).toHaveBeenCalledWith(
+    expect(s3Service.putObjectStream).toHaveBeenCalledWith(
       'dest-bucket',
       'programme/user_7/benefit_areas.zip',
-      expect.any(Buffer),
+      expect.any(PassThrough),
       'application/zip'
     )
     expect(result).toEqual({
@@ -218,11 +260,7 @@ describe('uploadUserBenefitAreas', () => {
         version: 1
       }
     ])
-    const mockPutObject = vi.fn().mockResolvedValue({})
-    const s3Service = {
-      getObject: vi.fn().mockResolvedValue(Buffer.from('legacy-data')),
-      putObject: mockPutObject
-    }
+    const s3Service = makeS3Service()
 
     const result = await uploadUserBenefitAreas(
       prisma,
@@ -234,14 +272,14 @@ describe('uploadUserBenefitAreas', () => {
     )
 
     expect(resolveLegacyBenefitAreaFile).toHaveBeenCalled()
-    expect(s3Service.getObject).toHaveBeenCalledWith(
+    expect(s3Service.getObjectStream).toHaveBeenCalledWith(
       'pafs-uploads',
       'legacy/LEG001/1/leg001.zip'
     )
-    expect(mockPutObject).toHaveBeenCalledWith(
+    expect(s3Service.putObjectStream).toHaveBeenCalledWith(
       'dest-bucket',
       'programme/user_5/benefit_areas.zip',
-      expect.any(Buffer),
+      expect.any(PassThrough),
       'application/zip'
     )
     expect(result).toEqual({
@@ -253,7 +291,7 @@ describe('uploadUserBenefitAreas', () => {
   test('queries projects using BigInt-mapped IDs', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_projects.findMany.mockResolvedValue([])
-    const s3Service = { putObject: vi.fn() }
+    const s3Service = makeS3Service()
 
     await uploadUserBenefitAreas(
       prisma,
@@ -288,7 +326,7 @@ describe('uploadUserBenefitAreas', () => {
         version: 1
       }
     ])
-    const s3Service = { getObject: vi.fn(), putObject: vi.fn() }
+    const s3Service = makeS3Service()
 
     const result = await uploadUserBenefitAreas(
       prisma,
@@ -301,7 +339,7 @@ describe('uploadUserBenefitAreas', () => {
 
     expect(resolveLegacyBenefitAreaFile).toHaveBeenCalled()
     // resolver returned null → original project (no S3 coords) used → ZIP skipped
-    expect(s3Service.getObject).not.toHaveBeenCalled()
+    expect(s3Service.getObjectStream).not.toHaveBeenCalled()
     expect(result).toEqual({ filename: null, count: 0 })
   })
 
@@ -321,10 +359,7 @@ describe('uploadUserBenefitAreas', () => {
         version: 1
       }
     ])
-    const s3Service = {
-      getObject: vi.fn().mockResolvedValue(Buffer.from('data')),
-      putObject: vi.fn().mockResolvedValue({})
-    }
+    const s3Service = makeS3Service()
 
     await uploadUserBenefitAreas(
       prisma,
@@ -337,17 +372,59 @@ describe('uploadUserBenefitAreas', () => {
 
     // S3 coords already set — no legacy resolution needed
     expect(resolveLegacyBenefitAreaFile).not.toHaveBeenCalled()
-    expect(s3Service.getObject).toHaveBeenCalledWith(
+    expect(s3Service.getObjectStream).toHaveBeenCalledWith(
       'pafs-uploads',
       'legacy/LEG003/1/leg003.zip'
     )
+  })
+
+  test('resolves legacy projects in bounded batches (B6 concurrency fix)', async () => {
+    const { resolveLegacyBenefitAreaFile } =
+      await import('../../projects/helpers/legacy-file-resolver.js')
+
+    // 7 legacy projects — exceeds LEGACY_RESOLUTION_CONCURRENCY=5, so two batches run.
+    const legacyProjects = Array.from({ length: 7 }, (_, i) => ({
+      reference_number: `LEG00${i + 1}`,
+      benefit_area_file_name: `file${i}.zip`,
+      benefit_area_file_s3_bucket: null,
+      benefit_area_file_s3_key: null,
+      is_legacy: true,
+      slug: `LEG00${i + 1}`,
+      version: 1
+    }))
+
+    resolveLegacyBenefitAreaFile.mockImplementation(async (project) => ({
+      ...project,
+      benefit_area_file_s3_bucket: 'pafs-uploads',
+      benefit_area_file_s3_key: `legacy/${project.slug}/1/${project.benefit_area_file_name}`
+    }))
+
+    const prisma = makePrisma()
+    prisma.pafs_core_projects.findMany.mockResolvedValue(legacyProjects)
+    const s3Service = makeS3Service()
+
+    await uploadUserBenefitAreas(
+      prisma,
+      s3Service,
+      'bucket',
+      1,
+      [1],
+      makeLogger()
+    )
+
+    // All 7 projects resolved and streamed.
+    expect(resolveLegacyBenefitAreaFile).toHaveBeenCalledTimes(7)
+    expect(s3Service.getObjectStream).toHaveBeenCalledTimes(7)
   })
 })
 
 // ── uploadAdminBenefitAreas ───────────────────────────────────────────────────
 
 describe('uploadAdminBenefitAreas', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    mockArchiveInstance = freshArchive()
+    vi.clearAllMocks()
+  })
 
   test('returns null when no projects have benefit area files', async () => {
     const prisma = makePrisma()
@@ -359,7 +436,7 @@ describe('uploadAdminBenefitAreas', () => {
         benefit_area_file_name: null
       }
     ])
-    const s3Service = { getObject: vi.fn(), putObject: vi.fn() }
+    const s3Service = makeS3Service()
 
     const result = await uploadAdminBenefitAreas(
       prisma,
@@ -370,7 +447,7 @@ describe('uploadAdminBenefitAreas', () => {
     )
 
     expect(result).toEqual({ filename: null, count: 0 })
-    expect(s3Service.putObject).not.toHaveBeenCalled()
+    expect(s3Service.putObjectStream).not.toHaveBeenCalled()
   })
 
   test('uploads to admin S3 key and returns correct filename', async () => {
@@ -383,11 +460,7 @@ describe('uploadAdminBenefitAreas', () => {
         benefit_area_file_name: 'adm002.zip'
       }
     ])
-    const mockPutObject = vi.fn().mockResolvedValue({})
-    const s3Service = {
-      getObject: vi.fn().mockResolvedValue(Buffer.from('data')),
-      putObject: mockPutObject
-    }
+    const s3Service = makeS3Service()
 
     const result = await uploadAdminBenefitAreas(
       prisma,
@@ -397,10 +470,10 @@ describe('uploadAdminBenefitAreas', () => {
       makeLogger()
     )
 
-    expect(mockPutObject).toHaveBeenCalledWith(
+    expect(s3Service.putObjectStream).toHaveBeenCalledWith(
       'dest-bucket',
       'programme/admin/all_benefit_areas.zip',
-      expect.any(Buffer),
+      expect.any(PassThrough),
       'application/zip'
     )
     expect(result).toEqual({
@@ -412,7 +485,7 @@ describe('uploadAdminBenefitAreas', () => {
   test('uses BigInt-mapped IDs when querying projects', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_projects.findMany.mockResolvedValue([])
-    const s3Service = { putObject: vi.fn() }
+    const s3Service = makeS3Service()
 
     await uploadAdminBenefitAreas(
       prisma,
@@ -439,15 +512,11 @@ describe('uploadAdminBenefitAreas', () => {
         benefit_area_file_name: 'adm003.zip'
       }
     ])
-    const mockPutObject = vi.fn().mockResolvedValue({})
-    const s3Service = {
-      getObject: vi.fn().mockResolvedValue(Buffer.from('data')),
-      putObject: mockPutObject
-    }
+    const s3Service = makeS3Service()
 
     await uploadAdminBenefitAreas(prisma, s3Service, 'dest', [3], makeLogger())
 
-    const [[, key]] = mockPutObject.mock.calls
+    const [[, key]] = s3Service.putObjectStream.mock.calls
     expect(key).toBe('programme/admin/all_benefit_areas.zip')
     expect(key).not.toContain('user_')
   })

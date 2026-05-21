@@ -4,7 +4,8 @@ import {
   updateBenefitAreaFile,
   updateBenefitAreaDownloadUrl,
   clearBenefitAreaFile,
-  deleteFromS3
+  deleteFromS3,
+  copyS3Object
 } from './benefit-area-file-helper.js'
 
 // Mock dependencies
@@ -37,7 +38,8 @@ describe('benefit-area-file-helper', () => {
 
     mockS3Service = {
       getPresignedDownloadUrl: vi.fn(),
-      deleteObject: vi.fn()
+      deleteObject: vi.fn(),
+      copyObject: vi.fn()
     }
 
     vi.clearAllMocks()
@@ -387,6 +389,48 @@ describe('benefit-area-file-helper', () => {
       await expect(
         deleteFromS3('test-bucket', null, mockLogger)
       ).rejects.toThrow('Key is required')
+    })
+  })
+
+  describe('copyS3Object', () => {
+    beforeEach(async () => {
+      const { getS3Service } =
+        await import('../../../common/services/file-upload/s3-service.js')
+      getS3Service.mockReturnValue(mockS3Service)
+    })
+
+    it('should copy file in S3', async () => {
+      mockS3Service.copyObject.mockResolvedValue(undefined)
+
+      await copyS3Object(
+        'src-bucket',
+        'src/key.zip',
+        'dst-bucket',
+        'dst/key.zip',
+        mockLogger
+      )
+
+      expect(mockS3Service.copyObject).toHaveBeenCalledWith(
+        'src-bucket',
+        'src/key.zip',
+        'dst-bucket',
+        'dst/key.zip'
+      )
+    })
+
+    it('should propagate S3 copy errors', async () => {
+      const error = new Error('copy failed')
+      mockS3Service.copyObject.mockRejectedValue(error)
+
+      await expect(
+        copyS3Object(
+          'src-bucket',
+          'src/key.zip',
+          'dst-bucket',
+          'dst/key.zip',
+          mockLogger
+        )
+      ).rejects.toThrow('copy failed')
     })
   })
 })

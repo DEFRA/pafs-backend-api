@@ -157,10 +157,11 @@ describe('getUploadStatus', () => {
     expect(mockH.code).toHaveBeenCalledWith(404)
   })
 
-  test('should check CDP status for pending uploads', async () => {
+  test('should check CDP status for any pending upload', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
-      upload_status: 'pending'
+      upload_status: 'pending',
+      created_at: new Date()
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -197,7 +198,8 @@ describe('getUploadStatus', () => {
   test('should not update database if CDP status unchanged', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
-      upload_status: 'pending'
+      upload_status: 'pending',
+      created_at: new Date()
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -224,6 +226,37 @@ describe('getUploadStatus', () => {
     expect(mockCdpUploaderService.getUploadStatus).not.toHaveBeenCalled()
   })
 
+  test('should resolve immediately when no file was submitted (empty upload loop fix)', async () => {
+    // CDP marks the upload 'ready' immediately when no file is submitted but
+    // never fires the SQS callback. Without always-sync the status page would
+    // loop for the full stale threshold (previously 2 minutes).
+    mockPrisma.file_uploads.findUnique.mockResolvedValue({
+      upload_id: 'test-upload-123',
+      upload_status: 'pending',
+      created_at: new Date() // brand new — previously would NOT have triggered CDP sync
+    })
+
+    mockCdpUploaderService.getUploadStatus.mockResolvedValue({
+      uploadStatus: 'ready',
+      form: {} // no file data — CDP empty-submission path
+    })
+
+    mockPrisma.file_uploads.update.mockResolvedValue({})
+
+    await getUploadStatus.handler(mockRequest, mockH)
+
+    expect(mockCdpUploaderService.getUploadStatus).toHaveBeenCalledWith(
+      'test-upload-123'
+    )
+    expect(mockPrisma.file_uploads.update).toHaveBeenCalledWith({
+      where: { upload_id: 'test-upload-123' },
+      data: expect.objectContaining({
+        upload_status: 'failed',
+        rejection_reason: 'Please upload a shapefile'
+      })
+    })
+  })
+
   test('should handle errors', async () => {
     mockPrisma.file_uploads.findUnique.mockRejectedValue(
       new Error('Database error')
@@ -240,10 +273,39 @@ describe('getUploadStatus', () => {
     expect(mockH.code).toHaveBeenCalledWith(500)
   })
 
+  test('should return PENDING (not 500) when CDP sync throws during an active scan', async () => {
+    // CDP may return errors (timeout, non-OK response) while a scan is in
+    // progress.  Previously this caused a 500 which the frontend treated as
+    // PENDING → infinite loop.  The sync error must be swallowed so the
+    // current DB status (PENDING) is returned and the frontend continues to
+    // poll normally until the callback or a later sync succeeds.
+    mockPrisma.file_uploads.findUnique.mockResolvedValue({
+      upload_id: 'test-upload-123',
+      upload_status: 'pending',
+      created_at: new Date()
+    })
+
+    mockCdpUploaderService.getUploadStatus.mockRejectedValue(
+      new Error('CDP service unavailable')
+    )
+
+    await getUploadStatus.handler(mockRequest, mockH)
+
+    expect(mockLogger.warn).toHaveBeenCalled()
+    // Must NOT return a 500 — the frontend treats that as PENDING and loops
+    expect(mockH.code).not.toHaveBeenCalledWith(500)
+    // Must return the current (PENDING) DB status so the frontend keeps polling
+    expect(mockH.response).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true })
+    )
+    expect(mockPrisma.file_uploads.update).not.toHaveBeenCalled()
+  })
+
   test('should handle validation errors from CDP with errorMessage', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
-      upload_status: 'pending'
+      upload_status: 'pending',
+      created_at: new Date()
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -279,7 +341,8 @@ describe('getUploadStatus', () => {
   test('should handle validation errors with rejectionReason', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
-      upload_status: 'pending'
+      upload_status: 'pending',
+      created_at: new Date()
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -309,7 +372,8 @@ describe('getUploadStatus', () => {
   test('should handle empty file data with default error message', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
-      upload_status: 'pending'
+      upload_status: 'pending',
+      created_at: new Date()
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -333,7 +397,8 @@ describe('getUploadStatus', () => {
   test('should handle multiple error messages', async () => {
     mockPrisma.file_uploads.findUnique.mockResolvedValue({
       upload_id: 'test-upload-123',
-      upload_status: 'pending'
+      upload_status: 'pending',
+      created_at: new Date()
     })
 
     mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -428,7 +493,8 @@ describe('getUploadStatus', () => {
     })
   })
 
-  test('should update project with benefit area file when upload is ready', async () => {
+  test('should return upload data for ready uploads without calling project update', async () => {
+    // Project update is now handled by the CDP callback handler, not the status endpoint
     const mockUpload = {
       upload_id: 'test-upload-123',
       upload_status: 'ready',
@@ -441,45 +507,12 @@ describe('getUploadStatus', () => {
     }
 
     mockPrisma.file_uploads.findUnique.mockResolvedValue(mockUpload)
-    mockProjectService.getProjectByReference.mockResolvedValue({
-      id: 1,
-      reference_number: 'ANC501E/000A/001A'
-    })
-    mockBenefitAreaFileHelper.generateDownloadUrl.mockResolvedValue({
-      downloadUrl: 'https://s3.amazonaws.com/presigned-url',
-      downloadExpiry: new Date('2026-02-12')
-    })
-    mockBenefitAreaFileHelper.updateBenefitAreaFile.mockResolvedValue({})
 
     await getUploadStatus.handler(mockRequest, mockH)
 
-    expect(mockProjectService.getProjectByReference).toHaveBeenCalledWith(
-      'ANC501E/000A/001A'
-    )
-    expect(mockBenefitAreaFileHelper.generateDownloadUrl).toHaveBeenCalledWith(
-      'test-bucket',
-      'uploads/shapefile.zip',
-      mockLogger,
-      'shapefile.zip'
-    )
-    expect(
-      mockBenefitAreaFileHelper.updateBenefitAreaFile
-    ).toHaveBeenCalledWith(
-      mockPrisma,
-      'ANC501E/000A/001A',
-      expect.objectContaining({
-        filename: 'shapefile.zip',
-        fileSize: 2048,
-        contentType: 'application/zip',
-        s3Bucket: 'test-bucket',
-        s3Key: 'uploads/shapefile.zip'
-      })
-    )
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reference: 'ANC501E-000A-001A'
-      }),
-      'Project updated with benefit area file metadata and download URL'
+    expect(mockProjectService.getProjectByReference).not.toHaveBeenCalled()
+    expect(mockH.response).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true })
     )
   })
 
@@ -510,89 +543,6 @@ describe('getUploadStatus', () => {
     await getUploadStatus.handler(mockRequest, mockH)
 
     expect(mockProjectService.getProjectByReference).not.toHaveBeenCalled()
-  })
-
-  test('should log warning when project not found for benefit area update', async () => {
-    mockPrisma.file_uploads.findUnique.mockResolvedValue({
-      upload_id: 'test-upload-123',
-      upload_status: 'ready',
-      reference: 'INVALID-REF',
-      s3_bucket: 'test-bucket',
-      s3_key: 'test-key'
-    })
-
-    mockProjectService.getProjectByReference.mockResolvedValue(null)
-
-    await getUploadStatus.handler(mockRequest, mockH)
-
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reference: 'INVALID-REF',
-        referenceNumber: 'INVALID/REF'
-      }),
-      'Project not found for benefit area file update'
-    )
-    expect(mockBenefitAreaFileHelper.generateDownloadUrl).not.toHaveBeenCalled()
-  })
-
-  test('should handle errors during project update gracefully', async () => {
-    mockPrisma.file_uploads.findUnique.mockResolvedValue({
-      upload_id: 'test-upload-123',
-      upload_status: 'ready',
-      reference: 'TEST-REF',
-      s3_bucket: 'test-bucket',
-      s3_key: 'test-key'
-    })
-
-    mockProjectService.getProjectByReference.mockRejectedValue(
-      new Error('Database connection failed')
-    )
-
-    await getUploadStatus.handler(mockRequest, mockH)
-
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.objectContaining({
-        err: expect.any(Error),
-        reference: 'TEST-REF'
-      }),
-      'Failed to update project with benefit area file metadata'
-    )
-    // Should still return success response for the upload status
-    expect(mockH.response).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: true
-      })
-    )
-  })
-
-  test('should handle null content_length in project update', async () => {
-    mockPrisma.file_uploads.findUnique.mockResolvedValue({
-      upload_id: 'test-upload-123',
-      upload_status: 'ready',
-      reference: 'TEST-REF',
-      content_length: null,
-      s3_bucket: 'test-bucket',
-      s3_key: 'test-key'
-    })
-
-    mockProjectService.getProjectByReference.mockResolvedValue({ id: 1 })
-    mockBenefitAreaFileHelper.generateDownloadUrl.mockResolvedValue({
-      downloadUrl: 'url',
-      downloadExpiry: new Date()
-    })
-    mockBenefitAreaFileHelper.updateBenefitAreaFile.mockResolvedValue({})
-
-    await getUploadStatus.handler(mockRequest, mockH)
-
-    expect(
-      mockBenefitAreaFileHelper.updateBenefitAreaFile
-    ).toHaveBeenCalledWith(
-      mockPrisma,
-      'TEST/REF',
-      expect.objectContaining({
-        fileSize: null
-      })
-    )
   })
 
   test('should include all optional fields in response', async () => {
@@ -642,7 +592,8 @@ describe('getUploadStatus', () => {
     test('should validate ZIP contents when CDP status changes to ready', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -697,7 +648,8 @@ describe('getUploadStatus', () => {
     test('should set status to failed when ZIP validation fails', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -746,7 +698,8 @@ describe('getUploadStatus', () => {
     test('should not validate ZIP when S3 info is missing', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -770,7 +723,8 @@ describe('getUploadStatus', () => {
     test('should not validate ZIP when status is not ready', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -791,7 +745,8 @@ describe('getUploadStatus', () => {
     test('should combine CDP errors with validation errors', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -827,7 +782,8 @@ describe('getUploadStatus', () => {
     test('should use default message when ZIP validation message is missing', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -864,7 +820,8 @@ describe('getUploadStatus', () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
         upload_status: 'pending',
-        reference: 'SOME-REF'
+        reference: 'SOME-REF',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -905,7 +862,8 @@ describe('getUploadStatus', () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
         upload_status: 'pending',
-        reference: null
+        reference: null,
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -940,7 +898,8 @@ describe('getUploadStatus', () => {
     test('should emit validateZip error and deleteFile metrics on PENDING → FAILED with s3_key (ZIP reached S3)', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -975,7 +934,8 @@ describe('getUploadStatus', () => {
     test('should emit only validateZip error metric on PENDING → FAILED without s3_key', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({
@@ -998,7 +958,8 @@ describe('getUploadStatus', () => {
     test('should not emit metrics when upload stays PENDING after sync', async () => {
       mockPrisma.file_uploads.findUnique.mockResolvedValue({
         upload_id: 'test-upload-123',
-        upload_status: 'pending'
+        upload_status: 'pending',
+        created_at: new Date()
       })
 
       mockCdpUploaderService.getUploadStatus.mockResolvedValue({

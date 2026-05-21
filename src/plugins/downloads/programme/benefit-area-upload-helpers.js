@@ -1,33 +1,90 @@
-import AdmZip from 'adm-zip'
+import { PassThrough } from 'node:stream'
+import { ZipArchive } from 'archiver'
 import { resolveLegacyBenefitAreaFile } from '../../projects/helpers/legacy-file-resolver.js'
 import { userS3Key, adminS3Key } from './programme-generation-helpers.js'
 
 // ── Benefit areas ZIP builder ─────────────────────────────────────────────────
 
-// Max concurrent S3 downloads when assembling a benefit areas ZIP.
+// Max concurrent S3 stream-handle fetches when assembling a benefit areas ZIP.
 const S3_DOWNLOAD_CONCURRENCY = 10
 
-export async function buildBenefitAreasZip(projects, s3Service, logger) {
-  const zip = new AdmZip()
-  let count = 0
+// Max concurrent legacy S3-coordinate DB writes during resolution (B6 fix).
+const LEGACY_RESOLUTION_CONCURRENCY = 5
 
+/**
+ * Stream a ZIP of benefit area files directly to S3 using multipart upload.
+ *
+ * Memory usage is O(streaming throughput) rather than O(total file size):
+ * archiver reads one ZIP entry at a time, so un-read S3 streams stay paused
+ * and are never fully buffered in the heap.
+ *
+ * Uses STORE compression (level 0) because shapefiles are already compressed
+ * ZIPs — re-compressing wastes CPU with no meaningful size reduction.
+ *
+ * @param {Array}  projects  - Resolved project records with S3 coordinates
+ * @param {Object} s3Service - S3Service instance (getObjectStream + putObjectStream)
+ * @param {string} s3Bucket  - Destination S3 bucket
+ * @param {string} s3Key     - Destination S3 key for the output ZIP
+ * @param {Object} logger
+ * @returns {Promise<{ count: number }>}
+ */
+export async function buildBenefitAreasZip(
+  projects,
+  s3Service,
+  s3Bucket,
+  s3Key,
+  logger
+) {
   logger?.info({ total: projects.length }, 'Building benefit areas zip')
 
   const eligible = projects.filter(
     (p) => p.benefit_area_file_s3_bucket && p.benefit_area_file_s3_key
   )
 
-  // Download files with bounded concurrency to avoid overwhelming S3.
+  if (eligible.length === 0) {
+    return { count: 0 }
+  }
+
+  const archive = new ZipArchive({ zlib: { level: 0 } })
+
+  // readable-stream (used by archiver) provides its own Transform class, not
+  // Node.js's native one.  @aws-sdk/lib-storage checks `instanceof stream.Readable`
+  // which fails for readable-stream instances.  Pipe through a native PassThrough
+  // so the SDK recognises the body as a proper Readable.
+  const passThrough = new PassThrough()
+
+  archive.on('warning', (err) => {
+    if (err.code !== 'ENOENT') {
+      logger?.warn({ err }, 'Archiver warning')
+    }
+  })
+  archive.on('error', (err) => passThrough.destroy(err))
+  archive.pipe(passThrough)
+
+  // Start the multipart upload immediately so it can consume archiver output
+  // as data flows — avoids buffering the entire ZIP before the upload starts.
+  const uploadPromise = s3Service.putObjectStream(
+    s3Bucket,
+    s3Key,
+    passThrough,
+    'application/zip'
+  )
+
+  let count = 0
+
+  // Fetch stream handles concurrently (bounded), then register each with
+  // archiver serially.  Archiver reads one entry at a time, so pending S3
+  // streams remain paused — no heap accumulation.
   for (let i = 0; i < eligible.length; i += S3_DOWNLOAD_CONCURRENCY) {
     const chunk = eligible.slice(i, i + S3_DOWNLOAD_CONCURRENCY)
-    const downloaded = await Promise.all(
+    const streamHandles = await Promise.all(
       chunk.map(async (project) => {
         try {
-          const fileBuffer = await s3Service.getObject(
+          const stream = await s3Service.getObjectStream(
             project.benefit_area_file_s3_bucket,
             project.benefit_area_file_s3_key
           )
-          return { project, fileBuffer, ok: true }
+          return { project, stream, ok: true }
         } catch (err) {
           logger.warn(
             { err, referenceNumber: project.reference_number },
@@ -38,26 +95,29 @@ export async function buildBenefitAreasZip(projects, s3Service, logger) {
       })
     )
 
-    for (const result of downloaded) {
+    for (const result of streamHandles) {
       if (!result.ok) {
         continue
       }
+      // Sanitise reference_number (may contain '/') so entries are unique
+      // even when projects share an identical filename.
       const basename = (
         result.project.benefit_area_file_name || 'benefit_area.zip'
       ).replaceAll('/', '-')
-      // Sanitise reference_number (can contain '/') and prefix so entries are
-      // unique even when projects share an identical filename.
       const refPrefix = result.project.reference_number.replaceAll('/', '-')
-      zip.addFile(`${refPrefix}_${basename}`, result.fileBuffer)
+      archive.append(result.stream, { name: `${refPrefix}_${basename}` })
       count++
     }
   }
+
+  archive.finalize()
+  await uploadPromise
 
   logger?.info(
     { count, totalProjects: projects.length },
     'Benefit areas zip built'
   )
-  return { buffer: count > 0 ? zip.toBuffer() : null, count }
+  return { count }
 }
 
 // ── Shared benefit-areas ZIP upload logic ────────────────────────────────────
@@ -104,32 +164,42 @@ async function fetchAndUploadBenefitAreas(
     `${logLabel}: project scan`
   )
 
-  // For legacy projects whose S3 coordinates were not populated at upload time,
-  // resolve the key from the known legacy path structure and persist it.
-  const resolvedProjects = await Promise.all(
-    rawProjects.map(async (project) => {
-      if (
-        project.benefit_area_file_name &&
-        (!project.benefit_area_file_s3_bucket ||
-          !project.benefit_area_file_s3_key)
-      ) {
-        const resolved = await resolveLegacyBenefitAreaFile(
-          project,
-          prisma,
-          logger
-        )
-        return resolved ?? project
-      }
-      return project
-    })
-  )
+  // Resolve legacy S3 coordinates in bounded batches to prevent N concurrent
+  // DB writes from saturating the Prisma connection pool (B6 fix).
+  const resolvedProjects = []
+  for (let i = 0; i < rawProjects.length; i += LEGACY_RESOLUTION_CONCURRENCY) {
+    const batch = rawProjects.slice(i, i + LEGACY_RESOLUTION_CONCURRENCY)
+    const batchResolved = await Promise.all(
+      batch.map(async (project) => {
+        if (
+          project.benefit_area_file_name &&
+          (!project.benefit_area_file_s3_bucket ||
+            !project.benefit_area_file_s3_key)
+        ) {
+          const resolved = await resolveLegacyBenefitAreaFile(
+            project,
+            prisma,
+            logger
+          )
+          return resolved ?? project
+        }
+        return project
+      })
+    )
+    resolvedProjects.push(...batchResolved)
+  }
 
-  const { buffer: benefitBuffer, count: benefitCount } =
-    await buildBenefitAreasZip(resolvedProjects, s3Service, logger)
-  if (!benefitBuffer) {
+  // Stream the ZIP directly to S3 — no full-file buffer materialised in heap (B5 fix).
+  const { count: benefitCount } = await buildBenefitAreasZip(
+    resolvedProjects,
+    s3Service,
+    s3Bucket,
+    s3Key,
+    logger
+  )
+  if (!benefitCount) {
     return { filename: null, count: 0 }
   }
-  await s3Service.putObject(s3Bucket, s3Key, benefitBuffer, 'application/zip')
   return { filename: s3Key, count: benefitCount }
 }
 

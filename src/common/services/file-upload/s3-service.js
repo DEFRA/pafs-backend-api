@@ -2,9 +2,11 @@ import {
   S3Client,
   GetObjectCommand,
   DeleteObjectCommand,
-  PutObjectCommand
+  PutObjectCommand,
+  CopyObjectCommand
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { Upload } from '@aws-sdk/lib-storage'
 import { config } from '../../../config.js'
 
 /**
@@ -20,7 +22,14 @@ export class S3Service {
     // Configure S3 client
     const clientConfig = {
       region: this.region,
-      forcePathStyle: !!this.endpoint // Required for localstack
+      forcePathStyle: !!this.endpoint, // Required for localstack
+      // Do not auto-validate checksums on range-request responses.
+      // CDP Uploader stores a checksum for the full object; when we fetch a
+      // byte range the SDK would compare the partial response against the
+      // full-file checksum and always fail.  WHEN_REQUIRED means checksums are
+      // only validated when the operation itself mandates it (e.g. multipart
+      // upload completion), not whenever S3 happens to return a checksum header.
+      responseChecksumValidation: 'WHEN_REQUIRED'
     }
 
     if (this.endpoint) {
@@ -86,6 +95,43 @@ export class S3Service {
       )
       throw error
     }
+  }
+
+  /**
+   * Get a file object from S3 as a Node.js Readable stream.
+   * The caller is responsible for consuming or destroying the stream.
+   *
+   * @param {string} bucket - S3 bucket name
+   * @param {string} key - S3 object key
+   * @returns {Promise<import('stream').Readable>} Node.js Readable stream of file contents
+   */
+  async getObjectStream(bucket, key) {
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key })
+    const response = await this.s3Client.send(command)
+    return response.Body
+  }
+
+  /**
+   * Fetch a byte range of an S3 object and return it as a Buffer.
+   * Uses the HTTP Range header (e.g. "bytes=-65536" for the last 64 KB).
+   *
+   * @param {string} bucket - S3 bucket name
+   * @param {string} key - S3 object key
+   * @param {string} range - HTTP Range header value (e.g. "bytes=0-1023" or "bytes=-65536")
+   * @returns {Promise<Buffer>}
+   */
+  async getObjectRange(bucket, key, range) {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Range: range
+    })
+    const response = await this.s3Client.send(command)
+    const chunks = []
+    for await (const chunk of response.Body) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    }
+    return Buffer.concat(chunks)
   }
 
   /**
@@ -162,6 +208,65 @@ export class S3Service {
       this.logger.error(
         { err: error, bucket, key },
         'Failed to upload object to S3'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Stream an object to S3 using multipart upload.
+   * Consumes a Readable stream without materialising the full body in memory.
+   *
+   * @param {string}   bucket      - Destination S3 bucket
+   * @param {string}   key         - Destination S3 key
+   * @param {Readable} stream      - Readable stream to upload
+   * @param {string}   contentType - MIME type
+   * @returns {Promise<void>}
+   */
+  async putObjectStream(bucket, key, stream, contentType) {
+    const upload = new Upload({
+      client: this.s3Client,
+      params: {
+        Bucket: bucket,
+        Key: key,
+        Body: stream,
+        ContentType: contentType
+      }
+    })
+    await upload.done()
+    this.logger.info(
+      { bucket, key },
+      'Streamed object to S3 via multipart upload'
+    )
+  }
+
+  /**
+   * Copy an object within S3 (or between buckets)
+   *
+   * @param {string} sourceBucket - Source bucket name
+   * @param {string} sourceKey - Source object key
+   * @param {string} destBucket - Destination bucket name
+   * @param {string} destKey - Destination object key
+   * @returns {Promise<void>}
+   */
+  async copyObject(sourceBucket, sourceKey, destBucket, destKey) {
+    try {
+      const command = new CopyObjectCommand({
+        CopySource: `${sourceBucket}/${sourceKey}`,
+        Bucket: destBucket,
+        Key: destKey
+      })
+
+      await this.s3Client.send(command)
+
+      this.logger.info(
+        { sourceBucket, sourceKey, destBucket, destKey },
+        'Successfully copied S3 object'
+      )
+    } catch (error) {
+      this.logger.error(
+        { err: error, sourceBucket, sourceKey, destBucket, destKey },
+        'Failed to copy S3 object'
       )
       throw error
     }

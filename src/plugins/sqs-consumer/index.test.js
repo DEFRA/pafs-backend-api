@@ -122,7 +122,7 @@ describe('sqsProgrammeConsumerPlugin', () => {
       }),
       ReceiptHandle: 'rh-admin'
     }
-    await handleMessage(message)
+    const result = await handleMessage(message)
     expect(runAdminGeneration).toHaveBeenCalledWith(
       expect.objectContaining({
         downloadId: BigInt(10),
@@ -133,6 +133,7 @@ describe('sqsProgrammeConsumerPlugin', () => {
       })
     )
     expect(server.sqs.send).toHaveBeenCalled()
+    expect(result).toBe(message)
   })
 
   test('dispatches user message to runUserGeneration', async () => {
@@ -148,7 +149,7 @@ describe('sqsProgrammeConsumerPlugin', () => {
       }),
       ReceiptHandle: 'rh-user'
     }
-    await handleMessage(message)
+    const result = await handleMessage(message)
     expect(runUserGeneration).toHaveBeenCalledWith(
       expect.objectContaining({
         downloadId: BigInt(5),
@@ -159,6 +160,7 @@ describe('sqsProgrammeConsumerPlugin', () => {
       })
     )
     expect(server.sqs.send).toHaveBeenCalled()
+    expect(result).toBe(message)
   })
 
   test('logs error events via error handler', async () => {
