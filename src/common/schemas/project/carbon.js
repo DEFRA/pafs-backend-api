@@ -9,6 +9,11 @@ const DECIMAL_REGEX = /^\d+(\.(\d{1,2}))?$/
 const INTEGER_REGEX = /^\d+$/
 const SIGNED_INTEGER_REGEX = /^-?\d+$/
 
+// Joi error type constants
+const ERROR_STRING_PATTERN_BASE = 'string.pattern.base'
+const ERROR_STRING_MAX = 'string.max'
+const ERROR_STRING_WHOLE_NUMBER_MAX = 'string.whole_number_max'
+
 /**
  * Validates a carbon decimal field value (up to 2 decimal places).
  * Used for tCO₂ fields: build, operation, sequestered, avoided.
@@ -17,17 +22,17 @@ const SIGNED_INTEGER_REGEX = /^-?\d+$/
  */
 const validateCarbonDecimalString = (value, helpers) => {
   if (!DECIMAL_REGEX.test(value)) {
-    return helpers.error('string.pattern.base')
+    return helpers.error(ERROR_STRING_PATTERN_BASE)
   }
   const [intPart, decPart] = value.split('.')
   if (decPart === undefined) {
     // Whole number: max 18 digits
     if (intPart.length > MAX_WHOLE_NUMBER_DIGITS) {
-      return helpers.error('string.whole_number_max')
+      return helpers.error(ERROR_STRING_WHOLE_NUMBER_MAX)
     }
   } else if (intPart.length > MAX_EMISSION_DIGITS) {
     // Decimal: max 16 digits before decimal point
-    return helpers.error('string.max')
+    return helpers.error(ERROR_STRING_MAX)
   } else {
     // no error
   }
@@ -40,10 +45,10 @@ const validateCarbonDecimalString = (value, helpers) => {
  */
 const validateCarbonIntegerString = (value, helpers) => {
   if (!INTEGER_REGEX.test(value)) {
-    return helpers.error('string.pattern.base')
+    return helpers.error(ERROR_STRING_PATTERN_BASE)
   }
   if (value.length > MAX_COST_DIGITS) {
-    return helpers.error('string.max')
+    return helpers.error(ERROR_STRING_MAX)
   }
   return value
 }
@@ -55,12 +60,12 @@ const validateCarbonIntegerString = (value, helpers) => {
  */
 const validateCarbonSignedIntegerString = (value, helpers) => {
   if (!SIGNED_INTEGER_REGEX.test(value)) {
-    return helpers.error('string.pattern.base')
+    return helpers.error(ERROR_STRING_PATTERN_BASE)
   }
   // Count digits excluding minus sign
   const digits = value.replace(/^-/, '')
   if (digits.length > MAX_COST_DIGITS) {
-    return helpers.error('string.max')
+    return helpers.error(ERROR_STRING_MAX)
   }
   return value
 }
