@@ -531,7 +531,34 @@ describe('list-projects route', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })
 
-    test('Should not apply areaId filter for non-admin users even if query param provided', async () => {
+    test('Should apply areaId filter for non-admin users when area is within their scope', async () => {
+      mockRequest.auth.credentials = {
+        userId: 2,
+        isAdmin: false,
+        isRma: true,
+        isPso: false,
+        isEa: false,
+        areas: [
+          { areaId: 10, areaType: 'RMA', primary: true, name: 'Test RMA' },
+          { areaId: 11, areaType: 'RMA', primary: false, name: 'Test RMA 2' }
+        ]
+      }
+      mockRequest.query = {
+        areaId: 10, // In scope — should be applied
+        page: 1,
+        pageSize: 10
+      }
+      resolveUserAreaIds.mockResolvedValue([10, 11])
+
+      mockPrisma.pafs_core_area_projects.findMany.mockResolvedValue([])
+
+      await listProjects.handler(mockRequest, mockH)
+
+      expect(resolveUserAreaIds).toHaveBeenCalled()
+      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    test('Should ignore areaId filter for non-admin users when area is outside their scope', async () => {
       mockRequest.auth.credentials = {
         userId: 2,
         isAdmin: false,
@@ -543,7 +570,7 @@ describe('list-projects route', () => {
         ]
       }
       mockRequest.query = {
-        areaId: 999, // Should be ignored for non-admin
+        areaId: 999, // Outside scope — should be ignored, user sees their own areas only
         page: 1,
         pageSize: 10
       }
@@ -553,7 +580,7 @@ describe('list-projects route', () => {
 
       await listProjects.handler(mockRequest, mockH)
 
-      // The areaId query param is ignored; user area IDs [10] are used instead
+      // areaId 999 is not in [10], so it is silently ignored
       expect(resolveUserAreaIds).toHaveBeenCalled()
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })

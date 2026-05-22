@@ -34,11 +34,19 @@ const listProjects = {
         credentials
       )
 
-      // Admin can optionally filter by a single areaId from query params
-      // Non-admin users are restricted to their resolved area IDs
+      // Resolve the effective area IDs for the query.
+      // Admin can narrow to a single area via the optional areaId query param.
+      // Non-admin users are always scoped to their resolved area IDs; they may
+      // narrow further by selecting a specific area — only if it is within their scope.
       let areaIds = userAreaIds
-      if (credentials.isAdmin && areaId) {
-        areaIds = [areaId]
+      if (areaId) {
+        const isInScope =
+          credentials.isAdmin ||
+          userAreaIds?.map(String).includes(String(areaId))
+        if (isInScope) {
+          areaIds = [areaId]
+        }
+        // areaId outside the user's permitted scope is silently ignored
       }
 
       const projectService = new ProjectFilterService(
