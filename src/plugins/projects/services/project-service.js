@@ -426,4 +426,76 @@ export class ProjectService extends ProjectNfmService {
       data: { submitted_at: new Date() }
     })
   }
+
+  /**
+   * Cache the shapefile base64 string in the DB so the SQS consumer
+   * can skip the S3 round-trip at submission time.
+   *
+   * @param {string} referenceNumber
+   * @param {string} base64
+   */
+  async cacheShapefileBase64(referenceNumber, base64) {
+    await this.prisma.pafs_core_projects.updateMany({
+      where: { reference_number: referenceNumber },
+      data: { benefit_area_file_base64: base64 }
+    })
+  }
+
+  /**
+   * Write the state transition (SUBMITTED) and submitted_at timestamp
+   * inside a single Prisma transaction.
+   *
+   * @private
+   */
+  async _submitStateAndTimestamp(tx, projectId, referenceNumber, now) {
+    await tx.pafs_core_states.upsert({
+      where: { project_id: Number(projectId) },
+      update: { state: PROJECT_STATUS.SUBMITTED, updated_at: now },
+      create: {
+        project_id: Number(projectId),
+        state: PROJECT_STATUS.SUBMITTED,
+        updated_at: now,
+        created_at: now
+      }
+    })
+    await tx.pafs_core_projects.updateMany({
+      where: { reference_number: referenceNumber },
+      data: { submitted_at: now, updated_at: now }
+    })
+  }
+
+  /**
+   * Atomically transition a project to SUBMITTED status and record
+   * submitted_at — replaces the two-step upsertProjectState + setSubmittedAt.
+   *
+   * @param {bigint} projectId
+   * @param {string} referenceNumber
+   */
+  async transitionToSubmitted(projectId, referenceNumber) {
+    const now = new Date()
+    await this.prisma.$transaction((tx) =>
+      this._submitStateAndTimestamp(tx, projectId, referenceNumber, now)
+    )
+  }
+
+  /**
+   * Load a fully-enriched project (same as getProjectByReferenceNumber) and
+   * append the shapefile base64 cache from the DB so the SQS consumer can
+   * skip the S3 round-trip when the cache is warm.
+   *
+   * @param {string} referenceNumber
+   * @returns {Promise<Object|null>}
+   */
+  async getProjectForSubmission(referenceNumber) {
+    const project = await this.getProjectByReferenceNumber(referenceNumber)
+    if (!project) {
+      return null
+    }
+    const row = await this.prisma.pafs_core_projects.findFirst({
+      where: { reference_number: referenceNumber },
+      select: { benefit_area_file_base64: true }
+    })
+    project.benefitAreaFileBase64 = row?.benefit_area_file_base64 ?? null
+    return project
+  }
 }

@@ -87,6 +87,26 @@ const awsSchema = {
       default: 20,
       env: 'SQS_PROGRAMME_GENERATION_WAIT_TIME_SECONDS'
     }
+  },
+  sqsExternalSubmission: {
+    queueUrl: {
+      doc: 'SQS queue URL for external (AIMS PD) submission jobs',
+      format: String,
+      default: 'http://localhost:4566/000000000000/pafs_external_submission',
+      env: 'SQS_EXTERNAL_SUBMISSION_QUEUE_URL'
+    },
+    visibilityTimeout: {
+      doc: 'Visibility timeout in seconds — must cover worst-case external submission time',
+      format: Number,
+      default: 120,
+      env: 'SQS_EXTERNAL_SUBMISSION_VISIBILITY_TIMEOUT'
+    },
+    waitTimeSeconds: {
+      doc: 'SQS long-poll wait time in seconds (max 20)',
+      format: Number,
+      default: 20,
+      env: 'SQS_EXTERNAL_SUBMISSION_WAIT_TIME_SECONDS'
+    }
   }
 }
 

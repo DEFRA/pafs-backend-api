@@ -137,7 +137,8 @@ describe('benefit-area-file-helper', () => {
           benefit_area_file_s3_key: 'test-key',
           benefit_area_file_download_url: 'https://s3.amazonaws.com/test',
           benefit_area_file_download_expiry: fileMetadata.downloadExpiry,
-          benefit_area_file_updated_at: expect.any(Date)
+          benefit_area_file_updated_at: expect.any(Date),
+          benefit_area_file_base64: null
         })
       })
     })

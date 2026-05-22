@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import { ProjectService } from './project-service.js'
 import { enrichProjectResponse } from '../helpers/project-enricher.js'
+import { PROJECT_STATUS } from '../../../common/constants/project.js'
 
 // Mock external modules so ProjectService can be tested in isolation
 vi.mock('../helpers/project-enricher.js', () => ({
@@ -786,6 +787,141 @@ describe('ProjectService', () => {
       await expect(service.setSubmittedAt('LCR/123/456')).rejects.toThrow(
         'DB write error'
       )
+    })
+  })
+
+  // ─── cacheShapefileBase64 ──────────────────────────────────────────────────
+
+  describe('cacheShapefileBase64', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.updateMany = vi
+        .fn()
+        .mockResolvedValue({ count: 1 })
+    })
+
+    test('writes base64 string to the benefit_area_file_base64 column', async () => {
+      await service.cacheShapefileBase64('LCR/123/456', 'abc123==')
+      expect(mockPrisma.pafs_core_projects.updateMany).toHaveBeenCalledWith({
+        where: { reference_number: 'LCR/123/456' },
+        data: { benefit_area_file_base64: 'abc123==' }
+      })
+    })
+
+    test('propagates DB errors', async () => {
+      mockPrisma.pafs_core_projects.updateMany.mockRejectedValue(
+        new Error('write failed')
+      )
+      await expect(
+        service.cacheShapefileBase64('LCR/123/456', 'abc123==')
+      ).rejects.toThrow('write failed')
+    })
+  })
+
+  // ─── transitionToSubmitted ─────────────────────────────────────────────────
+
+  describe('transitionToSubmitted', () => {
+    let mockTx
+
+    beforeEach(() => {
+      mockTx = {
+        pafs_core_states: { upsert: vi.fn().mockResolvedValue({}) },
+        pafs_core_projects: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 })
+        }
+      }
+      mockPrisma.$transaction = vi.fn(async (callback) => callback(mockTx))
+    })
+
+    test('runs both writes inside a single transaction', async () => {
+      await service.transitionToSubmitted(BigInt(99), 'LCR/123/456')
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+    })
+
+    test('upserts state to SUBMITTED', async () => {
+      await service.transitionToSubmitted(BigInt(99), 'LCR/123/456')
+      expect(mockTx.pafs_core_states.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { project_id: 99 },
+          update: expect.objectContaining({ state: PROJECT_STATUS.SUBMITTED }),
+          create: expect.objectContaining({ state: PROJECT_STATUS.SUBMITTED })
+        })
+      )
+    })
+
+    test('stamps submitted_at on the project row', async () => {
+      await service.transitionToSubmitted(BigInt(99), 'LCR/123/456')
+      expect(mockTx.pafs_core_projects.updateMany).toHaveBeenCalledWith({
+        where: { reference_number: 'LCR/123/456' },
+        data: expect.objectContaining({ submitted_at: expect.any(Date) })
+      })
+    })
+
+    test('stamps updated_at on the project row', async () => {
+      await service.transitionToSubmitted(BigInt(99), 'LCR/123/456')
+      expect(mockTx.pafs_core_projects.updateMany).toHaveBeenCalledWith({
+        where: { reference_number: 'LCR/123/456' },
+        data: expect.objectContaining({ updated_at: expect.any(Date) })
+      })
+    })
+
+    test('uses the same timestamp for submitted_at and updated_at', async () => {
+      await service.transitionToSubmitted(BigInt(99), 'LCR/123/456')
+      const [{ data }] = mockTx.pafs_core_projects.updateMany.mock.calls[0]
+      expect(data.submitted_at).toBe(data.updated_at)
+    })
+
+    test('propagates transaction errors', async () => {
+      mockPrisma.$transaction.mockRejectedValue(new Error('tx failed'))
+      await expect(
+        service.transitionToSubmitted(BigInt(99), 'LCR/123/456')
+      ).rejects.toThrow('tx failed')
+    })
+  })
+
+  // ─── getProjectForSubmission ───────────────────────────────────────────────
+
+  describe('getProjectForSubmission', () => {
+    const REFERENCE = 'ANC501E/000A/001A'
+    const MOCK_PROJECT = {
+      id: 1,
+      referenceNumber: REFERENCE,
+      benefitAreaFileName: 'shapefile.zip'
+    }
+
+    beforeEach(() => {
+      vi.spyOn(service, 'getProjectByReferenceNumber').mockResolvedValue(
+        MOCK_PROJECT
+      )
+      mockPrisma.pafs_core_projects.findFirst = vi
+        .fn()
+        .mockResolvedValue({ benefit_area_file_base64: 'cached==' })
+    })
+
+    test('returns null when project does not exist', async () => {
+      service.getProjectByReferenceNumber.mockResolvedValue(null)
+      const result = await service.getProjectForSubmission(REFERENCE)
+      expect(result).toBeNull()
+    })
+
+    test('attaches cached base64 to the project when available', async () => {
+      const result = await service.getProjectForSubmission(REFERENCE)
+      expect(result.benefitAreaFileBase64).toBe('cached==')
+    })
+
+    test('sets benefitAreaFileBase64 to null when cache is empty', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
+        benefit_area_file_base64: null
+      })
+      const result = await service.getProjectForSubmission(REFERENCE)
+      expect(result.benefitAreaFileBase64).toBeNull()
+    })
+
+    test('fetches the cache row by reference_number', async () => {
+      await service.getProjectForSubmission(REFERENCE)
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
+        where: { reference_number: REFERENCE },
+        select: { benefit_area_file_base64: true }
+      })
     })
   })
 
