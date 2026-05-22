@@ -30,6 +30,8 @@
   <include file="2-010-widen-unique-session-id.xml" relativeToChangelogFile="true"/>
   <!-- Add stale_data_cleared flag for persistent warning banner after auto-flush of stale financial years -->
   <include file="2-011-stale-data-cleared.xml" relativeToChangelogFile="true"/>
+  <!-- Lazy-write base64 cache for the benefit area shapefile — avoids S3 fetch on critical submission path -->
+  <include file="2-012-benefit-area-base64-cache.xml" relativeToChangelogFile="true"/>
 
   <!-- Legacy tables - these are maintained for historical purposes, but new system should not use these tables. -->
   <include file="3-001-account-requests-legacy-table.xml" relativeToChangelogFile="true"/>
@@ -45,5 +47,8 @@
 
   <!-- Proposal submission tracking — records every attempt to send to the external system -->
   <include file="4-002-create-proposal-submissions.xml" relativeToChangelogFile="true"/>
+
+  <!-- Store outgoing request payload per submission attempt (shapefile base64 scrubbed at app layer) -->
+  <include file="4-003-proposal-submissions-request-payload.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

@@ -479,6 +479,7 @@ model pafs_core_projects {
   created_at                                                  DateTime  @db.Timestamp(6)
   updated_at                                                  DateTime  @db.Timestamp(6)
   stale_data_cleared                                          Boolean?  @default(false)
+  benefit_area_file_base64                                    String?
 
   @@unique([reference_number, version], map: "index_pafs_core_projects_on_reference_number_and_version")
   @@index([benefit_area_file_s3_bucket, benefit_area_file_s3_key], map: "idx_core_projects_benefit_area_s3")
@@ -618,6 +619,7 @@ model pafs_proposal_submissions {
   is_resend        Boolean  @default(false)
   attempted_at     DateTime @default(now()) @db.Timestamp(6)
   created_at       DateTime @default(now()) @db.Timestamp(6)
+  request_payload  Json?
 
   @@index([project_id], map: "idx_proposal_submissions_project_id")
   @@index([reference_number], map: "idx_proposal_submissions_reference_number")

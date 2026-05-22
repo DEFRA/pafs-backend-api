@@ -7,6 +7,7 @@ import {
 } from '../../projects/helpers/benefit-area-file-helper.js'
 import { validateZipFileFromS3 } from './validation-helpers.js'
 import { ProjectService } from '../../projects/services/project-service.js'
+import { fetchShapefileBase64 } from '../../projects/helpers/proposal-payload-helpers.js'
 
 /**
  * Build the canonical S3 key for a benefit area file.
@@ -300,6 +301,29 @@ async function relocateBenefitAreaFile(
   }
 }
 
+async function cacheBase64AfterUpload(
+  uploadRecord,
+  referenceNumber,
+  prisma,
+  logger
+) {
+  const project = {
+    referenceNumber,
+    benefitAreaFileName: uploadRecord.filename,
+    benefitAreaFileS3Key: uploadRecord.s3_key,
+    benefitAreaFileS3Bucket: uploadRecord.s3_bucket
+  }
+  const base64 = await fetchShapefileBase64(project, logger)
+  if (base64) {
+    const projectService = new ProjectService(prisma, logger)
+    await projectService.cacheShapefileBase64(referenceNumber, base64)
+    logger.info(
+      { referenceNumber },
+      'Shapefile base64 cached in DB after upload'
+    )
+  }
+}
+
 async function applyBenefitAreaFileMetadata(
   uploadRecord,
   referenceNumber,
@@ -332,5 +356,14 @@ async function applyBenefitAreaFileMetadata(
       uploadId: uploadRecord.upload_id
     },
     'Project updated with benefit area file metadata and download URL'
+  )
+
+  // Warm the shapefile base64 cache — fire-and-forget, does not block the response
+  cacheBase64AfterUpload(uploadRecord, referenceNumber, prisma, logger).catch(
+    (err) =>
+      logger.warn(
+        { err, referenceNumber },
+        'Shapefile base64 cache write failed after upload — will retry on project open'
+      )
   )
 }

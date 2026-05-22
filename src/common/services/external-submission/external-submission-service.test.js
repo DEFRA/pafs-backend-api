@@ -39,6 +39,10 @@ const buildMockLogger = () => ({
 })
 
 const SAMPLE_PAYLOAD = { national_project_number: 'AC/123/456' }
+const PAYLOAD_WITH_SHAPEFILE = {
+  national_project_number: 'AC/123/456',
+  shapefile: 'data:application/zip;base64,UEsDBBQAAAA...'
+}
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -485,6 +489,123 @@ describe('ExternalSubmissionService', () => {
           response_body: null,
           status: SUBMISSION_STATUS.SUCCESS
         })
+      })
+    )
+  })
+
+  // ── request_payload storage ──────────────────────────────────────────────
+
+  test('stores request_payload on successful submission', async () => {
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: SAMPLE_PAYLOAD,
+      isResend: false
+    })
+    expect(prisma.pafs_proposal_submissions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          request_payload: SAMPLE_PAYLOAD
+        })
+      })
+    )
+  })
+
+  test('stores request_payload on failed submission (non-200)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      text: vi.fn().mockResolvedValue('Validation error')
+    })
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: SAMPLE_PAYLOAD,
+      isResend: false
+    })
+    expect(prisma.pafs_proposal_submissions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          request_payload: SAMPLE_PAYLOAD
+        })
+      })
+    )
+  })
+
+  test('stores request_payload on network error', async () => {
+    fetchMock.mockRejectedValue(new Error('ECONNREFUSED'))
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: SAMPLE_PAYLOAD,
+      isResend: false
+    })
+    expect(prisma.pafs_proposal_submissions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          request_payload: SAMPLE_PAYLOAD
+        })
+      })
+    )
+  })
+
+  test('stores request_payload when submission is disabled', async () => {
+    service.enabled = false
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: SAMPLE_PAYLOAD,
+      isResend: false
+    })
+    expect(prisma.pafs_proposal_submissions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          request_payload: SAMPLE_PAYLOAD
+        })
+      })
+    )
+  })
+
+  test('scrubs shapefile base64 from stored request_payload', async () => {
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: PAYLOAD_WITH_SHAPEFILE,
+      isResend: false
+    })
+    expect(prisma.pafs_proposal_submissions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          request_payload: expect.objectContaining({
+            national_project_number: 'AC/123/456',
+            shapefile: '[base64_omitted]'
+          })
+        })
+      })
+    )
+  })
+
+  test('does not modify original payload object when scrubbing shapefile', async () => {
+    const payload = { ...PAYLOAD_WITH_SHAPEFILE }
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload,
+      isResend: false
+    })
+    expect(payload.shapefile).toBe(PAYLOAD_WITH_SHAPEFILE.shapefile)
+  })
+
+  test('stores null request_payload when payload is null', async () => {
+    await service.send({
+      projectId: BigInt(1),
+      referenceNumber: 'AC/123/456',
+      payload: null,
+      isResend: false
+    })
+    expect(prisma.pafs_proposal_submissions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ request_payload: null })
       })
     )
   })

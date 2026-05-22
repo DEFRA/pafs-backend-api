@@ -307,6 +307,10 @@ export async function fetchShapefileBase64(project, logger) {
   if (!project.benefitAreaFileName) {
     return null
   }
+  // Return the DB-cached base64 if it was populated by the lazy-write on project open
+  if (project.benefitAreaFileBase64) {
+    return project.benefitAreaFileBase64
+  }
   if (!project.benefitAreaFileS3Bucket || !project.benefitAreaFileS3Key) {
     logger.warn(
       { referenceNumber: project.referenceNumber },

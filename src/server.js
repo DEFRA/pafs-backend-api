@@ -28,6 +28,7 @@ import gatewayGuardPlugin from './plugins/gateway-guard/index.js'
 import externalPlugin from './plugins/external/index.js'
 import { sqsClientPlugin } from './common/helpers/sqs/sqs-client.js'
 import { sqsProgrammeConsumerPlugin } from './plugins/sqs-consumer/index.js'
+import { sqsExternalSubmissionConsumerPlugin } from './plugins/sqs-consumer/external-submission-consumer.js'
 import { metrics } from '@defra/cdp-metrics'
 
 function createServerConfig() {
@@ -184,6 +185,7 @@ async function createServer() {
   await registerCorePlugins(server)
   await server.register(sqsClientPlugin)
   await server.register(sqsProgrammeConsumerPlugin)
+  await server.register(sqsExternalSubmissionConsumerPlugin)
   await registerScheduler(server)
   await registerSwagger(server)
   return server
