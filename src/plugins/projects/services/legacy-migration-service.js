@@ -123,6 +123,52 @@ async function resolvePlpDecision(prisma, projectId, referenceNumber, logger) {
 }
 
 /**
+ * Compute intervention types for DEF projects (CM maps to null, but DEF is the
+ * only type that reaches this path). Evaluates all four NFM × PLP combinations.
+ *
+ * @param {boolean} nfmIncluded - Decision 2 result
+ * @param {boolean} plpPresent - Decision 3 result
+ * @returns {{ interventionTypes: string, mainInterventionType: string }}
+ */
+function computeDefInterventionTypes(nfmIncluded, plpPresent) {
+  if (nfmIncluded && plpPresent) {
+    return {
+      interventionTypes: [
+        PROJECT_INTERVENTION_TYPES.NFM,
+        PROJECT_INTERVENTION_TYPES.PFR,
+        PROJECT_INTERVENTION_TYPES.OTHER
+      ].join(','),
+      mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
+    }
+  }
+
+  if (nfmIncluded) {
+    return {
+      interventionTypes: [
+        PROJECT_INTERVENTION_TYPES.NFM,
+        PROJECT_INTERVENTION_TYPES.OTHER
+      ].join(','),
+      mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
+    }
+  }
+
+  if (plpPresent) {
+    return {
+      interventionTypes: [
+        PROJECT_INTERVENTION_TYPES.PFR,
+        PROJECT_INTERVENTION_TYPES.OTHER
+      ].join(','),
+      mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
+    }
+  }
+
+  return {
+    interventionTypes: PROJECT_INTERVENTION_TYPES.OTHER,
+    mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
+  }
+}
+
+/**
  * Compute the new intervention types and main intervention type based on
  * the old project type and decision criteria.
  *
@@ -152,43 +198,8 @@ function computeInterventionTypes(oldProjectType, nfmIncluded, plpPresent) {
     }
   }
 
-  // CM, DEF → evaluate both NFM and PLP decisions
-  if (nfmIncluded && plpPresent) {
-    return {
-      interventionTypes: [
-        PROJECT_INTERVENTION_TYPES.NFM,
-        PROJECT_INTERVENTION_TYPES.PFR,
-        PROJECT_INTERVENTION_TYPES.OTHER
-      ].join(','),
-      mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
-    }
-  }
-
-  if (nfmIncluded && !plpPresent) {
-    return {
-      interventionTypes: [
-        PROJECT_INTERVENTION_TYPES.NFM,
-        PROJECT_INTERVENTION_TYPES.OTHER
-      ].join(','),
-      mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
-    }
-  }
-
-  if (!nfmIncluded && plpPresent) {
-    return {
-      interventionTypes: [
-        PROJECT_INTERVENTION_TYPES.PFR,
-        PROJECT_INTERVENTION_TYPES.OTHER
-      ].join(','),
-      mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
-    }
-  }
-
-  // Neither NFM nor PLP
-  return {
-    interventionTypes: PROJECT_INTERVENTION_TYPES.OTHER,
-    mainInterventionType: PROJECT_INTERVENTION_TYPES.OTHER
-  }
+  // DEF → evaluate both NFM and PLP decisions
+  return computeDefInterventionTypes(nfmIncluded, plpPresent)
 }
 
 /**
