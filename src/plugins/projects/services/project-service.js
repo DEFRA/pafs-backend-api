@@ -192,14 +192,14 @@ export class ProjectService extends ProjectNfmService {
         }
       })
 
-      if (proposalPayload.areaId) {
-        await this.upsertProjectArea(result.id, proposalPayload.areaId)
-      }
-
-      if (isCreateOperation) {
-        await this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
-        await this.upsertProjectArea(result.id, proposalPayload.areaId)
-      }
+      await Promise.all([
+        isCreateOperation
+          ? this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
+          : Promise.resolve(),
+        proposalPayload.areaId
+          ? this.upsertProjectArea(result.id, proposalPayload.areaId)
+          : Promise.resolve()
+      ])
 
       return result
     } catch (error) {
@@ -305,9 +305,15 @@ export class ProjectService extends ProjectNfmService {
 
   async _populateJoinedTables(project) {
     const joinedTables = getJoinedTableConfig()
-    for (const [tableKey, config] of Object.entries(joinedTables)) {
-      const joinData = await this._fetchJoinedDataByConfig(project.id, config)
-      this._attachJoinedTableData(project, tableKey, joinData, config.isArray)
+    const entries = Object.entries(joinedTables)
+    const results = await Promise.all(
+      entries.map(([, config]) =>
+        this._fetchJoinedDataByConfig(project.id, config)
+      )
+    )
+    for (let i = 0; i < entries.length; i++) {
+      const [tableKey, config] = entries[i]
+      this._attachJoinedTableData(project, tableKey, results[i], config.isArray)
     }
   }
 
@@ -333,7 +339,7 @@ export class ProjectService extends ProjectNfmService {
       const apiData = ProjectMapper.toApi(project)
 
       // Apply all response enrichments (area hierarchy, moderation filename,
-      // status resolution).  To add a new field, add a step in project-enricher.js.
+      // status resolution). To add a new field, add a step in project-enricher.js.
       await enrichProjectResponse(this.prisma, project, apiData, this.logger)
 
       return apiData

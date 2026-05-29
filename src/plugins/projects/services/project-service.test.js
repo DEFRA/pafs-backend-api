@@ -232,7 +232,7 @@ describe('ProjectService', () => {
     })
 
     test('Should normalize multiple internal spaces to single space before comparing', async () => {
-      const payload = { name: 'South  Yorkshire Flood' }
+      const payload = { name: 'South  Yorkshire Flood' }
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
@@ -527,8 +527,8 @@ describe('ProjectService', () => {
         id: 1n,
         reference_number: 'ANC501E/000A/001A'
       })
-      // Should be called twice: once after upsert, once in isCreateOperation block
-      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledTimes(2)
+      // Should be called once: duplicate call in isCreateOperation block was a bug
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledTimes(1)
       expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -631,19 +631,8 @@ describe('ProjectService', () => {
 
       await service.upsertProject(proposalPayload, userId, rfccCode)
 
-      // Should be called once in isCreateOperation block with undefined areaId
-      // Note: This is current implementation behavior - areaId is undefined/NaN
-      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledTimes(1)
-      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            project_id: 1
-          },
-          create: expect.objectContaining({
-            area_id: NaN // Number(undefined) = NaN
-          })
-        })
-      )
+      // upsertProjectArea should not be called when no areaId is provided
+      expect(mockPrisma.pafs_core_area_projects.upsert).toHaveBeenCalledTimes(0)
     })
   })
 

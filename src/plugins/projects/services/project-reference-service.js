@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { SIZE } from '../../../common/constants/common.js'
 
 const COUNTER_SUFFIX = 'A'
@@ -12,30 +13,26 @@ export function formatCounterParts(highCounter, lowCounter) {
 }
 
 export async function incrementReferenceCounter(prisma, rfccCode) {
-  return prisma.$transaction(async (tx) => {
-    const current = await tx.pafs_core_reference_counters.findUnique({
-      where: { rfcc_code: rfccCode },
-      select: { low_counter: true, high_counter: true }
-    })
-
-    const shouldRollover = current && current.low_counter >= SIZE.LENGTH_999
-
-    return tx.pafs_core_reference_counters.upsert({
-      where: { rfcc_code: rfccCode },
-      update: {
-        high_counter: shouldRollover ? { increment: 1 } : undefined,
-        low_counter: shouldRollover ? 1 : { increment: 1 },
-        updated_at: new Date()
-      },
-      create: {
-        rfcc_code: rfccCode,
-        high_counter: 0,
-        low_counter: 1,
-        created_at: new Date(),
-        updated_at: new Date()
-      }
-    })
-  })
+  const rows = await prisma.$queryRaw(Prisma.sql`
+    INSERT INTO pafs_core_reference_counters
+      (rfcc_code, high_counter, low_counter, created_at, updated_at)
+    VALUES
+      (${rfccCode}, 0, 1, NOW(), NOW())
+    ON CONFLICT (rfcc_code) DO UPDATE SET
+      high_counter = CASE
+        WHEN pafs_core_reference_counters.low_counter >= ${SIZE.LENGTH_999}
+        THEN pafs_core_reference_counters.high_counter + 1
+        ELSE pafs_core_reference_counters.high_counter
+      END,
+      low_counter = CASE
+        WHEN pafs_core_reference_counters.low_counter >= ${SIZE.LENGTH_999}
+        THEN 1
+        ELSE pafs_core_reference_counters.low_counter + 1
+      END,
+      updated_at = NOW()
+    RETURNING high_counter, low_counter
+  `)
+  return rows[0]
 }
 
 export async function generateProjectReferenceNumber(

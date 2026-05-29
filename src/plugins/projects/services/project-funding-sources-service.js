@@ -91,9 +91,16 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
    * @param {Object} data.amounts - Amounts object with fund source keys (fcermGia, localLevy, etc.)
    * @returns {Promise<Object>} Created or updated funding value record
    */
-  async upsertFundingValue({ referenceNumber, financialYear, amounts }) {
+  async upsertFundingValue({
+    referenceNumber,
+    financialYear,
+    amounts,
+    projectId: providedProjectId
+  }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
       const existingValue = await this._findExistingFundingValue(
         projectId,
@@ -129,9 +136,15 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
    * @param {number} data.financialYear - Financial year to delete
    * @returns {Promise<Object>} Deleted funding value record or null if not found
    */
-  async deleteFundingValue({ referenceNumber, financialYear }) {
+  async deleteFundingValue({
+    referenceNumber,
+    financialYear,
+    projectId: providedProjectId
+  }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
       const existingValue =
         await this.prisma.pafs_core_funding_values.findFirst({
@@ -270,15 +283,12 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
       }
       nullAmounts.total = 0n
 
-      // Null out amounts in each out-of-range funding value row
-      let fundingValuesCleared = 0
-      for (const fv of outOfRangeValues) {
-        await this.prisma.pafs_core_funding_values.update({
-          where: { id: fv.id },
+      // Null out amounts in all out-of-range funding value rows in one operation
+      const { count: fundingValuesCleared } =
+        await this.prisma.pafs_core_funding_values.updateMany({
+          where: { id: { in: outOfRangeIds } },
           data: nullAmounts
         })
-        fundingValuesCleared++
-      }
 
       // Null out the amount on linked contributor rows (keep name & type)
       const contributorsResult =

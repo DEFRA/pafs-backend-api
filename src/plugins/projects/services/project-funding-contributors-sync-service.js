@@ -40,15 +40,17 @@ export class ProjectFundingContributorsSyncService {
     financialYear,
     upsertFn
   ) {
-    for (const contributor of desiredEntries) {
-      await upsertFn({
-        referenceNumber,
-        financialYear,
-        contributorType: contributor.contributorType,
-        name: contributor.name,
-        amount: contributor.amount
-      })
-    }
+    await Promise.all(
+      desiredEntries.map((contributor) =>
+        upsertFn({
+          referenceNumber,
+          financialYear,
+          contributorType: contributor.contributorType,
+          name: contributor.name,
+          amount: contributor.amount
+        })
+      )
+    )
   }
 
   /**
@@ -106,10 +108,13 @@ export class ProjectFundingContributorsSyncService {
     referenceNumber,
     financialYear,
     contributorEntries,
-    upsertFn
+    upsertFn,
+    projectId: providedProjectId
   }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
       const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
         {
@@ -273,17 +278,27 @@ export class ProjectFundingContributorsSyncService {
       const startYear = project.earliest_start_year
       const endYear = project.project_end_financial_year
 
-      for (let year = startYear; year <= endYear; year++) {
-        const fundingValue = await this._ensureFundingValueRow(projectId, year)
-
-        for (const name of contributorNames) {
-          await this._createContributorIfMissing(
-            fundingValue.id,
-            name,
-            contributorType
+      const years = Array.from(
+        { length: endYear - startYear + 1 },
+        (_, i) => startYear + i
+      )
+      await Promise.all(
+        years.map(async (year) => {
+          const fundingValue = await this._ensureFundingValueRow(
+            projectId,
+            year
           )
-        }
-      }
+          await Promise.all(
+            contributorNames.map((name) =>
+              this._createContributorIfMissing(
+                fundingValue.id,
+                name,
+                contributorType
+              )
+            )
+          )
+        })
+      )
 
       this.logger.info(
         {
