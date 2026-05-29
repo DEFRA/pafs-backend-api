@@ -11,6 +11,10 @@ import {
 import { enrichProjectResponse } from '../helpers/project-enricher.js'
 import { generateProjectReferenceNumber } from './project-reference-service.js'
 import { ProjectNfmService } from './project-nfm-service.js'
+import {
+  requiresLegacyMigration,
+  executeLegacyProjectTypeMigration
+} from './legacy-migration-service.js'
 
 const OPTIONAL_OVERVIEW_NFM_FIELDS = [
   'nfm_landowner_consent',
@@ -332,6 +336,23 @@ export class ProjectService extends ProjectNfmService {
 
       if (!project) {
         return null
+      }
+
+      // Execute legacy migration if applicable (on-the-fly transformation)
+      if (requiresLegacyMigration(project)) {
+        const migrationResult = await executeLegacyProjectTypeMigration(
+          this.prisma,
+          project,
+          this.logger
+        )
+        if (migrationResult) {
+          // Apply transformed fields to in-memory project before mapping
+          project.project_type = migrationResult.project_type
+          project.project_intervention_types =
+            migrationResult.project_intervention_types
+          project.main_intervention_type =
+            migrationResult.main_intervention_type
+        }
       }
 
       await this._populateJoinedTables(project)

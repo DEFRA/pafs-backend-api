@@ -298,6 +298,7 @@ describe('funding-sources-normalizers', () => {
 
     beforeEach(() => {
       projectService = {
+        getProjectIdByReference: vi.fn().mockResolvedValue(1),
         upsertFundingValue: vi.fn().mockResolvedValue({}),
         upsertFundingContributor: vi.fn().mockResolvedValue({}),
         syncFundingContributorsForYear: vi.fn().mockResolvedValue(undefined),
@@ -342,6 +343,7 @@ describe('funding-sources-normalizers', () => {
       ).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
+        projectId: 1,
         contributorEntries: [
           {
             contributorType: 'public_contributions',
@@ -396,6 +398,7 @@ describe('funding-sources-normalizers', () => {
       ).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
+        projectId: 1,
         contributorEntries: [
           {
             contributorType: 'public_contributions',
@@ -469,6 +472,7 @@ describe('funding-sources-normalizers', () => {
       expect(projectService.upsertFundingValue).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
+        projectId: 1,
         amounts: expect.objectContaining({
           publicContributions: '999',
           total: expect.any(String)
@@ -497,6 +501,7 @@ describe('funding-sources-normalizers', () => {
       expect(projectService.upsertFundingValue).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
+        projectId: 1,
         amounts: expect.objectContaining({
           fcermGia: '1000',
           internalDrainageBoards: null,
@@ -553,6 +558,7 @@ describe('funding-sources-normalizers', () => {
       expect(projectService.upsertFundingValue).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
+        projectId: 1,
         amounts: expect.objectContaining({
           fcermGia: '1000',
           publicContributions: '2000',
@@ -566,6 +572,7 @@ describe('funding-sources-normalizers', () => {
       ).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
+        projectId: 1,
         contributorEntries: [
           {
             contributorType: 'public_contributions',
@@ -613,11 +620,13 @@ describe('funding-sources-normalizers', () => {
 
       expect(projectService.deleteAllFundingContributors).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
-        financialYear: 2027
+        financialYear: 2027,
+        projectId: 1
       })
       expect(projectService.deleteFundingValue).toHaveBeenCalledWith({
         referenceNumber: 'ANC501E/000A/001A',
-        financialYear: 2027
+        financialYear: 2027,
+        projectId: 1
       })
       expect(projectService.upsertFundingValue).not.toHaveBeenCalled()
       expect(payload.fundingValues).toBeUndefined()
@@ -1571,6 +1580,7 @@ describe('funding-sources-normalizers', () => {
   describe('normalizeFundingSourceFields – contributorType fallback', () => {
     it('uses the config contributorType when entry has no contributorType', async () => {
       const projectService = {
+        getProjectIdByReference: vi.fn().mockResolvedValue(1),
         upsertFundingValue: vi.fn().mockResolvedValue(),
         syncFundingContributorsForYear: vi.fn().mockResolvedValue()
       }

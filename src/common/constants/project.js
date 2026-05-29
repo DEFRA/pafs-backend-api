@@ -8,6 +8,15 @@ export const PROJECT_TYPES = {
   ELO: 'ELO'
 }
 
+export const LEGACY_PROJECT_TYPES = {
+  CM: 'CM',
+  DEF: 'DEF',
+  PLP: 'PLP',
+  ENV: 'ENV',
+  ENN: 'ENN',
+  STR: 'STR'
+}
+
 export const PROJECT_INTERVENTION_TYPES = {
   NFM: 'NFM',
   SUDS: 'SUDS',

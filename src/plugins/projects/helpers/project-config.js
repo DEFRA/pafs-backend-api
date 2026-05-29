@@ -242,7 +242,8 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   fundingCalculatorContentType: 'funding_calculator_content_type',
   fundingCalculatorUpdatedAt: 'funding_calculator_updated_at',
   isLegacy: 'is_legacy',
-  isRevised: 'is_revised'
+  isRevised: 'is_revised',
+  naturalFloodRiskMeasuresIncluded: 'natural_flood_risk_measures_included'
 }
 
 /**
