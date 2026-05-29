@@ -1112,6 +1112,7 @@ describe('ProjectService', () => {
           nfm_landowner_consent: true,
           nfm_experience_level: true,
           nfm_project_readiness: true,
+          natural_flood_risk_measures_included: true,
           wlc_estimated_whole_life_pv_costs: true,
           wlc_estimated_design_construction_costs: true,
           wlc_estimated_risk_contingency_costs: true,
