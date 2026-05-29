@@ -473,7 +473,7 @@ describe('ProjectService', () => {
       ).rejects.toThrow('Database error')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: dbError.message }),
+        expect.objectContaining({ err: dbError }),
         'Error upserting project proposal'
       )
     })
@@ -685,7 +685,7 @@ describe('ProjectService', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: dbError.message,
+          err: dbError,
           projectId,
           newState
         }),
@@ -746,7 +746,7 @@ describe('ProjectService', () => {
       ).rejects.toThrow('Area update failed')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: dbError.message, projectId, areaId }),
+        expect.objectContaining({ err: dbError, projectId, areaId }),
         'Error upserting project area'
       )
     })

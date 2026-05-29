@@ -298,6 +298,7 @@ describe('funding-sources-normalizers', () => {
 
     beforeEach(() => {
       projectService = {
+        getProjectIdByReference: vi.fn().mockResolvedValue(undefined),
         upsertFundingValue: vi.fn().mockResolvedValue({}),
         upsertFundingContributor: vi.fn().mockResolvedValue({}),
         syncFundingContributorsForYear: vi.fn().mockResolvedValue(undefined),
@@ -1571,6 +1572,7 @@ describe('funding-sources-normalizers', () => {
   describe('normalizeFundingSourceFields – contributorType fallback', () => {
     it('uses the config contributorType when entry has no contributorType', async () => {
       const projectService = {
+        getProjectIdByReference: vi.fn().mockResolvedValue(undefined),
         upsertFundingValue: vi.fn().mockResolvedValue(),
         syncFundingContributorsForYear: vi.fn().mockResolvedValue()
       }

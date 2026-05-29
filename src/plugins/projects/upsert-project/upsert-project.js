@@ -267,7 +267,7 @@ const processUpsert = async (request, h, apiPayload) => {
 
 const logUpsertError = (request, error, name) => {
   request.server.logger.error(
-    { error: error.message, stack: error.stack, name },
+    { err: error, name },
     'Error upserting project proposal'
   )
 }

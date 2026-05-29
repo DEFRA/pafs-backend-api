@@ -189,6 +189,12 @@ export class ProjectService extends ProjectNfmService {
           creator_id: userId,
           is_legacy: false,
           created_at: new Date()
+        },
+        select: {
+          id: true,
+          reference_number: true,
+          slug: true,
+          name: true
         }
       })
 
@@ -204,7 +210,7 @@ export class ProjectService extends ProjectNfmService {
       return result
     } catch (error) {
       this.logger.error(
-        { error: error.message, proposalPayload },
+        { err: error, referenceNumber: proposalPayload.referenceNumber },
         'Error upserting project proposal'
       )
 
@@ -394,10 +400,7 @@ export class ProjectService extends ProjectNfmService {
       })
       return record
     } catch (error) {
-      this.logger.error(
-        { error: error.message, projectId, ...logContext },
-        errorMessage
-      )
+      this.logger.error({ err: error, projectId, ...logContext }, errorMessage)
       throw error
     }
   }
