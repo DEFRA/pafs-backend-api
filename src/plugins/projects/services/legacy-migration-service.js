@@ -12,10 +12,7 @@ const OLD_PROJECT_TYPES = new Set(Object.values(LEGACY_PROJECT_TYPES))
 /**
  * Types that require Decision 2 (NFM) and Decision 3 (PLP) evaluation.
  */
-const TYPES_REQUIRING_NFM_AND_PLP = new Set([
-  LEGACY_PROJECT_TYPES.CM,
-  LEGACY_PROJECT_TYPES.DEF
-])
+const TYPES_REQUIRING_NFM_AND_PLP = new Set([LEGACY_PROJECT_TYPES.DEF])
 
 /**
  * Types that require only Decision 2 (NFM) evaluation.
