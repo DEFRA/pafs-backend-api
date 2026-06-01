@@ -12,3 +12,6 @@ coverage
 
 liquibase.properties
 podman-compose.yml
+
+.github/prompts
+.github/copilot-instructions.md

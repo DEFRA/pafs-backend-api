@@ -36,6 +36,10 @@ export class ProjectFundingContributorsService {
     return Number(project.id)
   }
 
+  async getProjectIdByReference(referenceNumber) {
+    return this._getProjectIdByReference(referenceNumber)
+  }
+
   /**
    * Upsert funding contributor record
    * @param {Object} data - Funding contributor data
@@ -225,9 +229,15 @@ export class ProjectFundingContributorsService {
    * @param {number} data.financialYear - Financial year
    * @returns {Promise<number>} Number of contributors deleted
    */
-  async deleteAllFundingContributors({ referenceNumber, financialYear }) {
+  async deleteAllFundingContributors({
+    referenceNumber,
+    financialYear,
+    projectId: providedProjectId
+  }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
       // Get the funding value for this financial year
       const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
@@ -447,13 +457,15 @@ export class ProjectFundingContributorsService {
   async syncFundingContributorsForYear({
     referenceNumber,
     financialYear,
-    contributorEntries
+    contributorEntries,
+    projectId
   }) {
     return this._syncService.syncFundingContributorsForYear({
       referenceNumber,
       financialYear,
       contributorEntries,
-      upsertFn: this.upsertFundingContributor.bind(this)
+      upsertFn: this.upsertFundingContributor.bind(this),
+      projectId
     })
   }
 

@@ -306,18 +306,21 @@ const upsertFundingContributors = async ({
   projectService,
   referenceNumber,
   financialYear,
+  projectId,
   contributorEntries
 }) => {
   await projectService.syncFundingContributorsForYear({
     referenceNumber,
     financialYear,
-    contributorEntries
+    contributorEntries,
+    projectId
   })
 }
 
 const processFundingValueRow = async ({
   row,
   referenceNumber,
+  projectId,
   projectService
 }) => {
   const financialYear = row.financialYear
@@ -329,11 +332,13 @@ const processFundingValueRow = async ({
   if (!hasAnyAmountValue(amounts)) {
     await projectService.deleteAllFundingContributors({
       referenceNumber,
-      financialYear
+      financialYear,
+      projectId
     })
     await projectService.deleteFundingValue({
       referenceNumber,
-      financialYear
+      financialYear,
+      projectId
     })
     return
   }
@@ -341,7 +346,8 @@ const processFundingValueRow = async ({
   await projectService.upsertFundingValue({
     referenceNumber,
     financialYear,
-    amounts
+    amounts,
+    projectId
   })
 
   if (!hasContributorFields(row)) {
@@ -353,6 +359,7 @@ const processFundingValueRow = async ({
     projectService,
     referenceNumber,
     financialYear,
+    projectId,
     contributorEntries
   })
 }
@@ -443,14 +450,23 @@ export const handleFundingSourcesData = async (
   }
 
   const { referenceNumber } = enrichedPayload
+  const projectId =
+    await projectService.getProjectIdByReference(referenceNumber)
 
-  for (const row of enrichedPayload.fundingValues) {
-    if (!isFundingValueRowObject(row) || !hasFinancialYear(row)) {
-      continue
-    }
+  const validRows = enrichedPayload.fundingValues.filter(
+    (row) => isFundingValueRowObject(row) && hasFinancialYear(row)
+  )
 
-    await processFundingValueRow({ row, referenceNumber, projectService })
-  }
+  await Promise.all(
+    validRows.map((row) =>
+      processFundingValueRow({
+        row,
+        referenceNumber,
+        projectId,
+        projectService
+      })
+    )
+  )
 
   delete enrichedPayload.fundingValues
 }

@@ -11,6 +11,10 @@ import {
 import { enrichProjectResponse } from '../helpers/project-enricher.js'
 import { generateProjectReferenceNumber } from './project-reference-service.js'
 import { ProjectNfmService } from './project-nfm-service.js'
+import {
+  requiresLegacyMigration,
+  executeLegacyProjectTypeMigration
+} from './legacy-migration-service.js'
 
 const OPTIONAL_OVERVIEW_NFM_FIELDS = [
   'nfm_landowner_consent',
@@ -189,22 +193,28 @@ export class ProjectService extends ProjectNfmService {
           creator_id: userId,
           is_legacy: false,
           created_at: new Date()
+        },
+        select: {
+          id: true,
+          reference_number: true,
+          slug: true,
+          name: true
         }
       })
 
-      if (proposalPayload.areaId) {
-        await this.upsertProjectArea(result.id, proposalPayload.areaId)
-      }
-
-      if (isCreateOperation) {
-        await this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
-        await this.upsertProjectArea(result.id, proposalPayload.areaId)
-      }
+      await Promise.all([
+        isCreateOperation
+          ? this.upsertProjectState(result.id, PROJECT_STATUS.DRAFT)
+          : Promise.resolve(),
+        proposalPayload.areaId
+          ? this.upsertProjectArea(result.id, proposalPayload.areaId)
+          : Promise.resolve()
+      ])
 
       return result
     } catch (error) {
       this.logger.error(
-        { error: error.message, proposalPayload },
+        { err: error, referenceNumber: proposalPayload.referenceNumber },
         'Error upserting project proposal'
       )
 
@@ -305,9 +315,15 @@ export class ProjectService extends ProjectNfmService {
 
   async _populateJoinedTables(project) {
     const joinedTables = getJoinedTableConfig()
-    for (const [tableKey, config] of Object.entries(joinedTables)) {
-      const joinData = await this._fetchJoinedDataByConfig(project.id, config)
-      this._attachJoinedTableData(project, tableKey, joinData, config.isArray)
+    const entries = Object.entries(joinedTables)
+    const results = await Promise.all(
+      entries.map(([, config]) =>
+        this._fetchJoinedDataByConfig(project.id, config)
+      )
+    )
+    for (let i = 0; i < entries.length; i++) {
+      const [tableKey, config] = entries[i]
+      this._attachJoinedTableData(project, tableKey, results[i], config.isArray)
     }
   }
 
@@ -328,12 +344,29 @@ export class ProjectService extends ProjectNfmService {
         return null
       }
 
+      // Execute legacy migration if applicable (on-the-fly transformation)
+      if (requiresLegacyMigration(project)) {
+        const migrationResult = await executeLegacyProjectTypeMigration(
+          this.prisma,
+          project,
+          this.logger
+        )
+        if (migrationResult) {
+          // Apply transformed fields to in-memory project before mapping
+          project.project_type = migrationResult.project_type
+          project.project_intervention_types =
+            migrationResult.project_intervention_types
+          project.main_intervention_type =
+            migrationResult.main_intervention_type
+        }
+      }
+
       await this._populateJoinedTables(project)
 
       const apiData = ProjectMapper.toApi(project)
 
       // Apply all response enrichments (area hierarchy, moderation filename,
-      // status resolution).  To add a new field, add a step in project-enricher.js.
+      // status resolution). To add a new field, add a step in project-enricher.js.
       await enrichProjectResponse(this.prisma, project, apiData, this.logger)
 
       return apiData
@@ -388,10 +421,7 @@ export class ProjectService extends ProjectNfmService {
       })
       return record
     } catch (error) {
-      this.logger.error(
-        { error: error.message, projectId, ...logContext },
-        errorMessage
-      )
+      this.logger.error({ err: error, projectId, ...logContext }, errorMessage)
       throw error
     }
   }

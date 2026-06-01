@@ -23,6 +23,7 @@ describe('ProjectFundingSourcesService', () => {
         findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
         delete: vi.fn(),
         deleteMany: vi.fn()
       },
@@ -1323,7 +1324,9 @@ describe('ProjectFundingSourcesService', () => {
         { id: 10n, financial_year: 2024 },
         { id: 11n, financial_year: 2032 }
       ])
-      mockPrisma.pafs_core_funding_values.update.mockResolvedValue({})
+      mockPrisma.pafs_core_funding_values.updateMany.mockResolvedValue({
+        count: 2
+      })
       mockPrisma.pafs_core_funding_contributors.updateMany.mockResolvedValue({
         count: 3
       })
@@ -1347,18 +1350,18 @@ describe('ProjectFundingSourcesService', () => {
         }
       )
 
-      // Should update each funding value row to null all amounts
-      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledTimes(
-        2
-      )
-      expect(mockPrisma.pafs_core_funding_values.update).toHaveBeenCalledWith({
-        where: { id: 10n },
+      // Should null all amounts in a single updateMany call
+      expect(
+        mockPrisma.pafs_core_funding_values.updateMany
+      ).toHaveBeenCalledWith({
+        where: { id: { in: [10n, 11n] } },
         data: expect.objectContaining({
           fcerm_gia: null,
           local_levy: null,
           total: 0n
         })
       })
+      expect(mockPrisma.pafs_core_funding_values.update).not.toHaveBeenCalled()
 
       // Should null contributor amounts (not delete rows)
       expect(

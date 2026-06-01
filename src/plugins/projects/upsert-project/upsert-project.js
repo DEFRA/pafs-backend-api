@@ -72,112 +72,110 @@ const sanitizePayloadForValidation = (proposalPayload, validationLevel) => {
   sanitizeFundingSourceFields(proposalPayload, validationLevel)
 }
 
-const applyPayloadNormalizers = async (
+const applyScalarNormalizers = (enrichedPayload, validationLevel) => {
+  normalizeInterventionTypes(enrichedPayload, validationLevel)
+  resetEarliestWithGiaFields(enrichedPayload, validationLevel)
+  normalizeUrgencyData(enrichedPayload, validationLevel)
+  normalizeEnvironmentalBenefits(enrichedPayload, validationLevel)
+  normalizeRiskFields(enrichedPayload, validationLevel)
+  normalizeConfidenceFields(enrichedPayload, validationLevel)
+}
+
+const applyProjectTypeNormalizers = (
   enrichedPayload,
   validationLevel,
-  existingProject,
-  projectService
+  existingProject
 ) => {
-  // Normalize empty intervention types only for INITIAL_SAVE or PROJECT_TYPE levels
-  normalizeInterventionTypes(enrichedPayload, validationLevel)
-
-  // Reset earliestWithGia fields when couldStartEarly is false or when saving COULD_START_EARLY level
-  resetEarliestWithGiaFields(enrichedPayload, validationLevel)
-
-  // Normalize urgency data: nullify details when not_urgent, stamp updatedAt
-  normalizeUrgencyData(enrichedPayload, validationLevel)
-
-  // Normalize environmental benefits: reset fields based on gate values
-  normalizeEnvironmentalBenefits(enrichedPayload, validationLevel)
-
-  //Normalize Risk & Property benefiting fields
-  normalizeRiskFields(enrichedPayload, validationLevel)
-
-  // Normalize confidence fields: reset for restricted project types (ELO, HCR, STR, STU)
-  normalizeConfidenceFields(enrichedPayload, validationLevel)
-
-  // Normalize WLC cost fields: convert empty strings to null
   normalizeWlcFields(enrichedPayload, validationLevel)
-
-  // Clear WLB and WLC fields when project type changes
   clearWlFieldsOnProjectTypeChange(
     enrichedPayload,
     validationLevel,
     existingProject
   )
-
-  // Clear carbon fields when project type changes to STR or STU
   clearCarbonFieldsOnProjectTypeChange(
     enrichedPayload,
     validationLevel,
     existingProject
   )
-
-  // Normalize WLB cost fields: convert empty strings to null
   normalizeWlbFields(enrichedPayload, validationLevel)
-
-  // Normalize carbon impact fields: convert empty strings to null
   normalizeCarbonFields(enrichedPayload, validationLevel)
-  // Normalize funding source spend fields: convert empty strings to null
   normalizeFundingSourceFields(enrichedPayload, validationLevel)
-
-  // Sync growthFunding flag with additionalFcermGia selection
   syncGrowthFundingFlag(enrichedPayload, validationLevel)
+}
 
-  // Clear NFM fields when intervention type changes away from NFM/SUDS
+const applyNfmNormalizers = async (
+  enrichedPayload,
+  validationLevel,
+  existingProject,
+  projectService
+) => {
+  // PROJECT_TYPE level: clears NFM scalar fields and child records when NFM/SUDS is removed
   await clearNfmFieldsOnInterventionTypeChange(
     enrichedPayload,
     validationLevel,
     existingProject,
     projectService
   )
-
-  // Handle NFM measure data - save to separate table if applicable
+  // NFM_* levels: save measure/land-use data to separate tables
   await handleNfmMeasureData(enrichedPayload, validationLevel, projectService)
+}
 
-  // Eagerly null spend columns for individually deselected funding sources (Screen 1 & 2)
-  await clearDeselectedFundingSourceColumns(
-    enrichedPayload,
-    validationLevel,
-    projectService
-  )
+const applyFundingNormalizers = async (
+  enrichedPayload,
+  validationLevel,
+  existingProject,
+  projectService
+) => {
+  // FUNDING_SOURCES_SELECTED level: three independent DB operations —
+  // (a) null deselected main-source spend columns in pafs_core_funding_values
+  // (b) null deselected additional-GIA columns in pafs_core_funding_values + payload flags
+  // (c) delete pafs_core_funding_contributors rows for deselected contributor types
+  // (a) and (b) touch different columns on the same rows; (c) is a different table.
+  // No cross-reads on enrichedPayload between these three — safe to run in parallel.
+  await Promise.all([
+    clearDeselectedFundingSourceColumns(
+      enrichedPayload,
+      validationLevel,
+      projectService
+    ),
+    clearDeselectedAdditionalGiaData(
+      enrichedPayload,
+      validationLevel,
+      projectService
+    ),
+    clearDeselectedContributorData(
+      enrichedPayload,
+      validationLevel,
+      projectService
+    )
+  ])
 
-  // Clear additional GIA boolean flags + spend columns when additionalFcermGia is deselected
-  await clearDeselectedAdditionalGiaData(
-    enrichedPayload,
-    validationLevel,
-    projectService
-  )
+  // PUBLIC/PRIVATE/OTHER_EA_CONTRIBUTORS levels: two independent DB operations —
+  // (a) delete contributor rows whose names are no longer in the saved list
+  // (b) ensure funding_value rows exist and upsert placeholder contributor rows
+  // (a) deletes rows NOT in currentNames; (b) creates rows IN currentNames — disjoint targets.
+  // Neither writes to enrichedPayload — safe to run in parallel.
+  await Promise.all([
+    cleanupRemovedContributors(
+      enrichedPayload,
+      validationLevel,
+      projectService
+    ),
+    ensureContributorFundingRows(
+      enrichedPayload,
+      validationLevel,
+      projectService
+    )
+  ])
 
-  // Remove contributor DB rows that are no longer in the saved names list
-  await cleanupRemovedContributors(
-    enrichedPayload,
-    validationLevel,
-    projectService
-  )
-
-  // Ensure funding_value rows exist per year and upsert contributor rows with null amounts
-  await ensureContributorFundingRows(
-    enrichedPayload,
-    validationLevel,
-    projectService
-  )
-
-  // Clear contributor names + DB rows when a contributor type is deselected
-  await clearDeselectedContributorData(
-    enrichedPayload,
-    validationLevel,
-    projectService
-  )
-
-  // Handle funding source estimated spend rows in joined funding tables
+  // FUNDING_SOURCES_ESTIMATED_SPEND level: upsert/delete per-year funding rows
   await handleFundingSourcesData(
     enrichedPayload,
     validationLevel,
     projectService
   )
 
-  // Flush funding values and contributors outside the new financial year range
+  // FINANCIAL_START_YEAR / FINANCIAL_END_YEAR levels: flush out-of-range funding data
   await flushOutOfRangeFundingData(
     enrichedPayload,
     validationLevel,
@@ -185,8 +183,30 @@ const applyPayloadNormalizers = async (
     projectService
   )
 
-  // Delete ALL funding values and contributors when stale data is being cleared
+  // CLEAR_STALE_DATA level: delete all funding values and contributors for the project
   await flushAllFundingData(enrichedPayload, validationLevel, projectService)
+}
+
+const applyPayloadNormalizers = async (
+  enrichedPayload,
+  validationLevel,
+  existingProject,
+  projectService
+) => {
+  applyScalarNormalizers(enrichedPayload, validationLevel)
+  applyProjectTypeNormalizers(enrichedPayload, validationLevel, existingProject)
+  await applyNfmNormalizers(
+    enrichedPayload,
+    validationLevel,
+    existingProject,
+    projectService
+  )
+  await applyFundingNormalizers(
+    enrichedPayload,
+    validationLevel,
+    existingProject,
+    projectService
+  )
 }
 
 const setAreaNameIfPresent = async (enrichedPayload, areaId, areaService) => {
@@ -226,14 +246,15 @@ const processUpsert = async (request, h, apiPayload) => {
   const isCreate = !referenceNumber
   const enrichedPayload = { ...proposalPayload }
 
-  await applyPayloadNormalizers(
-    enrichedPayload,
-    validationLevel,
-    existingProject,
-    projectService
-  )
-
-  await setAreaNameIfPresent(enrichedPayload, areaId, areaService)
+  await Promise.all([
+    applyPayloadNormalizers(
+      enrichedPayload,
+      validationLevel,
+      existingProject,
+      projectService
+    ),
+    setAreaNameIfPresent(enrichedPayload, areaId, areaService)
+  ])
 
   const project = await projectService.upsertProject(
     enrichedPayload,
@@ -246,7 +267,7 @@ const processUpsert = async (request, h, apiPayload) => {
 
 const logUpsertError = (request, error, name) => {
   request.server.logger.error(
-    { error: error.message, stack: error.stack, name },
+    { err: error, name },
     'Error upserting project proposal'
   )
 }
