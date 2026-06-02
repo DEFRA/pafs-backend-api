@@ -43,7 +43,12 @@ const PROJECT_TYPE_MAP = {
 /**
  * Determine if the project needs legacy migration.
  * Only applies to projects where is_legacy=true and the project_type
- * is one of the old codes.
+ * is one of the old codes AND intervention types have not yet been set.
+ *
+ * For types where project_type code stays the same after migration (DEF→DEF,
+ * STR→STR), a populated project_intervention_types field is the sentinel that
+ * migration has already run. This prevents the migration from re-firing on
+ * every overview load and overwriting user-edited intervention type values.
  *
  * @param {object} project - Raw project record from DB
  * @returns {boolean}
@@ -54,7 +59,18 @@ export function requiresLegacyMigration(project) {
   }
 
   const projectType = project.project_type
-  return OLD_PROJECT_TYPES.has(projectType)
+  if (!OLD_PROJECT_TYPES.has(projectType)) {
+    return false
+  }
+
+  // Migration has already run — the dedicated flag is the authoritative sentinel.
+  // We cannot rely on project_intervention_types being non-null because types
+  // such as ENV, ENN, STR and CM legitimately produce null after migration.
+  if (project.legacy_project_type_migration_completed) {
+    return false
+  }
+
+  return true
 }
 
 /**
@@ -272,6 +288,7 @@ export async function executeLegacyProjectTypeMigration(
     project_type: newProjectType,
     project_intervention_types: interventionTypes,
     main_intervention_type: mainInterventionType,
+    legacy_project_type_migration_completed: true,
     updated_at: new Date()
   }
 

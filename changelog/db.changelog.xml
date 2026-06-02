@@ -51,4 +51,7 @@
   <!-- Store outgoing request payload per submission attempt (shapefile base64 scrubbed at app layer) -->
   <include file="4-003-proposal-submissions-request-payload.xml" relativeToChangelogFile="true"/>
 
+  <!-- Track whether legacy project type migration has completed — replaces brittle intervention_types sentinel -->
+  <include file="4-004-legacy-project-type-migration-completed-flag.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

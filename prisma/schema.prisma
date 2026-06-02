@@ -480,6 +480,7 @@ model pafs_core_projects {
   updated_at                                                  DateTime  @db.Timestamp(6)
   stale_data_cleared                                          Boolean?  @default(false)
   benefit_area_file_base64                                    String?
+  legacy_project_type_migration_completed                     Boolean   @default(false)
 
   @@unique([reference_number, version], map: "index_pafs_core_projects_on_reference_number_and_version")
   @@index([benefit_area_file_s3_bucket, benefit_area_file_s3_key], map: "idx_core_projects_benefit_area_s3")

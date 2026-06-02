@@ -232,8 +232,15 @@ describe('project-config', () => {
       )
     })
 
-    it('should have 124 total fields', () => {
-      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(124)
+    it('should have 125 total fields', () => {
+      expect(Object.keys(PROJECT_SELECT_FIELDS_MAP)).toHaveLength(125)
+    })
+
+    it('should include legacyProjectTypeMigrationCompleted field for migration guard', () => {
+      expect(PROJECT_SELECT_FIELDS_MAP).toHaveProperty(
+        'legacyProjectTypeMigrationCompleted',
+        'legacy_project_type_migration_completed'
+      )
     })
   })
 
@@ -300,9 +307,14 @@ describe('project-config', () => {
       expect(result.slug).toBe(true)
     })
 
-    it('should return an object with 124 fields', () => {
+    it('should return an object with 125 fields', () => {
       const result = getProjectSelectFields()
-      expect(Object.keys(result)).toHaveLength(124)
+      expect(Object.keys(result)).toHaveLength(125)
+    })
+
+    it('should include legacy_project_type_migration_completed for Prisma select', () => {
+      const result = getProjectSelectFields()
+      expect(result.legacy_project_type_migration_completed).toBe(true)
     })
 
     it('should return a new object each time', () => {
