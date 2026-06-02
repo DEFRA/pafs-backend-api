@@ -117,6 +117,8 @@ describe('project-config', () => {
         nfmLandownerConsent: 'nfm_landowner_consent',
         nfmExperienceLevel: 'nfm_experience_level',
         nfmProjectReadiness: 'nfm_project_readiness',
+        naturalFloodRiskMeasuresIncluded:
+          'natural_flood_risk_measures_included',
         wlcEstimatedWholeLifePvCosts: 'wlc_estimated_whole_life_pv_costs',
         wlcEstimatedDesignConstructionCosts:
           'wlc_estimated_design_construction_costs',
@@ -196,6 +198,10 @@ describe('project-config', () => {
       )
       expect(PROJECT_FIELDS_MAP).toHaveProperty(
         'wlbEstimatedLandValueUpliftBenefits'
+      )
+      // NFM inclusion field
+      expect(PROJECT_FIELDS_MAP).toHaveProperty(
+        'naturalFloodRiskMeasuresIncluded'
       )
     })
 

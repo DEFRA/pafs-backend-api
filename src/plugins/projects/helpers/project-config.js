@@ -174,6 +174,7 @@ export const PROJECT_FIELDS_MAP = {
   createHabitatWatercourse: 'create_habitat_watercourse',
   kilometresOfWatercourseEnhancedOrCreatedSingle:
     'kilometres_of_watercourse_enhanced_or_created_single',
+  naturalFloodRiskMeasuresIncluded: 'natural_flood_risk_measures_included',
   nfmSelectedMeasures: 'nfm_selected_measures',
   nfmLandUseChange: 'nfm_land_use_change',
   nfmLandownerConsent: 'nfm_landowner_consent',
@@ -242,8 +243,7 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   fundingCalculatorContentType: 'funding_calculator_content_type',
   fundingCalculatorUpdatedAt: 'funding_calculator_updated_at',
   isLegacy: 'is_legacy',
-  isRevised: 'is_revised',
-  naturalFloodRiskMeasuresIncluded: 'natural_flood_risk_measures_included'
+  isRevised: 'is_revised'
 }
 
 /**

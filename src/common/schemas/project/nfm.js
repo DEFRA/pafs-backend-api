@@ -165,6 +165,19 @@ const createOptionalPositiveSchema = (label, { invalid, precision }) =>
     })
 
 /**
+ * NFM inclusion schema
+ * Database field: natural_flood_risk_measures_included (BOOLEAN)
+ * Indicates whether the project includes NFM measures (for SUDS-only combinations)
+ */
+export const nfmInclusionSchema = Joi.boolean()
+  .required()
+  .label('naturalFloodRiskMeasuresIncluded')
+  .messages({
+    'boolean.base': PROJECT_VALIDATION_MESSAGES.NFM_INCLUSION_INVALID,
+    'any.required': PROJECT_VALIDATION_MESSAGES.NFM_INCLUSION_REQUIRED
+  })
+
+/**
  * NFM selected measures schema
  * Database field: nfm_selected_measures (TEXT)
  * Comma-separated string of selected NFM measures

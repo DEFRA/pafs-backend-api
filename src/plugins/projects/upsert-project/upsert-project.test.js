@@ -1697,4 +1697,68 @@ describe('upsertProject handler', () => {
       expect(deleteAllSpy).not.toHaveBeenCalled()
     })
   })
+
+  describe('NFM data clearing on inclusion false', () => {
+    it('should clear NFM data when naturalFloodRiskMeasuresIncluded is set to false with existing NFM data', async () => {
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.NFM_INCLUSION
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.naturalFloodRiskMeasuresIncluded = false
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF',
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS],
+        naturalFloodRiskMeasuresIncluded: true,
+        nfmSelectedMeasures: 'woodland'
+      })
+
+      const deleteAllSpy = vi
+        .spyOn(ProjectService.prototype, 'deleteAllNfmChildRecords')
+        .mockResolvedValueOnce({ landUseChangesDeleted: 0, measuresDeleted: 0 })
+      const upsertSpy = vi.spyOn(ProjectService.prototype, 'upsertProject')
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      const callArgs = upsertSpy.mock.calls[0][0]
+      expect(callArgs.nfmSelectedMeasures).toBeNull()
+      expect(callArgs.nfmLandUseChange).toBeNull()
+      expect(callArgs.nfmLandownerConsent).toBeNull()
+      expect(callArgs.nfmExperienceLevel).toBeNull()
+      expect(callArgs.nfmProjectReadiness).toBeNull()
+      expect(deleteAllSpy).toHaveBeenCalledWith('REF123')
+    })
+
+    it('should NOT clear NFM data when naturalFloodRiskMeasuresIncluded is true', async () => {
+      mockRequest.payload.level = PROJECT_VALIDATION_LEVELS.NFM_INCLUSION
+      mockRequest.payload.payload.referenceNumber = 'REF123'
+      mockRequest.payload.payload.naturalFloodRiskMeasuresIncluded = true
+
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 1n,
+        projectType: 'DEF',
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS],
+        naturalFloodRiskMeasuresIncluded: true,
+        nfmSelectedMeasures: 'woodland'
+      })
+
+      const deleteAllSpy = vi.spyOn(
+        ProjectService.prototype,
+        'deleteAllNfmChildRecords'
+      )
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(deleteAllSpy).not.toHaveBeenCalled()
+    })
+  })
 })

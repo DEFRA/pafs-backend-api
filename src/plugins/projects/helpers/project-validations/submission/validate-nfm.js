@@ -153,6 +153,14 @@ export const validateNfm = (p) => {
     return null
   }
 
+  // For SUDS-only combinations (no NFM intervention type), respect the
+  // naturalFloodRiskMeasuresIncluded flag. When explicitly false, NFM is
+  // not required and validation passes.
+  const hasNfmIntervention = interventions.includes('NFM')
+  if (!hasNfmIntervention && p.naturalFloodRiskMeasuresIncluded === false) {
+    return null
+  }
+
   const selectedMeasures = parseCsv(p.nfmSelectedMeasures)
   const measureRows = p.pafs_core_nfm_measures ?? []
 

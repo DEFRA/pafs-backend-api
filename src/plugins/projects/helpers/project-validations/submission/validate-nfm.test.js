@@ -724,3 +724,78 @@ describe('combined measure and land use validation', () => {
     ).toBe(SUBMISSION_NFM_INCOMPLETE)
   })
 })
+
+// ─── SUDS-only with naturalFloodRiskMeasuresIncluded === false ─────────────────
+
+describe('SUDS-only with naturalFloodRiskMeasuresIncluded === false', () => {
+  test('returns null (passes) when SUDS-only and inclusion is false', () => {
+    expect(
+      validateNfm({
+        projectType: PROJECT_TYPES.DEF,
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS],
+        naturalFloodRiskMeasuresIncluded: false,
+        nfmSelectedMeasures: null,
+        pafs_core_nfm_measures: [],
+        nfmLandUseChange: null,
+        pafs_core_nfm_land_use_changes: [],
+        nfmLandownerConsent: null,
+        nfmExperienceLevel: null,
+        nfmProjectReadiness: null
+      })
+    ).toBeNull()
+  })
+
+  test('returns INCOMPLETE when SUDS-only and inclusion is true but no measures', () => {
+    expect(
+      validateNfm({
+        projectType: PROJECT_TYPES.DEF,
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS],
+        naturalFloodRiskMeasuresIncluded: true,
+        nfmSelectedMeasures: null,
+        pafs_core_nfm_measures: [],
+        nfmLandUseChange: null,
+        pafs_core_nfm_land_use_changes: [],
+        nfmLandownerConsent: null,
+        nfmExperienceLevel: null,
+        nfmProjectReadiness: null
+      })
+    ).toBe(SUBMISSION_NFM_INCOMPLETE)
+  })
+
+  test('returns INCOMPLETE when SUDS-only and inclusion is null (not answered)', () => {
+    expect(
+      validateNfm({
+        projectType: PROJECT_TYPES.DEF,
+        projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS],
+        naturalFloodRiskMeasuresIncluded: null,
+        nfmSelectedMeasures: null,
+        pafs_core_nfm_measures: [],
+        nfmLandUseChange: null,
+        pafs_core_nfm_land_use_changes: [],
+        nfmLandownerConsent: null,
+        nfmExperienceLevel: null,
+        nfmProjectReadiness: null
+      })
+    ).toBe(SUBMISSION_NFM_INCOMPLETE)
+  })
+
+  test('does NOT skip when project has NFM intervention even if inclusion is false', () => {
+    expect(
+      validateNfm({
+        projectType: PROJECT_TYPES.DEF,
+        projectInterventionTypes: [
+          PROJECT_INTERVENTION_TYPES.NFM,
+          PROJECT_INTERVENTION_TYPES.SUDS
+        ],
+        naturalFloodRiskMeasuresIncluded: false,
+        nfmSelectedMeasures: null,
+        pafs_core_nfm_measures: [],
+        nfmLandUseChange: null,
+        pafs_core_nfm_land_use_changes: [],
+        nfmLandownerConsent: null,
+        nfmExperienceLevel: null,
+        nfmProjectReadiness: null
+      })
+    ).toBe(SUBMISSION_NFM_INCOMPLETE)
+  })
+})

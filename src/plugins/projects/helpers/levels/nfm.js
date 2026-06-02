@@ -1,4 +1,5 @@
 import {
+  nfmInclusionSchema,
   nfmSelectedMeasuresSchema,
   nfmRiverRestorationAreaSchema,
   nfmRiverRestorationVolumeSchema,
@@ -212,6 +213,13 @@ const NFM_LEVEL_FIELD_SCHEMAS = {
 
 export const nfmLevels = (referenceNumber) => {
   const levels = {
+    [PROJECT_VALIDATION_LEVELS.NFM_INCLUSION]: createNfmLevel(
+      PROJECT_VALIDATION_LEVELS.NFM_INCLUSION,
+      referenceNumber,
+      {
+        naturalFloodRiskMeasuresIncluded: nfmInclusionSchema
+      }
+    ),
     [PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES]: createNfmLevel(
       PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
       referenceNumber,

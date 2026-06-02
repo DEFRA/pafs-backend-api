@@ -8,8 +8,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "AWS_EMF_ENVIRONMENT=Local NODE_ENV=development npm run server:watch",
-    "dev:debug": "AWS_EMF_ENVIRONMENT=Local NODE_ENV=development npm run server:debug",
+    "dev": "cross-env AWS_EMF_ENVIRONMENT=Local NODE_ENV=development npm run server:watch",
+    "dev:debug": "cross-env AWS_EMF_ENVIRONMENT=Local NODE_ENV=development npm run server:debug",
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",

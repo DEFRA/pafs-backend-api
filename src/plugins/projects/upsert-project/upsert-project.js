@@ -32,6 +32,7 @@ import {
   clearWlFieldsOnProjectTypeChange,
   clearCarbonFieldsOnProjectTypeChange,
   clearNfmFieldsOnInterventionTypeChange,
+  clearNfmDataOnInclusionFalse,
   sanitizeCarbonFields,
   normalizeCarbonFields,
   flushOutOfRangeFundingData,
@@ -111,6 +112,13 @@ const applyNfmNormalizers = async (
 ) => {
   // PROJECT_TYPE level: clears NFM scalar fields and child records when NFM/SUDS is removed
   await clearNfmFieldsOnInterventionTypeChange(
+    enrichedPayload,
+    validationLevel,
+    existingProject,
+    projectService
+  )
+  // NFM_INCLUSION level: flush all NFM data when user selects "no"
+  await clearNfmDataOnInclusionFalse(
     enrichedPayload,
     validationLevel,
     existingProject,

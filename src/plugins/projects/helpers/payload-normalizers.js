@@ -393,6 +393,52 @@ export const clearNfmFieldsOnInterventionTypeChange = async (
     newTypes.includes(PROJECT_INTERVENTION_TYPES.SUDS)
 
   if (stillHasNfmOrSuds) {
+    // If switching to/from SUDS-only ↔ NFM, reset the inclusion flag
+    // because it's only relevant for SUDS-only projects
+    const hadNfm = previousTypes.includes(PROJECT_INTERVENTION_TYPES.NFM)
+    const hasNfm = newTypes.includes(PROJECT_INTERVENTION_TYPES.NFM)
+    if (hadNfm !== hasNfm) {
+      enrichedPayload.naturalFloodRiskMeasuresIncluded = null
+    }
+    return
+  }
+
+  // Clear NFM scalar fields on pafs_core_projects
+  enrichedPayload.naturalFloodRiskMeasuresIncluded = null
+  enrichedPayload.nfmSelectedMeasures = null
+  enrichedPayload.nfmLandUseChange = null
+  enrichedPayload.nfmLandownerConsent = null
+  enrichedPayload.nfmExperienceLevel = null
+  enrichedPayload.nfmProjectReadiness = null
+
+  // Delete all NFM detail rows (land use changes and measures) for this project
+  await projectService.deleteAllNfmChildRecords(enrichedPayload.referenceNumber)
+}
+
+/**
+ * Clears all NFM data when naturalFloodRiskMeasuresIncluded is set to false.
+ * This flushes scalar NFM fields on the project and deletes all NFM child records.
+ */
+export const clearNfmDataOnInclusionFalse = async (
+  enrichedPayload,
+  validationLevel,
+  existingProject,
+  projectService
+) => {
+  if (validationLevel !== PROJECT_VALIDATION_LEVELS.NFM_INCLUSION) {
+    return
+  }
+
+  if (enrichedPayload.naturalFloodRiskMeasuresIncluded !== false) {
+    return
+  }
+
+  // Only flush if there was previously NFM data
+  const hadNfmData =
+    existingProject?.naturalFloodRiskMeasuresIncluded === true ||
+    existingProject?.nfmSelectedMeasures != null
+
+  if (!hadNfmData) {
     return
   }
 
