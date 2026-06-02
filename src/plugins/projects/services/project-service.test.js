@@ -12,6 +12,11 @@ vi.mock('./project-reference-service.js', () => ({
   generateProjectReferenceNumber: vi.fn().mockResolvedValue('ANC501E/000A/001A')
 }))
 
+vi.mock('./legacy-migration-service.js', () => ({
+  requiresLegacyMigration: vi.fn().mockReturnValue(false),
+  executeLegacyProjectTypeMigration: vi.fn().mockResolvedValue(undefined)
+}))
+
 describe('ProjectService', () => {
   let service
   let mockPrisma
@@ -1498,6 +1503,84 @@ describe('ProjectService', () => {
         expect.objectContaining({ rma_name: null }),
         expect.any(Object),
         expect.any(Object)
+      )
+    })
+
+    test('Should not call migration when withProjectTypeMigration is false (default)', async () => {
+      const { requiresLegacyMigration, executeLegacyProjectTypeMigration } =
+        await import('./legacy-migration-service.js')
+      requiresLegacyMigration.mockReturnValue(true)
+
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        name: 'Legacy Project',
+        rma_name: 'Test Area',
+        is_legacy: true,
+        project_type: 'DEF',
+        project_intervention_types: null,
+        main_intervention_type: null,
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01'),
+        created_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+
+      await service.getProjectByReferenceNumber(referenceNumber)
+
+      expect(executeLegacyProjectTypeMigration).not.toHaveBeenCalled()
+    })
+
+    test('Should call migration when withProjectTypeMigration is true and project requires it', async () => {
+      const { requiresLegacyMigration, executeLegacyProjectTypeMigration } =
+        await import('./legacy-migration-service.js')
+      requiresLegacyMigration.mockReturnValue(true)
+
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        name: 'Legacy Project',
+        rma_name: 'Test Area',
+        is_legacy: true,
+        project_type: 'DEF',
+        project_intervention_types: null,
+        main_intervention_type: null,
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01'),
+        created_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+
+      await service.getProjectByReferenceNumber(referenceNumber, {
+        withProjectTypeMigration: true
+      })
+
+      expect(executeLegacyProjectTypeMigration).toHaveBeenCalledWith(
+        mockPrisma,
+        mockProject,
+        mockLogger
       )
     })
   })

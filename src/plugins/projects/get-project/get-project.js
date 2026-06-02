@@ -59,7 +59,10 @@ const getProject = {
       )
       const result = await request.metrics.timer(
         'dbQueryDuration',
-        () => projectService.getProjectByReferenceNumber(referenceNumber),
+        () =>
+          projectService.getProjectByReferenceNumber(referenceNumber, {
+            withProjectTypeMigration: true
+          }),
         { operation: 'getProject' }
       )
 

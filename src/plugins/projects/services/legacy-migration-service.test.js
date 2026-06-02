@@ -70,6 +70,42 @@ describe('Legacy Migration Service', () => {
       const project = { is_legacy: true, project_type: null }
       expect(requiresLegacyMigration(project)).toBe(false)
     })
+
+    test('returns false for legacy DEF project when intervention types already set (migration ran, user values must be preserved)', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'DEF',
+        project_intervention_types: 'NFM,Other'
+      }
+      expect(requiresLegacyMigration(project)).toBe(false)
+    })
+
+    test('returns false for legacy DEF project when user has edited intervention types', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'DEF',
+        project_intervention_types: 'NFM,SUDS'
+      }
+      expect(requiresLegacyMigration(project)).toBe(false)
+    })
+
+    test('returns true for legacy DEF project when intervention types are null (first migration run)', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'DEF',
+        project_intervention_types: null
+      }
+      expect(requiresLegacyMigration(project)).toBe(true)
+    })
+
+    test('returns true for legacy DEF project when intervention types are empty string (migration not yet run)', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'DEF',
+        project_intervention_types: ''
+      }
+      expect(requiresLegacyMigration(project)).toBe(true)
+    })
   })
 
   describe('executeLegacyMigration', () => {
@@ -200,6 +236,54 @@ describe('Legacy Migration Service', () => {
 
         expect(result.project_type).toBe('DEF')
         expect(result.project_intervention_types).toBe('Other')
+        expect(result.main_intervention_type).toBe('Other')
+      })
+
+      test('DEF with NFM=true, PLP=false → type=DEF, interventions=NFM,Other', async () => {
+        const project = {
+          id: 6n,
+          reference_number: 'SEED_DEF/006/TEST',
+          project_type: 'DEF',
+          is_legacy: true,
+          natural_flood_risk_measures_included: true
+        }
+
+        mockPrisma.pafs_core_flood_protection_outcomes.findMany.mockResolvedValue(
+          [{ households_protected_through_plp_measures: 0 }]
+        )
+
+        const result = await executeLegacyProjectTypeMigration(
+          mockPrisma,
+          project,
+          mockLogger
+        )
+
+        expect(result.project_type).toBe('DEF')
+        expect(result.project_intervention_types).toBe('NFM,Other')
+        expect(result.main_intervention_type).toBe('Other')
+      })
+
+      test('DEF with NFM=false, PLP=true → type=DEF, interventions=PFR,Other', async () => {
+        const project = {
+          id: 7n,
+          reference_number: 'SEED_DEF/007/TEST',
+          project_type: 'DEF',
+          is_legacy: true,
+          natural_flood_risk_measures_included: false
+        }
+
+        mockPrisma.pafs_core_flood_protection_outcomes.findMany.mockResolvedValue(
+          [{ households_protected_through_plp_measures: 3 }]
+        )
+
+        const result = await executeLegacyProjectTypeMigration(
+          mockPrisma,
+          project,
+          mockLogger
+        )
+
+        expect(result.project_type).toBe('DEF')
+        expect(result.project_intervention_types).toBe('PFR,Other')
         expect(result.main_intervention_type).toBe('Other')
       })
 

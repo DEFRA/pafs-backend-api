@@ -91,7 +91,7 @@ describe('getProject', () => {
 
       expect(
         ProjectService.prototype.getProjectByReferenceNumber
-      ).toHaveBeenCalledWith('RM/2023/001')
+      ).toHaveBeenCalledWith('RM/2023/001', { withProjectTypeMigration: true })
 
       expect(result.statusCode).toBe(HTTP_STATUS.OK)
     })
@@ -105,7 +105,21 @@ describe('getProject', () => {
 
       expect(
         ProjectService.prototype.getProjectByReferenceNumber
-      ).toHaveBeenCalledWith('RM/2023/001')
+      ).toHaveBeenCalledWith('RM/2023/001', { withProjectTypeMigration: true })
+    })
+
+    test('Should pass withProjectTypeMigration true to service', async () => {
+      ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue({
+        referenceNumber: 'RM/2023/001'
+      })
+
+      await getProject.handler(mockRequest, mockH)
+
+      expect(
+        ProjectService.prototype.getProjectByReferenceNumber
+      ).toHaveBeenCalledWith(expect.any(String), {
+        withProjectTypeMigration: true
+      })
     })
 
     test('embeds carbonCalc in response when project has carbon data', async () => {

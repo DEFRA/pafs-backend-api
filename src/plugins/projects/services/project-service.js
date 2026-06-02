@@ -327,7 +327,10 @@ export class ProjectService extends ProjectNfmService {
     }
   }
 
-  async getProjectByReferenceNumber(referenceNumber) {
+  async getProjectByReferenceNumber(
+    referenceNumber,
+    { withProjectTypeMigration = false } = {}
+  ) {
     if (!referenceNumber || referenceNumber.length === 0) {
       return []
     }
@@ -344,8 +347,10 @@ export class ProjectService extends ProjectNfmService {
         return null
       }
 
-      // Execute legacy migration if applicable (on-the-fly transformation)
-      if (requiresLegacyMigration(project)) {
+      // Execute legacy migration only when explicitly requested (overview page only).
+      // Validation paths (upsert, resubmit) must not trigger migration so that
+      // user-edited values are never overwritten mid-request.
+      if (withProjectTypeMigration && requiresLegacyMigration(project)) {
         const migrationResult = await executeLegacyProjectTypeMigration(
           this.prisma,
           project,
