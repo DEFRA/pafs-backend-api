@@ -278,6 +278,30 @@ describe('submit-project handler', () => {
     })
   })
 
+  test('passes PSO: null to canSubmitProject when project has no PSO area', async () => {
+    mockProjectService.getProjectByReferenceNumber.mockResolvedValue({
+      ...DRAFT_PROJECT,
+      psoAreaId: null
+    })
+    await submitProjectRoute.options.handler(request, h)
+    expect(canSubmitProject).toHaveBeenCalledWith(request.auth.credentials, {
+      id: DRAFT_PROJECT.areaId,
+      PSO: null
+    })
+  })
+
+  test('passes PSO: null to canSubmitProject when psoAreaId is undefined', async () => {
+    const { psoAreaId: _unused, ...projectWithoutPso } = DRAFT_PROJECT
+    mockProjectService.getProjectByReferenceNumber.mockResolvedValue(
+      projectWithoutPso
+    )
+    await submitProjectRoute.options.handler(request, h)
+    expect(canSubmitProject).toHaveBeenCalledWith(request.auth.credentials, {
+      id: DRAFT_PROJECT.areaId,
+      PSO: null
+    })
+  })
+
   // ─── Validation errors ────────────────────────────────────────────────────
 
   test('returns 422 with validationErrors when submission validation fails', async () => {

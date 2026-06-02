@@ -363,6 +363,8 @@ export class ProjectService extends ProjectNfmService {
             migrationResult.project_intervention_types
           project.main_intervention_type =
             migrationResult.main_intervention_type
+          project.legacy_project_type_migration_completed =
+            migrationResult.legacy_project_type_migration_completed
         }
       }
 

@@ -71,38 +71,51 @@ describe('Legacy Migration Service', () => {
       expect(requiresLegacyMigration(project)).toBe(false)
     })
 
-    test('returns false for legacy DEF project when intervention types already set (migration ran, user values must be preserved)', () => {
+    test('returns false when legacy_project_type_migration_completed is true', () => {
       const project = {
         is_legacy: true,
         project_type: 'DEF',
-        project_intervention_types: 'NFM,Other'
+        legacy_project_type_migration_completed: true
       }
       expect(requiresLegacyMigration(project)).toBe(false)
     })
 
-    test('returns false for legacy DEF project when user has edited intervention types', () => {
+    test('returns false for ENV type when legacy_project_type_migration_completed is true (null intervention types must not re-trigger)', () => {
       const project = {
         is_legacy: true,
-        project_type: 'DEF',
-        project_intervention_types: 'NFM,SUDS'
+        project_type: 'ENV',
+        legacy_project_type_migration_completed: true,
+        project_intervention_types: null
       }
       expect(requiresLegacyMigration(project)).toBe(false)
     })
 
-    test('returns true for legacy DEF project when intervention types are null (first migration run)', () => {
+    test('returns false for STR type when legacy_project_type_migration_completed is true', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'STR',
+        legacy_project_type_migration_completed: true,
+        project_intervention_types: null
+      }
+      expect(requiresLegacyMigration(project)).toBe(false)
+    })
+
+    test('returns true for legacy DEF project when legacy_project_type_migration_completed is false', () => {
       const project = {
         is_legacy: true,
         project_type: 'DEF',
+        legacy_project_type_migration_completed: false,
         project_intervention_types: null
       }
       expect(requiresLegacyMigration(project)).toBe(true)
     })
 
-    test('returns true for legacy DEF project when intervention types are empty string (migration not yet run)', () => {
+    test('returns true for legacy ENV project when legacy_project_type_migration_completed is false', () => {
       const project = {
         is_legacy: true,
-        project_type: 'DEF',
-        project_intervention_types: ''
+        project_type: 'ENV',
+        legacy_project_type_migration_completed: false,
+        project_intervention_types: null
       }
       expect(requiresLegacyMigration(project)).toBe(true)
     })
@@ -574,6 +587,7 @@ describe('Legacy Migration Service', () => {
             project_type: 'DEF',
             project_intervention_types: 'NFM,PFR,Other',
             main_intervention_type: 'Other',
+            legacy_project_type_migration_completed: true,
             updated_at: expect.any(Date)
           })
         })

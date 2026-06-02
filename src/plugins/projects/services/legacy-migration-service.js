@@ -63,15 +63,10 @@ export function requiresLegacyMigration(project) {
     return false
   }
 
-  // Intervention types being set is the sentinel that migration has already run.
-  // DEF and PLP→DEF always produce non-null intervention types, so once the field
-  // is populated the on-the-fly migration must not overwrite user-edited values.
-  const interventionTypes = project.project_intervention_types
-  if (
-    interventionTypes !== null &&
-    interventionTypes !== undefined &&
-    interventionTypes !== ''
-  ) {
+  // Migration has already run — the dedicated flag is the authoritative sentinel.
+  // We cannot rely on project_intervention_types being non-null because types
+  // such as ENV, ENN, STR and CM legitimately produce null after migration.
+  if (project.legacy_project_type_migration_completed) {
     return false
   }
 
@@ -293,6 +288,7 @@ export async function executeLegacyProjectTypeMigration(
     project_type: newProjectType,
     project_intervention_types: interventionTypes,
     main_intervention_type: mainInterventionType,
+    legacy_project_type_migration_completed: true,
     updated_at: new Date()
   }
 

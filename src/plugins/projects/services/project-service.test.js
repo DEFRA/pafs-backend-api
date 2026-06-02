@@ -1097,6 +1097,7 @@ describe('ProjectService', () => {
           benefit_area_file_download_expiry: true,
           is_legacy: true,
           is_revised: true,
+          legacy_project_type_migration_completed: true,
           project_risks_protected_against: true,
           main_risk: true,
           no_properties_at_flood_risk: true,
@@ -1582,6 +1583,135 @@ describe('ProjectService', () => {
         mockPrisma,
         mockProject,
         mockLogger
+      )
+    })
+
+    test('Should apply legacy_project_type_migration_completed from migration result to in-memory project', async () => {
+      const { requiresLegacyMigration, executeLegacyProjectTypeMigration } =
+        await import('./legacy-migration-service.js')
+      requiresLegacyMigration.mockReturnValue(true)
+      executeLegacyProjectTypeMigration.mockResolvedValue({
+        project_type: 'DEF',
+        project_intervention_types: 'Other',
+        main_intervention_type: 'Other',
+        legacy_project_type_migration_completed: true
+      })
+
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        name: 'Legacy Project',
+        rma_name: 'Test Area',
+        is_legacy: true,
+        project_type: 'DEF',
+        project_intervention_types: null,
+        main_intervention_type: null,
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01'),
+        created_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+
+      await service.getProjectByReferenceNumber(referenceNumber, {
+        withProjectTypeMigration: true
+      })
+
+      // enrichProjectResponse receives the in-memory project after migration result is applied
+      expect(enrichProjectResponse).toHaveBeenCalledWith(
+        mockPrisma,
+        expect.objectContaining({
+          legacy_project_type_migration_completed: true
+        }),
+        expect.any(Object),
+        expect.any(Object),
+        expect.any(Object)
+      )
+    })
+
+    test('Should pass skipUrlEnrichment: true to enrichProjectResponse when option is set', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01'),
+        created_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+
+      await service.getProjectByReferenceNumber(referenceNumber, {
+        skipUrlEnrichment: true
+      })
+
+      expect(enrichProjectResponse).toHaveBeenCalledWith(
+        mockPrisma,
+        expect.any(Object),
+        expect.any(Object),
+        expect.any(Object),
+        { skipUrlEnrichment: true }
+      )
+    })
+
+    test('Should pass skipUrlEnrichment: false by default to enrichProjectResponse', async () => {
+      const referenceNumber = 'ANC501E/000A/001A'
+      const mockProject = {
+        id: 1,
+        reference_number: referenceNumber,
+        name: 'Test Project',
+        rma_name: 'Test Area',
+        project_type: 'Type A',
+        project_intervention_types: 'Type 1',
+        main_intervention_type: 'Type 1',
+        earliest_start_year: '2023',
+        project_end_financial_year: '2025',
+        updated_at: new Date('2023-01-01'),
+        created_at: new Date('2023-01-01')
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
+      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
+        state: 'draft'
+      })
+      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
+        area_id: 1,
+        owner: true
+      })
+      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+
+      await service.getProjectByReferenceNumber(referenceNumber)
+
+      expect(enrichProjectResponse).toHaveBeenCalledWith(
+        mockPrisma,
+        expect.any(Object),
+        expect.any(Object),
+        expect.any(Object),
+        { skipUrlEnrichment: false }
       )
     })
   })
