@@ -1,6 +1,5 @@
 import Joi from 'joi'
 import { ProjectService } from '../services/project-service.js'
-import { AreaService } from '../../areas/services/area-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import {
   PROJECT_STATUS,
@@ -21,8 +20,12 @@ import { sendExternalSubmissionMessage } from '../../../common/helpers/sqs/send-
 
 const loadProject = async (projectService, referenceNumber, h) => {
   try {
-    const project =
-      await projectService.getProjectByReferenceNumber(referenceNumber)
+    const project = await projectService.getProjectByReferenceNumber(
+      referenceNumber,
+      {
+        skipUrlEnrichment: true
+      }
+    )
     if (!project) {
       return {
         project: null,
@@ -46,45 +49,12 @@ const loadProject = async (projectService, referenceNumber, h) => {
   }
 }
 
-const loadProjectArea = async (areaService, projectAreaId, h) => {
-  try {
-    const area = await areaService.getAreaByIdWithParents(projectAreaId)
-    return { area, response: null }
-  } catch (error) {
-    return {
-      area: null,
-      response: h
-        .response({ error: 'Failed to load project area' })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR),
-      logError: { error: error.message, projectAreaId }
-    }
+const checkPermission = (project, credentials, referenceNumber, h, logger) => {
+  const areaDetails = {
+    id: project.areaId,
+    PSO: project.psoAreaId == null ? null : { id: project.psoAreaId }
   }
-}
-
-const checkPermission = async (
-  areaService,
-  project,
-  credentials,
-  referenceNumber,
-  h,
-  logger
-) => {
-  const {
-    area,
-    response: areaErr,
-    logError: areaLogErr
-  } = await loadProjectArea(areaService, project.areaId, h)
-  if (areaLogErr) {
-    logger.error(
-      areaLogErr,
-      'Failed to load project area for submission permission check'
-    )
-  }
-  if (areaErr) {
-    return { errorResponse: areaErr }
-  }
-
-  const permissionCheck = canSubmitProject(credentials, area)
+  const permissionCheck = canSubmitProject(credentials, areaDetails)
   if (!permissionCheck.allowed) {
     logger.warn(
       {
@@ -139,7 +109,6 @@ const transitionToSubmitted = async (
 
 const validateProjectForSubmission = async (
   projectService,
-  areaService,
   referenceNumber,
   credentials,
   h,
@@ -170,8 +139,7 @@ const validateProjectForSubmission = async (
     }
   }
 
-  const { errorResponse: permissionErr } = await checkPermission(
-    areaService,
+  const { errorResponse: permissionErr } = checkPermission(
     project,
     credentials,
     referenceNumber,
@@ -207,11 +175,9 @@ const handler = async (request, h) => {
   const { logger } = request.server
 
   const projectService = new ProjectService(request.prisma, logger)
-  const areaService = new AreaService(request.prisma, logger)
 
   const { project, errorResponse } = await validateProjectForSubmission(
     projectService,
-    areaService,
     referenceNumber,
     credentials,
     h,

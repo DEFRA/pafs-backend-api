@@ -526,22 +526,26 @@ export class AreaService {
    */
   async _fetchParentChain(parentId) {
     const parents = []
-    let currentId = parentId
-    const maxDepth = 3
 
-    for (let i = 0; i < maxDepth && currentId; i++) {
-      const parent = await this._findAreaByIdWithConditions(
-        currentId,
+    const pso = await this._findAreaByIdWithConditions(
+      parentId,
+      {},
+      AREA_FIELDS
+    )
+    if (!pso) {
+      return parents
+    }
+    parents.push(pso)
+
+    if (pso.parent_id) {
+      const ea = await this._findAreaByIdWithConditions(
+        pso.parent_id,
         {},
         AREA_FIELDS
       )
-
-      if (!parent) {
-        break
+      if (ea) {
+        parents.push(ea)
       }
-
-      parents.push(parent)
-      currentId = parent.parent_id
     }
 
     return parents

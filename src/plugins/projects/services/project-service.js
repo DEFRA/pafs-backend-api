@@ -329,7 +329,7 @@ export class ProjectService extends ProjectNfmService {
 
   async getProjectByReferenceNumber(
     referenceNumber,
-    { withProjectTypeMigration = false } = {}
+    { withProjectTypeMigration = false, skipUrlEnrichment = false } = {}
   ) {
     if (!referenceNumber || referenceNumber.length === 0) {
       return []
@@ -372,7 +372,9 @@ export class ProjectService extends ProjectNfmService {
 
       // Apply all response enrichments (area hierarchy, moderation filename,
       // status resolution). To add a new field, add a step in project-enricher.js.
-      await enrichProjectResponse(this.prisma, project, apiData, this.logger)
+      await enrichProjectResponse(this.prisma, project, apiData, this.logger, {
+        skipUrlEnrichment
+      })
 
       return apiData
     } catch (error) {

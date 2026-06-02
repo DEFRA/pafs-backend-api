@@ -11,9 +11,6 @@ import {
 vi.mock('../services/project-service.js', () => ({
   ProjectService: vi.fn()
 }))
-vi.mock('../../areas/services/area-service.js', () => ({
-  AreaService: vi.fn()
-}))
 vi.mock('../helpers/project-validations/validate-submission.js', () => ({
   validateSubmission: vi.fn(),
   canSubmitProject: vi.fn()
@@ -36,7 +33,6 @@ vi.mock('../../../common/helpers/response-builder.js', () => ({
 }))
 
 import { ProjectService } from '../services/project-service.js'
-import { AreaService } from '../../areas/services/area-service.js'
 import {
   validateSubmission,
   canSubmitProject
@@ -79,10 +75,9 @@ const DRAFT_PROJECT = {
   id: BigInt(99),
   referenceNumber: 'LCR/123/456',
   areaId: 10,
+  psoAreaId: 5,
   projectState: PROJECT_STATUS.DRAFT
 }
-
-const AREA = { id: 10, parentId: 5 }
 
 // ─── Route shape ─────────────────────────────────────────────────────────────
 
@@ -118,7 +113,6 @@ describe('submitProject route definition', () => {
 
 describe('submit-project handler', () => {
   let mockProjectService
-  let mockAreaService
   let request
   let h
 
@@ -129,15 +123,9 @@ describe('submit-project handler', () => {
       getProjectByReferenceNumber: vi.fn().mockResolvedValue(DRAFT_PROJECT),
       transitionToSubmitted: vi.fn().mockResolvedValue(undefined)
     }
-    mockAreaService = {
-      getAreaByIdWithParents: vi.fn().mockResolvedValue(AREA)
-    }
 
     ProjectService.mockImplementation(function () {
       return mockProjectService
-    })
-    AreaService.mockImplementation(function () {
-      return mockAreaService
     })
 
     validateSubmission.mockReturnValue([])
@@ -153,14 +141,16 @@ describe('submit-project handler', () => {
     request.params.referenceNumber = 'LCR-123-456'
     await submitProjectRoute.options.handler(request, h)
     expect(mockProjectService.getProjectByReferenceNumber).toHaveBeenCalledWith(
-      'LCR/123/456'
+      'LCR/123/456',
+      { skipUrlEnrichment: true }
     )
   })
 
   test('passes slashes through unchanged', async () => {
     await submitProjectRoute.options.handler(request, h)
     expect(mockProjectService.getProjectByReferenceNumber).toHaveBeenCalledWith(
-      'LCR/123/456'
+      'LCR/123/456',
+      { skipUrlEnrichment: true }
     )
   })
 
@@ -249,24 +239,6 @@ describe('submit-project handler', () => {
     )
   })
 
-  // ─── Area load errors ─────────────────────────────────────────────────────
-
-  test('returns 500 when area service throws', async () => {
-    mockAreaService.getAreaByIdWithParents.mockRejectedValue(
-      new Error('Area error')
-    )
-    await submitProjectRoute.options.handler(request, h)
-    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  })
-
-  test('logs error when area load throws', async () => {
-    mockAreaService.getAreaByIdWithParents.mockRejectedValue(
-      new Error('Area DB error')
-    )
-    await submitProjectRoute.options.handler(request, h)
-    expect(request.server.logger.error).toHaveBeenCalled()
-  })
-
   // ─── Permission check ─────────────────────────────────────────────────────
 
   test('returns 403 when canSubmitProject denies', async () => {
@@ -300,10 +272,10 @@ describe('submit-project handler', () => {
 
   test('passes credentials and area to canSubmitProject', async () => {
     await submitProjectRoute.options.handler(request, h)
-    expect(canSubmitProject).toHaveBeenCalledWith(
-      request.auth.credentials,
-      AREA
-    )
+    expect(canSubmitProject).toHaveBeenCalledWith(request.auth.credentials, {
+      id: DRAFT_PROJECT.areaId,
+      PSO: { id: DRAFT_PROJECT.psoAreaId }
+    })
   })
 
   // ─── Validation errors ────────────────────────────────────────────────────
