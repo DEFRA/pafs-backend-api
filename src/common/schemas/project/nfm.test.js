@@ -60,8 +60,43 @@ import {
   nfmLandUseCoastalMarginsSchema,
   nfmLandownerConsentSchema,
   nfmExperienceLevelSchema,
-  nfmProjectReadinessSchema
+  nfmProjectReadinessSchema,
+  nfmInclusionSchema
 } from './nfm.js'
+
+describe('nfmInclusionSchema', () => {
+  test('accepts true', () => {
+    const result = nfmInclusionSchema.validate(true)
+    expect(result.error).toBeUndefined()
+    expect(result.value).toBe(true)
+  })
+
+  test('accepts false', () => {
+    const result = nfmInclusionSchema.validate(false)
+    expect(result.error).toBeUndefined()
+    expect(result.value).toBe(false)
+  })
+
+  test('rejects undefined (required)', () => {
+    const result = nfmInclusionSchema.validate(undefined)
+    expect(result.error).toBeDefined()
+  })
+
+  test('rejects null', () => {
+    const result = nfmInclusionSchema.validate(null)
+    expect(result.error).toBeDefined()
+  })
+
+  test('rejects string "yes"', () => {
+    const result = nfmInclusionSchema.validate('yes')
+    expect(result.error).toBeDefined()
+  })
+
+  test('rejects number', () => {
+    const result = nfmInclusionSchema.validate(1)
+    expect(result.error).toBeDefined()
+  })
+})
 
 describe('NFM Schemas - Backend', () => {
   describe('River Restoration Area Schema', () => {

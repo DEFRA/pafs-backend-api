@@ -19,6 +19,7 @@ import {
   sanitizeWlbFields,
   normalizeWlbFields,
   clearNfmFieldsOnInterventionTypeChange,
+  clearNfmDataOnInclusionFalse,
   sanitizeCarbonFields,
   normalizeCarbonFields,
   sanitizeFundingSourceFields,
@@ -2057,6 +2058,241 @@ describe('clearNfmFieldsOnInterventionTypeChange', () => {
     )
 
     expect(payload.nfmSelectedMeasures).toBe('woodland')
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('resets naturalFloodRiskMeasuresIncluded when switching from NFM to SUDS-only', async () => {
+    const payload = {
+      referenceNumber: 'REF008',
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS],
+      naturalFloodRiskMeasuresIncluded: null,
+      nfmSelectedMeasures: 'woodland'
+    }
+    const existingProject = {
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.naturalFloodRiskMeasuresIncluded).toBeNull()
+    expect(payload.nfmSelectedMeasures).toBe('woodland')
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('resets naturalFloodRiskMeasuresIncluded when switching from SUDS-only to NFM', async () => {
+    const payload = {
+      referenceNumber: 'REF009',
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM],
+      naturalFloodRiskMeasuresIncluded: false,
+      nfmSelectedMeasures: null
+    }
+    const existingProject = {
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.naturalFloodRiskMeasuresIncluded).toBeNull()
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('does NOT reset naturalFloodRiskMeasuresIncluded when NFM stays in both old and new', async () => {
+    const payload = {
+      referenceNumber: 'REF010',
+      projectInterventionTypes: [
+        PROJECT_INTERVENTION_TYPES.NFM,
+        PROJECT_INTERVENTION_TYPES.SUDS
+      ],
+      naturalFloodRiskMeasuresIncluded: true,
+      nfmSelectedMeasures: 'woodland'
+    }
+    const existingProject = {
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.NFM]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.naturalFloodRiskMeasuresIncluded).toBe(true)
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('clears naturalFloodRiskMeasuresIncluded when all NFM/SUDS removed', async () => {
+    const payload = {
+      referenceNumber: 'REF011',
+      projectInterventionTypes: ['PFR'],
+      naturalFloodRiskMeasuresIncluded: false,
+      nfmSelectedMeasures: 'woodland'
+    }
+    const existingProject = {
+      projectInterventionTypes: [PROJECT_INTERVENTION_TYPES.SUDS]
+    }
+
+    await clearNfmFieldsOnInterventionTypeChange(
+      payload,
+      PROJECT_VALIDATION_LEVELS.PROJECT_TYPE,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.naturalFloodRiskMeasuresIncluded).toBeNull()
+    expect(payload.nfmSelectedMeasures).toBeNull()
+    expect(projectService.deleteAllNfmChildRecords).toHaveBeenCalledWith(
+      'REF011'
+    )
+  })
+})
+
+describe('clearNfmDataOnInclusionFalse', () => {
+  let projectService
+
+  beforeEach(() => {
+    projectService = {
+      deleteAllNfmChildRecords: vi
+        .fn()
+        .mockResolvedValue({ landUseChangesDeleted: 2, measuresDeleted: 1 })
+    }
+  })
+
+  it('clears NFM data when inclusion is false and existing had inclusion true', async () => {
+    const payload = {
+      referenceNumber: 'REF001',
+      naturalFloodRiskMeasuresIncluded: false
+    }
+    const existingProject = {
+      naturalFloodRiskMeasuresIncluded: true,
+      nfmSelectedMeasures: 'woodland'
+    }
+
+    await clearNfmDataOnInclusionFalse(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_INCLUSION,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBeNull()
+    expect(payload.nfmLandUseChange).toBeNull()
+    expect(payload.nfmLandownerConsent).toBeNull()
+    expect(payload.nfmExperienceLevel).toBeNull()
+    expect(payload.nfmProjectReadiness).toBeNull()
+    expect(projectService.deleteAllNfmChildRecords).toHaveBeenCalledWith(
+      'REF001'
+    )
+  })
+
+  it('clears NFM data when inclusion is false and existing had nfmSelectedMeasures (inclusion null)', async () => {
+    const payload = {
+      referenceNumber: 'REF002',
+      naturalFloodRiskMeasuresIncluded: false
+    }
+    const existingProject = {
+      naturalFloodRiskMeasuresIncluded: null,
+      nfmSelectedMeasures: 'river_floodplain_restoration'
+    }
+
+    await clearNfmDataOnInclusionFalse(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_INCLUSION,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBeNull()
+    expect(projectService.deleteAllNfmChildRecords).toHaveBeenCalledWith(
+      'REF002'
+    )
+  })
+
+  it('does NOT clear when inclusion is true', async () => {
+    const payload = {
+      referenceNumber: 'REF003',
+      naturalFloodRiskMeasuresIncluded: true
+    }
+    const existingProject = {
+      naturalFloodRiskMeasuresIncluded: true,
+      nfmSelectedMeasures: 'woodland'
+    }
+
+    await clearNfmDataOnInclusionFalse(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_INCLUSION,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBeUndefined()
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('does NOT clear at non-NFM_INCLUSION validation level', async () => {
+    const payload = {
+      referenceNumber: 'REF004',
+      naturalFloodRiskMeasuresIncluded: false
+    }
+    const existingProject = {
+      naturalFloodRiskMeasuresIncluded: true,
+      nfmSelectedMeasures: 'woodland'
+    }
+
+    await clearNfmDataOnInclusionFalse(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
+      existingProject,
+      projectService
+    )
+
+    expect(payload.nfmSelectedMeasures).toBeUndefined()
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('does NOT clear when existing project had no NFM data', async () => {
+    const payload = {
+      referenceNumber: 'REF005',
+      naturalFloodRiskMeasuresIncluded: false
+    }
+    const existingProject = {
+      naturalFloodRiskMeasuresIncluded: null,
+      nfmSelectedMeasures: null
+    }
+
+    await clearNfmDataOnInclusionFalse(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_INCLUSION,
+      existingProject,
+      projectService
+    )
+
+    expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
+  })
+
+  it('handles null existingProject gracefully', async () => {
+    const payload = {
+      referenceNumber: 'REF006',
+      naturalFloodRiskMeasuresIncluded: false
+    }
+
+    await clearNfmDataOnInclusionFalse(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_INCLUSION,
+      null,
+      projectService
+    )
+
     expect(projectService.deleteAllNfmChildRecords).not.toHaveBeenCalled()
   })
 })
