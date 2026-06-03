@@ -97,6 +97,7 @@ describe('enrichProjectResponse', () => {
     resolveAreaHierarchy.mockResolvedValue({
       rmaName: 'Resolved RMA',
       rmaSubType: 'ea',
+      psoAreaId: 15,
       psoName: 'Yorkshire RFCC',
       rfccName: 'Yorkshire RFCC',
       eaAreaName: 'North East'
@@ -129,6 +130,7 @@ describe('enrichProjectResponse', () => {
       await enrichProjectResponse(prisma, raw, api)
 
       expect(api.rmaSubType).toBe('ea')
+      expect(api.psoAreaId).toBe(15)
       expect(api.psoName).toBe('Yorkshire RFCC')
       expect(api.rfccName).toBe('Yorkshire RFCC')
       expect(api.eaAreaName).toBe('North East')
@@ -648,6 +650,79 @@ describe('enrichProjectResponse', () => {
       await enrichProjectResponse(prisma, raw, api)
 
       expect(updateBenefitAreaDownloadUrl).not.toHaveBeenCalled()
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // skipUrlEnrichment option
+  // ---------------------------------------------------------------------------
+
+  describe('skipUrlEnrichment option', () => {
+    test('Should skip benefit area URL step when skipUrlEnrichment is true', async () => {
+      const raw = buildRawProject({
+        benefit_area_file_name: 'map.zip',
+        benefit_area_file_s3_bucket: 'bucket',
+        benefit_area_file_s3_key: 'key',
+        benefit_area_file_download_url: null,
+        benefit_area_file_download_expiry: null
+      })
+      const api = buildApiData()
+
+      await enrichProjectResponse(prisma, raw, api, undefined, {
+        skipUrlEnrichment: true
+      })
+
+      expect(generateDownloadUrl).not.toHaveBeenCalled()
+      expect(api.benefitAreaFileDownloadUrl).toBeUndefined()
+    })
+
+    test('Should skip funding calculator URL step when skipUrlEnrichment is true', async () => {
+      const raw = buildRawProject({
+        is_legacy: true,
+        slug: 'MY-SLUG',
+        version: 1,
+        funding_calculator_file_name: 'calc.xlsx'
+      })
+      const api = buildApiData()
+
+      await enrichProjectResponse(prisma, raw, api, undefined, {
+        skipUrlEnrichment: true
+      })
+
+      expect(buildLegacyS3Key).not.toHaveBeenCalled()
+      expect(api.fundingCalculatorDownloadUrl).toBeUndefined()
+    })
+
+    test('Should still run base enrichment steps when skipUrlEnrichment is true', async () => {
+      resolveStatus.mockReturnValue('draft')
+      const raw = buildRawProject()
+      const api = buildApiData({
+        urgencyReason: 'statutory_need',
+        slug: 'MY-SLUG'
+      })
+
+      await enrichProjectResponse(prisma, raw, api, undefined, {
+        skipUrlEnrichment: true
+      })
+
+      expect(resolveAreaHierarchy).toHaveBeenCalled()
+      expect(api.moderationFilename).toBe('MY-SLUG_moderation_BS.txt')
+      expect(resolveStatus).toHaveBeenCalled()
+    })
+
+    test('Should run URL steps when skipUrlEnrichment is false (default)', async () => {
+      const raw = buildRawProject({
+        benefit_area_file_name: 'map.zip',
+        benefit_area_file_s3_bucket: 'bucket',
+        benefit_area_file_s3_key: 'key',
+        benefit_area_file_download_url: null,
+        benefit_area_file_download_expiry: null
+      })
+      const api = buildApiData()
+
+      await enrichProjectResponse(prisma, raw, api)
+
+      expect(generateDownloadUrl).toHaveBeenCalled()
     })
   })
 })

@@ -18,6 +18,15 @@ import { config } from '../../../config.js'
 // Individual enrichment steps
 // ---------------------------------------------------------------------------
 
+function applyHierarchyToApiData(apiData, hierarchy) {
+  apiData.rmaName = apiData.rmaName || hierarchy.rmaName || null
+  apiData.rmaSubType = hierarchy.rmaSubType ?? null
+  apiData.psoAreaId = hierarchy.psoAreaId ?? null
+  apiData.psoName = hierarchy.psoName ?? null
+  apiData.rfccName = hierarchy.rfccName ?? null
+  apiData.eaAreaName = hierarchy.eaAreaName ?? null
+}
+
 async function enrichAreaHierarchy(prisma, rawProject, apiData) {
   const areaId = rawProject.pafs_core_area_projects?.area_id ?? null
   const hierarchy = await resolveAreaHierarchy(prisma, areaId)
@@ -27,12 +36,7 @@ async function enrichAreaHierarchy(prisma, rawProject, apiData) {
     rawProject.rma_name = hierarchy.rmaName
   }
 
-  // rmaName may already be set by ProjectMapper; use hierarchy as fallback
-  apiData.rmaName = apiData.rmaName || hierarchy.rmaName || null
-  apiData.rmaSubType = hierarchy.rmaSubType ?? null
-  apiData.psoName = hierarchy.psoName ?? null
-  apiData.rfccName = hierarchy.rfccName ?? null
-  apiData.eaAreaName = hierarchy.eaAreaName ?? null
+  applyHierarchyToApiData(apiData, hierarchy)
 }
 
 async function enrichModerationFilename(_prisma, _rawProject, apiData) {
@@ -144,10 +148,14 @@ async function enrichFundingCalculatorDownloadUrl(
 // Enrichment pipeline
 // ---------------------------------------------------------------------------
 
-const ENRICHMENT_STEPS = [
+const BASE_ENRICHMENT_STEPS = [
   enrichAreaHierarchy,
   enrichModerationFilename,
-  enrichProjectStatus,
+  enrichProjectStatus
+]
+
+const ENRICHMENT_STEPS = [
+  ...BASE_ENRICHMENT_STEPS,
   enrichBenefitAreaDownloadUrl,
   enrichFundingCalculatorDownloadUrl
 ]
@@ -156,9 +164,13 @@ export async function enrichProjectResponse(
   prisma,
   rawProject,
   apiData,
-  logger
+  logger,
+  options = {}
 ) {
+  const steps = options.skipUrlEnrichment
+    ? BASE_ENRICHMENT_STEPS
+    : ENRICHMENT_STEPS
   await Promise.all(
-    ENRICHMENT_STEPS.map((step) => step(prisma, rawProject, apiData, logger))
+    steps.map((step) => step(prisma, rawProject, apiData, logger))
   )
 }

@@ -70,6 +70,55 @@ describe('Legacy Migration Service', () => {
       const project = { is_legacy: true, project_type: null }
       expect(requiresLegacyMigration(project)).toBe(false)
     })
+
+    test('returns false when legacy_project_type_migration_completed is true', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'DEF',
+        legacy_project_type_migration_completed: true
+      }
+      expect(requiresLegacyMigration(project)).toBe(false)
+    })
+
+    test('returns false for ENV type when legacy_project_type_migration_completed is true (null intervention types must not re-trigger)', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'ENV',
+        legacy_project_type_migration_completed: true,
+        project_intervention_types: null
+      }
+      expect(requiresLegacyMigration(project)).toBe(false)
+    })
+
+    test('returns false for STR type when legacy_project_type_migration_completed is true', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'STR',
+        legacy_project_type_migration_completed: true,
+        project_intervention_types: null
+      }
+      expect(requiresLegacyMigration(project)).toBe(false)
+    })
+
+    test('returns true for legacy DEF project when legacy_project_type_migration_completed is false', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'DEF',
+        legacy_project_type_migration_completed: false,
+        project_intervention_types: null
+      }
+      expect(requiresLegacyMigration(project)).toBe(true)
+    })
+
+    test('returns true for legacy ENV project when legacy_project_type_migration_completed is false', () => {
+      const project = {
+        is_legacy: true,
+        project_type: 'ENV',
+        legacy_project_type_migration_completed: false,
+        project_intervention_types: null
+      }
+      expect(requiresLegacyMigration(project)).toBe(true)
+    })
   })
 
   describe('executeLegacyMigration', () => {
@@ -200,6 +249,54 @@ describe('Legacy Migration Service', () => {
 
         expect(result.project_type).toBe('DEF')
         expect(result.project_intervention_types).toBe('Other')
+        expect(result.main_intervention_type).toBe('Other')
+      })
+
+      test('DEF with NFM=true, PLP=false → type=DEF, interventions=NFM,Other', async () => {
+        const project = {
+          id: 6n,
+          reference_number: 'SEED_DEF/006/TEST',
+          project_type: 'DEF',
+          is_legacy: true,
+          natural_flood_risk_measures_included: true
+        }
+
+        mockPrisma.pafs_core_flood_protection_outcomes.findMany.mockResolvedValue(
+          [{ households_protected_through_plp_measures: 0 }]
+        )
+
+        const result = await executeLegacyProjectTypeMigration(
+          mockPrisma,
+          project,
+          mockLogger
+        )
+
+        expect(result.project_type).toBe('DEF')
+        expect(result.project_intervention_types).toBe('NFM,Other')
+        expect(result.main_intervention_type).toBe('Other')
+      })
+
+      test('DEF with NFM=false, PLP=true → type=DEF, interventions=PFR,Other', async () => {
+        const project = {
+          id: 7n,
+          reference_number: 'SEED_DEF/007/TEST',
+          project_type: 'DEF',
+          is_legacy: true,
+          natural_flood_risk_measures_included: false
+        }
+
+        mockPrisma.pafs_core_flood_protection_outcomes.findMany.mockResolvedValue(
+          [{ households_protected_through_plp_measures: 3 }]
+        )
+
+        const result = await executeLegacyProjectTypeMigration(
+          mockPrisma,
+          project,
+          mockLogger
+        )
+
+        expect(result.project_type).toBe('DEF')
+        expect(result.project_intervention_types).toBe('PFR,Other')
         expect(result.main_intervention_type).toBe('Other')
       })
 
@@ -490,6 +587,7 @@ describe('Legacy Migration Service', () => {
             project_type: 'DEF',
             project_intervention_types: 'NFM,PFR,Other',
             main_intervention_type: 'Other',
+            legacy_project_type_migration_completed: true,
             updated_at: expect.any(Date)
           })
         })

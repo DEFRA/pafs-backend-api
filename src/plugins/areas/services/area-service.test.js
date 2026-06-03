@@ -425,7 +425,7 @@ describe('AreaService', () => {
       mockPrisma.pafs_core_areas.findFirst
         .mockResolvedValueOnce(mockArea) // area itself
         .mockResolvedValueOnce(mockPSOParent) // parent lookup
-        .mockResolvedValueOnce(null) // grandparent lookup (PSO has parent_id 3n but we stop here)
+        .mockResolvedValueOnce(null) // grandparent lookup (PSO has parent_id 3n but EA is absent in DB)
 
       const result = await areaService.getAreaByIdWithParents(1n)
 
@@ -436,6 +436,45 @@ describe('AreaService', () => {
       expect(result.PSO.parent_id).toBe('3')
       expect(result.PSO.sub_type).toBe('RFCC123')
       expect(result.PSO.identifier).toBe('PSO001')
+      expect(result.EA).toBeNull()
+    })
+
+    it('should not attempt EA lookup when PSO has no parent_id', async () => {
+      const mockArea = {
+        id: 1n,
+        name: 'Test RMA',
+        area_type: 'RMA',
+        parent_id: 2n,
+        sub_type: null,
+        identifier: 'RMA001',
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-02'),
+        end_date: null
+      }
+
+      // PSO at the top of the hierarchy — no parent_id
+      const mockPSOParent = {
+        id: 2n,
+        name: 'Root PSO',
+        area_type: 'PSO Area',
+        parent_id: null,
+        sub_type: 'RFCC999',
+        identifier: 'PSO999',
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-02'),
+        end_date: null
+      }
+
+      mockPrisma.pafs_core_areas.findFirst
+        .mockResolvedValueOnce(mockArea) // area itself
+        .mockResolvedValueOnce(mockPSOParent) // PSO lookup
+
+      const result = await areaService.getAreaByIdWithParents(1n)
+
+      // Only 2 findFirst calls — no EA lookup because PSO.parent_id is null
+      expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(2)
+      expect(result.PSO).toBeDefined()
+      expect(result.PSO.id).toBe('2')
       expect(result.EA).toBeNull()
     })
 

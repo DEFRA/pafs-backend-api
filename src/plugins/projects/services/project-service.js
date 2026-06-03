@@ -327,7 +327,10 @@ export class ProjectService extends ProjectNfmService {
     }
   }
 
-  async getProjectByReferenceNumber(referenceNumber) {
+  async getProjectByReferenceNumber(
+    referenceNumber,
+    { withProjectTypeMigration = false, skipUrlEnrichment = false } = {}
+  ) {
     if (!referenceNumber || referenceNumber.length === 0) {
       return []
     }
@@ -344,8 +347,10 @@ export class ProjectService extends ProjectNfmService {
         return null
       }
 
-      // Execute legacy migration if applicable (on-the-fly transformation)
-      if (requiresLegacyMigration(project)) {
+      // Execute legacy migration only when explicitly requested (overview page only).
+      // Validation paths (upsert, resubmit) must not trigger migration so that
+      // user-edited values are never overwritten mid-request.
+      if (withProjectTypeMigration && requiresLegacyMigration(project)) {
         const migrationResult = await executeLegacyProjectTypeMigration(
           this.prisma,
           project,
@@ -358,6 +363,8 @@ export class ProjectService extends ProjectNfmService {
             migrationResult.project_intervention_types
           project.main_intervention_type =
             migrationResult.main_intervention_type
+          project.legacy_project_type_migration_completed =
+            migrationResult.legacy_project_type_migration_completed
         }
       }
 
@@ -367,7 +374,9 @@ export class ProjectService extends ProjectNfmService {
 
       // Apply all response enrichments (area hierarchy, moderation filename,
       // status resolution). To add a new field, add a step in project-enricher.js.
-      await enrichProjectResponse(this.prisma, project, apiData, this.logger)
+      await enrichProjectResponse(this.prisma, project, apiData, this.logger, {
+        skipUrlEnrichment
+      })
 
       return apiData
     } catch (error) {
