@@ -2,7 +2,8 @@ import { ProjectService } from '../services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { buildSuccessResponse } from '../../../common/helpers/response-builder.js'
 import {
-  fetchFundingValues,
+  hasConstructionTimeline,
+  buildPlaceholderFundingValues,
   computeCarbonResults
 } from '../carbon-impact/carbon-impact.js'
 import { fetchShapefileBase64 } from '../helpers/proposal-payload-helpers.js'
@@ -17,6 +18,35 @@ const CARBON_FIELDS = [
 ]
 
 const hasCarbonData = (project) => CARBON_FIELDS.some((f) => project[f] != null)
+
+/**
+ * Resolve funding values to use for carbon calculation.
+ * Falls back to placeholder rows when no stored values exist but a
+ * construction timeline is present.
+ */
+function resolveFundingValues(result) {
+  const storedFundingValues = result.pafs_core_funding_values ?? []
+  if (storedFundingValues.length === 0 && hasConstructionTimeline(result)) {
+    return buildPlaceholderFundingValues(result)
+  }
+  return storedFundingValues
+}
+
+/**
+ * Attempt to attach carbonCalc to the project result.
+ * Logs a warning and continues without it if the calculation fails.
+ */
+function attachCarbonCalc(result, logger) {
+  try {
+    const fundingValues = resolveFundingValues(result)
+    result.carbonCalc = computeCarbonResults(result, fundingValues)
+  } catch (carbonError) {
+    logger.warn(
+      { error: carbonError },
+      'Carbon impact calculation failed — returning project without carbonCalc'
+    )
+  }
+}
 
 /**
  * Warm the shapefile base64 DB cache if the project has a shapefile but no
@@ -67,19 +97,7 @@ const getProject = {
       )
 
       if (result && hasCarbonData(result)) {
-        try {
-          const fundingValues = await fetchFundingValues(
-            request.prisma,
-            referenceNumber,
-            result
-          )
-          result.carbonCalc = computeCarbonResults(result, fundingValues)
-        } catch (carbonError) {
-          request.server.logger.warn(
-            { error: carbonError },
-            'Carbon impact calculation failed — returning project without carbonCalc'
-          )
-        }
+        attachCarbonCalc(result, request.server.logger)
       }
 
       // Warm the shapefile base64 cache if not yet populated — fire-and-forget

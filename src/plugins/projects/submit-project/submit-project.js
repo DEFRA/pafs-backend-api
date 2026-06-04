@@ -1,4 +1,5 @@
 import Joi from 'joi'
+import { config } from '../../../config.js'
 import { ProjectService } from '../services/project-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import {
@@ -90,7 +91,7 @@ const transitionToSubmitted = async (
   logger
 ) => {
   try {
-    await projectService.transitionToSubmitted(project.id, referenceNumber)
+    await projectService.transitionToSubmitted(project.id)
     logger.info(
       { referenceNumber, userId: credentials.userId },
       'Project submitted successfully'
@@ -223,13 +224,22 @@ const handler = async (request, h) => {
     outcome: 'success'
   })
 
-  return buildSuccessResponse(h, {
-    success: true,
-    data: {
-      referenceNumber: project.referenceNumber,
-      status: PROJECT_STATUS.SUBMITTED
-    }
-  })
+  const externalSubmissionEnabled = config.get('externalSubmission.enabled')
+  const statusCode = externalSubmissionEnabled
+    ? HTTP_STATUS.OK
+    : HTTP_STATUS.ACCEPTED
+
+  return buildSuccessResponse(
+    h,
+    {
+      success: true,
+      data: {
+        referenceNumber: project.referenceNumber,
+        status: PROJECT_STATUS.SUBMITTED
+      }
+    },
+    statusCode
+  )
 }
 
 const submitProject = {

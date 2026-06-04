@@ -82,6 +82,7 @@ describe('RDS Pool Configuration', () => {
       expect(config.password).toBeTypeOf('function')
       expect(config.max).toBe(10)
       expect(config.maxLifetimeSeconds).toBe(600)
+      expect(config.connectionTimeoutMillis).toBe(5000)
       expect(config.ssl).toEqual({
         rejectUnauthorized: false,
         secureContext: { ca: 'mock-ca' }
@@ -103,6 +104,34 @@ describe('RDS Pool Configuration', () => {
 
       expect(config.password).toBe('devpass123')
       expect(config.ssl).toBeUndefined()
+    })
+
+    test('uses connectionTimeoutMs from pool config when provided', () => {
+      const server = { logger: mockLogger }
+      const config = buildRdsPoolConfig(server, {
+        useIamAuth: false,
+        host: 'localhost',
+        port: 5432,
+        database: 'db',
+        username: 'u',
+        password: 'p',
+        pool: { max: 10, maxLifetimeSeconds: 600, connectionTimeoutMs: 3000 }
+      })
+      expect(config.connectionTimeoutMillis).toBe(3000)
+    })
+
+    test('defaults connectionTimeoutMillis to 5000 when connectionTimeoutMs is not set', () => {
+      const server = { logger: mockLogger }
+      const config = buildRdsPoolConfig(server, {
+        useIamAuth: false,
+        host: 'localhost',
+        port: 5432,
+        database: 'db',
+        username: 'u',
+        password: 'p',
+        pool: { max: 10, maxLifetimeSeconds: 600 }
+      })
+      expect(config.connectionTimeoutMillis).toBe(5000)
     })
 
     test('password function generates fresh tokens', async () => {

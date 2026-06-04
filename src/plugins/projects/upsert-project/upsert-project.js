@@ -176,11 +176,14 @@ const applyFundingNormalizers = async (
     )
   ])
 
-  // FUNDING_SOURCES_ESTIMATED_SPEND level: upsert/delete per-year funding rows
+  // FUNDING_SOURCES_ESTIMATED_SPEND level: upsert/delete per-year funding rows.
+  // Pass the project ID already loaded during validation so handleFundingSourcesData
+  // doesn't need to issue a redundant getProjectIdByReference round-trip.
   await handleFundingSourcesData(
     enrichedPayload,
     validationLevel,
-    projectService
+    projectService,
+    existingProject?.id == null ? null : Number(existingProject.id)
   )
 
   // FINANCIAL_START_YEAR / FINANCIAL_END_YEAR levels: flush out-of-range funding data
@@ -217,13 +220,26 @@ const applyPayloadNormalizers = async (
   )
 }
 
-const setAreaNameIfPresent = async (enrichedPayload, areaId, areaService) => {
+const setAreaNameIfPresent = async (
+  enrichedPayload,
+  areaId,
+  areaService,
+  existingProject
+) => {
   if (!areaId) {
     return
   }
 
+  // Area is unchanged — reuse the name already stored on the project record.
+  // This avoids a DB round-trip on every edit step where the area is carried
+  // in the payload but not being changed (which is almost all of them).
+  if (existingProject && Number(existingProject.areaId) === Number(areaId)) {
+    enrichedPayload.rmaName = existingProject.rmaName ?? null
+    return
+  }
+
   const area = await areaService.getAreaByIdWithParents(areaId)
-  enrichedPayload.rmaName = area.name // Add area name for database storage
+  enrichedPayload.rmaName = area.name
 }
 
 const processUpsert = async (request, h, apiPayload) => {
@@ -261,7 +277,7 @@ const processUpsert = async (request, h, apiPayload) => {
       existingProject,
       projectService
     ),
-    setAreaNameIfPresent(enrichedPayload, areaId, areaService)
+    setAreaNameIfPresent(enrichedPayload, areaId, areaService, existingProject)
   ])
 
   const project = await projectService.upsertProject(

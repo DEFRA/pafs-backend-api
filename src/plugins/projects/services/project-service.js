@@ -313,18 +313,64 @@ export class ProjectService extends ProjectNfmService {
     }
   }
 
+  _isFundingContributorConfig(config) {
+    return (
+      config.tableName === 'pafs_core_funding_contributors' &&
+      config.joinField === 'funding_value_id'
+    )
+  }
+
+  async _fetchAndAttachFundingContributors(project, contributorEntries) {
+    const fundingValueIds = (project.pafs_core_funding_values ?? [])
+      .map(({ id }) => Number(id))
+      .filter((id) => !Number.isNaN(id))
+
+    for (const [tableKey, config] of contributorEntries) {
+      let contributors = []
+      if (
+        fundingValueIds.length > 0 &&
+        this.prisma[config.tableName]?.findMany
+      ) {
+        contributors = await this.prisma[config.tableName].findMany({
+          where: { [config.joinField]: { in: fundingValueIds } },
+          select: this._buildJoinSelect(config)
+        })
+      }
+      this._attachJoinedTableData(
+        project,
+        tableKey,
+        contributors,
+        config.isArray
+      )
+    }
+  }
+
   async _populateJoinedTables(project) {
-    const joinedTables = getJoinedTableConfig()
-    const entries = Object.entries(joinedTables)
+    const entries = Object.entries(getJoinedTableConfig())
+
+    // Funding contributors join on funding_value_id, not project_id — split them out
+    // so we can reuse funding value IDs already fetched in this same batch rather
+    // than issuing a second query to pafs_core_funding_values just for their IDs.
+    const nonContributorEntries = entries.filter(
+      ([, config]) => !this._isFundingContributorConfig(config)
+    )
+    const contributorEntries = entries.filter(([, config]) =>
+      this._isFundingContributorConfig(config)
+    )
+
+    // Fetch all non-contributor tables (including pafs_core_funding_values) in parallel
     const results = await Promise.all(
-      entries.map(([, config]) =>
+      nonContributorEntries.map(([, config]) =>
         this._fetchJoinedDataByConfig(project.id, config)
       )
     )
-    for (let i = 0; i < entries.length; i++) {
-      const [tableKey, config] = entries[i]
+    for (let i = 0; i < nonContributorEntries.length; i++) {
+      const [tableKey, config] = nonContributorEntries[i]
       this._attachJoinedTableData(project, tableKey, results[i], config.isArray)
     }
+
+    // Use funding value IDs already attached above — single batch query, no extra DB round-trip
+    await this._fetchAndAttachFundingContributors(project, contributorEntries)
   }
 
   async getProjectByReferenceNumber(

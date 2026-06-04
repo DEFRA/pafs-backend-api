@@ -1,5 +1,9 @@
-import { describe, test, expect, vi } from 'vitest'
-import { resolveAreaHierarchy } from './area-hierarchy.js'
+import { describe, test, expect, vi, beforeEach } from 'vitest'
+import {
+  resolveAreaHierarchy,
+  preWarmAreaHierarchyCache,
+  clearAreaHierarchyCache
+} from './area-hierarchy.js'
 
 /**
  * Unit tests for resolveAreaHierarchy.
@@ -12,7 +16,7 @@ import { resolveAreaHierarchy } from './area-hierarchy.js'
 
 const buildMockPrisma = (calls = []) => {
   const findFirst = vi.fn()
-  calls.forEach((returnValue, index) => {
+  calls.forEach((returnValue) => {
     findFirst.mockResolvedValueOnce(returnValue)
   })
 
@@ -22,6 +26,10 @@ const buildMockPrisma = (calls = []) => {
 }
 
 describe('resolveAreaHierarchy', () => {
+  beforeEach(() => {
+    clearAreaHierarchyCache()
+  })
+
   describe('null / missing areaId', () => {
     test('Should return empty hierarchy when areaId is null', async () => {
       const prisma = buildMockPrisma()
@@ -248,5 +256,196 @@ describe('resolveAreaHierarchy', () => {
 
       expect(r1).not.toBe(r2)
     })
+  })
+
+  describe('In-process cache', () => {
+    test('Should return cached result on second call for same areaId — no extra DB queries', async () => {
+      const prisma = buildMockPrisma([
+        { name: 'South Yorkshire', sub_type: 'LA', parent_id: 20 },
+        { id: 20n, name: 'Yorkshire RFCC', parent_id: 30 },
+        { name: 'North East' }
+      ])
+
+      const first = await resolveAreaHierarchy(prisma, 10)
+      const second = await resolveAreaHierarchy(prisma, 10)
+
+      // DB should only be hit once across both calls
+      expect(prisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(3)
+      expect(first).toEqual(second)
+    })
+
+    test('Should cache the same object reference on repeated calls', async () => {
+      const prisma = buildMockPrisma([
+        { name: 'Hull City Council', sub_type: null, parent_id: 20 },
+        { id: 20n, name: 'Humber RFCC', parent_id: 30 },
+        { name: 'North East' }
+      ])
+
+      const first = await resolveAreaHierarchy(prisma, 5)
+      const second = await resolveAreaHierarchy(prisma, 5)
+
+      expect(second).toBe(first)
+    })
+
+    test('Should not cache null-areaId calls (falsy guard skips cache)', async () => {
+      const prisma = buildMockPrisma()
+
+      const r1 = await resolveAreaHierarchy(prisma, null)
+      const r2 = await resolveAreaHierarchy(prisma, null)
+
+      expect(r1).not.toBe(r2)
+      expect(prisma.pafs_core_areas.findFirst).not.toHaveBeenCalled()
+    })
+
+    test('Should re-query DB after the cache TTL expires', async () => {
+      const prisma = buildMockPrisma([
+        // First call — RMA only, no parent
+        { name: 'First Load', sub_type: null, parent_id: null },
+        // Second call (after TTL) — RMA only, no parent
+        { name: 'Second Load', sub_type: null, parent_id: null }
+      ])
+
+      // Populate the cache
+      await resolveAreaHierarchy(prisma, 77)
+      expect(prisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(1)
+
+      // Advance time past the 1-hour TTL
+      const realNow = Date.now
+      Date.now = () => realNow() + 61 * 60 * 1000
+      try {
+        const result = await resolveAreaHierarchy(prisma, 77)
+        // DB should have been queried again
+        expect(prisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(2)
+        expect(result.rmaName).toBe('Second Load')
+      } finally {
+        Date.now = realNow
+      }
+    })
+
+    test('Cached result from pre-warm is returned without hitting DB', async () => {
+      const prisma = buildMockPrisma()
+
+      // Pre-warm with three areas: RMA → PSO → EA
+      const mockPrismaForWarm = {
+        pafs_core_areas: {
+          findMany: vi.fn().mockResolvedValue([
+            { id: 10n, name: 'South Yorkshire', sub_type: 'LA', parent_id: 20 },
+            { id: 20n, name: 'Yorkshire RFCC', sub_type: null, parent_id: 30 },
+            { id: 30n, name: 'North East', sub_type: null, parent_id: null }
+          ])
+        }
+      }
+      await preWarmAreaHierarchyCache(mockPrismaForWarm)
+
+      // resolveAreaHierarchy should hit the cache — not the per-request prisma mock
+      const result = await resolveAreaHierarchy(prisma, 10)
+
+      expect(prisma.pafs_core_areas.findFirst).not.toHaveBeenCalled()
+      expect(result.rmaName).toBe('South Yorkshire')
+      expect(result.psoName).toBe('Yorkshire RFCC')
+      expect(result.eaAreaName).toBe('North East')
+    })
+
+    test('Should use separate cache entries for different areaIds', async () => {
+      const prisma = buildMockPrisma([
+        { name: 'Area A', sub_type: null, parent_id: null },
+        { name: 'Area B', sub_type: null, parent_id: null }
+      ])
+
+      const resultA = await resolveAreaHierarchy(prisma, 11)
+      const resultB = await resolveAreaHierarchy(prisma, 12)
+
+      expect(resultA.rmaName).toBe('Area A')
+      expect(resultB.rmaName).toBe('Area B')
+      expect(prisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(2)
+    })
+  })
+})
+
+describe('preWarmAreaHierarchyCache', () => {
+  beforeEach(() => {
+    clearAreaHierarchyCache()
+  })
+
+  function buildWarmPrisma(areas) {
+    return {
+      pafs_core_areas: {
+        findMany: vi.fn().mockResolvedValue(areas)
+      }
+    }
+  }
+
+  test('fetches all areas in a single query', async () => {
+    const prisma = buildWarmPrisma([
+      { id: 1n, name: 'Test RMA', sub_type: null, parent_id: null }
+    ])
+
+    await preWarmAreaHierarchyCache(prisma)
+
+    expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledOnce()
+    expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
+      select: { id: true, name: true, sub_type: true, parent_id: true }
+    })
+  })
+
+  test('populates cache for every area so subsequent resolveAreaHierarchy calls skip DB', async () => {
+    const warmPrisma = buildWarmPrisma([
+      { id: 5n, name: 'RMA Five', sub_type: 'LA', parent_id: 6 },
+      { id: 6n, name: 'PSO Six', sub_type: null, parent_id: null }
+    ])
+    await preWarmAreaHierarchyCache(warmPrisma)
+
+    const requestPrisma = buildMockPrisma() // no mock returns — should not be called
+    const result = await resolveAreaHierarchy(requestPrisma, 5)
+
+    expect(requestPrisma.pafs_core_areas.findFirst).not.toHaveBeenCalled()
+    expect(result.rmaName).toBe('RMA Five')
+    expect(result.psoName).toBe('PSO Six')
+  })
+
+  test('resolves full three-level hierarchy in memory without extra queries', async () => {
+    const warmPrisma = buildWarmPrisma([
+      { id: 10n, name: 'South Yorkshire', sub_type: 'LA', parent_id: 20 },
+      { id: 20n, name: 'Yorkshire RFCC', sub_type: null, parent_id: 30 },
+      { id: 30n, name: 'North East', sub_type: null, parent_id: null }
+    ])
+    await preWarmAreaHierarchyCache(warmPrisma)
+
+    const requestPrisma = buildMockPrisma()
+    const result = await resolveAreaHierarchy(requestPrisma, 10)
+
+    expect(result).toEqual({
+      rmaName: 'South Yorkshire',
+      rmaSubType: 'LA',
+      psoAreaId: 20,
+      psoName: 'Yorkshire RFCC',
+      rfccName: 'Yorkshire RFCC',
+      eaAreaName: 'North East'
+    })
+    expect(requestPrisma.pafs_core_areas.findFirst).not.toHaveBeenCalled()
+  })
+
+  test('does nothing when area table is empty', async () => {
+    const prisma = buildWarmPrisma([])
+    await preWarmAreaHierarchyCache(prisma)
+
+    // Cache still empty — lazy load should work normally
+    const requestPrisma = buildMockPrisma([null])
+    await resolveAreaHierarchy(requestPrisma, 99)
+    expect(requestPrisma.pafs_core_areas.findFirst).toHaveBeenCalledOnce()
+  })
+
+  test('logs count on success when logger is provided', async () => {
+    const prisma = buildWarmPrisma([
+      { id: 1n, name: 'Area', sub_type: null, parent_id: null }
+    ])
+    const logger = { info: vi.fn() }
+
+    await preWarmAreaHierarchyCache(prisma, logger)
+
+    expect(logger.info).toHaveBeenCalledWith(
+      { count: 1 },
+      'Area hierarchy cache pre-warmed'
+    )
   })
 })

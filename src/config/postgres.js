@@ -51,6 +51,12 @@ const postgresSchema = {
         format: 'nat',
         default: 10 * 60,
         env: 'POSTGRES_POOL_MAX_LIFETIME'
+      },
+      connectionTimeoutMs: {
+        doc: 'Milliseconds to wait for a pool connection before timing out — keep low so requests fail fast under overload',
+        format: 'nat',
+        default: 5000,
+        env: 'POSTGRES_POOL_CONNECTION_TIMEOUT_MS'
       }
     }
   }

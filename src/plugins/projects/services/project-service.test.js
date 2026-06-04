@@ -2104,81 +2104,51 @@ describe('ProjectService', () => {
   describe('upsertNfmLandUseChange', () => {
     beforeEach(() => {
       mockPrisma.pafs_core_nfm_land_use_changes = {
-        findFirst: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn()
+        upsert: vi.fn()
       }
     })
 
-    test('Should create new NFM land use change when it does not exist', async () => {
+    test('Should upsert using compound unique key (project_id_land_use_type)', async () => {
       const payload = {
         referenceNumber: 'ANC501E/000A/001A',
         landUseType: 'enclosed_arable_farmland',
         areaBeforeHectares: 10.5,
         areaAfterHectares: 8.25
       }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        null
-      )
-      mockPrisma.pafs_core_nfm_land_use_changes.create.mockResolvedValue({
+      const upserted = {
         id: 1,
         project_id: 1,
         land_use_type: 'enclosed_arable_farmland',
         area_before_hectares: 10.5,
         area_after_hectares: 8.25
-      })
+      }
+
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_land_use_changes.upsert.mockResolvedValue(
+        upserted
+      )
 
       const result = await service.upsertNfmLandUseChange(payload)
 
-      expect(result).toBeDefined()
-      expect(result.land_use_type).toBe('enclosed_arable_farmland')
-      expect(result.area_before_hectares).toBe(10.5)
+      expect(result).toBe(upserted)
       expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.create
+        mockPrisma.pafs_core_nfm_land_use_changes.upsert
       ).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+        where: {
+          project_id_land_use_type: {
+            project_id: 1,
+            land_use_type: 'enclosed_arable_farmland'
+          }
+        },
+        update: expect.objectContaining({
+          area_before_hectares: 10.5,
+          area_after_hectares: 8.25
+        }),
+        create: expect.objectContaining({
           project_id: 1,
           land_use_type: 'enclosed_arable_farmland',
           area_before_hectares: 10.5,
           area_after_hectares: 8.25
-        })
-      })
-    })
-
-    test('Should update existing NFM land use change', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        landUseType: 'woodland',
-        areaBeforeHectares: 5,
-        areaAfterHectares: 6.5
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue({
-        id: 20,
-        project_id: 1,
-        land_use_type: 'woodland'
-      })
-      mockPrisma.pafs_core_nfm_land_use_changes.update.mockResolvedValue({
-        id: 20,
-        project_id: 1,
-        land_use_type: 'woodland',
-        area_before_hectares: 5,
-        area_after_hectares: 6.5
-      })
-
-      const result = await service.upsertNfmLandUseChange(payload)
-
-      expect(result).toBeDefined()
-      expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.update
-      ).toHaveBeenCalledWith({
-        where: { id: 20 },
-        data: expect.objectContaining({
-          area_before_hectares: 5,
-          area_after_hectares: 6.5
         })
       })
     })
@@ -2213,11 +2183,10 @@ describe('ProjectService', () => {
         areaBeforeHectares: 5,
         areaAfterHectares: 6.5
       }
-      const dbError = new Error('DB error')
 
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockRejectedValue(
-        dbError
+      mockPrisma.pafs_core_nfm_land_use_changes.upsert.mockRejectedValue(
+        new Error('DB error')
       )
 
       await expect(service.upsertNfmLandUseChange(payload)).rejects.toThrow(
@@ -2699,6 +2668,103 @@ describe('ProjectService', () => {
       await service.nullAdditionalGiaColumns(referenceNumber)
 
       expect(spy).toHaveBeenCalledWith(referenceNumber)
+    })
+  })
+
+  describe('_fetchAndAttachFundingContributors', () => {
+    const contributorConfig = {
+      tableName: 'pafs_core_funding_contributors',
+      joinField: 'funding_value_id',
+      isArray: true,
+      fields: {
+        name: 'name',
+        amount: 'amount',
+        fundingValueId: 'funding_value_id'
+      }
+    }
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_funding_contributors = {
+        findMany: vi.fn()
+      }
+    })
+
+    test('fetches contributors in a single IN query using pre-loaded funding value IDs', async () => {
+      const project = {
+        pafs_core_funding_values: [
+          { id: 10n, financial_year: 2024 },
+          { id: 11n, financial_year: 2025 }
+        ]
+      }
+      const contributors = [
+        { name: 'EA', amount: 1000n, funding_value_id: 10n },
+        { name: 'LA', amount: 500n, funding_value_id: 11n }
+      ]
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue(
+        contributors
+      )
+
+      await service._fetchAndAttachFundingContributors(project, [
+        ['pafs_core_funding_contributors', contributorConfig]
+      ])
+
+      // Single findMany call with both IDs — no second query to pafs_core_funding_values
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).toHaveBeenCalledOnce()
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).toHaveBeenCalledWith({
+        where: { funding_value_id: { in: [10, 11] } },
+        select: expect.objectContaining({ name: true, amount: true })
+      })
+      expect(project.pafs_core_funding_contributors).toBe(contributors)
+    })
+
+    test('skips DB call and leaves contributor key unset when no funding values exist', async () => {
+      const project = { pafs_core_funding_values: [] }
+
+      await service._fetchAndAttachFundingContributors(project, [
+        ['pafs_core_funding_contributors', contributorConfig]
+      ])
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).not.toHaveBeenCalled()
+      expect(project.pafs_core_funding_contributors).toBeUndefined()
+    })
+
+    test('skips DB call when project has no funding values key at all', async () => {
+      const project = {}
+
+      await service._fetchAndAttachFundingContributors(project, [
+        ['pafs_core_funding_contributors', contributorConfig]
+      ])
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('filters out NaN IDs from funding value list', async () => {
+      const project = {
+        pafs_core_funding_values: [
+          { id: 'bad', financial_year: 2024 },
+          { id: 12n, financial_year: 2025 }
+        ]
+      }
+      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([])
+
+      await service._fetchAndAttachFundingContributors(project, [
+        ['pafs_core_funding_contributors', contributorConfig]
+      ])
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).toHaveBeenCalledWith({
+        where: { funding_value_id: { in: [12] } },
+        select: expect.any(Object)
+      })
     })
   })
 })
