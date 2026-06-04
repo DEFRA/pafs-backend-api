@@ -21,6 +21,10 @@ vi.mock('./audit-extension.js', () => ({
   createAuditExtension: vi.fn().mockReturnValue({ name: 'audit' })
 }))
 
+vi.mock('../projects/helpers/area-hierarchy.js', () => ({
+  preWarmAreaHierarchyCache: vi.fn().mockResolvedValue(undefined)
+}))
+
 vi.mock('@prisma/adapter-pg', () => ({
   PrismaPg: vi.fn()
 }))
@@ -245,7 +249,7 @@ describe('Prisma Plugin', () => {
     expect(call[3]).toEqual({ apply: true })
   })
 
-  test('request prisma accessor creates audit-extended client', async () => {
+  test('request prisma accessor creates audit-extended client on first property access', async () => {
     const { createAuditExtension } = await import('./audit-extension.js')
 
     await prisma.plugin.register(mockServer, {})
@@ -255,9 +259,15 @@ describe('Prisma Plugin', () => {
     )
     const decoratorFn = call[2]
 
-    // Simulate Hapi calling the apply:true decorator — Hapi passes request as the first argument, not as `this`
+    // Simulate Hapi calling the apply:true decorator (request is first arg)
     const mockRequest = { auth: { credentials: { userId: BigInt(1) } } }
-    decoratorFn(mockRequest)
+    const proxy = decoratorFn(mockRequest)
+
+    // $extends is not called yet — resolution is lazy until a property is accessed
+    expect(mockPrismaExtends).not.toHaveBeenCalled()
+
+    // Access a property to trigger lazy resolution
+    expect(proxy._isAuditedClient).toBe(true)
 
     expect(createAuditExtension).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -266,10 +276,53 @@ describe('Prisma Plugin', () => {
         logger: mockServer.logger
       })
     )
-    expect(mockPrismaExtends).toHaveBeenCalled()
+    expect(mockPrismaExtends).toHaveBeenCalledOnce()
   })
 
-  test('getUserId in audit extension resolves userId from request credentials', async () => {
+  test('memoises extended client — $extends called only once for the same userId', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const call = mockServer.decorate.mock.calls.find(
+      (c) => c[0] === 'request' && c[1] === 'prisma'
+    )
+    const decoratorFn = call[2]
+
+    const request1 = { auth: { credentials: { userId: BigInt(42) } } }
+    const request2 = { auth: { credentials: { userId: BigInt(42) } } }
+
+    const proxy1 = decoratorFn(request1)
+    const proxy2 = decoratorFn(request2)
+
+    // Trigger resolution on both proxies
+    expect(proxy1._isAuditedClient).toBe(true)
+    expect(proxy2._isAuditedClient).toBe(true)
+
+    // Same userId → $extends created only once
+    expect(mockPrismaExtends).toHaveBeenCalledOnce()
+  })
+
+  test('creates separate extended clients for different userIds', async () => {
+    await prisma.plugin.register(mockServer, {})
+
+    const call = mockServer.decorate.mock.calls.find(
+      (c) => c[0] === 'request' && c[1] === 'prisma'
+    )
+    const decoratorFn = call[2]
+
+    const requestA = { auth: { credentials: { userId: BigInt(1) } } }
+    const requestB = { auth: { credentials: { userId: BigInt(2) } } }
+
+    const proxyA = decoratorFn(requestA)
+    const proxyB = decoratorFn(requestB)
+
+    expect(proxyA._isAuditedClient).toBe(true)
+    expect(proxyB._isAuditedClient).toBe(true)
+
+    // Different userIds → $extends called twice
+    expect(mockPrismaExtends).toHaveBeenCalledTimes(2)
+  })
+
+  test('getUserId in audit extension captures the correct userId at creation time', async () => {
     const { createAuditExtension } = await import('./audit-extension.js')
 
     await prisma.plugin.register(mockServer, {})
@@ -279,7 +332,10 @@ describe('Prisma Plugin', () => {
     )
     const decoratorFn = call[2]
     const mockRequest = { auth: { credentials: { userId: BigInt(99) } } }
-    decoratorFn(mockRequest)
+    const proxy = decoratorFn(mockRequest)
+
+    // Trigger resolution
+    expect(proxy._isAuditedClient).toBe(true)
 
     const { getUserId } = createAuditExtension.mock.calls.at(-1)[0]
     expect(getUserId()).toBe(BigInt(99))
@@ -294,10 +350,38 @@ describe('Prisma Plugin', () => {
       (c) => c[0] === 'request' && c[1] === 'prisma'
     )
     const decoratorFn = call[2]
-    decoratorFn({})
+    const proxy = decoratorFn({}) // no auth
+    expect(proxy._isAuditedClient).toBe(true)
 
     const { getUserId } = createAuditExtension.mock.calls.at(-1)[0]
     expect(getUserId()).toBeUndefined()
+  })
+
+  test('pre-warms area hierarchy cache after successful connection', async () => {
+    const { preWarmAreaHierarchyCache } =
+      await import('../projects/helpers/area-hierarchy.js')
+
+    await prisma.plugin.register(mockServer, {})
+
+    expect(preWarmAreaHierarchyCache).toHaveBeenCalledWith(
+      expect.any(Object),
+      mockServer.logger
+    )
+  })
+
+  test('logs warning but does not throw when area cache pre-warm fails', async () => {
+    const { preWarmAreaHierarchyCache } =
+      await import('../projects/helpers/area-hierarchy.js')
+    preWarmAreaHierarchyCache.mockRejectedValueOnce(new Error('DB down'))
+
+    await prisma.plugin.register(mockServer, {})
+    // Allow the fire-and-forget promise to settle
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(mockServer.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      expect.stringContaining('Area hierarchy cache pre-warm failed')
+    )
   })
 
   test('disconnects Prisma and closes pool on server stop', async () => {

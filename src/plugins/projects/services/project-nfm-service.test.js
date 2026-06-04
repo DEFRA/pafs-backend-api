@@ -22,13 +22,16 @@ describe('ProjectNfmService', () => {
         findFirst: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn()
+        delete: vi.fn(),
+        deleteMany: vi.fn()
       },
       pafs_core_nfm_land_use_changes: {
         findFirst: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn()
+        delete: vi.fn(),
+        upsert: vi.fn(),
+        deleteMany: vi.fn()
       }
     }
 
@@ -268,22 +271,29 @@ describe('ProjectNfmService', () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
     })
 
-    test('should create a new land use change record when none exists', async () => {
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        null
-      )
-      const created = { id: 20, project_id: 1, land_use_type: landUseType }
-      mockPrisma.pafs_core_nfm_land_use_changes.create.mockResolvedValue(
-        created
+    test('should upsert using the compound unique key (project_id_land_use_type)', async () => {
+      const upserted = { id: 20, project_id: 1, land_use_type: landUseType }
+      mockPrisma.pafs_core_nfm_land_use_changes.upsert.mockResolvedValue(
+        upserted
       )
 
       const result = await service.upsertNfmLandUseChange(payload)
 
-      expect(result).toBe(created)
+      expect(result).toBe(upserted)
       expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.create
+        mockPrisma.pafs_core_nfm_land_use_changes.upsert
       ).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+        where: {
+          project_id_land_use_type: {
+            project_id: 1,
+            land_use_type: landUseType
+          }
+        },
+        update: expect.objectContaining({
+          area_before_hectares: 20,
+          area_after_hectares: 15
+        }),
+        create: expect.objectContaining({
           project_id: 1,
           land_use_type: landUseType,
           area_before_hectares: 20,
@@ -291,34 +301,7 @@ describe('ProjectNfmService', () => {
         })
       })
       expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.update
-      ).not.toHaveBeenCalled()
-    })
-
-    test('should update an existing land use change record', async () => {
-      const existing = { id: 20, project_id: 1, land_use_type: landUseType }
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        existing
-      )
-      const updated = { ...existing, area_before_hectares: 20 }
-      mockPrisma.pafs_core_nfm_land_use_changes.update.mockResolvedValue(
-        updated
-      )
-
-      const result = await service.upsertNfmLandUseChange(payload)
-
-      expect(result).toBe(updated)
-      expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.update
-      ).toHaveBeenCalledWith({
-        where: { id: existing.id },
-        data: expect.objectContaining({
-          area_before_hectares: 20,
-          area_after_hectares: 15
-        })
-      })
-      expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.create
+        mockPrisma.pafs_core_nfm_land_use_changes.findFirst
       ).not.toHaveBeenCalled()
     })
 
@@ -334,11 +317,8 @@ describe('ProjectNfmService', () => {
       )
     })
 
-    test('should throw and log error when DB write fails', async () => {
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        null
-      )
-      mockPrisma.pafs_core_nfm_land_use_changes.create.mockRejectedValue(
+    test('should throw and log error when DB upsert fails', async () => {
+      mockPrisma.pafs_core_nfm_land_use_changes.upsert.mockRejectedValue(
         new Error('DB write error')
       )
 
@@ -550,6 +530,155 @@ describe('ProjectNfmService', () => {
           referenceNumber
         }),
         'Error deleting all NFM land use changes and measures'
+      )
+    })
+  })
+
+  // ─── batchDeleteNfmMeasures ─────────────────────────────────────────────────
+
+  describe('batchDeleteNfmMeasures', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+    const measureTypes = ['river_floodplain_restoration', 'woodland']
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 2n })
+      mockPrisma.pafs_core_nfm_measures.deleteMany.mockResolvedValue({
+        count: 2
+      })
+    })
+
+    test('should resolve project ID once and deleteMany with IN clause', async () => {
+      await service.batchDeleteNfmMeasures({ referenceNumber, measureTypes })
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledOnce()
+      expect(mockPrisma.pafs_core_nfm_measures.deleteMany).toHaveBeenCalledWith(
+        {
+          where: { project_id: 2, measure_type: { in: measureTypes } }
+        }
+      )
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, measureTypes }),
+        'NFM measures batch deleted'
+      )
+    })
+
+    test('should do nothing when measureTypes is empty', async () => {
+      await service.batchDeleteNfmMeasures({
+        referenceNumber,
+        measureTypes: []
+      })
+
+      expect(mockPrisma.pafs_core_projects.findFirst).not.toHaveBeenCalled()
+      expect(
+        mockPrisma.pafs_core_nfm_measures.deleteMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('should do nothing when measureTypes is undefined', async () => {
+      await service.batchDeleteNfmMeasures({ referenceNumber })
+
+      expect(
+        mockPrisma.pafs_core_nfm_measures.deleteMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('should throw and log error when project not found', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.batchDeleteNfmMeasures({ referenceNumber, measureTypes })
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, measureTypes }),
+        'Error batch deleting NFM measures'
+      )
+    })
+
+    test('should throw and log error when deleteMany fails', async () => {
+      mockPrisma.pafs_core_nfm_measures.deleteMany.mockRejectedValue(
+        new Error('DB error')
+      )
+
+      await expect(
+        service.batchDeleteNfmMeasures({ referenceNumber, measureTypes })
+      ).rejects.toThrow('DB error')
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, measureTypes }),
+        'Error batch deleting NFM measures'
+      )
+    })
+  })
+
+  // ─── batchDeleteNfmLandUseChanges ────────────────────────────────────────────
+
+  describe('batchDeleteNfmLandUseChanges', () => {
+    const referenceNumber = 'ANC501E/000A/001A'
+    const landUseTypes = ['enclosed_arable_farmland', 'woodland']
+
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 3n })
+      mockPrisma.pafs_core_nfm_land_use_changes.deleteMany.mockResolvedValue({
+        count: 2
+      })
+    })
+
+    test('should resolve project ID once and deleteMany with IN clause', async () => {
+      await service.batchDeleteNfmLandUseChanges({
+        referenceNumber,
+        landUseTypes
+      })
+
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledOnce()
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.deleteMany
+      ).toHaveBeenCalledWith({
+        where: { project_id: 3, land_use_type: { in: landUseTypes } }
+      })
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, landUseTypes }),
+        'NFM land use changes batch deleted'
+      )
+    })
+
+    test('should do nothing when landUseTypes is empty', async () => {
+      await service.batchDeleteNfmLandUseChanges({
+        referenceNumber,
+        landUseTypes: []
+      })
+
+      expect(mockPrisma.pafs_core_projects.findFirst).not.toHaveBeenCalled()
+      expect(
+        mockPrisma.pafs_core_nfm_land_use_changes.deleteMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('should throw and log error when project not found', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.batchDeleteNfmLandUseChanges({ referenceNumber, landUseTypes })
+      ).rejects.toThrow(
+        `Project not found with reference number: ${referenceNumber}`
+      )
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, landUseTypes }),
+        'Error batch deleting NFM land use changes'
+      )
+    })
+
+    test('should throw and log error when deleteMany fails', async () => {
+      mockPrisma.pafs_core_nfm_land_use_changes.deleteMany.mockRejectedValue(
+        new Error('DB error')
+      )
+
+      await expect(
+        service.batchDeleteNfmLandUseChanges({ referenceNumber, landUseTypes })
+      ).rejects.toThrow('DB error')
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceNumber, landUseTypes }),
+        'Error batch deleting NFM land use changes'
       )
     })
   })

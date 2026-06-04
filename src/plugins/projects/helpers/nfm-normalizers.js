@@ -226,27 +226,33 @@ const handleSelectedMeasureCleanup = async (
   projectService
 ) => {
   const { referenceNumber } = enrichedPayload
+  const measureTypesToDelete = []
 
   for (const mapping of NFM_SELECTED_MEASURE_MAPPINGS) {
     const allFieldsNull = mapping.fields.every(
       (field) => enrichedPayload[field] === null
     )
-
     const hasAnyField = mapping.fields.some((field) => field in enrichedPayload)
 
     if (hasAnyField && allFieldsNull) {
-      await projectService.deleteNfmMeasure({
-        referenceNumber,
-        measureType: mapping.type
-      })
+      measureTypesToDelete.push(mapping.type)
     }
 
     deleteFieldsFromPayload(enrichedPayload, mapping.fields)
+  }
+
+  // Single batch delete instead of one query per measure type
+  if (measureTypesToDelete.length > 0) {
+    await projectService.batchDeleteNfmMeasures({
+      referenceNumber,
+      measureTypes: measureTypesToDelete
+    })
   }
 }
 
 const handleLandUseCleanup = async (enrichedPayload, projectService) => {
   const { referenceNumber } = enrichedPayload
+  const landUseTypesToDelete = []
 
   for (const mapping of NFM_LAND_USE_DETAIL_MAPPINGS) {
     const allFieldsNull = mapping.fields.every(
@@ -255,13 +261,18 @@ const handleLandUseCleanup = async (enrichedPayload, projectService) => {
     const hasAnyField = mapping.fields.some((field) => field in enrichedPayload)
 
     if (hasAnyField && allFieldsNull) {
-      await projectService.deleteNfmLandUseChange({
-        referenceNumber,
-        landUseType: mapping.landUseType
-      })
+      landUseTypesToDelete.push(mapping.landUseType)
     }
 
     deleteFieldsFromPayload(enrichedPayload, mapping.fields)
+  }
+
+  // Single batch delete instead of one query per land use type
+  if (landUseTypesToDelete.length > 0) {
+    await projectService.batchDeleteNfmLandUseChanges({
+      referenceNumber,
+      landUseTypes: landUseTypesToDelete
+    })
   }
 }
 

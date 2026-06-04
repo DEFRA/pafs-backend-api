@@ -169,34 +169,29 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
   }) {
     try {
       const projectId = await this._getProjectIdByReference(referenceNumber)
+      const now = new Date()
 
-      const existingRecord =
-        await this.prisma.pafs_core_nfm_land_use_changes.findFirst({
-          where: {
+      // pafs_core_nfm_land_use_changes has @@unique([project_id, land_use_type])
+      // so Prisma upsert can replace the manual findFirst + update/create (saves one query)
+      return await this.prisma.pafs_core_nfm_land_use_changes.upsert({
+        where: {
+          project_id_land_use_type: {
             project_id: projectId,
             land_use_type: landUseType
           }
-        })
-
-      if (existingRecord) {
-        return await this.prisma.pafs_core_nfm_land_use_changes.update({
-          where: { id: existingRecord.id },
-          data: {
-            area_before_hectares: areaBeforeHectares,
-            area_after_hectares: areaAfterHectares,
-            updated_at: new Date()
-          }
-        })
-      }
-
-      return await this.prisma.pafs_core_nfm_land_use_changes.create({
-        data: {
+        },
+        update: {
+          area_before_hectares: areaBeforeHectares,
+          area_after_hectares: areaAfterHectares,
+          updated_at: now
+        },
+        create: {
           project_id: projectId,
           land_use_type: landUseType,
           area_before_hectares: areaBeforeHectares,
           area_after_hectares: areaAfterHectares,
-          created_at: new Date(),
-          updated_at: new Date()
+          created_at: now,
+          updated_at: now
         }
       })
     } catch (error) {
@@ -238,6 +233,70 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
       this.logger.error(
         { error: error.message, referenceNumber, landUseType },
         'Error deleting NFM land use change'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Delete multiple NFM measures in a single query.
+   * Resolves the project ID once and uses deleteMany with an IN clause,
+   * replacing the previous loop of individual deleteNfmMeasure calls.
+   * @param {string} referenceNumber
+   * @param {string[]} measureTypes
+   */
+  async batchDeleteNfmMeasures({ referenceNumber, measureTypes }) {
+    if (!measureTypes || measureTypes.length === 0) {
+      return
+    }
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+      await this.prisma.pafs_core_nfm_measures.deleteMany({
+        where: {
+          project_id: projectId,
+          measure_type: { in: measureTypes }
+        }
+      })
+      this.logger.info(
+        { projectId, referenceNumber, measureTypes },
+        'NFM measures batch deleted'
+      )
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, measureTypes },
+        'Error batch deleting NFM measures'
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Delete multiple NFM land use change records in a single query.
+   * Resolves the project ID once and uses deleteMany with an IN clause,
+   * replacing the previous loop of individual deleteNfmLandUseChange calls.
+   * @param {string} referenceNumber
+   * @param {string[]} landUseTypes
+   */
+  async batchDeleteNfmLandUseChanges({ referenceNumber, landUseTypes }) {
+    if (!landUseTypes || landUseTypes.length === 0) {
+      return
+    }
+    try {
+      const projectId = await this._getProjectIdByReference(referenceNumber)
+      await this.prisma.pafs_core_nfm_land_use_changes.deleteMany({
+        where: {
+          project_id: projectId,
+          land_use_type: { in: landUseTypes }
+        }
+      })
+      this.logger.info(
+        { projectId, referenceNumber, landUseTypes },
+        'NFM land use changes batch deleted'
+      )
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, referenceNumber, landUseTypes },
+        'Error batch deleting NFM land use changes'
       )
       throw error
     }

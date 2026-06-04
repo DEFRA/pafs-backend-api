@@ -1703,4 +1703,105 @@ describe('funding-sources-normalizers', () => {
       expect(projectService.deleteAllFundingData).not.toHaveBeenCalled()
     })
   })
+
+  describe('handleFundingSourcesData — existingProjectId optimisation', () => {
+    let projectService
+
+    beforeEach(() => {
+      projectService = {
+        getProjectIdByReference: vi.fn().mockResolvedValue(42),
+        upsertFundingValue: vi.fn().mockResolvedValue({}),
+        syncFundingContributorsForYear: vi.fn().mockResolvedValue(undefined),
+        deleteFundingValue: vi.fn().mockResolvedValue(null),
+        deleteAllFundingContributors: vi.fn().mockResolvedValue(0)
+      }
+    })
+
+    it('skips getProjectIdByReference when existingProjectId is supplied', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [{ financialYear: 2026, fcermGia: '1000' }]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService,
+        99 // existingProjectId passed directly
+      )
+
+      expect(projectService.getProjectIdByReference).not.toHaveBeenCalled()
+      expect(projectService.upsertFundingValue).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: 99 })
+      )
+    })
+
+    it('falls back to getProjectIdByReference when existingProjectId is null', async () => {
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [{ financialYear: 2026, fcermGia: '1000' }]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService,
+        null // no existingProjectId — must fall back to DB
+      )
+
+      expect(projectService.getProjectIdByReference).toHaveBeenCalledWith(
+        'ANC501E/000A/001A'
+      )
+    })
+
+    it('runs deleteAllFundingContributors and deleteFundingValue in parallel for zero-amount rows', async () => {
+      const callOrder = []
+      projectService.deleteAllFundingContributors.mockImplementation(
+        async () => {
+          callOrder.push('contributors')
+        }
+      )
+      projectService.deleteFundingValue.mockImplementation(async () => {
+        callOrder.push('fundingValue')
+      })
+
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [
+          {
+            financialYear: 2026,
+            fcermGia: null,
+            localLevy: null,
+            internalDrainageBoards: null,
+            publicContributions: null,
+            privateContributions: null,
+            otherEaContributions: null,
+            notYetIdentified: null,
+            assetReplacementAllowance: null,
+            environmentStatutoryFunding: null,
+            frequentlyFloodedCommunities: null,
+            otherAdditionalGrantInAid: null,
+            otherGovernmentDepartment: null,
+            recovery: null,
+            summerEconomicFund: null,
+            total: null
+          }
+        ]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService,
+        5
+      )
+
+      // Both deletes ran (order may vary because they run in parallel)
+      expect(projectService.deleteAllFundingContributors).toHaveBeenCalledOnce()
+      expect(projectService.deleteFundingValue).toHaveBeenCalledOnce()
+      expect(callOrder).toHaveLength(2)
+      expect(callOrder).toContain('contributors')
+      expect(callOrder).toContain('fundingValue')
+    })
+  })
 })

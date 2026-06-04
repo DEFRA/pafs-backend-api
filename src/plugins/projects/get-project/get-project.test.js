@@ -3,8 +3,9 @@ import getProject from './get-project.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { ProjectService } from '../services/project-service.js'
 import {
-  fetchFundingValues,
-  computeCarbonResults
+  computeCarbonResults,
+  hasConstructionTimeline,
+  buildPlaceholderFundingValues
 } from '../carbon-impact/carbon-impact.js'
 import { fetchShapefileBase64 } from '../helpers/proposal-payload-helpers.js'
 
@@ -54,7 +55,6 @@ describe('getProject', () => {
       }))
     }
 
-    fetchFundingValues.mockResolvedValue({ totalFunding: 500000 })
     computeCarbonResults.mockReturnValue(MOCK_CARBON_CALC)
   })
 
@@ -123,9 +123,11 @@ describe('getProject', () => {
     })
 
     test('embeds carbonCalc in response when project has carbon data', async () => {
+      const mockFundingValues = [{ financialYear: 2024, total: 500000 }]
       const mockData = {
         referenceNumber: 'RM/2023/001',
-        carbonCostBuild: '150.00'
+        carbonCostBuild: '150.00',
+        pafs_core_funding_values: mockFundingValues
       }
 
       ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue(
@@ -134,15 +136,49 @@ describe('getProject', () => {
 
       const result = await getProject.handler(mockRequest, mockH)
 
-      expect(fetchFundingValues).toHaveBeenCalledWith(
-        mockRequest.prisma,
-        'RM/2023/001',
+      expect(computeCarbonResults).toHaveBeenCalledWith(
+        mockData,
+        mockFundingValues
+      )
+      expect(result.data).toMatchObject({ carbonCalc: MOCK_CARBON_CALC })
+    })
+
+    test('uses placeholder funding values when stored list is empty and construction timeline exists', async () => {
+      const placeholders = [{ financial_year: 2025, total: 0 }]
+      hasConstructionTimeline.mockReturnValue(true)
+      buildPlaceholderFundingValues.mockReturnValue(placeholders)
+
+      const mockData = {
+        referenceNumber: 'RM/2023/001',
+        carbonCostBuild: '150.00',
+        pafs_core_funding_values: [] // empty — no stored values yet
+      }
+      ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue(
         mockData
       )
-      expect(computeCarbonResults).toHaveBeenCalledWith(mockData, {
-        totalFunding: 500000
-      })
-      expect(result.data).toMatchObject({ carbonCalc: MOCK_CARBON_CALC })
+
+      await getProject.handler(mockRequest, mockH)
+
+      expect(buildPlaceholderFundingValues).toHaveBeenCalledWith(mockData)
+      expect(computeCarbonResults).toHaveBeenCalledWith(mockData, placeholders)
+    })
+
+    test('uses empty funding values when stored list is empty and no construction timeline', async () => {
+      hasConstructionTimeline.mockReturnValue(false)
+
+      const mockData = {
+        referenceNumber: 'RM/2023/001',
+        carbonCostBuild: '150.00',
+        pafs_core_funding_values: []
+      }
+      ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue(
+        mockData
+      )
+
+      await getProject.handler(mockRequest, mockH)
+
+      expect(buildPlaceholderFundingValues).not.toHaveBeenCalled()
+      expect(computeCarbonResults).toHaveBeenCalledWith(mockData, [])
     })
 
     test('does not embed carbonCalc when project has no carbon data', async () => {
@@ -163,20 +199,23 @@ describe('getProject', () => {
 
       const result = await getProject.handler(mockRequest, mockH)
 
-      expect(fetchFundingValues).not.toHaveBeenCalled()
+      expect(computeCarbonResults).not.toHaveBeenCalled()
       expect(result.data.carbonCalc).toBeUndefined()
     })
 
     test('returns project without carbonCalc when carbon calculation throws', async () => {
       const mockData = {
         referenceNumber: 'RM/2023/001',
-        carbonCostBuild: '100.0'
+        carbonCostBuild: '100.0',
+        pafs_core_funding_values: [{ financialYear: 2024, total: 100000 }]
       }
 
       ProjectService.prototype.getProjectByReferenceNumber.mockResolvedValue(
         mockData
       )
-      fetchFundingValues.mockRejectedValue(new Error('DB error'))
+      computeCarbonResults.mockImplementation(() => {
+        throw new Error('Calculation error')
+      })
 
       const result = await getProject.handler(mockRequest, mockH)
 

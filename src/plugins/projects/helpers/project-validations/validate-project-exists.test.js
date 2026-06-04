@@ -42,8 +42,10 @@ describe('validateProjectExists', () => {
     )
 
     expect(result).toEqual({ project: mockProject })
+    // Must pass skipUrlEnrichment so S3 presign calls never block validation
     expect(mockProjectService.getProjectByReferenceNumber).toHaveBeenCalledWith(
-      'REF123'
+      'REF123',
+      { skipUrlEnrichment: true }
     )
     expect(mockLogger.warn).not.toHaveBeenCalled()
     expect(mockH.response).not.toHaveBeenCalled()

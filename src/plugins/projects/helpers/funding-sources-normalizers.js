@@ -330,16 +330,20 @@ const processFundingValueRow = async ({
   amounts.total = calculateFundingTotal(amounts)
 
   if (!hasAnyAmountValue(amounts)) {
-    await projectService.deleteAllFundingContributors({
-      referenceNumber,
-      financialYear,
-      projectId
-    })
-    await projectService.deleteFundingValue({
-      referenceNumber,
-      financialYear,
-      projectId
-    })
+    // Contributors and funding value rows are independent — no FK constraints
+    // between them in this schema, so both deletes can run in parallel.
+    await Promise.all([
+      projectService.deleteAllFundingContributors({
+        referenceNumber,
+        financialYear,
+        projectId
+      }),
+      projectService.deleteFundingValue({
+        referenceNumber,
+        financialYear,
+        projectId
+      })
+    ])
     return
   }
 
@@ -436,7 +440,8 @@ export {
 export const handleFundingSourcesData = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProjectId = null
 ) => {
   if (
     validationLevel !==
@@ -450,8 +455,11 @@ export const handleFundingSourcesData = async (
   }
 
   const { referenceNumber } = enrichedPayload
+  // Reuse the project ID already loaded during validation rather than issuing
+  // an extra findFirst to pafs_core_projects just to retrieve the PK.
   const projectId =
-    await projectService.getProjectIdByReference(referenceNumber)
+    existingProjectId ??
+    (await projectService.getProjectIdByReference(referenceNumber))
 
   const validRows = enrichedPayload.fundingValues.filter(
     (row) => isFundingValueRowObject(row) && hasFinancialYear(row)

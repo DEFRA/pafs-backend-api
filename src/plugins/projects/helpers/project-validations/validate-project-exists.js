@@ -13,8 +13,13 @@ export const validateProjectExists = async (
   logger,
   h
 ) => {
-  const existingProject =
-    await projectService.getProjectByReferenceNumber(referenceNumber)
+  // skipUrlEnrichment: S3 download URLs are only needed for display, never for validation.
+  // Without this flag, every edit step submit runs enrichBenefitAreaDownloadUrl which
+  // may trigger a live S3 presign call if the cached URL is stale (500ms–2s added latency).
+  const existingProject = await projectService.getProjectByReferenceNumber(
+    referenceNumber,
+    { skipUrlEnrichment: true }
+  )
 
   if (!existingProject) {
     logger.warn(

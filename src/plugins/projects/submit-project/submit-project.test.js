@@ -22,7 +22,9 @@ vi.mock(
   })
 )
 vi.mock('../../../common/helpers/response-builder.js', () => ({
-  buildSuccessResponse: vi.fn((h, data) => h.response(data).code(200)),
+  buildSuccessResponse: vi.fn((h, data, statusCode) =>
+    h.response(data).code(statusCode ?? 200)
+  ),
   buildErrorResponse: vi.fn((h, statusCode, errors, includeStatusCode) => {
     const body = includeStatusCode ? { statusCode, errors } : { errors }
     return h.response(body).code(statusCode)
@@ -31,6 +33,9 @@ vi.mock('../../../common/helpers/response-builder.js', () => ({
     h.response({ validationErrors }).code(statusCode)
   )
 }))
+vi.mock('../../../config.js', () => ({
+  config: { get: vi.fn().mockReturnValue(true) }
+}))
 
 import { ProjectService } from '../services/project-service.js'
 import {
@@ -38,6 +43,7 @@ import {
   canSubmitProject
 } from '../helpers/project-validations/validate-submission.js'
 import { sendExternalSubmissionMessage } from '../../../common/helpers/sqs/send-external-submission-message.js'
+import { config } from '../../../config.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -344,7 +350,7 @@ describe('submit-project handler', () => {
 
   // ─── Successful submission ────────────────────────────────────────────────
 
-  test('calls transitionToSubmitted with project id and reference number', async () => {
+  test('calls transitionToSubmitted with project id and referenceNumber', async () => {
     await submitProjectRoute.options.handler(request, h)
     expect(mockProjectService.transitionToSubmitted).toHaveBeenCalledWith(
       DRAFT_PROJECT.id,
@@ -352,9 +358,19 @@ describe('submit-project handler', () => {
     )
   })
 
-  test('returns 200 with success=true on successful submission', async () => {
+  test('returns 200 with success=true when external submission is enabled', async () => {
+    config.get.mockReturnValue(true)
     await submitProjectRoute.options.handler(request, h)
     expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true })
+    )
+  })
+
+  test('returns 202 with success=true when external submission is disabled', async () => {
+    config.get.mockReturnValue(false)
+    await submitProjectRoute.options.handler(request, h)
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.ACCEPTED)
     expect(h.response).toHaveBeenCalledWith(
       expect.objectContaining({ success: true })
     )
@@ -407,7 +423,8 @@ describe('submit-project handler', () => {
     )
   })
 
-  test('still returns 200 when SQS enqueue fails', async () => {
+  test('still returns 200 when SQS enqueue fails (external submission enabled)', async () => {
+    config.get.mockReturnValue(true)
     sendExternalSubmissionMessage.mockRejectedValue(
       new Error('SQS unavailable')
     )

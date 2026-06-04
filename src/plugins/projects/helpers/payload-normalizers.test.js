@@ -629,7 +629,7 @@ describe('handleNfmMeasureData', () => {
   beforeEach(() => {
     projectService = {
       upsertNfmMeasure: vi.fn().mockResolvedValue(undefined),
-      deleteNfmMeasure: vi.fn().mockResolvedValue(undefined)
+      batchDeleteNfmMeasures: vi.fn().mockResolvedValue(undefined)
     }
   })
 
@@ -660,38 +660,20 @@ describe('handleNfmMeasureData', () => {
       projectService
     )
 
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledTimes(8)
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
+    // All 8 deselected measure types are sent in a single batch call instead of 8 individual deletes
+    expect(projectService.batchDeleteNfmMeasures).toHaveBeenCalledOnce()
+    expect(projectService.batchDeleteNfmMeasures).toHaveBeenCalledWith({
       referenceNumber: 'REF-001',
-      measureType: 'river_floodplain_restoration'
-    })
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
-      referenceNumber: 'REF-001',
-      measureType: 'leaky_barriers_in_channel_storage'
-    })
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
-      referenceNumber: 'REF-001',
-      measureType: 'offline_storage'
-    })
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
-      referenceNumber: 'REF-001',
-      measureType: 'woodland'
-    })
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
-      referenceNumber: 'REF-001',
-      measureType: 'headwater_drainage_management'
-    })
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
-      referenceNumber: 'REF-001',
-      measureType: 'runoff_attenuation_management'
-    })
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
-      referenceNumber: 'REF-001',
-      measureType: 'saltmarsh_management'
-    })
-    expect(projectService.deleteNfmMeasure).toHaveBeenCalledWith({
-      referenceNumber: 'REF-001',
-      measureType: 'sand_dune_management'
+      measureTypes: [
+        'river_floodplain_restoration',
+        'leaky_barriers_in_channel_storage',
+        'offline_storage',
+        'woodland',
+        'headwater_drainage_management',
+        'runoff_attenuation_management',
+        'saltmarsh_management',
+        'sand_dune_management'
+      ]
     })
 
     expect(payload.nfmRiverRestorationArea).toBeUndefined()
@@ -725,7 +707,7 @@ describe('handleNfmMeasureData', () => {
       projectService
     )
 
-    expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+    expect(projectService.batchDeleteNfmMeasures).not.toHaveBeenCalled()
     expect(payload.nfmRunoffManagementArea).toBeUndefined()
     expect(payload.nfmRunoffManagementVolume).toBeUndefined()
   })
@@ -742,8 +724,41 @@ describe('handleNfmMeasureData', () => {
       projectService
     )
 
-    expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+    expect(projectService.batchDeleteNfmMeasures).not.toHaveBeenCalled()
     expect(payload.otherField).toBe('value')
+  })
+
+  it('batches only the null measures and skips non-null ones in a single call', async () => {
+    const payload = {
+      referenceNumber: 'REF-PARTIAL',
+      // river_floodplain_restoration — both null → should be deleted
+      nfmRiverRestorationArea: null,
+      nfmRiverRestorationVolume: null,
+      // woodland — has a value → should NOT be deleted
+      nfmWoodlandArea: 5.5,
+      // offline_storage — both null → should be deleted
+      nfmOfflineStorageArea: null,
+      nfmOfflineStorageVolume: null
+    }
+
+    await handleNfmMeasureData(
+      payload,
+      PROJECT_VALIDATION_LEVELS.NFM_SELECTED_MEASURES,
+      projectService
+    )
+
+    // Only one batch call containing exactly the two null measure types
+    expect(projectService.batchDeleteNfmMeasures).toHaveBeenCalledOnce()
+    const { measureTypes } =
+      projectService.batchDeleteNfmMeasures.mock.calls[0][0]
+    expect(measureTypes).toContain('river_floodplain_restoration')
+    expect(measureTypes).toContain('offline_storage')
+    expect(measureTypes).not.toContain('woodland')
+
+    // All measure fields stripped from payload regardless of null/non-null
+    expect(payload.nfmRiverRestorationArea).toBeUndefined()
+    expect(payload.nfmWoodlandArea).toBeUndefined()
+    expect(payload.nfmOfflineStorageArea).toBeUndefined()
   })
 
   it.each([
@@ -876,7 +891,7 @@ describe('handleNfmMeasureData', () => {
 
       expect(projectService.upsertNfmMeasure).toHaveBeenCalledTimes(1)
       expect(projectService.upsertNfmMeasure).toHaveBeenCalledWith(expected)
-      expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+      expect(projectService.batchDeleteNfmMeasures).not.toHaveBeenCalled()
 
       removedFields.forEach((field) => {
         expect(payload[field]).toBeUndefined()
@@ -898,14 +913,16 @@ describe('handleNfmMeasureData', () => {
     )
 
     expect(projectService.upsertNfmMeasure).not.toHaveBeenCalled()
-    expect(projectService.deleteNfmMeasure).not.toHaveBeenCalled()
+    expect(projectService.batchDeleteNfmMeasures).not.toHaveBeenCalled()
     expect(payload.nfmRiverRestorationArea).toBe(1.23)
     expect(payload.nfmRiverRestorationVolume).toBe(4.56)
   })
 
   describe('NFM_LAND_USE_CHANGE level', () => {
     beforeEach(() => {
-      projectService.deleteNfmLandUseChange = vi.fn().mockResolvedValue(null)
+      projectService.batchDeleteNfmLandUseChanges = vi
+        .fn()
+        .mockResolvedValue(undefined)
     })
 
     it('deletes unselected land use changes and strips land use fields at NFM_LAND_USE_CHANGE level', async () => {
@@ -938,18 +955,21 @@ describe('handleNfmMeasureData', () => {
         projectService
       )
 
-      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledTimes(9)
-      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledWith({
+      // All 9 deselected land use types sent in a single batch call instead of 9 individual deletes
+      expect(projectService.batchDeleteNfmLandUseChanges).toHaveBeenCalledOnce()
+      expect(projectService.batchDeleteNfmLandUseChanges).toHaveBeenCalledWith({
         referenceNumber: 'REF-LU-001',
-        landUseType: 'enclosed_arable_farmland'
-      })
-      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledWith({
-        referenceNumber: 'REF-LU-001',
-        landUseType: 'woodland'
-      })
-      expect(projectService.deleteNfmLandUseChange).toHaveBeenCalledWith({
-        referenceNumber: 'REF-LU-001',
-        landUseType: 'coastal_margins'
+        landUseTypes: [
+          'enclosed_arable_farmland',
+          'enclosed_livestock_farmland',
+          'enclosed_dairying_farmland',
+          'semi_natural_grassland',
+          'woodland',
+          'mountain_moors_and_heath',
+          'peatland_restoration',
+          'rivers_wetlands_and_freshwater_habitats',
+          'coastal_margins'
+        ]
       })
 
       expect(payload.nfmEnclosedArableFarmlandBefore).toBeUndefined()
@@ -972,7 +992,7 @@ describe('handleNfmMeasureData', () => {
         projectService
       )
 
-      expect(projectService.deleteNfmLandUseChange).not.toHaveBeenCalled()
+      expect(projectService.batchDeleteNfmLandUseChanges).not.toHaveBeenCalled()
       expect(payload.nfmEnclosedArableFarmlandBefore).toBeUndefined()
       expect(payload.nfmEnclosedArableFarmlandAfter).toBeUndefined()
     })
@@ -989,7 +1009,7 @@ describe('handleNfmMeasureData', () => {
         projectService
       )
 
-      expect(projectService.deleteNfmLandUseChange).not.toHaveBeenCalled()
+      expect(projectService.batchDeleteNfmLandUseChanges).not.toHaveBeenCalled()
       expect(payload.otherField).toBe('value')
     })
   })

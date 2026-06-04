@@ -692,10 +692,12 @@ describe('upsertProject handler', () => {
         })
       })
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
-      // Area service is called twice: once for permission check, once to fetch area name
+      // Area service is called once for permission check only.
+      // The area-name fetch (setAreaNameIfPresent) is skipped because areaId
+      // matches the existing project — no redundant DB round-trip.
       expect(
         AreaService.prototype.getAreaByIdWithParents
-      ).toHaveBeenCalledTimes(2)
+      ).toHaveBeenCalledTimes(1)
     })
 
     it('should validate area when area is changing in update', async () => {
@@ -1759,6 +1761,29 @@ describe('upsertProject handler', () => {
       await upsertProject.options.handler(mockRequest, mockH)
 
       expect(deleteAllSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setAreaNameIfPresent optimisation', () => {
+    it('calls getAreaByIdWithParents for area name when area has changed', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValue({
+        referenceNumber: 'REF123',
+        name: 'Existing Project',
+        areaId: 99, // different from payload areaId (1)
+        rmaName: 'Old RMA'
+      })
+      mockRequest.payload.payload.areaId = 1
+      mockRequest.auth.credentials.isAdmin = true
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      // getAreaByIdWithParents called for new area to get its name
+      expect(AreaService.prototype.getAreaByIdWithParents).toHaveBeenCalledWith(
+        1
+      )
     })
   })
 })
