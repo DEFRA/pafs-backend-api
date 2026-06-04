@@ -204,12 +204,6 @@ const hasAnyAmountValue = (amounts) => {
   )
 }
 
-const hasContributorFields = (row) => {
-  return CONTRIBUTOR_CONFIG.some(
-    ({ contributorsField }) => contributorsField in row
-  )
-}
-
 /**
  * Check whether a contributor entry is a valid object with a name and
  * a non-empty, non-zero amount.
@@ -330,20 +324,20 @@ const processFundingValueRow = async ({
   amounts.total = calculateFundingTotal(amounts)
 
   if (!hasAnyAmountValue(amounts)) {
-    // Contributors and funding value rows are independent — no FK constraints
-    // between them in this schema, so both deletes can run in parallel.
-    await Promise.all([
-      projectService.deleteAllFundingContributors({
-        referenceNumber,
-        financialYear,
-        projectId
-      }),
-      projectService.deleteFundingValue({
-        referenceNumber,
-        financialYear,
-        projectId
-      })
-    ])
+    // Delete contributors first — deleteAllFundingContributors does a findFirst
+    // on the funding value to get its id before deleting contributors by that id.
+    // If deleteFundingValue ran first and removed the row, the findFirst would
+    // return null and contributors would be silently skipped.
+    await projectService.deleteAllFundingContributors({
+      referenceNumber,
+      financialYear,
+      projectId
+    })
+    await projectService.deleteFundingValue({
+      referenceNumber,
+      financialYear,
+      projectId
+    })
     return
   }
 
@@ -354,10 +348,10 @@ const processFundingValueRow = async ({
     projectId
   })
 
-  if (!hasContributorFields(row)) {
-    return
-  }
-
+  // Always sync contributors — even when no contributor fields are present in
+  // the row. Passing an empty contributorEntries array causes stale DB rows
+  // (from a previously saved contributor whose amount was cleared) to be
+  // deleted by _deleteStaleContributors.
   const contributorEntries = getContributorEntries(row)
   await upsertFundingContributors({
     projectService,

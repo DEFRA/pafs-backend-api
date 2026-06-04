@@ -27,7 +27,7 @@ describe('ProjectFundingContributorsSyncService', () => {
         findFirst: vi.fn(),
         findMany: vi.fn(),
         create: vi.fn(),
-        deleteMany: vi.fn()
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 })
       }
     }
 
@@ -118,6 +118,23 @@ describe('ProjectFundingContributorsSyncService', () => {
       expect(result).toBe(0)
       expect(
         mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('deletes all contributors directly when desiredEntries is empty (skips findMany)', async () => {
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
+        count: 2
+      })
+
+      const result = await service._deleteStaleContributors([], 10n)
+
+      expect(result).toBe(2)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).toHaveBeenCalledWith({ where: { funding_value_id: 10n } })
+      // findMany must NOT have been called — the fast path avoids it
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
       ).not.toHaveBeenCalled()
     })
   })

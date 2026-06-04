@@ -513,6 +513,93 @@ describe('funding-sources-normalizers', () => {
       expect(payload.fundingValues).toBeUndefined()
     })
 
+    it('syncs contributors with empty entries when all contributor amounts are cleared but year still has other amounts', async () => {
+      // Scenario: contributor A had an amount for FY2026, user cleared it.
+      // The frontend strips empty contributor entries, so the row arrives with
+      // no contributor keys at all. The row still has fcermGia=5000, so
+      // hasAnyAmountValue is true and we take the upsert path.
+      // Previously the hasContributorFields gate returned false here and
+      // syncFundingContributorsForYear was never called — leaving the stale
+      // contributor in pafs_core_funding_contributors.
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [
+          {
+            financialYear: 2026,
+            fcermGia: '5000'
+            // No publicContributors/privateContributors/otherEaContributors keys —
+            // they were deleted by the frontend because all amounts were cleared
+          }
+        ]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService
+      )
+
+      expect(projectService.upsertFundingValue).toHaveBeenCalledWith(
+        expect.objectContaining({ financialYear: 2026 })
+      )
+      // Sync must be called with empty entries so the stale DB contributor is deleted
+      expect(
+        projectService.syncFundingContributorsForYear
+      ).toHaveBeenCalledWith({
+        referenceNumber: 'ANC501E/000A/001A',
+        financialYear: 2026,
+        projectId: undefined,
+        contributorEntries: []
+      })
+    })
+
+    it('deletes contributors before funding value in the empty-row path', async () => {
+      // Verifies sequential ordering: contributors must be deleted first so that
+      // deleteAllFundingContributors can resolve the funding_value_id via findFirst
+      // before the funding value row itself is removed.
+      const callOrder = []
+      projectService.deleteAllFundingContributors.mockImplementation(() => {
+        callOrder.push('deleteAllFundingContributors')
+        return Promise.resolve(0)
+      })
+      projectService.deleteFundingValue.mockImplementation(() => {
+        callOrder.push('deleteFundingValue')
+        return Promise.resolve(null)
+      })
+
+      const payload = {
+        referenceNumber: 'ANC501E/000A/001A',
+        fundingValues: [
+          {
+            financialYear: 2026,
+            fcermGia: null,
+            publicContributions: null,
+            privateContributions: null,
+            otherEaContributions: null,
+            notYetIdentified: null,
+            assetReplacementAllowance: null,
+            environmentStatutoryFunding: null,
+            frequentlyFloodedCommunities: null,
+            otherAdditionalGrantInAid: null,
+            otherGovernmentDepartment: null,
+            recovery: null,
+            summerEconomicFund: null
+          }
+        ]
+      }
+
+      await handleFundingSourcesData(
+        payload,
+        PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_ESTIMATED_SPEND,
+        projectService
+      )
+
+      expect(callOrder).toEqual([
+        'deleteAllFundingContributors',
+        'deleteFundingValue'
+      ])
+    })
+
     it('upserts contributor rows and derives public/private totals from contributor data', async () => {
       const payload = {
         referenceNumber: 'ANC501E/000A/001A',
