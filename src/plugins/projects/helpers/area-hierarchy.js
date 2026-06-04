@@ -1,10 +1,9 @@
 import {
   getCachedHierarchy,
-  setCachedHierarchy,
-  clearAreaHierarchyCache
+  setCachedHierarchy
 } from './area-hierarchy-cache.js'
 
-export { clearAreaHierarchyCache }
+export { clearAreaHierarchyCache } from './area-hierarchy-cache.js'
 
 const EMPTY_HIERARCHY = {
   rmaName: null,
