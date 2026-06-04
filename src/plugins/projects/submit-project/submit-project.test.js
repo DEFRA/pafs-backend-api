@@ -350,10 +350,11 @@ describe('submit-project handler', () => {
 
   // ─── Successful submission ────────────────────────────────────────────────
 
-  test('calls transitionToSubmitted with project id only', async () => {
+  test('calls transitionToSubmitted with project id and referenceNumber', async () => {
     await submitProjectRoute.options.handler(request, h)
     expect(mockProjectService.transitionToSubmitted).toHaveBeenCalledWith(
-      DRAFT_PROJECT.id
+      DRAFT_PROJECT.id,
+      'LCR/123/456'
     )
   })
 
