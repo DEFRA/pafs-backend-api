@@ -55,10 +55,24 @@ export class ProjectFundingContributorsSyncService {
 
   /**
    * Delete stale contributor rows that are no longer in the desired set.
+   *
+   * When desiredEntries is empty all contributors for the year are stale —
+   * issue a single deleteMany directly (no prior findMany needed to compute IDs).
+   * When desiredEntries is non-empty fetch existing rows and delete only those
+   * absent from the desired set.
+   *
    * @private
    * @returns {Promise<number>} Number of deleted rows
    */
   async _deleteStaleContributors(desiredEntries, fundingValueId) {
+    if (desiredEntries.length === 0) {
+      const result =
+        await this.prisma.pafs_core_funding_contributors.deleteMany({
+          where: { funding_value_id: fundingValueId }
+        })
+      return result.count
+    }
+
     const desiredKeys = new Set(
       desiredEntries.map((c) => `${c.contributorType}::${c.name}`)
     )
