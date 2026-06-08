@@ -21,12 +21,16 @@ describe('ProjectFundingContributorsSyncService', () => {
       pafs_core_funding_values: {
         findFirst: vi.fn(),
         findMany: vi.fn(),
-        create: vi.fn()
+        create: vi.fn(),
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+        upsert: vi.fn()
       },
       pafs_core_funding_contributors: {
         findFirst: vi.fn(),
         findMany: vi.fn(),
         create: vi.fn(),
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+        upsert: vi.fn(),
         deleteMany: vi.fn().mockResolvedValue({ count: 0 })
       }
     }
@@ -61,7 +65,8 @@ describe('ProjectFundingContributorsSyncService', () => {
         entries,
         'REF-001',
         2025,
-        upsertFn
+        upsertFn,
+        null
       )
 
       expect(upsertFn).toHaveBeenCalledTimes(2)
@@ -77,11 +82,6 @@ describe('ProjectFundingContributorsSyncService', () => {
 
   describe('_deleteStaleContributors', () => {
     test('deletes stale contributors not in desired set', async () => {
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
-        { id: 1n, contributor_type: 'public_contributions', name: 'A' },
-        { id: 2n, contributor_type: 'public_contributions', name: 'B' },
-        { id: 3n, contributor_type: 'public_contributions', name: 'C' }
-      ])
       mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
         count: 1
       })
@@ -99,15 +99,21 @@ describe('ProjectFundingContributorsSyncService', () => {
       ).toHaveBeenCalledWith({
         where: {
           funding_value_id: 10n,
-          id: { in: [2n] }
+          NOT: [
+            { contributor_type: 'public_contributions', name: 'A' },
+            { contributor_type: 'public_contributions', name: 'C' }
+          ]
         }
       })
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).not.toHaveBeenCalled()
     })
 
     test('returns 0 when no stale contributors exist', async () => {
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
-        { id: 1n, contributor_type: 'public_contributions', name: 'A' }
-      ])
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
+        count: 0
+      })
 
       const desired = [
         { contributorType: 'public_contributions', name: 'A', amount: '100' }
@@ -118,6 +124,14 @@ describe('ProjectFundingContributorsSyncService', () => {
       expect(result).toBe(0)
       expect(
         mockPrisma.pafs_core_funding_contributors.deleteMany
+      ).toHaveBeenCalledWith({
+        where: {
+          funding_value_id: 10n,
+          NOT: [{ contributor_type: 'public_contributions', name: 'A' }]
+        }
+      })
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
       ).not.toHaveBeenCalled()
     })
 
@@ -225,7 +239,7 @@ describe('ProjectFundingContributorsSyncService', () => {
       mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue({
         id: 10n
       })
-      mockPrisma.pafs_core_funding_contributors.findMany.mockRejectedValue(
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockRejectedValue(
         new Error('db fail')
       )
 
@@ -276,19 +290,17 @@ describe('ProjectFundingContributorsSyncService', () => {
       )
     })
 
-    test('creates funding value and contributor rows for each year', async () => {
+    test('creates funding value and contributor rows in 3 batch queries', async () => {
       mockPrisma.pafs_core_projects.findFirst
         .mockResolvedValueOnce({ id: 1n })
         .mockResolvedValueOnce({
           earliest_start_year: 2025,
           project_end_financial_year: 2026
         })
-      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue(null)
-      mockPrisma.pafs_core_funding_values.create.mockResolvedValue({ id: 10n })
-      mockPrisma.pafs_core_funding_contributors.findFirst.mockResolvedValue(
-        null
-      )
-      mockPrisma.pafs_core_funding_contributors.create.mockResolvedValue({})
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 10n },
+        { id: 11n }
+      ])
 
       await service.ensureContributorFundingRows({
         referenceNumber: 'REF-001',
@@ -296,31 +308,40 @@ describe('ProjectFundingContributorsSyncService', () => {
         contributorNames: ['Alice']
       })
 
-      expect(mockPrisma.pafs_core_funding_values.create).toHaveBeenCalledTimes(
-        2
-      )
       expect(
-        mockPrisma.pafs_core_funding_contributors.create
-      ).toHaveBeenCalledTimes(2)
+        mockPrisma.pafs_core_funding_values.createMany
+      ).toHaveBeenCalledTimes(1)
+      expect(
+        mockPrisma.pafs_core_funding_values.createMany
+      ).toHaveBeenCalledWith({
+        data: [
+          { project_id: 1, financial_year: 2025, total: 0n },
+          { project_id: 1, financial_year: 2026, total: 0n }
+        ],
+        skipDuplicates: true
+      })
+      expect(
+        mockPrisma.pafs_core_funding_contributors.createMany
+      ).toHaveBeenCalledTimes(1)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.createMany
+      ).toHaveBeenCalledWith(expect.objectContaining({ skipDuplicates: true }))
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.objectContaining({ referenceNumber: 'REF-001', nameCount: 1 }),
         'Contributor funding rows ensured successfully'
       )
     })
 
-    test('does not create contributor if one already exists', async () => {
+    test('skips duplicate contributor rows via skipDuplicates (no separate findFirst needed)', async () => {
       mockPrisma.pafs_core_projects.findFirst
         .mockResolvedValueOnce({ id: 1n })
         .mockResolvedValueOnce({
           earliest_start_year: 2025,
           project_end_financial_year: 2025
         })
-      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue({
-        id: 10n
-      })
-      mockPrisma.pafs_core_funding_contributors.findFirst.mockResolvedValue({
-        id: 99n
-      })
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 10n }
+      ])
 
       await service.ensureContributorFundingRows({
         referenceNumber: 'REF-001',
@@ -328,9 +349,13 @@ describe('ProjectFundingContributorsSyncService', () => {
         contributorNames: ['Alice']
       })
 
+      // createMany with skipDuplicates handles the idempotency — no findFirst needed
       expect(
-        mockPrisma.pafs_core_funding_contributors.create
+        mockPrisma.pafs_core_funding_contributors.findFirst
       ).not.toHaveBeenCalled()
+      expect(
+        mockPrisma.pafs_core_funding_contributors.createMany
+      ).toHaveBeenCalledWith(expect.objectContaining({ skipDuplicates: true }))
     })
   })
 })

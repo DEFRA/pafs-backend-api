@@ -30,7 +30,8 @@ export const syncGrowthFundingFlag = (enrichedPayload, validationLevel) => {
 export const clearDeselectedAdditionalGiaData = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   if (validationLevel !== PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED) {
     return
@@ -56,7 +57,10 @@ export const clearDeselectedAdditionalGiaData = async (
   }
 
   // Null out the spend columns in pafs_core_funding_values
-  await projectService.nullAdditionalGiaColumns(enrichedPayload.referenceNumber)
+  await projectService.nullAdditionalGiaColumns(
+    enrichedPayload.referenceNumber,
+    existingProject?.id != null ? Number(existingProject.id) : undefined
+  )
 }
 
 /**
@@ -74,13 +78,16 @@ export const clearDeselectedAdditionalGiaData = async (
 export const clearDeselectedContributorData = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   if (validationLevel !== PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED) {
     return
   }
 
   const { referenceNumber } = enrichedPayload
+  const projectId =
+    existingProject?.id != null ? Number(existingProject.id) : undefined
 
   const DESELECT_CONFIG = [
     {
@@ -108,7 +115,8 @@ export const clearDeselectedContributorData = async (
       // Delete all contributor rows of this type across every financial year
       await projectService.deleteContributorsByType({
         referenceNumber,
-        contributorType
+        contributorType,
+        projectId
       })
     }
   }
@@ -142,7 +150,8 @@ const CONTRIBUTOR_CLEANUP_CONFIG = [
 export const cleanupRemovedContributors = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   const config = CONTRIBUTOR_CLEANUP_CONFIG.find(
     (c) => c.level === validationLevel
@@ -165,7 +174,9 @@ export const cleanupRemovedContributors = async (
   await projectService.cleanupContributorsByName({
     referenceNumber,
     contributorType: config.contributorType,
-    currentNames
+    currentNames,
+    projectId:
+      existingProject?.id != null ? Number(existingProject.id) : undefined
   })
 }
 
@@ -180,7 +191,8 @@ export const cleanupRemovedContributors = async (
 export const ensureContributorFundingRows = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   const config = CONTRIBUTOR_CLEANUP_CONFIG.find(
     (c) => c.level === validationLevel
@@ -207,6 +219,10 @@ export const ensureContributorFundingRows = async (
   await projectService.ensureContributorFundingRows({
     referenceNumber,
     contributorType: config.contributorType,
-    contributorNames: currentNames
+    contributorNames: currentNames,
+    projectId:
+      existingProject?.id != null ? Number(existingProject.id) : undefined,
+    financialStartYear: existingProject?.financialStartYear ?? undefined,
+    financialEndYear: existingProject?.financialEndYear ?? undefined
   })
 }

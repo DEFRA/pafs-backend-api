@@ -17,6 +17,35 @@ vi.mock('./legacy-migration-service.js', () => ({
   executeLegacyProjectTypeMigration: vi.fn().mockResolvedValue(undefined)
 }))
 
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+const buildViewRow = (overrides = {}) => ({
+  id: 1n,
+  reference_number: 'ANC501E/000A/001A',
+  name: 'Test Project',
+  rma_name: 'Test Area',
+  project_type: 'Type A',
+  project_intervention_types: 'Type 1,Type 2',
+  main_intervention_type: 'Type 1',
+  earliest_start_year: 2023,
+  project_end_financial_year: 2025,
+  updated_at: new Date('2023-01-01'),
+  created_at: new Date('2023-01-01'),
+  is_legacy: false,
+  is_revised: false,
+  legacy_project_type_migration_completed: false,
+  state: 'draft',
+  area_id: 1,
+  area_owner: true,
+  nfm_measures_json: [],
+  land_use_json: [],
+  funding_values_json: [],
+  contributors_json: [],
+  ...overrides
+})
+
 describe('ProjectService', () => {
   let service
   let mockPrisma
@@ -31,6 +60,7 @@ describe('ProjectService', () => {
     }
 
     mockPrisma = {
+      $queryRaw: vi.fn().mockResolvedValue([buildViewRow()]),
       pafs_core_projects: {
         findFirst: vi.fn(),
         create: vi.fn(),
@@ -49,14 +79,19 @@ describe('ProjectService', () => {
         findFirst: vi.fn(),
         findMany: vi.fn(),
         create: vi.fn(),
-        update: vi.fn()
+        update: vi.fn(),
+        upsert: vi.fn(),
+        delete: vi.fn(),
+        deleteMany: vi.fn()
       },
       pafs_core_nfm_land_use_changes: {
         findFirst: vi.fn(),
         findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn()
+        upsert: vi.fn(),
+        delete: vi.fn(),
+        deleteMany: vi.fn()
       },
       pafs_core_reference_counters: {
         findUnique: vi.fn(),
@@ -917,6 +952,27 @@ describe('ProjectService', () => {
         select: { benefit_area_file_base64: true }
       })
     })
+
+    test('fires both fetches in parallel (does not call findFirst after getProjectByReferenceNumber resolves)', async () => {
+      let queryRawResolved = false
+      mockPrisma.$queryRaw.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              queryRawResolved = true
+              resolve([buildViewRow()])
+            }, 0)
+          })
+      )
+
+      mockPrisma.pafs_core_projects.findFirst.mockImplementation(() => {
+        // At the moment findFirst is called, $queryRaw should not yet have resolved
+        expect(queryRawResolved).toBe(false)
+        return Promise.resolve({ benefit_area_file_base64: 'cached==' })
+      })
+
+      await service.getProjectForSubmission(REFERENCE)
+    })
   })
 
   describe('getProjectByReference', () => {
@@ -996,29 +1052,8 @@ describe('ProjectService', () => {
 
     test('Should return formatted project data when project exists', async () => {
       const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: 'ANC501E/000A/001A',
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: 'Type 1,Type 2',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
+      mockPrisma.$queryRaw.mockResolvedValue([buildViewRow()])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1027,161 +1062,35 @@ describe('ProjectService', () => {
         'Fetching project details by reference number'
       )
 
-      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith({
-        where: {
-          reference_number: referenceNumber
-        },
-        select: {
-          id: true,
-          reference_number: true,
-          slug: true,
-          name: true,
-          rma_name: true,
-          project_type: true,
-          project_intervention_types: true,
-          main_intervention_type: true,
-          earliest_start_year: true,
-          project_end_financial_year: true,
-          start_outline_business_case_month: true,
-          start_outline_business_case_year: true,
-          complete_outline_business_case_month: true,
-          complete_outline_business_case_year: true,
-          award_contract_month: true,
-          award_contract_year: true,
-          start_construction_month: true,
-          start_construction_year: true,
-          ready_for_service_month: true,
-          ready_for_service_year: true,
-          could_start_early: true,
-          earliest_with_gia_month: true,
-          earliest_with_gia_year: true,
-          approach: true,
-          urgency_reason: true,
-          urgency_details: true,
-          urgency_details_updated_at: true,
-          confidence_homes_better_protected: true,
-          confidence_homes_by_gateway_four: true,
-          confidence_secured_partnership_funding: true,
-          environmental_benefits: true,
-          intertidal_habitat: true,
-          hectares_of_intertidal_habitat_created_or_enhanced: true,
-          woodland: true,
-          hectares_of_woodland_habitat_created_or_enhanced: true,
-          wet_woodland: true,
-          hectares_of_wet_woodland_habitat_created_or_enhanced: true,
-          wetland_or_wet_grassland: true,
-          hectares_of_wetland_or_wet_grassland_created_or_enhanced: true,
-          grassland: true,
-          hectares_of_grassland_habitat_created_or_enhanced: true,
-          heathland: true,
-          hectares_of_heathland_created_or_enhanced: true,
-          ponds_lakes: true,
-          hectares_of_pond_or_lake_habitat_created_or_enhanced: true,
-          arable_land: true,
-          hectares_of_arable_land_lake_habitat_created_or_enhanced: true,
-          comprehensive_restoration: true,
-          kilometres_of_watercourse_enhanced_or_created_comprehensive: true,
-          partial_restoration: true,
-          kilometres_of_watercourse_enhanced_or_created_partial: true,
-          create_habitat_watercourse: true,
-          kilometres_of_watercourse_enhanced_or_created_single: true,
-          updated_at: true,
-          created_at: true,
-          benefit_area_file_name: true,
-          benefit_area_file_size: true,
-          benefit_area_content_type: true,
-          benefit_area_file_s3_bucket: true,
-          benefit_area_file_s3_key: true,
-          benefit_area_file_updated_at: true,
-          benefit_area_file_download_url: true,
-          benefit_area_file_download_expiry: true,
-          is_legacy: true,
-          is_revised: true,
-          legacy_project_type_migration_completed: true,
-          project_risks_protected_against: true,
-          main_risk: true,
-          no_properties_at_flood_risk: true,
-          properties_benefit_maintaining_assets: true,
-          properties_benefit_50_percent_reduction: true,
-          properties_benefit_less_50_percent_reduction: true,
-          properties_benefit_individual_intervention: true,
-          no_properties_at_coastal_erosion_risk: true,
-          properties_benefit_maintaining_assets_coastal: true,
-          properties_benefit_investment_coastal_erosion: true,
-          percent_properties_20_percent_deprived: true,
-          percent_properties_40_percent_deprived: true,
-          current_flood_fluvial_risk: true,
-          current_flood_surface_water_risk: true,
-          current_coastal_erosion_risk: true,
-          nfm_selected_measures: true,
-          nfm_land_use_change: true,
-          nfm_landowner_consent: true,
-          nfm_experience_level: true,
-          nfm_project_readiness: true,
-          natural_flood_risk_measures_included: true,
-          wlc_estimated_whole_life_pv_costs: true,
-          wlc_estimated_design_construction_costs: true,
-          wlc_estimated_risk_contingency_costs: true,
-          wlc_estimated_future_costs: true,
-          wlc_estimated_whole_life_pv_benefits: true,
-          wlc_estimated_property_damages_avoided: true,
-          wlc_estimated_environmental_benefits: true,
-          wlc_estimated_recreation_tourism_benefits: true,
-          wlc_estimated_land_value_uplift_benefits: true,
-          carbon_cost_build: true,
-          carbon_cost_operation: true,
-          carbon_cost_sequestered: true,
-          carbon_cost_avoided: true,
-          carbon_savings_net_economic_benefit: true,
-          carbon_operational_cost_forecast: true,
-          carbon_values_hexdigest: true,
-          fcerm_gia: true,
-          local_levy: true,
-          internal_drainage_boards: true,
-          public_contributions: true,
-          private_contributions: true,
-          other_ea_contributions: true,
-          growth_funding: true,
-          not_yet_identified: true,
-          funding_sources_visited: true,
-          asset_replacement_allowance: true,
-          environment_statutory_funding: true,
-          frequently_flooded_communities: true,
-          other_additional_grant_in_aid: true,
-          other_government_department: true,
-          recovery: true,
-          summer_economic_fund: true,
-          stale_data_cleared: true,
-          funding_calculator_file_name: true,
-          funding_calculator_file_size: true,
-          funding_calculator_content_type: true,
-          funding_calculator_updated_at: true,
-          version: true
-        }
-      })
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([
+            expect.stringContaining('v_project_full')
+          ])
+        })
+      )
 
-      expect(result).toEqual({
-        referenceNumber: 'ANC501E/000A/001A',
-        name: 'Test Project',
-        id: 1,
-        rmaName: 'Test Area',
-        projectType: 'Type A',
-        projectInterventionTypes: ['Type 1', 'Type 2'],
-        mainInterventionType: 'Type 1',
-        financialStartYear: 2023,
-        financialEndYear: 2025,
-        updatedAt: mockProject.updated_at,
-        createdAt: mockProject.created_at,
-        projectState: 'draft',
-        areaId: 1,
-        isOwner: true
-      })
+      expect(result).toEqual(
+        expect.objectContaining({
+          referenceNumber: 'ANC501E/000A/001A',
+          name: 'Test Project',
+          rmaName: 'Test Area',
+          projectType: 'Type A',
+          projectInterventionTypes: ['Type 1', 'Type 2'],
+          mainInterventionType: 'Type 1',
+          financialStartYear: 2023,
+          financialEndYear: 2025,
+          projectState: 'draft',
+          areaId: 1,
+          isOwner: true
+        })
+      )
     })
 
     test('Should return null when project does not exist', async () => {
       const referenceNumber = 'ANC501E/000A/999A'
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.$queryRaw.mockResolvedValue([])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1193,141 +1102,41 @@ describe('ProjectService', () => {
     })
 
     test('Should handle null project_intervention_types', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: 'ANC501E/000A/001A',
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: null,
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      const result = await service.getProjectByReferenceNumber(referenceNumber)
-
-      expect(result).toEqual({
-        referenceNumber: 'ANC501E/000A/001A',
-        name: 'Test Project',
-        id: 1,
-        rmaName: 'Test Area',
-        projectType: 'Type A',
-        projectInterventionTypes: [],
-        mainInterventionType: 'Type 1',
-        financialStartYear: 2023,
-        financialEndYear: 2025,
-        updatedAt: mockProject.updated_at,
-        createdAt: mockProject.created_at,
-        projectState: 'draft',
-        areaId: 1,
-        isOwner: true
-      })
+      mockPrisma.$queryRaw.mockResolvedValue([
+        buildViewRow({ project_intervention_types: null })
+      ])
+      const result =
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A')
+      expect(result.projectInterventionTypes).toEqual([])
     })
 
     test('Should handle empty string project_intervention_types', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: 'ANC501E/000A/001A',
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: '',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      const result = await service.getProjectByReferenceNumber(referenceNumber)
-
+      mockPrisma.$queryRaw.mockResolvedValue([
+        buildViewRow({ project_intervention_types: '' })
+      ])
+      const result =
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A')
       expect(result.projectInterventionTypes).toEqual([])
     })
 
     test('Should handle single intervention type', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: 'ANC501E/000A/001A',
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: 'Type 1',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      const result = await service.getProjectByReferenceNumber(referenceNumber)
-
+      mockPrisma.$queryRaw.mockResolvedValue([
+        buildViewRow({ project_intervention_types: 'Type 1' })
+      ])
+      const result =
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A')
       expect(result.projectInterventionTypes).toEqual(['Type 1'])
     })
 
-    test('Should convert year strings to numbers correctly', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: 'ANC501E/000A/001A',
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: 'Type 1',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2026',
-        project_end_financial_year: '2030',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      const result = await service.getProjectByReferenceNumber(referenceNumber)
-
+    test('Should convert year numbers correctly', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        buildViewRow({
+          earliest_start_year: 2026,
+          project_end_financial_year: 2030
+        })
+      ])
+      const result =
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A')
       expect(result.financialStartYear).toBe(2026)
       expect(result.financialEndYear).toBe(2030)
       expect(typeof result.financialStartYear).toBe('number')
@@ -1338,7 +1147,7 @@ describe('ProjectService', () => {
       const referenceNumber = 'ANC501E/000A/001A'
       const dbError = new Error('Database connection error')
 
-      mockPrisma.pafs_core_projects.findFirst.mockRejectedValue(dbError)
+      mockPrisma.$queryRaw.mockRejectedValue(dbError)
 
       await expect(
         service.getProjectByReferenceNumber(referenceNumber)
@@ -1350,151 +1159,29 @@ describe('ProjectService', () => {
       )
     })
 
-    test('Should retry without optional NFM fields when nfm_landowner_consent is unavailable', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const unknownFieldError = new Error(
-        'Unknown field `nfm_landowner_consent` for select statement on model `pafs_core_projects`'
-      )
-      const mockProject = {
-        id: 1,
-        reference_number: referenceNumber,
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: 'Type 1',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst
-        .mockRejectedValueOnce(unknownFieldError)
-        .mockResolvedValueOnce(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      const result = await service.getProjectByReferenceNumber(referenceNumber)
-
-      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledTimes(2)
-      const fallbackSelect =
-        mockPrisma.pafs_core_projects.findFirst.mock.calls[1][0].select
-      expect(fallbackSelect.nfm_landowner_consent).toBeUndefined()
-      expect(fallbackSelect.nfm_experience_level).toBeUndefined()
-      expect(fallbackSelect.nfm_project_readiness).toBeUndefined()
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        {
-          referenceNumber,
-          error: unknownFieldError.message,
-          missingOptionalField: 'nfm_landowner_consent'
-        },
-        'Falling back to overview select without optional NFM fields'
-      )
-      expect(result.referenceNumber).toBe(referenceNumber)
-    })
-
-    test('Should retry without optional NFM fields when nfm_project_readiness is unavailable', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const unknownFieldError = new Error(
-        'Unknown field `nfm_project_readiness` for select statement on model `pafs_core_projects`'
-      )
-      const mockProject = {
-        id: 1,
-        reference_number: referenceNumber,
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: 'Type 1',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst
-        .mockRejectedValueOnce(unknownFieldError)
-        .mockResolvedValueOnce(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      const result = await service.getProjectByReferenceNumber(referenceNumber)
-
-      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledTimes(2)
-      const fallbackSelect =
-        mockPrisma.pafs_core_projects.findFirst.mock.calls[1][0].select
-      expect(fallbackSelect.nfm_landowner_consent).toBeUndefined()
-      expect(fallbackSelect.nfm_experience_level).toBeUndefined()
-      expect(fallbackSelect.nfm_project_readiness).toBeUndefined()
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        {
-          referenceNumber,
-          error: unknownFieldError.message,
-          missingOptionalField: 'nfm_project_readiness'
-        },
-        'Falling back to overview select without optional NFM fields'
-      )
-      expect(result.referenceNumber).toBe(referenceNumber)
-    })
-
-    test('Should use correct where clause with reference number', async () => {
+    test('Should pass reference number to $queryRaw', async () => {
       const referenceNumber = 'AEC501E/005A/123A'
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
+      mockPrisma.$queryRaw.mockResolvedValue([])
 
       await service.getProjectByReferenceNumber(referenceNumber)
 
-      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledWith(
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            reference_number: referenceNumber
-          }
+          values: expect.arrayContaining([referenceNumber])
         })
       )
     })
 
     test('Should resolve area name via enrichment when rma_name is empty', async () => {
       const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: 'ANC501E/000A/001A',
-        name: 'Project Without RMA',
-        rma_name: null,
-        project_type: 'Type A',
-        project_intervention_types: null,
-        main_intervention_type: null,
-        earliest_start_year: '2024',
-        project_end_financial_year: '2026',
-        updated_at: new Date('2024-01-01'),
-        created_at: new Date('2024-01-01')
-      }
 
-      // enrichProjectResponse is mocked at module level; override for this test
-      // to simulate the enricher resolving rmaName from the area hierarchy
       enrichProjectResponse.mockImplementationOnce((_prisma, _raw, apiData) => {
         apiData.rmaName = 'Resolved Area Name'
       })
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states = {
-        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
-      }
-      mockPrisma.pafs_core_area_projects = {
-        findFirst: vi.fn().mockResolvedValue({ area_id: 10, owner: true })
-      }
+      mockPrisma.$queryRaw.mockResolvedValue([
+        buildViewRow({ rma_name: null, area_id: 10 })
+      ])
 
       const result = await service.getProjectByReferenceNumber(referenceNumber)
 
@@ -1513,33 +1200,7 @@ describe('ProjectService', () => {
         await import('./legacy-migration-service.js')
       requiresLegacyMigration.mockReturnValue(true)
 
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: referenceNumber,
-        name: 'Legacy Project',
-        rma_name: 'Test Area',
-        is_legacy: true,
-        project_type: 'DEF',
-        project_intervention_types: null,
-        main_intervention_type: null,
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      await service.getProjectByReferenceNumber(referenceNumber)
+      await service.getProjectByReferenceNumber('ANC501E/000A/001A')
 
       expect(executeLegacyProjectTypeMigration).not.toHaveBeenCalled()
     })
@@ -1549,39 +1210,16 @@ describe('ProjectService', () => {
         await import('./legacy-migration-service.js')
       requiresLegacyMigration.mockReturnValue(true)
 
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: referenceNumber,
-        name: 'Legacy Project',
-        rma_name: 'Test Area',
-        is_legacy: true,
-        project_type: 'DEF',
-        project_intervention_types: null,
-        main_intervention_type: null,
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
+      const viewRow = buildViewRow({ is_legacy: true, project_type: 'DEF' })
+      mockPrisma.$queryRaw.mockResolvedValue([viewRow])
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      await service.getProjectByReferenceNumber(referenceNumber, {
+      await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
         withProjectTypeMigration: true
       })
 
       expect(executeLegacyProjectTypeMigration).toHaveBeenCalledWith(
         mockPrisma,
-        mockProject,
+        expect.objectContaining({ reference_number: 'ANC501E/000A/001A' }),
         mockLogger
       )
     })
@@ -1597,37 +1235,14 @@ describe('ProjectService', () => {
         legacy_project_type_migration_completed: true
       })
 
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: referenceNumber,
-        name: 'Legacy Project',
-        rma_name: 'Test Area',
-        is_legacy: true,
-        project_type: 'DEF',
-        project_intervention_types: null,
-        main_intervention_type: null,
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
+      mockPrisma.$queryRaw.mockResolvedValue([
+        buildViewRow({ is_legacy: true, project_type: 'DEF' })
+      ])
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      await service.getProjectByReferenceNumber(referenceNumber, {
+      await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
         withProjectTypeMigration: true
       })
 
-      // enrichProjectResponse receives the in-memory project after migration result is applied
       expect(enrichProjectResponse).toHaveBeenCalledWith(
         mockPrisma,
         expect.objectContaining({
@@ -1640,32 +1255,7 @@ describe('ProjectService', () => {
     })
 
     test('Should pass skipUrlEnrichment: true to enrichProjectResponse when option is set', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: referenceNumber,
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: 'Type 1',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      await service.getProjectByReferenceNumber(referenceNumber, {
+      await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
         skipUrlEnrichment: true
       })
 
@@ -1679,32 +1269,7 @@ describe('ProjectService', () => {
     })
 
     test('Should pass skipUrlEnrichment: false by default to enrichProjectResponse', async () => {
-      const referenceNumber = 'ANC501E/000A/001A'
-      const mockProject = {
-        id: 1,
-        reference_number: referenceNumber,
-        name: 'Test Project',
-        rma_name: 'Test Area',
-        project_type: 'Type A',
-        project_intervention_types: 'Type 1',
-        main_intervention_type: 'Type 1',
-        earliest_start_year: '2023',
-        project_end_financial_year: '2025',
-        updated_at: new Date('2023-01-01'),
-        created_at: new Date('2023-01-01')
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(mockProject)
-      mockPrisma.pafs_core_states.findFirst.mockResolvedValue({
-        state: 'draft'
-      })
-      mockPrisma.pafs_core_area_projects.findFirst.mockResolvedValue({
-        area_id: 1,
-        owner: true
-      })
-      mockPrisma.pafs_core_nfm_measures.findMany.mockResolvedValue([])
-
-      await service.getProjectByReferenceNumber(referenceNumber)
+      await service.getProjectByReferenceNumber('ANC501E/000A/001A')
 
       expect(enrichProjectResponse).toHaveBeenCalledWith(
         mockPrisma,
@@ -1721,11 +1286,22 @@ describe('ProjectService', () => {
       mockPrisma.pafs_core_nfm_measures = {
         findFirst: vi.fn(),
         create: vi.fn(),
-        update: vi.fn()
+        update: vi.fn(),
+        upsert: vi.fn(),
+        deleteMany: vi.fn()
       }
     })
 
-    test('Should create new NFM measure when it does not exist', async () => {
+    test('Should upsert using compound unique key (project_id_measure_type)', async () => {
+      const upserted = {
+        id: 1,
+        project_id: 1,
+        measure_type: 'river_floodplain_restoration',
+        area_hectares: 10.5,
+        storage_volume_m3: 500.25,
+        length_km: null,
+        width_m: null
+      }
       const payload = {
         referenceNumber: 'ANC501E/000A/001A',
         measureType: 'river_floodplain_restoration',
@@ -1733,96 +1309,37 @@ describe('ProjectService', () => {
         storageVolumeM3: 500.25
       }
 
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
-      })
-
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-
-      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
-        id: 1,
-        project_id: 1,
-        measure_type: 'river_floodplain_restoration',
-        area_hectares: 10.5,
-        storage_volume_m3: 500.25,
-        length_km: null,
-        width_m: null,
-        created_at: new Date(),
-        updated_at: new Date()
-      })
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.upsert.mockResolvedValue(upserted)
 
       const result = await service.upsertNfmMeasure(payload)
 
-      expect(result).toBeDefined()
-      expect(result.measure_type).toBe('river_floodplain_restoration')
-      expect(result.area_hectares).toBe(10.5)
-      expect(result.storage_volume_m3).toBe(500.25)
-
-      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+      expect(result).toBe(upserted)
+      expect(mockPrisma.pafs_core_nfm_measures.upsert).toHaveBeenCalledWith({
+        where: {
+          project_id_measure_type: {
+            project_id: 1,
+            measure_type: 'river_floodplain_restoration'
+          }
+        },
+        update: expect.objectContaining({
+          area_hectares: 10.5,
+          storage_volume_m3: 500.25
+        }),
+        create: expect.objectContaining({
           project_id: 1,
           measure_type: 'river_floodplain_restoration',
-          area_hectares: 10.5,
-          storage_volume_m3: 500.25,
-          length_km: undefined,
-          width_m: undefined
+          area_hectares: 10.5
         })
       })
-
+      expect(mockPrisma.pafs_core_nfm_measures.findFirst).not.toHaveBeenCalled()
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.objectContaining({
           projectId: 1,
-          measureType: 'river_floodplain_restoration',
-          referenceNumber: 'ANC501E/000A/001A'
+          measureType: 'river_floodplain_restoration'
         }),
         'NFM measure upserted successfully'
       )
-    })
-
-    test('Should update existing NFM measure', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        measureType: 'river_floodplain_restoration',
-        areaHectares: 15.75,
-        storageVolumeM3: 600.5
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
-      })
-
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue({
-        id: 10,
-        project_id: 1,
-        measure_type: 'river_floodplain_restoration'
-      })
-
-      mockPrisma.pafs_core_nfm_measures.update.mockResolvedValue({
-        id: 10,
-        project_id: 1,
-        measure_type: 'river_floodplain_restoration',
-        area_hectares: 15.75,
-        storage_volume_m3: 600.5,
-        length_km: null,
-        width_m: null,
-        updated_at: new Date()
-      })
-
-      const result = await service.upsertNfmMeasure(payload)
-
-      expect(result).toBeDefined()
-      expect(result.area_hectares).toBe(15.75)
-      expect(result.storage_volume_m3).toBe(600.5)
-
-      expect(mockPrisma.pafs_core_nfm_measures.update).toHaveBeenCalledWith({
-        where: { id: 10 },
-        data: expect.objectContaining({
-          area_hectares: 15.75,
-          storage_volume_m3: 600.5,
-          length_km: undefined,
-          width_m: undefined
-        })
-      })
     })
 
     test('Should create NFM measure with length and width for leaky barriers', async () => {
@@ -1833,270 +1350,87 @@ describe('ProjectService', () => {
         lengthKm: 5.25,
         widthM: 2.75
       }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
-      })
-
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-
-      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.upsert.mockResolvedValue({
         id: 2,
         project_id: 1,
         measure_type: 'leaky_barriers_in_channel_storage',
         area_hectares: null,
         storage_volume_m3: 100.5,
         length_km: 5.25,
-        width_m: 2.75,
-        created_at: new Date(),
-        updated_at: new Date()
+        width_m: 2.75
       })
 
       const result = await service.upsertNfmMeasure(payload)
 
-      expect(result).toBeDefined()
-      expect(result.measure_type).toBe('leaky_barriers_in_channel_storage')
-      expect(result.storage_volume_m3).toBe(100.5)
       expect(result.length_km).toBe(5.25)
       expect(result.width_m).toBe(2.75)
-
-      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          project_id: 1,
-          measure_type: 'leaky_barriers_in_channel_storage',
-          storage_volume_m3: 100.5,
-          length_km: 5.25,
-          width_m: 2.75
-        })
-      })
     })
 
     test('Should handle null optional values', async () => {
-      const payload = {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.upsert.mockResolvedValue({
+        id: 1,
+        storage_volume_m3: null
+      })
+
+      const result = await service.upsertNfmMeasure({
         referenceNumber: 'ANC501E/000A/001A',
         measureType: 'river_floodplain_restoration',
         areaHectares: 10.5,
         storageVolumeM3: null
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
       })
-
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-
-      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
-        id: 1,
-        project_id: 1,
-        measure_type: 'river_floodplain_restoration',
-        area_hectares: 10.5,
-        storage_volume_m3: null,
-        created_at: new Date(),
-        updated_at: new Date()
-      })
-
-      const result = await service.upsertNfmMeasure(payload)
 
       expect(result.storage_volume_m3).toBe(null)
     })
 
     test('Should throw error when project not found', async () => {
-      const payload = {
-        referenceNumber: 'NONEXISTENT',
-        measureType: 'river_floodplain_restoration',
-        areaHectares: 10.5
-      }
-
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
 
-      await expect(service.upsertNfmMeasure(payload)).rejects.toThrow(
-        'Project not found with reference number: NONEXISTENT'
-      )
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
+      await expect(
+        service.upsertNfmMeasure({
           referenceNumber: 'NONEXISTENT',
-          measureType: 'river_floodplain_restoration'
-        }),
-        'Error upserting NFM measure'
-      )
+          measureType: 'river_floodplain_restoration',
+          areaHectares: 10.5
+        })
+      ).rejects.toThrow('Project not found with reference number: NONEXISTENT')
     })
 
     test('Should throw error when database operation fails', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        measureType: 'river_floodplain_restoration',
-        areaHectares: 10.5
-      }
-
-      const dbError = new Error('Database error')
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
-      })
-
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockRejectedValue(dbError)
-
-      await expect(service.upsertNfmMeasure(payload)).rejects.toThrow(
-        'Database error'
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.upsert.mockRejectedValue(
+        new Error('Database error')
       )
 
+      await expect(
+        service.upsertNfmMeasure({
+          referenceNumber: 'ANC501E/000A/001A',
+          measureType: 'river_floodplain_restoration',
+          areaHectares: 10.5
+        })
+      ).rejects.toThrow('Database error')
+
       expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: 'Database error',
-          referenceNumber: 'ANC501E/000A/001A'
-        }),
+        expect.objectContaining({ error: 'Database error' }),
         'Error upserting NFM measure'
       )
     })
 
     test('Should handle undefined optional fields', async () => {
-      const payload = {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
+      mockPrisma.pafs_core_nfm_measures.upsert.mockResolvedValue({ id: 2 })
+
+      await service.upsertNfmMeasure({
         referenceNumber: 'ANC501E/000A/001A',
         measureType: 'leaky_barriers_in_channel_storage',
         lengthKm: 5.25,
         widthM: 2.75
-        // storageVolumeM3, areaHectares undefined
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({
-        id: 1
       })
 
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-
-      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({
-        id: 2,
-        project_id: 1,
-        measure_type: 'leaky_barriers_in_channel_storage',
-        length_km: 5.25,
-        width_m: 2.75,
-        created_at: new Date(),
-        updated_at: new Date()
-      })
-
-      await service.upsertNfmMeasure(payload)
-
-      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          area_hectares: undefined,
-          storage_volume_m3: undefined,
-          length_km: 5.25,
-          width_m: 2.75
+      expect(mockPrisma.pafs_core_nfm_measures.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ length_km: 5.25, width_m: 2.75 })
         })
-      })
-    })
-  })
-
-  describe('deleteNfmMeasure', () => {
-    beforeEach(() => {
-      mockPrisma.pafs_core_nfm_measures = {
-        findFirst: vi.fn(),
-        delete: vi.fn()
-      }
-    })
-
-    test('Should delete existing NFM measure and return deleted record', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        measureType: 'river_floodplain_restoration'
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue({
-        id: 10,
-        project_id: 1,
-        measure_type: 'river_floodplain_restoration'
-      })
-      mockPrisma.pafs_core_nfm_measures.delete.mockResolvedValue({
-        id: 10,
-        project_id: 1,
-        measure_type: 'river_floodplain_restoration'
-      })
-
-      const result = await service.deleteNfmMeasure(payload)
-
-      expect(result).toBeDefined()
-      expect(result.measure_type).toBe('river_floodplain_restoration')
-      expect(mockPrisma.pafs_core_nfm_measures.delete).toHaveBeenCalledWith({
-        where: { id: 10 }
-      })
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          projectId: 1,
-          measureType: 'river_floodplain_restoration',
-          referenceNumber: 'ANC501E/000A/001A'
-        }),
-        'NFM measure deleted successfully'
-      )
-    })
-
-    test('Should return null when NFM measure does not exist', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        measureType: 'woodland'
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-
-      const result = await service.deleteNfmMeasure(payload)
-
-      expect(result).toBeNull()
-      expect(mockPrisma.pafs_core_nfm_measures.delete).not.toHaveBeenCalled()
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          projectId: 1,
-          measureType: 'woodland',
-          referenceNumber: 'ANC501E/000A/001A'
-        }),
-        'NFM measure not found, nothing to delete'
-      )
-    })
-
-    test('Should throw error when project not found for deleteNfmMeasure', async () => {
-      const payload = {
-        referenceNumber: 'NONEXISTENT',
-        measureType: 'woodland'
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
-
-      await expect(service.deleteNfmMeasure(payload)).rejects.toThrow(
-        'Project not found with reference number: NONEXISTENT'
-      )
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: 'NONEXISTENT',
-          measureType: 'woodland'
-        }),
-        'Error deleting NFM measure'
-      )
-    })
-
-    test('Should throw error when database delete fails', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        measureType: 'woodland'
-      }
-      const dbError = new Error('Delete failed')
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue({
-        id: 5,
-        project_id: 1,
-        measure_type: 'woodland'
-      })
-      mockPrisma.pafs_core_nfm_measures.delete.mockRejectedValue(dbError)
-
-      await expect(service.deleteNfmMeasure(payload)).rejects.toThrow(
-        'Delete failed'
-      )
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: 'Delete failed' }),
-        'Error deleting NFM measure'
       )
     })
   })
@@ -2200,106 +1534,6 @@ describe('ProjectService', () => {
     })
   })
 
-  describe('deleteNfmLandUseChange', () => {
-    beforeEach(() => {
-      mockPrisma.pafs_core_nfm_land_use_changes = {
-        findFirst: vi.fn(),
-        delete: vi.fn()
-      }
-    })
-
-    test('Should delete existing NFM land use change and return deleted record', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        landUseType: 'enclosed_arable_farmland'
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue({
-        id: 30,
-        project_id: 1,
-        land_use_type: 'enclosed_arable_farmland'
-      })
-      mockPrisma.pafs_core_nfm_land_use_changes.delete.mockResolvedValue({
-        id: 30,
-        project_id: 1,
-        land_use_type: 'enclosed_arable_farmland'
-      })
-
-      const result = await service.deleteNfmLandUseChange(payload)
-
-      expect(result).toBeDefined()
-      expect(result.land_use_type).toBe('enclosed_arable_farmland')
-      expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.delete
-      ).toHaveBeenCalledWith({
-        where: { id: 30 }
-      })
-    })
-
-    test('Should return null when NFM land use change does not exist', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        landUseType: 'woodland'
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        null
-      )
-
-      const result = await service.deleteNfmLandUseChange(payload)
-
-      expect(result).toBeNull()
-      expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.delete
-      ).not.toHaveBeenCalled()
-    })
-
-    test('Should throw error when project not found for deleteNfmLandUseChange', async () => {
-      const payload = {
-        referenceNumber: 'NONEXISTENT',
-        landUseType: 'woodland'
-      }
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
-
-      await expect(service.deleteNfmLandUseChange(payload)).rejects.toThrow(
-        'Project not found with reference number: NONEXISTENT'
-      )
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: 'NONEXISTENT',
-          landUseType: 'woodland'
-        }),
-        'Error deleting NFM land use change'
-      )
-    })
-
-    test('Should throw error when deleteNfmLandUseChange database fails', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        landUseType: 'woodland'
-      }
-      const dbError = new Error('Delete DB error')
-
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1 })
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockRejectedValue(
-        dbError
-      )
-
-      await expect(service.deleteNfmLandUseChange(payload)).rejects.toThrow(
-        'Delete DB error'
-      )
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: 'Delete DB error' }),
-        'Error deleting NFM land use change'
-      )
-    })
-  })
-
   describe('upsertProject - edge cases', () => {
     beforeEach(() => {
       mockPrisma.pafs_core_projects.upsert = vi.fn()
@@ -2333,220 +1567,107 @@ describe('ProjectService', () => {
     })
   })
 
-  describe('_attachJoinedTableData', () => {
-    test('Should attach array data when isArray is true and data is non-empty', () => {
-      const project = {}
-      const joinData = [{ state: 'draft' }, { state: 'submitted' }]
-
-      service._attachJoinedTableData(project, 'states', joinData, true)
-
-      expect(project.states).toEqual(joinData)
+  describe('_reshapeProjectViewRow', () => {
+    test('maps state into pafs_core_states object', () => {
+      const row = buildViewRow({ state: 'submitted' })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_states).toEqual({ state: 'submitted' })
+      expect(result).not.toHaveProperty('state')
     })
 
-    test('Should not attach array data when isArray is true but data is empty', () => {
-      const project = {}
-      const joinData = []
-
-      service._attachJoinedTableData(project, 'states', joinData, true)
-
-      expect(project).not.toHaveProperty('states')
+    test('sets pafs_core_states to null when state is null', () => {
+      const row = buildViewRow({ state: null })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_states).toBeNull()
     })
 
-    test('Should not attach array data when isArray is true but data is null', () => {
-      const project = {}
-
-      service._attachJoinedTableData(project, 'states', null, true)
-
-      expect(project).not.toHaveProperty('states')
+    test('maps area_id and area_owner into pafs_core_area_projects object', () => {
+      const row = buildViewRow({ area_id: 42, area_owner: false })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_area_projects).toEqual({
+        area_id: 42,
+        owner: false
+      })
+      expect(result).not.toHaveProperty('area_id')
+      expect(result).not.toHaveProperty('area_owner')
     })
 
-    test('Should attach object data when isArray is false and data exists', () => {
-      const project = {}
-      const joinData = { state: 'draft' }
-
-      service._attachJoinedTableData(project, 'state', joinData, false)
-
-      expect(project.state).toEqual(joinData)
+    test('sets pafs_core_area_projects to null when area_id is null', () => {
+      const row = buildViewRow({ area_id: null })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_area_projects).toBeNull()
     })
 
-    test('Should not attach object data when isArray is false and data is null', () => {
-      const project = {}
+    test('moves nfm_measures_json to pafs_core_nfm_measures', () => {
+      const measures = [{ measure_type: 'woodland', area_hectares: '10.5' }]
+      const row = buildViewRow({ nfm_measures_json: measures })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_nfm_measures).toEqual(measures)
+      expect(result).not.toHaveProperty('nfm_measures_json')
+    })
 
-      service._attachJoinedTableData(project, 'state', null, false)
+    test('defaults pafs_core_nfm_measures to [] when json is null', () => {
+      const row = buildViewRow({ nfm_measures_json: null })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_nfm_measures).toEqual([])
+    })
 
-      expect(project).not.toHaveProperty('state')
+    test('moves land_use_json to pafs_core_nfm_land_use_changes', () => {
+      const changes = [{ land_use_type: 'woodland', area_before_hectares: '5' }]
+      const row = buildViewRow({ land_use_json: changes })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_nfm_land_use_changes).toEqual(changes)
+      expect(result).not.toHaveProperty('land_use_json')
+    })
+
+    test('moves funding_values_json to pafs_core_funding_values', () => {
+      const fvs = [{ id: '1', financial_year: 2025, fcerm_gia: '1000' }]
+      const row = buildViewRow({ funding_values_json: fvs })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_funding_values).toEqual(fvs)
+      expect(result).not.toHaveProperty('funding_values_json')
+    })
+
+    test('moves contributors_json to pafs_core_funding_contributors', () => {
+      const contribs = [{ funding_value_id: '1', amount: '500' }]
+      const row = buildViewRow({ contributors_json: contribs })
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.pafs_core_funding_contributors).toEqual(contribs)
+      expect(result).not.toHaveProperty('contributors_json')
+    })
+
+    test('preserves all main project fields on the shaped object', () => {
+      const row = buildViewRow()
+      const result = service._reshapeProjectViewRow(row)
+      expect(result.reference_number).toBe('ANC501E/000A/001A')
+      expect(result.name).toBe('Test Project')
     })
   })
 
-  describe('_fetchJoinedDataByConfig', () => {
-    test('should fetch funding contributors using funding value ids (indirect join)', async () => {
-      mockPrisma.pafs_core_funding_values = {
-        findMany: vi.fn().mockResolvedValue([{ id: 11n }, { id: 12n }])
-      }
-      mockPrisma.pafs_core_funding_contributors = {
-        findMany: vi.fn().mockResolvedValue([
-          { funding_value_id: 11n, amount: 1000n },
-          { funding_value_id: 12n, amount: 2000n }
-        ])
-      }
-
-      const config = {
-        tableName: 'pafs_core_funding_contributors',
-        joinField: 'funding_value_id',
-        isArray: true,
-        fields: {
-          fundingValueId: 'funding_value_id',
-          amount: 'amount'
-        }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
-
-      expect(mockPrisma.pafs_core_funding_values.findMany).toHaveBeenCalledWith(
-        {
-          where: { project_id: 1 },
-          select: { id: true }
-        }
-      )
-      expect(
-        mockPrisma.pafs_core_funding_contributors.findMany
-      ).toHaveBeenCalledWith({
-        where: {
-          funding_value_id: {
-            in: [11, 12]
-          }
-        },
-        select: {
-          funding_value_id: true,
-          amount: true
-        }
-      })
-      expect(result).toEqual([
-        { funding_value_id: 11n, amount: 1000n },
-        { funding_value_id: 12n, amount: 2000n }
-      ])
-    })
-
-    test('should return empty array when funding contributors table findMany is missing', async () => {
-      mockPrisma.pafs_core_funding_values = {
-        findMany: vi.fn().mockResolvedValue([{ id: 11n }])
-      }
-      mockPrisma.pafs_core_funding_contributors = undefined
-
-      const config = {
-        tableName: 'pafs_core_funding_contributors',
-        joinField: 'funding_value_id',
-        isArray: true,
-        fields: { amount: 'amount' }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
-      expect(result).toEqual([])
-    })
-
-    test('should return empty array when funding values findMany is missing', async () => {
-      mockPrisma.pafs_core_funding_values = undefined
-
-      const config = {
-        tableName: 'pafs_core_funding_contributors',
-        joinField: 'funding_value_id',
-        isArray: true,
-        fields: { amount: 'amount' }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
-      expect(result).toEqual([])
-    })
-
-    test('should return empty array when no funding value ids found', async () => {
-      mockPrisma.pafs_core_funding_values = {
-        findMany: vi.fn().mockResolvedValue([])
-      }
-
-      const config = {
-        tableName: 'pafs_core_funding_contributors',
-        joinField: 'funding_value_id',
-        isArray: true,
-        fields: { amount: 'amount' }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
-      expect(result).toEqual([])
-    })
-
-    test('should return empty array when table is not found for non-contributor config (isArray)', async () => {
-      mockPrisma.nonexistent_table = undefined
-
-      const config = {
-        tableName: 'nonexistent_table',
-        joinField: 'project_id',
-        isArray: true,
-        fields: { name: 'name' }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
-      expect(result).toEqual([])
-    })
-
-    test('should return null when table is not found for non-contributor config (single)', async () => {
-      mockPrisma.nonexistent_table = undefined
-
-      const config = {
-        tableName: 'nonexistent_table',
-        joinField: 'project_id',
-        isArray: false,
-        fields: { name: 'name' }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
+  describe('_queryProjectFull', () => {
+    test('returns null when $queryRaw returns empty array', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([])
+      const result = await service._queryProjectFull('ANC501E/000A/001A')
       expect(result).toBeNull()
     })
 
-    test('should use findFirst for non-array config', async () => {
-      mockPrisma.pafs_core_states = {
-        findFirst: vi.fn().mockResolvedValue({ state: 'draft' })
-      }
-
-      const config = {
-        tableName: 'pafs_core_states',
-        joinField: 'project_id',
-        isArray: false,
-        fields: { state: 'state' }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
-      expect(result).toEqual({ state: 'draft' })
-      expect(mockPrisma.pafs_core_states.findFirst).toHaveBeenCalledWith({
-        where: { project_id: 1 },
-        select: { state: true }
-      })
+    test('calls $queryRaw with the reference number', async () => {
+      const refNum = 'AEC501E/005A/123A'
+      mockPrisma.$queryRaw.mockResolvedValue([buildViewRow()])
+      await service._queryProjectFull(refNum)
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          values: expect.arrayContaining([refNum])
+        })
+      )
     })
 
-    test('should filter out NaN ids from funding value results', async () => {
-      mockPrisma.pafs_core_funding_values = {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([{ id: 11n }, { id: 'invalid' }, { id: 12n }])
-      }
-      mockPrisma.pafs_core_funding_contributors = {
-        findMany: vi.fn().mockResolvedValue([])
-      }
-
-      const config = {
-        tableName: 'pafs_core_funding_contributors',
-        joinField: 'funding_value_id',
-        isArray: true,
-        fields: { amount: 'amount' }
-      }
-
-      const result = await service._fetchJoinedDataByConfig(1n, config)
-      expect(
-        mockPrisma.pafs_core_funding_contributors.findMany
-      ).toHaveBeenCalledWith({
-        where: { funding_value_id: { in: [11, 12] } },
-        select: { amount: true }
-      })
-      expect(result).toEqual([])
+    test('returns shaped project when row exists', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([buildViewRow({ state: 'draft' })])
+      const result = await service._queryProjectFull('ANC501E/000A/001A')
+      expect(result.pafs_core_states).toEqual({ state: 'draft' })
+      expect(result.pafs_core_nfm_measures).toEqual([])
+      expect(result.reference_number).toBe('ANC501E/000A/001A')
     })
   })
 
@@ -2569,38 +1690,6 @@ describe('ProjectService', () => {
       expect(result).toEqual(expected)
     })
 
-    test('should delegate deleteFundingValue to fundingSourcesService', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        financialYear: 2026
-      }
-
-      const spy = vi
-        .spyOn(service, 'deleteFundingValue')
-        .mockResolvedValue(null)
-
-      const result = await service.deleteFundingValue(payload)
-
-      expect(spy).toHaveBeenCalledWith(payload)
-      expect(result).toBeNull()
-    })
-
-    test('should delegate deleteAllFundingContributors to fundingSourcesService', async () => {
-      const payload = {
-        referenceNumber: 'ANC501E/000A/001A',
-        financialYear: 2026
-      }
-
-      const spy = vi
-        .spyOn(service, 'deleteAllFundingContributors')
-        .mockResolvedValue(3)
-
-      const result = await service.deleteAllFundingContributors(payload)
-
-      expect(spy).toHaveBeenCalledWith(payload)
-      expect(result).toBe(3)
-    })
-
     test('should delegate upsertFundingContributor to fundingSourcesService', async () => {
       const payload = {
         referenceNumber: 'ANC501E/000A/001A',
@@ -2619,18 +1708,6 @@ describe('ProjectService', () => {
 
       expect(spy).toHaveBeenCalledWith(payload)
       expect(result).toEqual(expected)
-    })
-
-    test('should delegate deleteFundingContributor to fundingSourcesService', async () => {
-      const payload = { id: 5n }
-      const spy = vi
-        .spyOn(service, 'deleteFundingContributor')
-        .mockResolvedValue(null)
-
-      const result = await service.deleteFundingContributor(payload)
-
-      expect(spy).toHaveBeenCalledWith(payload)
-      expect(result).toBeNull()
     })
 
     test('should delegate deleteAllFundingData to fundingSourcesService', async () => {
@@ -2668,103 +1745,6 @@ describe('ProjectService', () => {
       await service.nullAdditionalGiaColumns(referenceNumber)
 
       expect(spy).toHaveBeenCalledWith(referenceNumber)
-    })
-  })
-
-  describe('_fetchAndAttachFundingContributors', () => {
-    const contributorConfig = {
-      tableName: 'pafs_core_funding_contributors',
-      joinField: 'funding_value_id',
-      isArray: true,
-      fields: {
-        name: 'name',
-        amount: 'amount',
-        fundingValueId: 'funding_value_id'
-      }
-    }
-
-    beforeEach(() => {
-      mockPrisma.pafs_core_funding_contributors = {
-        findMany: vi.fn()
-      }
-    })
-
-    test('fetches contributors in a single IN query using pre-loaded funding value IDs', async () => {
-      const project = {
-        pafs_core_funding_values: [
-          { id: 10n, financial_year: 2024 },
-          { id: 11n, financial_year: 2025 }
-        ]
-      }
-      const contributors = [
-        { name: 'EA', amount: 1000n, funding_value_id: 10n },
-        { name: 'LA', amount: 500n, funding_value_id: 11n }
-      ]
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue(
-        contributors
-      )
-
-      await service._fetchAndAttachFundingContributors(project, [
-        ['pafs_core_funding_contributors', contributorConfig]
-      ])
-
-      // Single findMany call with both IDs — no second query to pafs_core_funding_values
-      expect(
-        mockPrisma.pafs_core_funding_contributors.findMany
-      ).toHaveBeenCalledOnce()
-      expect(
-        mockPrisma.pafs_core_funding_contributors.findMany
-      ).toHaveBeenCalledWith({
-        where: { funding_value_id: { in: [10, 11] } },
-        select: expect.objectContaining({ name: true, amount: true })
-      })
-      expect(project.pafs_core_funding_contributors).toBe(contributors)
-    })
-
-    test('skips DB call and leaves contributor key unset when no funding values exist', async () => {
-      const project = { pafs_core_funding_values: [] }
-
-      await service._fetchAndAttachFundingContributors(project, [
-        ['pafs_core_funding_contributors', contributorConfig]
-      ])
-
-      expect(
-        mockPrisma.pafs_core_funding_contributors.findMany
-      ).not.toHaveBeenCalled()
-      expect(project.pafs_core_funding_contributors).toBeUndefined()
-    })
-
-    test('skips DB call when project has no funding values key at all', async () => {
-      const project = {}
-
-      await service._fetchAndAttachFundingContributors(project, [
-        ['pafs_core_funding_contributors', contributorConfig]
-      ])
-
-      expect(
-        mockPrisma.pafs_core_funding_contributors.findMany
-      ).not.toHaveBeenCalled()
-    })
-
-    test('filters out NaN IDs from funding value list', async () => {
-      const project = {
-        pafs_core_funding_values: [
-          { id: 'bad', financial_year: 2024 },
-          { id: 12n, financial_year: 2025 }
-        ]
-      }
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([])
-
-      await service._fetchAndAttachFundingContributors(project, [
-        ['pafs_core_funding_contributors', contributorConfig]
-      ])
-
-      expect(
-        mockPrisma.pafs_core_funding_contributors.findMany
-      ).toHaveBeenCalledWith({
-        where: { funding_value_id: { in: [12] } },
-        select: expect.any(Object)
-      })
     })
   })
 })

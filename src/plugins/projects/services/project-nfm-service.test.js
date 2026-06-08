@@ -22,6 +22,7 @@ describe('ProjectNfmService', () => {
         findFirst: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
+        upsert: vi.fn(),
         delete: vi.fn(),
         deleteMany: vi.fn()
       },
@@ -82,50 +83,34 @@ describe('ProjectNfmService', () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
     })
 
-    test('should create a new NFM measure when none exists', async () => {
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-      const created = { id: 10, project_id: 1, measure_type: measureType }
-      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue(created)
+    test('should upsert using the compound unique key (project_id_measure_type)', async () => {
+      const upserted = { id: 10, project_id: 1, measure_type: measureType }
+      mockPrisma.pafs_core_nfm_measures.upsert.mockResolvedValue(upserted)
 
       const result = await service.upsertNfmMeasure(payload)
 
-      expect(result).toBe(created)
-      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          project_id: 1,
-          measure_type: measureType,
+      expect(result).toBe(upserted)
+      expect(mockPrisma.pafs_core_nfm_measures.upsert).toHaveBeenCalledWith({
+        where: {
+          project_id_measure_type: { project_id: 1, measure_type: measureType }
+        },
+        update: expect.objectContaining({
           area_hectares: 10.5,
           storage_volume_m3: 500,
           length_km: 2.3,
           width_m: 15
+        }),
+        create: expect.objectContaining({
+          project_id: 1,
+          measure_type: measureType,
+          area_hectares: 10.5
         })
       })
-      expect(mockPrisma.pafs_core_nfm_measures.update).not.toHaveBeenCalled()
+      expect(mockPrisma.pafs_core_nfm_measures.findFirst).not.toHaveBeenCalled()
       expect(mockLogger.info).toHaveBeenCalledWith(
         { projectId: 1, measureType, referenceNumber },
         'NFM measure upserted successfully'
       )
-    })
-
-    test('should update an existing NFM measure', async () => {
-      const existing = { id: 10, project_id: 1, measure_type: measureType }
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(existing)
-      const updated = { ...existing, area_hectares: 10.5 }
-      mockPrisma.pafs_core_nfm_measures.update.mockResolvedValue(updated)
-
-      const result = await service.upsertNfmMeasure(payload)
-
-      expect(result).toBe(updated)
-      expect(mockPrisma.pafs_core_nfm_measures.update).toHaveBeenCalledWith({
-        where: { id: existing.id },
-        data: expect.objectContaining({
-          area_hectares: 10.5,
-          storage_volume_m3: 500,
-          length_km: 2.3,
-          width_m: 15
-        })
-      })
-      expect(mockPrisma.pafs_core_nfm_measures.create).not.toHaveBeenCalled()
     })
 
     test('should throw and log error when project lookup fails', async () => {
@@ -141,8 +126,7 @@ describe('ProjectNfmService', () => {
     })
 
     test('should throw and log error when DB write fails', async () => {
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-      mockPrisma.pafs_core_nfm_measures.create.mockRejectedValue(
+      mockPrisma.pafs_core_nfm_measures.upsert.mockRejectedValue(
         new Error('DB error')
       )
 
@@ -156,8 +140,7 @@ describe('ProjectNfmService', () => {
     })
 
     test('should handle null optional fields (storageVolumeM3, lengthKm, widthM)', async () => {
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-      mockPrisma.pafs_core_nfm_measures.create.mockResolvedValue({ id: 11 })
+      mockPrisma.pafs_core_nfm_measures.upsert.mockResolvedValue({ id: 11 })
 
       await service.upsertNfmMeasure({
         referenceNumber,
@@ -168,89 +151,14 @@ describe('ProjectNfmService', () => {
         widthM: null
       })
 
-      expect(mockPrisma.pafs_core_nfm_measures.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          storage_volume_m3: null,
-          length_km: null,
-          width_m: null
+      expect(mockPrisma.pafs_core_nfm_measures.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            storage_volume_m3: null,
+            length_km: null,
+            width_m: null
+          })
         })
-      })
-    })
-  })
-
-  // ─── deleteNfmMeasure ───────────────────────────────────────────────────────
-
-  describe('deleteNfmMeasure', () => {
-    const referenceNumber = 'ANC501E/000A/001A'
-    const measureType = 'river_floodplain_restoration'
-
-    beforeEach(() => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
-    })
-
-    test('should delete an existing NFM measure and return the deleted record', async () => {
-      const existing = { id: 10, project_id: 1, measure_type: measureType }
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(existing)
-      mockPrisma.pafs_core_nfm_measures.delete.mockResolvedValue(existing)
-
-      const result = await service.deleteNfmMeasure({
-        referenceNumber,
-        measureType
-      })
-
-      expect(result).toBe(existing)
-      expect(mockPrisma.pafs_core_nfm_measures.delete).toHaveBeenCalledWith({
-        where: { id: existing.id }
-      })
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        { projectId: 1, measureType, referenceNumber },
-        'NFM measure deleted successfully'
-      )
-    })
-
-    test('should return null and log when NFM measure does not exist', async () => {
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(null)
-
-      const result = await service.deleteNfmMeasure({
-        referenceNumber,
-        measureType
-      })
-
-      expect(result).toBeNull()
-      expect(mockPrisma.pafs_core_nfm_measures.delete).not.toHaveBeenCalled()
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        { projectId: 1, measureType, referenceNumber },
-        'NFM measure not found, nothing to delete'
-      )
-    })
-
-    test('should throw and log error when project lookup fails', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
-
-      await expect(
-        service.deleteNfmMeasure({ referenceNumber, measureType })
-      ).rejects.toThrow(
-        `Project not found with reference number: ${referenceNumber}`
-      )
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ referenceNumber, measureType }),
-        'Error deleting NFM measure'
-      )
-    })
-
-    test('should throw and log error when DB delete fails', async () => {
-      const existing = { id: 10 }
-      mockPrisma.pafs_core_nfm_measures.findFirst.mockResolvedValue(existing)
-      mockPrisma.pafs_core_nfm_measures.delete.mockRejectedValue(
-        new Error('DB error')
-      )
-
-      await expect(
-        service.deleteNfmMeasure({ referenceNumber, measureType })
-      ).rejects.toThrow('DB error')
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ referenceNumber, measureType }),
-        'Error deleting NFM measure'
       )
     })
   })
@@ -328,87 +236,6 @@ describe('ProjectNfmService', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({ referenceNumber, landUseType }),
         'Error upserting NFM land use change'
-      )
-    })
-  })
-
-  // ─── deleteNfmLandUseChange ─────────────────────────────────────────────────
-
-  describe('deleteNfmLandUseChange', () => {
-    const referenceNumber = 'ANC501E/000A/001A'
-    const landUseType = 'arable'
-
-    beforeEach(() => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
-    })
-
-    test('should delete an existing land use change record and return it', async () => {
-      const existing = { id: 20, project_id: 1, land_use_type: landUseType }
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        existing
-      )
-      mockPrisma.pafs_core_nfm_land_use_changes.delete.mockResolvedValue(
-        existing
-      )
-
-      const result = await service.deleteNfmLandUseChange({
-        referenceNumber,
-        landUseType
-      })
-
-      expect(result).toBe(existing)
-      expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.delete
-      ).toHaveBeenCalledWith({
-        where: { id: existing.id }
-      })
-    })
-
-    test('should return null when land use change record does not exist', async () => {
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        null
-      )
-
-      const result = await service.deleteNfmLandUseChange({
-        referenceNumber,
-        landUseType
-      })
-
-      expect(result).toBeNull()
-      expect(
-        mockPrisma.pafs_core_nfm_land_use_changes.delete
-      ).not.toHaveBeenCalled()
-    })
-
-    test('should throw and log error when project lookup fails', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
-
-      await expect(
-        service.deleteNfmLandUseChange({ referenceNumber, landUseType })
-      ).rejects.toThrow(
-        `Project not found with reference number: ${referenceNumber}`
-      )
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ referenceNumber, landUseType }),
-        'Error deleting NFM land use change'
-      )
-    })
-
-    test('should throw and log error when DB delete fails', async () => {
-      const existing = { id: 20 }
-      mockPrisma.pafs_core_nfm_land_use_changes.findFirst.mockResolvedValue(
-        existing
-      )
-      mockPrisma.pafs_core_nfm_land_use_changes.delete.mockRejectedValue(
-        new Error('DB delete error')
-      )
-
-      await expect(
-        service.deleteNfmLandUseChange({ referenceNumber, landUseType })
-      ).rejects.toThrow('DB delete error')
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ referenceNumber, landUseType }),
-        'Error deleting NFM land use change'
       )
     })
   })

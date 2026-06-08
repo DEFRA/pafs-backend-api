@@ -110,6 +110,9 @@ const applyNfmNormalizers = async (
   existingProject,
   projectService
 ) => {
+  const existingProjectId =
+    existingProject?.id != null ? Number(existingProject.id) : undefined
+
   // PROJECT_TYPE level: clears NFM scalar fields and child records when NFM/SUDS is removed
   await clearNfmFieldsOnInterventionTypeChange(
     enrichedPayload,
@@ -125,7 +128,12 @@ const applyNfmNormalizers = async (
     projectService
   )
   // NFM_* levels: save measure/land-use data to separate tables
-  await handleNfmMeasureData(enrichedPayload, validationLevel, projectService)
+  await handleNfmMeasureData(
+    enrichedPayload,
+    validationLevel,
+    projectService,
+    existingProjectId
+  )
 }
 
 const applyFundingNormalizers = async (
@@ -144,17 +152,20 @@ const applyFundingNormalizers = async (
     clearDeselectedFundingSourceColumns(
       enrichedPayload,
       validationLevel,
-      projectService
+      projectService,
+      existingProject
     ),
     clearDeselectedAdditionalGiaData(
       enrichedPayload,
       validationLevel,
-      projectService
+      projectService,
+      existingProject
     ),
     clearDeselectedContributorData(
       enrichedPayload,
       validationLevel,
-      projectService
+      projectService,
+      existingProject
     )
   ])
 
@@ -167,12 +178,14 @@ const applyFundingNormalizers = async (
     cleanupRemovedContributors(
       enrichedPayload,
       validationLevel,
-      projectService
+      projectService,
+      existingProject
     ),
     ensureContributorFundingRows(
       enrichedPayload,
       validationLevel,
-      projectService
+      projectService,
+      existingProject
     )
   ])
 

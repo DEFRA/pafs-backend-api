@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="5-004-funding-contributors-unique-constraint" author="migration-team">
+    <comment>
+      Add unique constraint on (funding_value_id, contributor_type, name) in
+      pafs_core_funding_contributors. Removes duplicate rows (keeping the highest
+      id) then adds the constraint so the application can use a single Prisma
+      upsert instead of findFirst + create/update.
+
+      All three columns are nullable; PostgreSQL treats each NULL as distinct for
+      unique-constraint purposes, so legacy rows with NULL values are not affected.
+
+      The single-column index on funding_value_id is dropped because the new
+      compound unique index covers it as a left-prefix.
+    </comment>
+
+    <!-- Remove duplicate (funding_value_id, contributor_type, name) rows, keeping the latest -->
+    <sql>
+      DELETE FROM pafs_core_funding_contributors
+      WHERE id NOT IN (
+        SELECT MAX(id)
+        FROM pafs_core_funding_contributors
+        GROUP BY funding_value_id, contributor_type, name
+      );
+    </sql>
+
+    <!-- Drop the single-column funding_value_id index — redundant once the compound unique exists -->
+    <dropIndex indexName="index_pafs_core_funding_contributors_on_funding_value_id"
+               tableName="pafs_core_funding_contributors"/>
+
+    <!-- Add unique constraint — Prisma generates where-key funding_value_id_contributor_type_name -->
+    <addUniqueConstraint
+      tableName="pafs_core_funding_contributors"
+      columnNames="funding_value_id, contributor_type, name"
+      constraintName="uq_funding_contributors_fv_type_name"/>
+
+    <rollback>
+      <dropUniqueConstraint tableName="pafs_core_funding_contributors"
+                            constraintName="uq_funding_contributors_fv_type_name"/>
+      <createIndex indexName="index_pafs_core_funding_contributors_on_funding_value_id"
+                   tableName="pafs_core_funding_contributors">
+        <column name="funding_value_id"/>
+      </createIndex>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

@@ -31,38 +31,75 @@ export class ProjectFundingContributorsSyncService {
   }
 
   /**
+   * Lean contributor upsert when the funding_value_id is already known.
+   * Uses Prisma upsert via @@unique([funding_value_id, contributor_type, name])
+   * (added via migration 5-004) — a single round-trip instead of findFirst + update/create.
+   * The update clause only touches amount and updated_at, preserving the
+   * secured/constrained fields on existing rows.
+   * @private
+   */
+  async _upsertContributorDirect(
+    fundingValueId,
+    { contributorType, name, amount }
+  ) {
+    return this.prisma.pafs_core_funding_contributors.upsert({
+      where: {
+        funding_value_id_contributor_type_name: {
+          funding_value_id: fundingValueId,
+          contributor_type: contributorType,
+          name
+        }
+      },
+      update: { amount: BigInt(amount), updated_at: new Date() },
+      create: {
+        funding_value_id: fundingValueId,
+        contributor_type: contributorType,
+        name,
+        amount: BigInt(amount),
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    })
+  }
+
+  /**
    * Upsert all desired contributor entries for a year.
+   * When fundingValueId is provided (common path from processFundingValueRow),
+   * uses _upsertContributorDirect to avoid redundant project + fv lookups.
+   * Falls back to upsertFn for standalone callers that supply referenceNumber only.
    * @private
    */
   async _upsertDesiredContributors(
     desiredEntries,
     referenceNumber,
     financialYear,
-    upsertFn
+    upsertFn,
+    fundingValueId
   ) {
-    await Promise.all(
-      desiredEntries.map((contributor) =>
-        upsertFn({
-          referenceNumber,
-          financialYear,
-          contributorType: contributor.contributorType,
-          name: contributor.name,
-          amount: contributor.amount
-        })
+    if (fundingValueId) {
+      await Promise.all(
+        desiredEntries.map((contributor) =>
+          this._upsertContributorDirect(fundingValueId, contributor)
+        )
       )
-    )
+    } else {
+      await Promise.all(
+        desiredEntries.map((contributor) =>
+          upsertFn({
+            referenceNumber,
+            financialYear,
+            contributorType: contributor.contributorType,
+            name: contributor.name,
+            amount: contributor.amount
+          })
+        )
+      )
+    }
   }
 
   /**
    * Delete stale contributor rows that are no longer in the desired set.
-   *
-   * When desiredEntries is empty all contributors for the year are stale —
-   * issue a single deleteMany directly (no prior findMany needed to compute IDs).
-   * When desiredEntries is non-empty fetch existing rows and delete only those
-   * absent from the desired set.
-   *
    * @private
-   * @returns {Promise<number>} Number of deleted rows
    */
   async _deleteStaleContributors(desiredEntries, fundingValueId) {
     if (desiredEntries.length === 0) {
@@ -73,79 +110,68 @@ export class ProjectFundingContributorsSyncService {
       return result.count
     }
 
-    const desiredKeys = new Set(
-      desiredEntries.map((c) => `${c.contributorType}::${c.name}`)
-    )
+    // Single DELETE with NOT filter — avoids the findMany pre-fetch.
+    // Prisma NOT: [{type:A,name:B}, …] generates:
+    //   NOT (type=A AND name=B) AND NOT (type=C AND name=D) …
+    // which deletes every contributor row for this fv that isn't in the desired set.
+    const result = await this.prisma.pafs_core_funding_contributors.deleteMany({
+      where: {
+        funding_value_id: fundingValueId,
+        NOT: desiredEntries.map((c) => ({
+          contributor_type: c.contributorType,
+          name: c.name
+        }))
+      }
+    })
 
-    const existingContributors =
-      await this.prisma.pafs_core_funding_contributors.findMany({
-        where: { funding_value_id: fundingValueId },
-        select: {
-          id: true,
-          contributor_type: true,
-          name: true
-        }
-      })
-
-    const staleIds = existingContributors
-      .filter((c) => !desiredKeys.has(`${c.contributor_type}::${c.name}`))
-      .map((c) => c.id)
-
-    if (staleIds.length > 0) {
-      await this.prisma.pafs_core_funding_contributors.deleteMany({
-        where: {
-          funding_value_id: fundingValueId,
-          id: { in: staleIds }
-        }
-      })
-    }
-
-    return staleIds.length
+    return result.count
   }
 
   /**
    * Sync contributor rows for a single financial year without resetting
    * legacy secured/constrained values.
    *
-   * Behaviour:
-   * - Existing matching rows (same type + name) are updated for amount only
-   * - Missing rows are created (secured/constrained left to DB defaults)
-   * - Stale rows not present in contributorEntries are deleted
-   *
    * @param {Object} data
    * @param {string} data.referenceNumber
    * @param {number} data.financialYear
-   * @param {Array<{name:string, contributorType:string, amount:string|number}>} data.contributorEntries
-   * @param {Function} upsertFn - The upsertFundingContributor method reference
+   * @param {Array} data.contributorEntries
+   * @param {Function} upsertFn - upsertFundingContributor method reference
+   * @param {number} [data.projectId] - optional, avoids _getProjectIdByReference
+   * @param {bigint} [data.fundingValueId] - optional; when supplied skips fv re-fetch
+   *   and uses the lean _upsertContributorDirect path
    */
   async syncFundingContributorsForYear({
     referenceNumber,
     financialYear,
     contributorEntries,
     upsertFn,
-    projectId: providedProjectId
+    projectId: providedProjectId,
+    fundingValueId: providedFundingValueId
   }) {
     try {
       const projectId =
         providedProjectId ??
         (await this._getProjectIdByReference(referenceNumber))
 
-      const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
-        {
-          where: {
-            project_id: projectId,
-            financial_year: financialYear
-          },
-          select: { id: true }
-        }
-      )
+      // Reuse the already-known fv id when the caller supplies it —
+      // avoids a redundant round-trip for the common path from processFundingValueRow.
+      let fvId = providedFundingValueId
+      if (!fvId) {
+        const fundingValue =
+          await this.prisma.pafs_core_funding_values.findFirst({
+            where: { project_id: projectId, financial_year: financialYear },
+            select: { id: true }
+          })
 
-      if (!fundingValue) {
-        this.logger.info(
-          { projectId, financialYear, referenceNumber },
-          'Funding value not found, cannot sync contributors'
-        )
-        return
+        if (!fundingValue) {
+          this.logger.info(
+            { projectId, financialYear, referenceNumber },
+            'Funding value not found, cannot sync contributors'
+          )
+          return
+        }
+
+        fvId = fundingValue.id
       }
 
       const desiredEntries = Array.isArray(contributorEntries)
@@ -163,12 +189,13 @@ export class ProjectFundingContributorsSyncService {
         desiredEntries,
         referenceNumber,
         financialYear,
-        upsertFn
+        upsertFn,
+        providedFundingValueId ? fvId : null
       )
 
       const deletedCount = await this._deleteStaleContributors(
         desiredEntries,
-        fundingValue.id
+        fvId
       )
 
       this.logger.info(
@@ -196,50 +223,40 @@ export class ProjectFundingContributorsSyncService {
 
   /**
    * Ensure a funding_value row exists for the given project and year.
+   * Uses Prisma upsert via @@unique([project_id, financial_year]).
    * @private
    */
   async _ensureFundingValueRow(projectId, year) {
-    const existing = await this.prisma.pafs_core_funding_values.findFirst({
-      where: { project_id: projectId, financial_year: year },
-      select: { id: true }
-    })
-
-    if (existing) {
-      return existing
-    }
-
-    return this.prisma.pafs_core_funding_values.create({
-      data: {
-        project_id: projectId,
-        financial_year: year,
-        total: 0n
-      }
+    return this.prisma.pafs_core_funding_values.upsert({
+      where: {
+        project_id_financial_year: {
+          project_id: projectId,
+          financial_year: year
+        }
+      },
+      update: {},
+      create: { project_id: projectId, financial_year: year, total: 0n }
     })
   }
 
   /**
-   * Create a contributor row if one does not already exist for the given
-   * funding value, name and type.
+   * Ensure a contributor placeholder row exists for the given funding value,
+   * name and type. Uses Prisma upsert via the unique constraint — a single
+   * round-trip. The update clause is empty so existing rows (including their
+   * amount, secured and constrained values) are left completely unchanged.
    * @private
    */
   async _createContributorIfMissing(fundingValueId, name, contributorType) {
-    const existing = await this.prisma.pafs_core_funding_contributors.findFirst(
-      {
-        where: {
+    await this.prisma.pafs_core_funding_contributors.upsert({
+      where: {
+        funding_value_id_contributor_type_name: {
           funding_value_id: fundingValueId,
-          name,
-          contributor_type: contributorType
-        },
-        select: { id: true }
-      }
-    )
-
-    if (existing) {
-      return
-    }
-
-    await this.prisma.pafs_core_funding_contributors.create({
-      data: {
+          contributor_type: contributorType,
+          name
+        }
+      },
+      update: {},
+      create: {
         funding_value_id: fundingValueId,
         name,
         contributor_type: contributorType,
@@ -253,35 +270,54 @@ export class ProjectFundingContributorsSyncService {
   /**
    * Ensures funding_value rows exist for each financial year of the project and
    * upserts contributor rows (with null amounts) for new contributor names.
-   * Existing contributors with amounts are preserved (rename-in-place is handled
-   * by cleanupContributorsByName).
    *
    * @param {Object} data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {string} data.contributorType - e.g. 'public_contributions'
-   * @param {string[]} data.contributorNames - Array of contributor names
+   * @param {string} data.referenceNumber
+   * @param {string} data.contributorType
+   * @param {string[]} data.contributorNames
+   * @param {number} [data.projectId] - optional; avoids _getProjectIdByReference when supplied
    */
   async ensureContributorFundingRows({
     referenceNumber,
     contributorType,
-    contributorNames
+    contributorNames,
+    projectId: providedProjectId,
+    financialStartYear,
+    financialEndYear
   }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
-      // Get the project's financial year range
-      const project = await this.prisma.pafs_core_projects.findFirst({
-        where: { id: projectId },
-        select: {
-          earliest_start_year: true,
-          project_end_financial_year: true
+      let startYear = financialStartYear
+      let endYear = financialEndYear
+
+      if (startYear == null || endYear == null) {
+        const project = await this.prisma.pafs_core_projects.findFirst({
+          where: { id: projectId },
+          select: {
+            earliest_start_year: true,
+            project_end_financial_year: true
+          }
+        })
+
+        if (
+          !project?.earliest_start_year ||
+          !project?.project_end_financial_year
+        ) {
+          this.logger.info(
+            { referenceNumber },
+            'Project has no financial year range, skipping contributor funding rows'
+          )
+          return
         }
-      })
 
-      if (
-        !project?.earliest_start_year ||
-        !project?.project_end_financial_year
-      ) {
+        startYear = project.earliest_start_year
+        endYear = project.project_end_financial_year
+      }
+
+      if (!startYear || !endYear) {
         this.logger.info(
           { referenceNumber },
           'Project has no financial year range, skipping contributor funding rows'
@@ -289,30 +325,43 @@ export class ProjectFundingContributorsSyncService {
         return
       }
 
-      const startYear = project.earliest_start_year
-      const endYear = project.project_end_financial_year
-
       const years = Array.from(
         { length: endYear - startYear + 1 },
         (_, i) => startYear + i
       )
-      await Promise.all(
-        years.map(async (year) => {
-          const fundingValue = await this._ensureFundingValueRow(
-            projectId,
-            year
-          )
-          await Promise.all(
-            contributorNames.map((name) =>
-              this._createContributorIfMissing(
-                fundingValue.id,
-                name,
-                contributorType
-              )
-            )
-          )
-        })
+
+      // 1) Ensure all funding value rows exist — 1 query
+      await this.prisma.pafs_core_funding_values.createMany({
+        data: years.map((year) => ({
+          project_id: projectId,
+          financial_year: year,
+          total: 0n
+        })),
+        skipDuplicates: true
+      })
+
+      // 2) Fetch IDs for all rows (createMany doesn't return them) — 1 query
+      const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
+        {
+          where: { project_id: projectId, financial_year: { in: years } },
+          select: { id: true }
+        }
       )
+
+      // 3) Ensure all contributor placeholder rows exist — 1 query
+      await this.prisma.pafs_core_funding_contributors.createMany({
+        data: fundingValues.flatMap((fv) =>
+          contributorNames.map((name) => ({
+            funding_value_id: fv.id,
+            contributor_type: contributorType,
+            name,
+            amount: null,
+            created_at: new Date(),
+            updated_at: new Date()
+          }))
+        ),
+        skipDuplicates: true
+      })
 
       this.logger.info(
         {

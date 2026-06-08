@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="5-001-project-overview-view" author="migration-team">
+    <createView viewName="v_project_full" replaceIfExists="true">
+      SELECT
+        p.id,
+        p.name,
+        p.rma_name,
+        p.project_type,
+        p.project_intervention_types,
+        p.main_intervention_type,
+        p.earliest_start_year,
+        p.project_end_financial_year,
+        p.start_outline_business_case_month,
+        p.start_outline_business_case_year,
+        p.complete_outline_business_case_month,
+        p.complete_outline_business_case_year,
+        p.award_contract_month,
+        p.award_contract_year,
+        p.start_construction_month,
+        p.start_construction_year,
+        p.ready_for_service_month,
+        p.ready_for_service_year,
+        p.could_start_early,
+        p.earliest_with_gia_month,
+        p.earliest_with_gia_year,
+        p.project_risks_protected_against,
+        p.main_risk,
+        p.no_properties_at_flood_risk,
+        p.properties_benefit_maintaining_assets,
+        p.properties_benefit_50_percent_reduction,
+        p.properties_benefit_less_50_percent_reduction,
+        p.properties_benefit_individual_intervention,
+        p.no_properties_at_coastal_erosion_risk,
+        p.properties_benefit_maintaining_assets_coastal,
+        p.properties_benefit_investment_coastal_erosion,
+        p.percent_properties_20_percent_deprived,
+        p.percent_properties_40_percent_deprived,
+        p.current_flood_fluvial_risk,
+        p.current_flood_surface_water_risk,
+        p.current_coastal_erosion_risk,
+        p.approach,
+        p.urgency_reason,
+        p.urgency_details,
+        p.urgency_details_updated_at,
+        p.confidence_homes_better_protected,
+        p.confidence_homes_by_gateway_four,
+        p.confidence_secured_partnership_funding,
+        p.environmental_benefits,
+        p.intertidal_habitat,
+        p.hectares_of_intertidal_habitat_created_or_enhanced,
+        p.woodland,
+        p.hectares_of_woodland_habitat_created_or_enhanced,
+        p.wet_woodland,
+        p.hectares_of_wet_woodland_habitat_created_or_enhanced,
+        p.wetland_or_wet_grassland,
+        p.hectares_of_wetland_or_wet_grassland_created_or_enhanced,
+        p.grassland,
+        p.hectares_of_grassland_habitat_created_or_enhanced,
+        p.heathland,
+        p.hectares_of_heathland_created_or_enhanced,
+        p.ponds_lakes,
+        p.hectares_of_pond_or_lake_habitat_created_or_enhanced,
+        p.arable_land,
+        p.hectares_of_arable_land_lake_habitat_created_or_enhanced,
+        p.comprehensive_restoration,
+        p.kilometres_of_watercourse_enhanced_or_created_comprehensive,
+        p.partial_restoration,
+        p.kilometres_of_watercourse_enhanced_or_created_partial,
+        p.create_habitat_watercourse,
+        p.kilometres_of_watercourse_enhanced_or_created_single,
+        p.natural_flood_risk_measures_included,
+        p.nfm_selected_measures,
+        p.nfm_land_use_change,
+        p.nfm_landowner_consent,
+        p.nfm_experience_level,
+        p.nfm_project_readiness,
+        p.wlc_estimated_whole_life_pv_costs,
+        p.wlc_estimated_design_construction_costs,
+        p.wlc_estimated_risk_contingency_costs,
+        p.wlc_estimated_future_costs,
+        p.wlc_estimated_whole_life_pv_benefits,
+        p.wlc_estimated_property_damages_avoided,
+        p.wlc_estimated_environmental_benefits,
+        p.wlc_estimated_recreation_tourism_benefits,
+        p.wlc_estimated_land_value_uplift_benefits,
+        p.carbon_cost_build,
+        p.carbon_cost_operation,
+        p.carbon_cost_sequestered,
+        p.carbon_cost_avoided,
+        p.carbon_savings_net_economic_benefit,
+        p.carbon_operational_cost_forecast,
+        p.carbon_values_hexdigest,
+        p.fcerm_gia,
+        p.local_levy,
+        p.internal_drainage_boards,
+        p.public_contributions,
+        p.private_contributions,
+        p.other_ea_contributions,
+        p.growth_funding,
+        p.not_yet_identified,
+        p.funding_sources_visited,
+        p.asset_replacement_allowance,
+        p.environment_statutory_funding,
+        p.frequently_flooded_communities,
+        p.other_additional_grant_in_aid,
+        p.other_government_department,
+        p.recovery,
+        p.summer_economic_fund,
+        p.stale_data_cleared,
+        p.reference_number,
+        p.version,
+        p.slug,
+        p.updated_at,
+        p.created_at,
+        p.benefit_area_file_name,
+        p.benefit_area_file_size,
+        p.benefit_area_content_type,
+        p.benefit_area_file_s3_bucket,
+        p.benefit_area_file_s3_key,
+        p.benefit_area_file_updated_at,
+        p.benefit_area_file_download_url,
+        p.benefit_area_file_download_expiry,
+        p.funding_calculator_file_name,
+        p.funding_calculator_file_size,
+        p.funding_calculator_content_type,
+        p.funding_calculator_updated_at,
+        p.is_legacy,
+        p.is_revised,
+        p.legacy_project_type_migration_completed,
+
+        s.state,
+
+        ap.area_id,
+        ap.owner AS area_owner,
+
+        (
+          SELECT COALESCE(
+            json_agg(jsonb_build_object(
+              'measure_type',       nfm.measure_type,
+              'area_hectares',      nfm.area_hectares::text,
+              'storage_volume_m3',  nfm.storage_volume_m3::text,
+              'length_km',          nfm.length_km::text,
+              'width_m',            nfm.width_m::text
+            )),
+            '[]'::json
+          )
+          FROM pafs_core_nfm_measures nfm
+          WHERE nfm.project_id = p.id
+        ) AS nfm_measures_json,
+
+        (
+          SELECT COALESCE(
+            json_agg(jsonb_build_object(
+              'land_use_type',          luc.land_use_type,
+              'area_before_hectares',   luc.area_before_hectares::text,
+              'area_after_hectares',    luc.area_after_hectares::text
+            )),
+            '[]'::json
+          )
+          FROM pafs_core_nfm_land_use_changes luc
+          WHERE luc.project_id = p.id
+        ) AS land_use_json,
+
+        (
+          SELECT COALESCE(
+            json_agg(jsonb_build_object(
+              'id',                               fv.id::text,
+              'financial_year',                   fv.financial_year,
+              'fcerm_gia',                        fv.fcerm_gia::text,
+              'local_levy',                       fv.local_levy::text,
+              'internal_drainage_boards',         fv.internal_drainage_boards::text,
+              'public_contributions',             fv.public_contributions::text,
+              'private_contributions',            fv.private_contributions::text,
+              'other_ea_contributions',           fv.other_ea_contributions::text,
+              'not_yet_identified',               fv.not_yet_identified::text,
+              'total',                            fv.total::text,
+              'asset_replacement_allowance',      fv.asset_replacement_allowance::text,
+              'environment_statutory_funding',    fv.environment_statutory_funding::text,
+              'frequently_flooded_communities',   fv.frequently_flooded_communities::text,
+              'other_additional_grant_in_aid',    fv.other_additional_grant_in_aid::text,
+              'other_government_department',      fv.other_government_department::text,
+              'recovery',                         fv.recovery::text,
+              'summer_economic_fund',             fv.summer_economic_fund::text
+            )),
+            '[]'::json
+          )
+          FROM pafs_core_funding_values fv
+          WHERE fv.project_id = p.id
+        ) AS funding_values_json,
+
+        (
+          SELECT COALESCE(
+            json_agg(jsonb_build_object(
+              'funding_value_id',   fc.funding_value_id::text,
+              'name',               fc.name,
+              'contributor_type',   fc.contributor_type,
+              'amount',             fc.amount::text,
+              'secured',            fc.secured,
+              'constrained',        fc.constrained,
+              'created_at',         fc.created_at,
+              'updated_at',         fc.updated_at
+            )),
+            '[]'::json
+          )
+          FROM pafs_core_funding_contributors fc
+          WHERE fc.funding_value_id IN (
+            SELECT id FROM pafs_core_funding_values WHERE project_id = p.id
+          )
+        ) AS contributors_json
+
+      FROM pafs_core_projects p
+      LEFT JOIN pafs_core_states s        ON s.project_id  = p.id
+      LEFT JOIN pafs_core_area_projects ap ON ap.project_id = p.id
+    </createView>
+  </changeSet>
+
+</databaseChangeLog>

@@ -14,6 +14,12 @@ import {
 import { resolveStatus } from './project-formatter.js'
 import { config } from '../../../config.js'
 
+// Per-process deduplication lock: prevents concurrent requests for the same
+// project from each making their own S3 presign + DB write when the cached
+// URL is stale. The first request regenerates; subsequent concurrent requests
+// await that same Promise and reuse the result.
+const benefitAreaUrlLocks = new Map()
+
 // ---------------------------------------------------------------------------
 // Individual enrichment steps
 // ---------------------------------------------------------------------------
@@ -100,18 +106,28 @@ async function enrichBenefitAreaDownloadUrl(
     rawProject.benefit_area_file_s3_key = resolved.benefit_area_file_s3_key
   }
 
-  // URL is missing or stale — regenerate and persist
-  const { downloadUrl, downloadExpiry } = await generateDownloadUrl(
-    rawProject.benefit_area_file_s3_bucket,
-    rawProject.benefit_area_file_s3_key,
-    logger,
-    `${rawProject.slug}_benefit_area.zip`
-  )
+  // URL is missing or stale — regenerate and persist, but deduplicate concurrent
+  // requests for the same project so only one S3 call + DB write happens.
+  const refNum = rawProject.reference_number
+  if (!benefitAreaUrlLocks.has(refNum)) {
+    const regenerate = generateDownloadUrl(
+      rawProject.benefit_area_file_s3_bucket,
+      rawProject.benefit_area_file_s3_key,
+      logger,
+      `${rawProject.slug}_benefit_area.zip`
+    )
+      .then(({ downloadUrl, downloadExpiry }) =>
+        updateBenefitAreaDownloadUrl(prisma, refNum, {
+          downloadUrl,
+          downloadExpiry
+        }).then(() => ({ downloadUrl, downloadExpiry }))
+      )
+      .finally(() => benefitAreaUrlLocks.delete(refNum))
 
-  await updateBenefitAreaDownloadUrl(prisma, rawProject.reference_number, {
-    downloadUrl,
-    downloadExpiry
-  })
+    benefitAreaUrlLocks.set(refNum, regenerate)
+  }
+
+  const { downloadUrl, downloadExpiry } = await benefitAreaUrlLocks.get(refNum)
 
   apiData.benefitAreaFileDownloadUrl = downloadUrl
   apiData.benefitAreaFileDownloadExpiry = downloadExpiry

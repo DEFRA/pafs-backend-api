@@ -5,6 +5,7 @@
  * Extracted from ProjectFundingSourcesService to keep file sizes within SonarQube limits.
  */
 
+import { Prisma } from '@prisma/client'
 import { ProjectFundingContributorsSyncService } from './project-funding-contributors-sync-service.js'
 
 export class ProjectFundingContributorsService {
@@ -130,169 +131,6 @@ export class ProjectFundingContributorsService {
   }
 
   /**
-   * Delete funding contributor record
-   * @param {Object} data - Funding contributor identification data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {number} data.financialYear - Financial year
-   * @param {string} data.contributorType - Type of contributor to delete
-   * @param {string} data.name - Name of contributor to delete
-   * @returns {Promise<Object>} Deleted contributor record or null if not found
-   */
-  async deleteFundingContributor({
-    referenceNumber,
-    financialYear,
-    contributorType,
-    name
-  }) {
-    try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
-
-      // Get the funding value for this financial year
-      const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
-        {
-          where: {
-            project_id: projectId,
-            financial_year: financialYear
-          },
-          select: { id: true }
-        }
-      )
-
-      if (!fundingValue) {
-        this.logger.info(
-          { projectId, financialYear, referenceNumber },
-          'Funding value not found, cannot delete contributor'
-        )
-        return null
-      }
-
-      const existingContributor =
-        await this.prisma.pafs_core_funding_contributors.findFirst({
-          where: {
-            funding_value_id: fundingValue.id,
-            contributor_type: contributorType,
-            name
-          }
-        })
-
-      if (existingContributor) {
-        const deletedContributor =
-          await this.prisma.pafs_core_funding_contributors.delete({
-            where: { id: existingContributor.id }
-          })
-
-        this.logger.info(
-          {
-            projectId,
-            financialYear,
-            contributorType,
-            name,
-            referenceNumber
-          },
-          'Funding contributor deleted successfully'
-        )
-
-        return deletedContributor
-      }
-
-      this.logger.info(
-        {
-          projectId,
-          financialYear,
-          contributorType,
-          name,
-          referenceNumber
-        },
-        'Funding contributor not found, nothing to delete'
-      )
-
-      return null
-    } catch (error) {
-      this.logger.error(
-        {
-          error: error.message,
-          referenceNumber,
-          financialYear,
-          contributorType,
-          name
-        },
-        'Error deleting funding contributor'
-      )
-      throw error
-    }
-  }
-
-  /**
-   * Delete all funding contributors for a funding value (bulk delete)
-   * @param {Object} data - Identification data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {number} data.financialYear - Financial year
-   * @returns {Promise<number>} Number of contributors deleted
-   */
-  async deleteAllFundingContributors({
-    referenceNumber,
-    financialYear,
-    projectId: providedProjectId
-  }) {
-    try {
-      const projectId =
-        providedProjectId ??
-        (await this._getProjectIdByReference(referenceNumber))
-
-      // Get the funding value for this financial year
-      const fundingValue = await this.prisma.pafs_core_funding_values.findFirst(
-        {
-          where: {
-            project_id: projectId,
-            financial_year: financialYear
-          },
-          select: { id: true }
-        }
-      )
-
-      if (!fundingValue) {
-        this.logger.info(
-          { projectId, financialYear, referenceNumber },
-          'Funding value not found, no contributors to delete'
-        )
-        return 0
-      }
-
-      const result =
-        await this.prisma.pafs_core_funding_contributors.deleteMany({
-          where: { funding_value_id: fundingValue.id }
-        })
-
-      this.logger.info(
-        { projectId, financialYear, referenceNumber, count: result.count },
-        'All funding contributors deleted successfully'
-      )
-
-      return result.count
-    } catch (error) {
-      this.logger.error(
-        { error: error.message, referenceNumber, financialYear },
-        'Error deleting all funding contributors'
-      )
-      throw error
-    }
-  }
-
-  /**
-   * Delete contributor rows of a specific type whose name is no longer in the
-   * provided list, then recalculate the matching amount column and overall
-   * total in pafs_core_funding_values for each affected year.
-   *
-   * Called when the user edits the contributor names list on the
-   * public / private / other-EA contributors page.
-   *
-   * @param {Object} data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {string} data.contributorType - e.g. 'public_contributions'
-   * @param {string[]} data.currentNames - Names that are still present
-   * @returns {Promise<void>}
-   */
-  /**
    * Apply rename-or-delete for each stale contributor name.
    * Pairs each removed name with an added name (rename in-place) to preserve
    * the stored amount so the estimated-spend page pre-populates correctly.
@@ -305,30 +143,34 @@ export class ProjectFundingContributorsService {
     removed,
     added
   }) {
-    for (let i = 0; i < removed.length; i++) {
-      const where = {
-        funding_value_id: { in: fundingValueIds },
-        contributor_type: contributorType,
-        name: removed[i]
-      }
-      if (i < added.length) {
-        await this.prisma.pafs_core_funding_contributors.updateMany({
-          where,
-          data: { name: added[i] }
-        })
-      } else {
-        await this.prisma.pafs_core_funding_contributors.deleteMany({ where })
-      }
-    }
+    // Each removed[i] targets a different name — operations are independent, run in parallel
+    await Promise.all(
+      removed.map((removedName, i) => {
+        const where = {
+          funding_value_id: { in: fundingValueIds },
+          contributor_type: contributorType,
+          name: removedName
+        }
+        return i < added.length
+          ? this.prisma.pafs_core_funding_contributors.updateMany({
+              where,
+              data: { name: added[i] }
+            })
+          : this.prisma.pafs_core_funding_contributors.deleteMany({ where })
+      })
+    )
   }
 
   async cleanupContributorsByName({
     referenceNumber,
     contributorType,
-    currentNames
+    currentNames,
+    projectId: providedProjectId
   }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
       const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
         {
@@ -409,38 +251,31 @@ export class ProjectFundingContributorsService {
    * @param {string} data.contributorType - e.g. 'public_contributions'
    * @returns {Promise<number>} Number of rows deleted
    */
-  async deleteContributorsByType({ referenceNumber, contributorType }) {
+  async deleteContributorsByType({
+    referenceNumber,
+    contributorType,
+    projectId: providedProjectId
+  }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
-      // Collect all funding value IDs for this project
-      const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
-        {
-          where: { project_id: projectId },
-          select: { id: true }
-        }
+      // Single DELETE with subquery — avoids the findMany fv_id pre-fetch.
+      const count = await this.prisma.$executeRaw(
+        Prisma.sql`DELETE FROM pafs_core_funding_contributors
+          WHERE contributor_type = ${contributorType}
+          AND funding_value_id IN (
+            SELECT id FROM pafs_core_funding_values WHERE project_id = ${projectId}
+          )`
       )
 
-      const fundingValueIds = fundingValues.map((fv) => fv.id)
-
-      if (fundingValueIds.length === 0) {
-        return 0
-      }
-
-      const result =
-        await this.prisma.pafs_core_funding_contributors.deleteMany({
-          where: {
-            funding_value_id: { in: fundingValueIds },
-            contributor_type: contributorType
-          }
-        })
-
       this.logger.info(
-        { projectId, referenceNumber, contributorType, count: result.count },
+        { projectId, referenceNumber, contributorType, count },
         'Funding contributors deleted by type'
       )
 
-      return result.count
+      return count
     } catch (error) {
       this.logger.error(
         { error: error.message, referenceNumber, contributorType },
@@ -458,14 +293,16 @@ export class ProjectFundingContributorsService {
     referenceNumber,
     financialYear,
     contributorEntries,
-    projectId
+    projectId,
+    fundingValueId
   }) {
     return this._syncService.syncFundingContributorsForYear({
       referenceNumber,
       financialYear,
       contributorEntries,
       upsertFn: this.upsertFundingContributor.bind(this),
-      projectId
+      projectId,
+      fundingValueId
     })
   }
 
@@ -477,12 +314,18 @@ export class ProjectFundingContributorsService {
   async ensureContributorFundingRows({
     referenceNumber,
     contributorType,
-    contributorNames
+    contributorNames,
+    projectId,
+    financialStartYear,
+    financialEndYear
   }) {
     return this._syncService.ensureContributorFundingRows({
       referenceNumber,
       contributorType,
-      contributorNames
+      contributorNames,
+      projectId,
+      financialStartYear,
+      financialEndYear
     })
   }
 }

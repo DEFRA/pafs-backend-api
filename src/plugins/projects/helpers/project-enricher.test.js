@@ -570,6 +570,50 @@ describe('enrichProjectResponse', () => {
 
       expect(api.benefitAreaFileDownloadExpiry).toBe(freshExpiry)
     })
+
+    test('Should deduplicate concurrent URL regenerations for the same project (thundering herd lock)', async () => {
+      let resolveDownload
+      generateDownloadUrl.mockReturnValue(
+        new Promise((resolve) => {
+          resolveDownload = resolve
+        })
+      )
+
+      const staleRaw = () =>
+        buildRawProject({
+          reference_number: 'ANC501E/000A/001A',
+          benefit_area_file_name: 'map.zip',
+          benefit_area_file_s3_bucket: 'bucket',
+          benefit_area_file_s3_key: 'key',
+          benefit_area_file_download_url: null,
+          benefit_area_file_download_expiry: null
+        })
+
+      const api1 = buildApiData()
+      const api2 = buildApiData()
+
+      // Fire two concurrent requests for the same project
+      const p1 = enrichProjectResponse(prisma, staleRaw(), api1)
+      const p2 = enrichProjectResponse(prisma, staleRaw(), api2)
+
+      // Resolve the single S3 call
+      resolveDownload({
+        downloadUrl: 'https://deduped.example.com/file.zip',
+        downloadExpiry: new Date('2099-01-01T00:00:00.000Z')
+      })
+
+      await Promise.all([p1, p2])
+
+      // S3 should have been called exactly once despite two concurrent requests
+      expect(generateDownloadUrl).toHaveBeenCalledOnce()
+      // Both responses should have the same URL
+      expect(api1.benefitAreaFileDownloadUrl).toBe(
+        'https://deduped.example.com/file.zip'
+      )
+      expect(api2.benefitAreaFileDownloadUrl).toBe(
+        'https://deduped.example.com/file.zip'
+      )
+    })
   })
 
   // ---------------------------------------------------------------------------

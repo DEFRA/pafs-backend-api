@@ -301,13 +301,15 @@ const upsertFundingContributors = async ({
   referenceNumber,
   financialYear,
   projectId,
-  contributorEntries
+  contributorEntries,
+  fundingValueId
 }) => {
   await projectService.syncFundingContributorsForYear({
     referenceNumber,
     financialYear,
     contributorEntries,
-    projectId
+    projectId,
+    fundingValueId
   })
 }
 
@@ -324,24 +326,19 @@ const processFundingValueRow = async ({
   amounts.total = calculateFundingTotal(amounts)
 
   if (!hasAnyAmountValue(amounts)) {
-    // Delete contributors first — deleteAllFundingContributors does a findFirst
-    // on the funding value to get its id before deleting contributors by that id.
-    // If deleteFundingValue ran first and removed the row, the findFirst would
-    // return null and contributors would be silently skipped.
-    await projectService.deleteAllFundingContributors({
-      referenceNumber,
+    // Combined delete: resolves the fv id once then removes contributors + fv row.
+    // Contributors must go first to avoid orphaned rows.
+    await projectService.deleteFundingValueWithContributors({
+      projectId,
       financialYear,
-      projectId
-    })
-    await projectService.deleteFundingValue({
-      referenceNumber,
-      financialYear,
-      projectId
+      referenceNumber
     })
     return
   }
 
-  await projectService.upsertFundingValue({
+  // upsertFundingValue returns the saved record — thread its id through to
+  // syncFundingContributorsForYear so it does not need to re-fetch the fv row.
+  const savedFv = await projectService.upsertFundingValue({
     referenceNumber,
     financialYear,
     amounts,
@@ -358,7 +355,8 @@ const processFundingValueRow = async ({
     referenceNumber,
     financialYear,
     projectId,
-    contributorEntries
+    contributorEntries,
+    fundingValueId: savedFv?.id
   })
 }
 
@@ -397,7 +395,8 @@ const DESELECTED_SPEND_FIELDS_BY_LEVEL = {
 export const clearDeselectedFundingSourceColumns = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   const fields = DESELECTED_SPEND_FIELDS_BY_LEVEL[validationLevel]
   if (!fields) {
@@ -411,7 +410,8 @@ export const clearDeselectedFundingSourceColumns = async (
 
   await projectService.nullSpecificFundingColumns(
     enrichedPayload.referenceNumber,
-    deselected
+    deselected,
+    existingProject?.id != null ? Number(existingProject.id) : undefined
   )
 }
 

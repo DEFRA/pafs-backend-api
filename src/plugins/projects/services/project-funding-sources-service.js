@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { ProjectFundingContributorsService } from './project-funding-contributors-service.js'
 
 /**
@@ -51,45 +52,10 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
     return updateData
   }
 
-  async _findExistingFundingValue(projectId, financialYear) {
-    return this.prisma.pafs_core_funding_values.findFirst({
-      where: {
-        project_id: projectId,
-        financial_year: financialYear
-      }
-    })
-  }
-
-  async _saveFundingValue({
-    projectId,
-    financialYear,
-    existingValue,
-    updateData
-  }) {
-    if (existingValue) {
-      return this.prisma.pafs_core_funding_values.update({
-        where: { id: existingValue.id },
-        data: updateData
-      })
-    }
-
-    return this.prisma.pafs_core_funding_values.create({
-      data: {
-        project_id: projectId,
-        financial_year: financialYear,
-        total: 0n,
-        ...updateData
-      }
-    })
-  }
-
   /**
-   * Upsert funding value (annual spend) record
-   * @param {Object} data - Funding value data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {number} data.financialYear - Financial year for this spend record
-   * @param {Object} data.amounts - Amounts object with fund source keys (fcermGia, localLevy, etc.)
-   * @returns {Promise<Object>} Created or updated funding value record
+   * Upsert funding value (annual spend) record using Prisma upsert.
+   * @@unique([project_id, financial_year]) added via migration 5-002 enables
+   * a single round-trip — replaces the old findFirst + update/create pattern.
    */
   async upsertFundingValue({
     referenceNumber,
@@ -102,16 +68,22 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
         providedProjectId ??
         (await this._getProjectIdByReference(referenceNumber))
 
-      const existingValue = await this._findExistingFundingValue(
-        projectId,
-        financialYear
-      )
       const updateData = this._buildFundingValueUpdateData(amounts)
-      const fundingValue = await this._saveFundingValue({
-        projectId,
-        financialYear,
-        existingValue,
-        updateData
+
+      const fundingValue = await this.prisma.pafs_core_funding_values.upsert({
+        where: {
+          project_id_financial_year: {
+            project_id: projectId,
+            financial_year: financialYear
+          }
+        },
+        update: updateData,
+        create: {
+          project_id: projectId,
+          financial_year: financialYear,
+          total: 0n,
+          ...updateData
+        }
       })
 
       this.logger.info(
@@ -130,69 +102,54 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
   }
 
   /**
-   * Delete funding value record for a specific financial year
-   * @param {Object} data - Funding value identification data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {number} data.financialYear - Financial year to delete
-   * @returns {Promise<Object>} Deleted funding value record or null if not found
+   * Delete contributors then the funding value row for one year in a single
+   * method call (one findFirst, two deleteManyS).
+   * Contributors must be removed first to avoid orphaned rows.
+   * Called by processFundingValueRow when all amounts are zero/null.
    */
-  async deleteFundingValue({
-    referenceNumber,
+  async deleteFundingValueWithContributors({
+    projectId,
     financialYear,
-    projectId: providedProjectId
+    referenceNumber
   }) {
     try {
-      const projectId =
-        providedProjectId ??
-        (await this._getProjectIdByReference(referenceNumber))
+      const fv = await this.prisma.pafs_core_funding_values.findFirst({
+        where: { project_id: projectId, financial_year: financialYear },
+        select: { id: true }
+      })
 
-      const existingValue =
-        await this.prisma.pafs_core_funding_values.findFirst({
-          where: {
-            project_id: projectId,
-            financial_year: financialYear
-          }
-        })
-
-      if (existingValue) {
-        const deletedValue = await this.prisma.pafs_core_funding_values.delete({
-          where: { id: existingValue.id }
-        })
-
-        this.logger.info(
-          { projectId, financialYear, referenceNumber },
-          'Funding value deleted successfully'
-        )
-
-        return deletedValue
+      if (!fv) {
+        return
       }
+
+      await this.prisma.pafs_core_funding_contributors.deleteMany({
+        where: { funding_value_id: fv.id }
+      })
+
+      await this.prisma.pafs_core_funding_values.deleteMany({
+        where: { id: fv.id }
+      })
 
       this.logger.info(
         { projectId, financialYear, referenceNumber },
-        'Funding value not found, nothing to delete'
+        'Funding value and contributors deleted successfully'
       )
-
-      return null
     } catch (error) {
       this.logger.error(
         { error: error.message, referenceNumber, financialYear },
-        'Error deleting funding value'
+        'Error deleting funding value with contributors'
       )
       throw error
     }
   }
 
   /**
-   * Delete all funding values and their contributors for a project (bulk delete)
-   * Used when clearing funding data after project deletion or reset
-   * @param {string} referenceNumber - Project reference number
-   * @returns {Promise<{fundingValuesDeleted: number, contributorsDeleted: number}>}
+   * Delete all funding values and their contributors for a project (bulk delete).
    */
   async deleteAllFundingData(referenceNumber) {
     try {
       const projectId = await this._getProjectIdByReference(referenceNumber)
 
-      // First, get all funding value IDs for this project
       const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
         {
           where: { project_id: projectId },
@@ -202,13 +159,11 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
 
       const fundingValueIds = fundingValues.map((fv) => fv.id)
 
-      // Delete all contributors for these funding values
       const contributorsResult =
         await this.prisma.pafs_core_funding_contributors.deleteMany({
           where: { funding_value_id: { in: fundingValueIds } }
         })
 
-      // Delete all funding values
       const valuesResult =
         await this.prisma.pafs_core_funding_values.deleteMany({
           where: { project_id: projectId }
@@ -236,24 +191,12 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
 
   /**
    * Clear spending amounts from funding values and contributors that fall
-   * outside a financial year range.  Rows are preserved (not deleted) so that
-   * legacy projects do not lose contributor names stored only in the
-   * pafs_core_funding_contributors table.
-   *
-   * For out-of-range funding value rows every amount column is set to null and
-   * the total is reset to 0.  For the linked contributor rows the amount field
-   * is set to null while the name and contributor_type are kept intact.
-   *
-   * @param {string} referenceNumber - Project reference number
-   * @param {number} startYear - New financial start year (inclusive)
-   * @param {number} endYear - New financial end year (inclusive)
-   * @returns {Promise<{fundingValuesCleared: number, contributorsCleared: number}>}
+   * outside a financial year range. Rows are preserved (not deleted).
    */
   async clearOutOfRangeFundingData(referenceNumber, startYear, endYear) {
     try {
       const projectId = await this._getProjectIdByReference(referenceNumber)
 
-      // Find funding values outside the new range
       const outOfRangeValues =
         await this.prisma.pafs_core_funding_values.findMany({
           where: {
@@ -276,21 +219,18 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
 
       const outOfRangeIds = outOfRangeValues.map((fv) => fv.id)
 
-      // Build the null-data object for all amount columns
       const nullAmounts = {}
       for (const [, dbCol] of FUNDING_VALUE_AMOUNT_FIELD_MAP) {
         nullAmounts[dbCol] = null
       }
       nullAmounts.total = 0n
 
-      // Null out amounts in all out-of-range funding value rows in one operation
       const { count: fundingValuesCleared } =
         await this.prisma.pafs_core_funding_values.updateMany({
           where: { id: { in: outOfRangeIds } },
           data: nullAmounts
         })
 
-      // Null out the amount on linked contributor rows (keep name & type)
       const contributorsResult =
         await this.prisma.pafs_core_funding_contributors.updateMany({
           where: { funding_value_id: { in: outOfRangeIds } },
@@ -318,55 +258,44 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
   }
 
   /**
-   * Null out specific funding source columns in all pafs_core_funding_values rows
-   * for a project, and recalculate the total from the remaining non-nulled columns.
-   * Called when individual funding sources are deselected on Screen 1 or Screen 2.
-   * @param {string} referenceNumber - Project reference number
-   * @param {string[]} fields - Array of camelCase field names to null (e.g. ['fcermGia', 'localLevy'])
+   * Null out specific funding source columns for every funding_value row of a
+   * project and recompute each row's total — all in a single atomic UPDATE.
+   *
+   * Using a single SQL UPDATE rather than findMany + N individual updates:
+   *  - eliminates the N-query loop
+   *  - avoids the read-modify-write race (two concurrent requests overwriting
+   *    each other's total) because the total is computed server-side in the DB
+   *
+   * Column names come from the hardcoded FUNDING_VALUE_AMOUNT_FIELD_MAP constant
+   * so using Prisma.raw here is safe — no user-supplied SQL.
    */
-  async nullSpecificFundingColumns(referenceNumber, fields) {
+  async nullSpecificFundingColumns(referenceNumber, fields, providedProjectId) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
-
-      const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
-        {
-          where: { project_id: projectId }
-        }
-      )
-
-      if (!fundingValues.length) {
-        this.logger.info(
-          { projectId, referenceNumber },
-          'No funding values found, nothing to null'
-        )
-        return
-      }
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
       const fieldToDb = Object.fromEntries(FUNDING_VALUE_AMOUNT_FIELD_MAP)
-      const allAmountDbCols = FUNDING_VALUE_AMOUNT_FIELD_MAP.map(([, db]) => db)
+      const nulledDbCols = new Set(
+        fields.map((f) => fieldToDb[f]).filter(Boolean)
+      )
 
-      const nullData = {}
-      for (const field of fields) {
-        const dbCol = fieldToDb[field]
-        if (dbCol) {
-          nullData[dbCol] = null
-        }
-      }
-      const nulledDbCols = new Set(Object.keys(nullData))
+      if (nulledDbCols.size === 0) return
 
-      for (const fv of fundingValues) {
-        const remaining = allAmountDbCols.reduce((sum, col) => {
-          if (nulledDbCols.has(col)) {
-            return sum
-          }
-          return sum + (fv[col] ?? 0n)
-        }, 0n)
+      const nullAssignments = [...nulledDbCols].map((c) => `${c} = NULL`)
+      const remainingCols = FUNDING_VALUE_AMOUNT_FIELD_MAP.map(
+        ([, db]) => db
+      ).filter((c) => !nulledDbCols.has(c))
+      const totalExpr =
+        remainingCols.length > 0
+          ? remainingCols.map((c) => `COALESCE(${c}, 0)`).join(' + ')
+          : '0'
 
-        await this.prisma.pafs_core_funding_values.update({
-          where: { id: fv.id },
-          data: { ...nullData, total: remaining }
-        })
-      }
+      await this.prisma.$executeRaw(
+        Prisma.sql`UPDATE pafs_core_funding_values SET ${Prisma.raw(
+          [...nullAssignments, `total = ${totalExpr}`].join(', ')
+        )} WHERE project_id = ${projectId}`
+      )
 
       this.logger.info(
         { projectId, referenceNumber, fields },
@@ -382,47 +311,33 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
   }
 
   /**
-   * Null out additional FCRM GIA columns in all pafs_core_funding_values rows
-   * for a project, and recalculate the total.
-   * Called when additionalFcermGia is deselected.
-   * @param {string} referenceNumber - Project reference number
+   * Null out additional FCRM GIA columns for every funding_value row of a
+   * project and recompute the total from the remaining base columns — all
+   * in a single atomic UPDATE.
    */
-  async nullAdditionalGiaColumns(referenceNumber) {
+  async nullAdditionalGiaColumns(referenceNumber, providedProjectId) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
-      const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
-        {
-          where: { project_id: projectId }
-        }
+      await this.prisma.$executeRaw(
+        Prisma.sql`UPDATE pafs_core_funding_values SET
+          asset_replacement_allowance = NULL,
+          environment_statutory_funding = NULL,
+          frequently_flooded_communities = NULL,
+          other_additional_grant_in_aid = NULL,
+          other_government_department = NULL,
+          recovery = NULL,
+          summer_economic_fund = NULL,
+          total = COALESCE(fcerm_gia, 0) + COALESCE(local_levy, 0) +
+                  COALESCE(internal_drainage_boards, 0) +
+                  COALESCE(public_contributions, 0) +
+                  COALESCE(private_contributions, 0) +
+                  COALESCE(other_ea_contributions, 0) +
+                  COALESCE(not_yet_identified, 0)
+        WHERE project_id = ${projectId}`
       )
-
-      for (const fv of fundingValues) {
-        // Recalculate total excluding the additional GIA fields
-        const remaining = [
-          fv.fcerm_gia,
-          fv.local_levy,
-          fv.internal_drainage_boards,
-          fv.public_contributions,
-          fv.private_contributions,
-          fv.other_ea_contributions,
-          fv.not_yet_identified
-        ].reduce((sum, v) => sum + (v ?? 0n), 0n)
-
-        await this.prisma.pafs_core_funding_values.update({
-          where: { id: fv.id },
-          data: {
-            asset_replacement_allowance: null,
-            environment_statutory_funding: null,
-            frequently_flooded_communities: null,
-            other_additional_grant_in_aid: null,
-            other_government_department: null,
-            recovery: null,
-            summer_economic_fund: null,
-            total: remaining
-          }
-        })
-      }
 
       this.logger.info(
         { projectId, referenceNumber },

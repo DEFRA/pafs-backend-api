@@ -3,11 +3,8 @@ import {
   PROJECT_STATUS,
   PROJECT_VALIDATION_MESSAGES
 } from '../../../common/constants/project.js'
+import { Prisma } from '@prisma/client'
 import { ProjectMapper } from '../helpers/project-mapper.js'
-import {
-  getProjectSelectFields,
-  getJoinedTableConfig
-} from '../helpers/project-config.js'
 import { enrichProjectResponse } from '../helpers/project-enricher.js'
 import { generateProjectReferenceNumber } from './project-reference-service.js'
 import { ProjectNfmService } from './project-nfm-service.js'
@@ -16,64 +13,11 @@ import {
   executeLegacyProjectTypeMigration
 } from './legacy-migration-service.js'
 
-const OPTIONAL_OVERVIEW_NFM_FIELDS = [
-  'nfm_landowner_consent',
-  'nfm_experience_level',
-  'nfm_project_readiness'
-]
-
 export class ProjectService extends ProjectNfmService {
   constructor(prisma, logger) {
     super(prisma, logger)
     this.prisma = prisma
     this.logger = logger
-  }
-
-  _getOverviewSelectFields() {
-    return { id: true, ...getProjectSelectFields() }
-  }
-
-  _isMissingOptionalFieldError(error, fieldName) {
-    const message = String(error?.message || '')
-    const lowerMessage = message.toLowerCase()
-    const lowerField = fieldName.toLowerCase()
-
-    return (
-      lowerMessage.includes(lowerField) &&
-      (lowerMessage.includes('unknown field') ||
-        lowerMessage.includes('does not exist') ||
-        lowerMessage.includes('p2022'))
-    )
-  }
-
-  async _getProjectDetailsForOverview(referenceNumber) {
-    const selectFields = this._getOverviewSelectFields()
-
-    try {
-      return await this._getProjectDetails(referenceNumber, { selectFields })
-    } catch (error) {
-      const missingOptionalField = OPTIONAL_OVERVIEW_NFM_FIELDS.find((field) =>
-        this._isMissingOptionalFieldError(error, field)
-      )
-
-      if (!missingOptionalField) {
-        throw error
-      }
-
-      this.logger.warn(
-        { referenceNumber, error: error.message, missingOptionalField },
-        'Falling back to overview select without optional NFM fields'
-      )
-
-      const fallbackSelectFields = { ...selectFields }
-      OPTIONAL_OVERVIEW_NFM_FIELDS.forEach((field) => {
-        delete fallbackSelectFields[field]
-      })
-
-      return this._getProjectDetails(referenceNumber, {
-        selectFields: fallbackSelectFields
-      })
-    }
   }
 
   /**
@@ -241,136 +185,39 @@ export class ProjectService extends ProjectNfmService {
     return this._getProjectDetails(referenceNumber, { includeVersion: true })
   }
 
-  _buildJoinSelect(config) {
-    return Object.fromEntries(
-      Object.values(config.fields).map((field) => [field, true])
+  async _queryProjectFull(referenceNumber) {
+    const rows = await this.prisma.$queryRaw(
+      Prisma.sql`SELECT * FROM v_project_full WHERE reference_number = ${referenceNumber}`
     )
+    if (!rows || rows.length === 0) {
+      return null
+    }
+    return this._reshapeProjectViewRow(rows[0])
   }
 
-  async _fetchFundingContributorsByProjectId(projectId, config) {
-    if (!this.prisma.pafs_core_funding_values?.findMany) {
-      return []
-    }
+  _reshapeProjectViewRow(row) {
+    const project = { ...row }
 
-    const fundingValues = await this.prisma.pafs_core_funding_values.findMany({
-      where: { project_id: Number(projectId) },
-      select: { id: true }
-    })
+    project.pafs_core_states =
+      project.state != null ? { state: project.state } : null
+    project.pafs_core_area_projects =
+      project.area_id != null
+        ? { area_id: project.area_id, owner: project.area_owner }
+        : null
+    project.pafs_core_nfm_measures = project.nfm_measures_json ?? []
+    project.pafs_core_nfm_land_use_changes = project.land_use_json ?? []
+    project.pafs_core_funding_values = project.funding_values_json ?? []
+    project.pafs_core_funding_contributors = project.contributors_json ?? []
 
-    const fundingValueIds = fundingValues
-      .map(({ id }) => Number(id))
-      .filter((id) => !Number.isNaN(id))
+    delete project.state
+    delete project.area_id
+    delete project.area_owner
+    delete project.nfm_measures_json
+    delete project.land_use_json
+    delete project.funding_values_json
+    delete project.contributors_json
 
-    if (fundingValueIds.length === 0) {
-      return []
-    }
-
-    if (!this.prisma[config.tableName]?.findMany) {
-      return []
-    }
-
-    return this.prisma[config.tableName].findMany({
-      where: {
-        [config.joinField]: {
-          in: fundingValueIds
-        }
-      },
-      select: this._buildJoinSelect(config)
-    })
-  }
-
-  async _fetchJoinedDataByConfig(projectId, config) {
-    if (
-      config.tableName === 'pafs_core_funding_contributors' &&
-      config.joinField === 'funding_value_id'
-    ) {
-      return this._fetchFundingContributorsByProjectId(projectId, config)
-    }
-
-    const query = {
-      where: {
-        [config.joinField]: Number(projectId)
-      },
-      select: this._buildJoinSelect(config)
-    }
-
-    const table = this.prisma[config.tableName]
-    if (!table) {
-      return config.isArray ? [] : null
-    }
-
-    return config.isArray ? table.findMany(query) : table.findFirst(query)
-  }
-
-  _attachJoinedTableData(project, tableKey, joinData, isArray) {
-    if (isArray && joinData?.length > 0) {
-      project[tableKey] = joinData
-      return
-    }
-
-    if (!isArray && joinData) {
-      project[tableKey] = joinData
-    }
-  }
-
-  _isFundingContributorConfig(config) {
-    return (
-      config.tableName === 'pafs_core_funding_contributors' &&
-      config.joinField === 'funding_value_id'
-    )
-  }
-
-  async _fetchAndAttachFundingContributors(project, contributorEntries) {
-    const fundingValueIds = (project.pafs_core_funding_values ?? [])
-      .map(({ id }) => Number(id))
-      .filter((id) => !Number.isNaN(id))
-
-    for (const [tableKey, config] of contributorEntries) {
-      let contributors = []
-      if (
-        fundingValueIds.length > 0 &&
-        this.prisma[config.tableName]?.findMany
-      ) {
-        contributors = await this.prisma[config.tableName].findMany({
-          where: { [config.joinField]: { in: fundingValueIds } },
-          select: this._buildJoinSelect(config)
-        })
-      }
-      this._attachJoinedTableData(
-        project,
-        tableKey,
-        contributors,
-        config.isArray
-      )
-    }
-  }
-
-  async _populateJoinedTables(project) {
-    const entries = Object.entries(getJoinedTableConfig())
-
-    // Funding contributors join on funding_value_id, not project_id — split them out
-    // so we can reuse funding value IDs already fetched in this same batch rather
-    // than issuing a second query to pafs_core_funding_values just for their IDs.
-    const nonContributorEntries = entries.filter(
-      ([, config]) => !this._isFundingContributorConfig(config)
-    )
-    const contributorEntries = entries.filter(([, config]) =>
-      this._isFundingContributorConfig(config)
-    )
-
-    // Fetch all non-contributor tables (including pafs_core_funding_values) in parallel
-    const results = await Promise.all(
-      nonContributorEntries.map(([, config]) =>
-        this._fetchJoinedDataByConfig(project.id, config)
-      )
-    )
-    for (let i = 0; i < nonContributorEntries.length; i++) {
-      const [tableKey, config] = nonContributorEntries[i]
-      this._attachJoinedTableData(project, tableKey, results[i], config.isArray)
-    }
-
-    // Use funding value IDs already attached above — single batch query, no extra DB round-trip
-    await this._fetchAndAttachFundingContributors(project, contributorEntries)
+    return project
   }
 
   async getProjectByReferenceNumber(
@@ -387,7 +234,7 @@ export class ProjectService extends ProjectNfmService {
         'Fetching project details by reference number'
       )
 
-      const project = await this._getProjectDetailsForOverview(referenceNumber)
+      const project = await this._queryProjectFull(referenceNumber)
 
       if (!project) {
         return null
@@ -413,8 +260,6 @@ export class ProjectService extends ProjectNfmService {
             migrationResult.legacy_project_type_migration_completed
         }
       }
-
-      await this._populateJoinedTables(project)
 
       const apiData = ProjectMapper.toApi(project)
 
@@ -572,14 +417,16 @@ export class ProjectService extends ProjectNfmService {
    * @returns {Promise<Object|null>}
    */
   async getProjectForSubmission(referenceNumber) {
-    const project = await this.getProjectByReferenceNumber(referenceNumber)
+    const [project, row] = await Promise.all([
+      this.getProjectByReferenceNumber(referenceNumber),
+      this.prisma.pafs_core_projects.findFirst({
+        where: { reference_number: referenceNumber },
+        select: { benefit_area_file_base64: true }
+      })
+    ])
     if (!project) {
       return null
     }
-    const row = await this.prisma.pafs_core_projects.findFirst({
-      where: { reference_number: referenceNumber },
-      select: { benefit_area_file_base64: true }
-    })
     project.benefitAreaFileBase64 = row?.benefit_area_file_base64 ?? null
     return project
   }
