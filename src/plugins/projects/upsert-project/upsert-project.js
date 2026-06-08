@@ -111,7 +111,7 @@ const applyNfmNormalizers = async (
   projectService
 ) => {
   const existingProjectId =
-    existingProject?.id != null ? Number(existingProject.id) : undefined
+    existingProject?.id == null ? undefined : Number(existingProject.id)
 
   // PROJECT_TYPE level: clears NFM scalar fields and child records when NFM/SUDS is removed
   await clearNfmFieldsOnInterventionTypeChange(
