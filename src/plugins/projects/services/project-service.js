@@ -93,7 +93,7 @@ export class ProjectService extends ProjectNfmService {
       return { isValid: true }
     } catch (error) {
       this.logger.error(
-        { projectName: payload.name, error: error.message },
+        { projectName: payload.name, err: error },
         'Error checking duplicate project name'
       )
       return this._buildValidationError(
@@ -198,12 +198,10 @@ export class ProjectService extends ProjectNfmService {
   _reshapeProjectViewRow(row) {
     const project = { ...row }
 
-    project.pafs_core_states =
-      project.state != null ? { state: project.state } : null
-    project.pafs_core_area_projects =
-      project.area_id != null
-        ? { area_id: project.area_id, owner: project.area_owner }
-        : null
+    project.pafs_core_states = project.state ? { state: project.state } : null
+    project.pafs_core_area_projects = project.area_id
+      ? { area_id: project.area_id, owner: project.area_owner }
+      : null
     project.pafs_core_nfm_measures = project.nfm_measures_json ?? []
     project.pafs_core_nfm_land_use_changes = project.land_use_json ?? []
     project.pafs_core_funding_values = project.funding_values_json ?? []
@@ -272,7 +270,7 @@ export class ProjectService extends ProjectNfmService {
       return apiData
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber },
+        { err: error, referenceNumber },
         'Error fetching project details by reference number'
       )
       throw error
@@ -283,23 +281,23 @@ export class ProjectService extends ProjectNfmService {
    * Generic helper for upserting project-related records
    * @param {string} tableName - Prisma table name
    * @param {number} projectId - Project ID
-   * @param {Object} fields - Fields to upsert
-   * @param {Object} createOnlyFields - Fields only for create operation
-   * @param {Object} updateOnlyFields - Fields only for update operation
-   * @param {Object} logContext - Additional context for logging
-   * @param {string} errorMessage - Error message template
+   * @param {Object} options
+   * @param {Object} options.fields - Fields common to create and update
+   * @param {Object} [options.createOnlyFields] - Fields only for create operation
+   * @param {Object} [options.updateOnlyFields] - Fields only for update operation
+   * @param {Object} [options.logContext] - Additional context for logging
+   * @param {string} [options.errorMessage] - Error message on failure
    * @returns {Promise<Object>} Upserted record
    * @private
    */
-  async _upsertProjectRelatedRecord(
-    tableName,
-    projectId,
-    fields,
-    createOnlyFields = {},
-    updateOnlyFields = {},
-    logContext = {},
-    errorMessage = 'Error upserting record'
-  ) {
+  async _upsertProjectRelatedRecord(tableName, projectId, options) {
+    const {
+      fields,
+      createOnlyFields = {},
+      updateOnlyFields = {},
+      logContext = {},
+      errorMessage = 'Error upserting record'
+    } = options
     try {
       const commonFields = {
         ...fields,
@@ -327,26 +325,24 @@ export class ProjectService extends ProjectNfmService {
   }
 
   async upsertProjectState(projectId, newState) {
-    return this._upsertProjectRelatedRecord(
-      'pafs_core_states',
-      projectId,
-      { state: newState },
-      {},
-      {},
-      { newState },
-      'Error upserting project state'
-    )
+    return this._upsertProjectRelatedRecord('pafs_core_states', projectId, {
+      fields: { state: newState },
+      logContext: { newState },
+      errorMessage: 'Error upserting project state'
+    })
   }
 
   async upsertProjectArea(projectId, areaId) {
     return this._upsertProjectRelatedRecord(
       'pafs_core_area_projects',
       projectId,
-      { area_id: Number(areaId) },
-      { owner: true },
-      { owner: false },
-      { areaId },
-      'Error upserting project area'
+      {
+        fields: { area_id: Number(areaId) },
+        createOnlyFields: { owner: true },
+        updateOnlyFields: { owner: false },
+        logContext: { areaId },
+        errorMessage: 'Error upserting project area'
+      }
     )
   }
 

@@ -6,26 +6,31 @@
   <changeSet id="5-004-funding-contributors-unique-constraint" author="migration-team">
     <comment>
       Add unique constraint on (funding_value_id, contributor_type, name) in
-      pafs_core_funding_contributors. Removes duplicate rows (keeping the highest
-      id) then adds the constraint so the application can use a single Prisma
+      pafs_core_funding_contributors. Enables the application to use a single Prisma
       upsert instead of findFirst + create/update.
 
-      All three columns are nullable; PostgreSQL treats each NULL as distinct for
-      unique-constraint purposes, so legacy rows with NULL values are not affected.
+      Contributors with the same type and name across multiple financial years each have a
+      distinct funding_value_id (one funding_value row per project per year), so the
+      constraint correctly scopes uniqueness within a single year's funding value.
+
+      NULL handling: PostgreSQL treats each NULL as distinct from every other NULL in a
+      unique constraint. Rows where funding_value_id IS NULL (orphaned legacy rows) will
+      never violate this constraint regardless of how many share the same contributor_type
+      and name — each NULL is considered a unique value.
+
+      Cross-proposal rows: contributors with the same contributor_type and name that belong
+      to different proposals have different funding_value_id values and therefore different
+      constraint keys — no conflict.
+
+      The only true violation would be two rows with identical non-null
+      (funding_value_id, contributor_type, name) — i.e. the same contributor written twice
+      into the same financial year's funding value. That is the race condition this
+      constraint is designed to prevent.
 
       The single-column index on funding_value_id is dropped because the new
       compound unique index covers it as a left-prefix.
+      This changeset runs before data migration so the table is empty.
     </comment>
-
-    <!-- Remove duplicate (funding_value_id, contributor_type, name) rows, keeping the latest -->
-    <sql>
-      DELETE FROM pafs_core_funding_contributors
-      WHERE id NOT IN (
-        SELECT MAX(id)
-        FROM pafs_core_funding_contributors
-        GROUP BY funding_value_id, contributor_type, name
-      );
-    </sql>
 
     <!-- Drop the single-column funding_value_id index — redundant once the compound unique exists -->
     <dropIndex indexName="index_pafs_core_funding_contributors_on_funding_value_id"

@@ -6,20 +6,11 @@
   <changeSet id="5-002-funding-values-unique-constraint" author="migration-team">
     <comment>
       Add unique constraint on (project_id, financial_year) in pafs_core_funding_values.
-      Removes any duplicate rows (keeping the highest id) then replaces the non-unique
-      compound index with a proper unique constraint so Prisma can use a single upsert
-      instead of findFirst + update/create.
+      Replaces the non-unique compound index with a proper unique constraint so Prisma
+      can use a single upsert instead of findFirst + update/create.
+      Each project can have multiple financial years; the constraint enforces one row per
+      project per year. This changeset runs before data migration so the table is empty.
     </comment>
-
-    <!-- Remove duplicate (project_id, financial_year) rows, keeping the latest -->
-    <sql>
-      DELETE FROM pafs_core_funding_values
-      WHERE id NOT IN (
-        SELECT MAX(id)
-        FROM pafs_core_funding_values
-        GROUP BY project_id, financial_year
-      );
-    </sql>
 
     <!-- Drop the existing non-unique compound index (replaced by the unique constraint below) -->
     <dropIndex indexName="funding_values_on_project_id_and_financial_year"

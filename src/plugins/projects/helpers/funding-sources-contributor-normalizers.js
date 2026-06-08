@@ -1,5 +1,9 @@
 import { PROJECT_VALIDATION_LEVELS } from '../../../common/constants/project.js'
 
+// Flip condition to positive (== null) so Sonar does not flag a negated condition.
+const resolveProjectId = (existingProject) =>
+  existingProject?.id == null ? undefined : Number(existingProject.id)
+
 /**
  * Syncs the growthFunding boolean flag with the virtual additionalFcermGia field.
  * When additionalFcermGia is true → growthFunding = true.
@@ -14,11 +18,11 @@ export const syncGrowthFundingFlag = (enrichedPayload, validationLevel) => {
 
   if (enrichedPayload.additionalFcermGia === true) {
     enrichedPayload.growthFunding = true
-  } else if (enrichedPayload.additionalFcermGia === false) {
-    enrichedPayload.growthFunding = false
-  } else {
-    // additionalFcermGia is undefined/null – leave growthFunding unchanged
   }
+  if (enrichedPayload.additionalFcermGia === false) {
+    enrichedPayload.growthFunding = false
+  }
+  // additionalFcermGia is undefined/null — leave growthFunding unchanged
 }
 
 /**
@@ -59,7 +63,7 @@ export const clearDeselectedAdditionalGiaData = async (
   // Null out the spend columns in pafs_core_funding_values
   await projectService.nullAdditionalGiaColumns(
     enrichedPayload.referenceNumber,
-    existingProject?.id != null ? Number(existingProject.id) : undefined
+    resolveProjectId(existingProject)
   )
 }
 
@@ -86,8 +90,7 @@ export const clearDeselectedContributorData = async (
   }
 
   const { referenceNumber } = enrichedPayload
-  const projectId =
-    existingProject?.id != null ? Number(existingProject.id) : undefined
+  const projectId = resolveProjectId(existingProject)
 
   const DESELECT_CONFIG = [
     {
@@ -175,8 +178,7 @@ export const cleanupRemovedContributors = async (
     referenceNumber,
     contributorType: config.contributorType,
     currentNames,
-    projectId:
-      existingProject?.id != null ? Number(existingProject.id) : undefined
+    projectId: resolveProjectId(existingProject)
   })
 }
 
@@ -220,9 +222,8 @@ export const ensureContributorFundingRows = async (
     referenceNumber,
     contributorType: config.contributorType,
     contributorNames: currentNames,
-    projectId:
-      existingProject?.id != null ? Number(existingProject.id) : undefined,
-    financialStartYear: existingProject?.financialStartYear ?? undefined,
-    financialEndYear: existingProject?.financialEndYear ?? undefined
+    projectId: resolveProjectId(existingProject),
+    financialStartYear: existingProject?.financialStartYear,
+    financialEndYear: existingProject?.financialEndYear
   })
 }

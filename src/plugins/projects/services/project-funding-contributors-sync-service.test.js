@@ -357,5 +357,200 @@ describe('ProjectFundingContributorsSyncService', () => {
         mockPrisma.pafs_core_funding_contributors.createMany
       ).toHaveBeenCalledWith(expect.objectContaining({ skipDuplicates: true }))
     })
+
+    test('skips the findFirst DB lookup when both financialStartYear and financialEndYear are provided', async () => {
+      mockPrisma.pafs_core_projects.findFirst.mockResolvedValueOnce({ id: 1n })
+      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
+        { id: 10n }
+      ])
+
+      await service.ensureContributorFundingRows({
+        referenceNumber: 'REF-001',
+        contributorType: 'public_contributions',
+        contributorNames: ['Alice'],
+        financialStartYear: 2025,
+        financialEndYear: 2026
+      })
+
+      // Only one findFirst call: to resolve the project id.
+      // The second findFirst for financial years is NOT called because
+      // financialStartYear and financialEndYear were supplied directly.
+      expect(mockPrisma.pafs_core_projects.findFirst).toHaveBeenCalledTimes(1)
+      expect(
+        mockPrisma.pafs_core_funding_values.createMany
+      ).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // ─── _upsertContributorDirect ──────────────────────────────────────────────
+
+  describe('_upsertContributorDirect', () => {
+    test('calls upsert with composite unique key and returns result', async () => {
+      const fvId = 10n
+      const fakeResult = { id: 99n }
+      mockPrisma.pafs_core_funding_contributors.upsert.mockResolvedValue(
+        fakeResult
+      )
+
+      const result = await service._upsertContributorDirect(fvId, {
+        contributorType: 'public_contributions',
+        name: 'Alice',
+        amount: '500'
+      })
+
+      expect(result).toBe(fakeResult)
+      expect(
+        mockPrisma.pafs_core_funding_contributors.upsert
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            funding_value_id_contributor_type_name: {
+              funding_value_id: fvId,
+              contributor_type: 'public_contributions',
+              name: 'Alice'
+            }
+          },
+          update: expect.objectContaining({ amount: 500n }),
+          create: expect.objectContaining({
+            funding_value_id: fvId,
+            contributor_type: 'public_contributions',
+            name: 'Alice',
+            amount: 500n
+          })
+        })
+      )
+    })
+  })
+
+  // ─── _upsertDesiredContributors with fundingValueId truthy ────────────────
+
+  describe('_upsertDesiredContributors (fundingValueId truthy)', () => {
+    test('calls _upsertContributorDirect for each entry when fundingValueId is supplied', async () => {
+      const fvId = 10n
+      mockPrisma.pafs_core_funding_contributors.upsert.mockResolvedValue({
+        id: 1n
+      })
+
+      const entries = [
+        { contributorType: 'public_contributions', name: 'A', amount: '100' },
+        { contributorType: 'public_contributions', name: 'B', amount: '200' }
+      ]
+
+      await service._upsertDesiredContributors(
+        entries,
+        'REF-001',
+        2025,
+        null,
+        fvId
+      )
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.upsert
+      ).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  // ─── _ensureFundingValueRow ────────────────────────────────────────────────
+
+  describe('_ensureFundingValueRow', () => {
+    test('calls upsert with compound unique key for the given project + year', async () => {
+      const fakeRow = {
+        id: 55n,
+        project_id: 1,
+        financial_year: 2025,
+        total: 0n
+      }
+      mockPrisma.pafs_core_funding_values.upsert.mockResolvedValue(fakeRow)
+
+      const result = await service._ensureFundingValueRow(1, 2025)
+
+      expect(result).toBe(fakeRow)
+      expect(mockPrisma.pafs_core_funding_values.upsert).toHaveBeenCalledWith({
+        where: {
+          project_id_financial_year: { project_id: 1, financial_year: 2025 }
+        },
+        update: {},
+        create: { project_id: 1, financial_year: 2025, total: 0n }
+      })
+    })
+  })
+
+  // ─── _createContributorIfMissing ───────────────────────────────────────────
+
+  describe('_createContributorIfMissing', () => {
+    test('calls upsert with empty update so existing amounts are not overwritten', async () => {
+      mockPrisma.pafs_core_funding_contributors.upsert.mockResolvedValue({})
+
+      await service._createContributorIfMissing(
+        10n,
+        'Alice',
+        'public_contributions'
+      )
+
+      expect(
+        mockPrisma.pafs_core_funding_contributors.upsert
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            funding_value_id_contributor_type_name: {
+              funding_value_id: 10n,
+              contributor_type: 'public_contributions',
+              name: 'Alice'
+            }
+          },
+          update: {},
+          create: expect.objectContaining({
+            funding_value_id: 10n,
+            name: 'Alice',
+            contributor_type: 'public_contributions',
+            amount: null
+          })
+        })
+      )
+    })
+  })
+
+  // ─── _resolveFundingValueId: direct path ──────────────────────────────────
+
+  describe('_resolveFundingValueId (providedFvId truthy)', () => {
+    test('returns the provided id without a DB lookup', async () => {
+      const result = await service._resolveFundingValueId(
+        99n,
+        1,
+        2025,
+        'REF-001'
+      )
+
+      expect(result).toBe(99n)
+      expect(
+        mockPrisma.pafs_core_funding_values.findFirst
+      ).not.toHaveBeenCalled()
+    })
+  })
+
+  // ─── syncFundingContributorsForYear: providedProjectId path ──────────────
+
+  describe('syncFundingContributorsForYear (providedProjectId)', () => {
+    test('uses provided projectId and skips _getProjectIdByReference', async () => {
+      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue({
+        id: 10n
+      })
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
+        count: 0
+      })
+      const upsertFn = vi.fn().mockResolvedValue()
+
+      await service.syncFundingContributorsForYear({
+        referenceNumber: 'REF-001',
+        financialYear: 2025,
+        contributorEntries: [],
+        upsertFn,
+        projectId: 1
+      })
+
+      // _getProjectIdByReference (findFirst) must NOT be called because
+      // projectId was provided directly.
+      expect(mockPrisma.pafs_core_projects.findFirst).not.toHaveBeenCalled()
+    })
   })
 })

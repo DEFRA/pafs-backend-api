@@ -53,6 +53,50 @@ const CONTRIBUTOR_CONFIG = [
   }
 ]
 
+// Maps contributor-name validation levels to the corresponding payload field
+const CONTRIBUTOR_NAME_LEVEL_MAP = {
+  [PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS]:
+    'publicContributorNames',
+  [PROJECT_VALIDATION_LEVELS.PRIVATE_SECTOR_CONTRIBUTORS]:
+    'privateContributorNames',
+  [PROJECT_VALIDATION_LEVELS.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS]:
+    'otherEaContributorNames'
+}
+
+const sanitizeSpendFields = (row) => {
+  for (const field of FUNDING_SPEND_FIELDS) {
+    if (typeof row[field] === 'string') {
+      row[field] = row[field].replaceAll(',', '').trim()
+    }
+  }
+}
+
+const sanitizeContributor = (contributor) => {
+  if (typeof contributor.name === 'string') {
+    contributor.name = contributor.name.trim()
+  }
+  if (typeof contributor.amount === 'string') {
+    contributor.amount = contributor.amount.replaceAll(',', '').trim()
+  }
+}
+
+const sanitizeContributorArray = (contributors) => {
+  for (const contributor of contributors) {
+    if (contributor && typeof contributor === 'object') {
+      sanitizeContributor(contributor)
+    }
+  }
+}
+
+const sanitizeContributorEntries = (row) => {
+  for (const { contributorsField } of CONTRIBUTOR_CONFIG) {
+    const contributors = row[contributorsField]
+    if (Array.isArray(contributors)) {
+      sanitizeContributorArray(contributors)
+    }
+  }
+}
+
 /**
  * Sanitizes funding source fields (for validation stage).
  *
@@ -61,30 +105,10 @@ const CONTRIBUTOR_CONFIG = [
  *   for each spend field in every fundingValues row
  */
 export const sanitizeFundingSourceFields = (payload, validationLevel) => {
-  if (
-    validationLevel === PROJECT_VALIDATION_LEVELS.PUBLIC_SECTOR_CONTRIBUTORS
-  ) {
-    if (typeof payload.publicContributorNames === 'string') {
-      payload.publicContributorNames = payload.publicContributorNames.trim()
-    }
-    return
-  }
-
-  if (
-    validationLevel === PROJECT_VALIDATION_LEVELS.PRIVATE_SECTOR_CONTRIBUTORS
-  ) {
-    if (typeof payload.privateContributorNames === 'string') {
-      payload.privateContributorNames = payload.privateContributorNames.trim()
-    }
-    return
-  }
-
-  if (
-    validationLevel ===
-    PROJECT_VALIDATION_LEVELS.OTHER_ENVIRONMENT_AGENCY_CONTRIBUTORS
-  ) {
-    if (typeof payload.otherEaContributorNames === 'string') {
-      payload.otherEaContributorNames = payload.otherEaContributorNames.trim()
+  const nameField = CONTRIBUTOR_NAME_LEVEL_MAP[validationLevel]
+  if (nameField) {
+    if (typeof payload[nameField] === 'string') {
+      payload[nameField] = payload[nameField].trim()
     }
     return
   }
@@ -100,37 +124,44 @@ export const sanitizeFundingSourceFields = (payload, validationLevel) => {
     return
   }
 
-  payload.fundingValues.forEach((row) => {
+  for (const row of payload.fundingValues) {
     if (!row || typeof row !== 'object') {
-      return
+      continue
     }
+    sanitizeSpendFields(row)
+    sanitizeContributorEntries(row)
+  }
+}
 
-    FUNDING_SPEND_FIELDS.forEach((field) => {
-      if (typeof row[field] === 'string') {
-        row[field] = row[field].replaceAll(',', '').trim()
-      }
-    })
+const normalizeSpendFields = (row) => {
+  for (const field of FUNDING_SPEND_FIELDS) {
+    if (row[field] === '' || row[field] === '0') {
+      row[field] = null
+    }
+  }
+}
 
-    CONTRIBUTOR_CONFIG.forEach(({ contributorsField }) => {
-      if (!Array.isArray(row[contributorsField])) {
-        return
-      }
+const normalizeContributor = (contributor) => {
+  if (contributor.amount === '' || contributor.amount === '0') {
+    contributor.amount = null
+  }
+}
 
-      row[contributorsField].forEach((contributor) => {
-        if (!contributor || typeof contributor !== 'object') {
-          return
-        }
+const normalizeContributorArray = (contributors) => {
+  for (const contributor of contributors) {
+    if (contributor && typeof contributor === 'object') {
+      normalizeContributor(contributor)
+    }
+  }
+}
 
-        if (typeof contributor.name === 'string') {
-          contributor.name = contributor.name.trim()
-        }
-
-        if (typeof contributor.amount === 'string') {
-          contributor.amount = contributor.amount.replaceAll(',', '').trim()
-        }
-      })
-    })
-  })
+const normalizeContributorAmounts = (row) => {
+  for (const { contributorsField } of CONTRIBUTOR_CONFIG) {
+    const contributors = row[contributorsField]
+    if (Array.isArray(contributors)) {
+      normalizeContributorArray(contributors)
+    }
+  }
 }
 
 /**
@@ -154,33 +185,13 @@ export const normalizeFundingSourceFields = (
     return
   }
 
-  enrichedPayload.fundingValues.forEach((row) => {
+  for (const row of enrichedPayload.fundingValues) {
     if (!row || typeof row !== 'object') {
-      return
+      continue
     }
-
-    FUNDING_SPEND_FIELDS.forEach((field) => {
-      if (row[field] === '' || row[field] === '0') {
-        row[field] = null
-      }
-    })
-
-    CONTRIBUTOR_CONFIG.forEach(({ contributorsField }) => {
-      if (!Array.isArray(row[contributorsField])) {
-        return
-      }
-
-      row[contributorsField].forEach((contributor) => {
-        if (!contributor || typeof contributor !== 'object') {
-          return
-        }
-
-        if (contributor.amount === '' || contributor.amount === '0') {
-          contributor.amount = null
-        }
-      })
-    })
-  })
+    normalizeSpendFields(row)
+    normalizeContributorAmounts(row)
+  }
 }
 
 const createFundingAmounts = (row) => {
@@ -296,23 +307,6 @@ const hasFinancialYear = (row) => {
   return row.financialYear !== null && row.financialYear !== undefined
 }
 
-const upsertFundingContributors = async ({
-  projectService,
-  referenceNumber,
-  financialYear,
-  projectId,
-  contributorEntries,
-  fundingValueId
-}) => {
-  await projectService.syncFundingContributorsForYear({
-    referenceNumber,
-    financialYear,
-    contributorEntries,
-    projectId,
-    fundingValueId
-  })
-}
-
 const processFundingValueRow = async ({
   row,
   referenceNumber,
@@ -350,12 +344,11 @@ const processFundingValueRow = async ({
   // (from a previously saved contributor whose amount was cleared) to be
   // deleted by _deleteStaleContributors.
   const contributorEntries = getContributorEntries(row)
-  await upsertFundingContributors({
-    projectService,
+  await projectService.syncFundingContributorsForYear({
     referenceNumber,
     financialYear,
-    projectId,
     contributorEntries,
+    projectId,
     fundingValueId: savedFv?.id
   })
 }
@@ -411,7 +404,7 @@ export const clearDeselectedFundingSourceColumns = async (
   await projectService.nullSpecificFundingColumns(
     enrichedPayload.referenceNumber,
     deselected,
-    existingProject?.id != null ? Number(existingProject.id) : undefined
+    existingProject?.id == null ? undefined : Number(existingProject.id)
   )
 }
 

@@ -216,7 +216,7 @@ describe('ProjectService', () => {
       })
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { projectName: payload.name, error: dbError.message },
+        { projectName: payload.name, err: dbError },
         'Error checking duplicate project name'
       )
     })
@@ -1154,7 +1154,7 @@ describe('ProjectService', () => {
       ).rejects.toThrow('Database connection error')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { error: dbError.message, referenceNumber },
+        { err: dbError, referenceNumber },
         'Error fetching project details by reference number'
       )
     })

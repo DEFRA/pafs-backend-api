@@ -120,7 +120,7 @@ describe('checkProjectName', () => {
         ]
       })
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { projectName: 'Test_Project', error: dbError.message },
+        { projectName: 'Test_Project', err: dbError },
         'Error checking duplicate project name'
       )
     })

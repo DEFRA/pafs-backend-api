@@ -6,21 +6,11 @@
   <changeSet id="5-003-nfm-measures-unique-constraint" author="migration-team">
     <comment>
       Add unique constraint on (project_id, measure_type) in pafs_core_nfm_measures.
-      Removes any duplicate rows (keeping the highest id) then adds a unique constraint.
       The existing single-column idx_nfm_measures_project_id index is dropped because the
       new compound unique index covers project_id as a left-prefix lookup.
       idx_nfm_measures_type is retained for queries filtered by measure_type alone.
+      This changeset runs before data migration so the table is empty.
     </comment>
-
-    <!-- Remove duplicate (project_id, measure_type) rows, keeping the latest -->
-    <sql>
-      DELETE FROM pafs_core_nfm_measures
-      WHERE id NOT IN (
-        SELECT MAX(id)
-        FROM pafs_core_nfm_measures
-        GROUP BY project_id, measure_type
-      );
-    </sql>
 
     <!-- Drop the single-column project_id index — made redundant by the compound unique below -->
     <dropIndex indexName="idx_nfm_measures_project_id"

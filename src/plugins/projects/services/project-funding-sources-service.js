@@ -94,7 +94,7 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
       return fundingValue
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber, financialYear },
+        { err: error, referenceNumber, financialYear },
         'Error upserting funding value'
       )
       throw error
@@ -136,7 +136,7 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
       )
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber, financialYear },
+        { err: error, referenceNumber, financialYear },
         'Error deleting funding value with contributors'
       )
       throw error
@@ -182,7 +182,7 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
       return result
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber },
+        { err: error, referenceNumber },
         'Error deleting all funding data'
       )
       throw error
@@ -250,7 +250,7 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
       return result
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber, startYear, endYear },
+        { err: error, referenceNumber, startYear, endYear },
         'Error clearing out-of-range funding data'
       )
       throw error
@@ -280,7 +280,9 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
         fields.map((f) => fieldToDb[f]).filter(Boolean)
       )
 
-      if (nulledDbCols.size === 0) return
+      if (nulledDbCols.size === 0) {
+        return
+      }
 
       const nullAssignments = [...nulledDbCols].map((c) => `${c} = NULL`)
       const remainingCols = FUNDING_VALUE_AMOUNT_FIELD_MAP.map(
@@ -303,7 +305,7 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
       )
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber, fields },
+        { err: error, referenceNumber, fields },
         'Error nulling specific funding columns'
       )
       throw error
@@ -345,7 +347,7 @@ export class ProjectFundingSourcesService extends ProjectFundingContributorsServ
       )
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber },
+        { err: error, referenceNumber },
         'Error nulling additional GIA columns'
       )
       throw error

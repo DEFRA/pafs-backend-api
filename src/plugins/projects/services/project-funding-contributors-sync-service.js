@@ -102,29 +102,67 @@ export class ProjectFundingContributorsSyncService {
    * @private
    */
   async _deleteStaleContributors(desiredEntries, fundingValueId) {
-    if (desiredEntries.length === 0) {
-      const result =
-        await this.prisma.pafs_core_funding_contributors.deleteMany({
-          where: { funding_value_id: fundingValueId }
-        })
-      return result.count
+    const where =
+      desiredEntries.length === 0
+        ? { funding_value_id: fundingValueId }
+        : {
+            funding_value_id: fundingValueId,
+            NOT: desiredEntries.map((c) => ({
+              contributor_type: c.contributorType,
+              name: c.name
+            }))
+          }
+
+    const { count } =
+      await this.prisma.pafs_core_funding_contributors.deleteMany({ where })
+    return count
+  }
+
+  /**
+   * Resolve the funding_value id for a project+year, using the supplied id
+   * directly when the caller already knows it (avoids a redundant round-trip).
+   * Returns null and logs when no funding_value row exists.
+   * @private
+   */
+  async _resolveFundingValueId(
+    providedFvId,
+    projectId,
+    financialYear,
+    referenceNumber
+  ) {
+    if (providedFvId) {
+      return providedFvId
     }
-
-    // Single DELETE with NOT filter — avoids the findMany pre-fetch.
-    // Prisma NOT: [{type:A,name:B}, …] generates:
-    //   NOT (type=A AND name=B) AND NOT (type=C AND name=D) …
-    // which deletes every contributor row for this fv that isn't in the desired set.
-    const result = await this.prisma.pafs_core_funding_contributors.deleteMany({
-      where: {
-        funding_value_id: fundingValueId,
-        NOT: desiredEntries.map((c) => ({
-          contributor_type: c.contributorType,
-          name: c.name
-        }))
-      }
+    const fundingValue = await this.prisma.pafs_core_funding_values.findFirst({
+      where: { project_id: projectId, financial_year: financialYear },
+      select: { id: true }
     })
+    if (fundingValue) {
+      return fundingValue.id
+    }
+    this.logger.info(
+      { projectId, financialYear, referenceNumber },
+      'Funding value not found, cannot sync contributors'
+    )
+    return null
+  }
 
-    return result.count
+  /**
+   * Filter raw contributor entries down to those with a name, type and amount.
+   * @private
+   */
+  _filterValidContributors(contributorEntries) {
+    if (!Array.isArray(contributorEntries)) {
+      return []
+    }
+    return contributorEntries.filter(
+      (c) =>
+        c?.name &&
+        c?.contributorType &&
+        c?.amount !== null &&
+        c?.amount !== undefined &&
+        c?.amount !== ''
+    )
   }
 
   /**
@@ -153,37 +191,17 @@ export class ProjectFundingContributorsSyncService {
         providedProjectId ??
         (await this._getProjectIdByReference(referenceNumber))
 
-      // Reuse the already-known fv id when the caller supplies it —
-      // avoids a redundant round-trip for the common path from processFundingValueRow.
-      let fvId = providedFundingValueId
-      if (!fvId) {
-        const fundingValue =
-          await this.prisma.pafs_core_funding_values.findFirst({
-            where: { project_id: projectId, financial_year: financialYear },
-            select: { id: true }
-          })
-
-        if (!fundingValue) {
-          this.logger.info(
-            { projectId, financialYear, referenceNumber },
-            'Funding value not found, cannot sync contributors'
-          )
-          return
-        }
-
-        fvId = fundingValue.id
+      const fvId = await this._resolveFundingValueId(
+        providedFundingValueId,
+        projectId,
+        financialYear,
+        referenceNumber
+      )
+      if (fvId === null) {
+        return
       }
 
-      const desiredEntries = Array.isArray(contributorEntries)
-        ? contributorEntries.filter(
-            (c) =>
-              c?.name &&
-              c?.contributorType &&
-              c?.amount !== null &&
-              c?.amount !== undefined &&
-              c?.amount !== ''
-          )
-        : []
+      const desiredEntries = this._filterValidContributors(contributorEntries)
 
       await this._upsertDesiredContributors(
         desiredEntries,
@@ -210,11 +228,7 @@ export class ProjectFundingContributorsSyncService {
       )
     } catch (error) {
       this.logger.error(
-        {
-          error: error.message,
-          referenceNumber,
-          financialYear
-        },
+        { err: error, referenceNumber, financialYear },
         'Error syncing funding contributors for year'
       )
       throw error
@@ -268,6 +282,81 @@ export class ProjectFundingContributorsSyncService {
   }
 
   /**
+   * Resolve the financial year range for a project, falling back to a DB
+   * lookup when the caller did not supply both years.
+   * Returns { startYear, endYear } or null when the project has no range.
+   * @private
+   */
+  async _resolveFinancialYears(
+    projectId,
+    referenceNumber,
+    financialStartYear,
+    financialEndYear
+  ) {
+    if (financialStartYear != null && financialEndYear != null) {
+      return { startYear: financialStartYear, endYear: financialEndYear }
+    }
+    const project = await this.prisma.pafs_core_projects.findFirst({
+      where: { id: projectId },
+      select: {
+        earliest_start_year: true,
+        project_end_financial_year: true
+      }
+    })
+    if (!project?.earliest_start_year || !project?.project_end_financial_year) {
+      this.logger.info(
+        { referenceNumber },
+        'Project has no financial year range, skipping contributor funding rows'
+      )
+      return null
+    }
+    return {
+      startYear: project.earliest_start_year,
+      endYear: project.project_end_financial_year
+    }
+  }
+
+  /**
+   * Bulk-create funding_value and funding_contributor placeholder rows.
+   * Uses skipDuplicates so this is safe to call repeatedly.
+   * @private
+   */
+  async _persistContributorRows(
+    projectId,
+    years,
+    contributorType,
+    contributorNames
+  ) {
+    await this.prisma.pafs_core_funding_values.createMany({
+      data: years.map((year) => ({
+        project_id: projectId,
+        financial_year: year,
+        total: 0n
+      })),
+      skipDuplicates: true
+    })
+
+    const fundingValues = await this.prisma.pafs_core_funding_values.findMany({
+      where: { project_id: projectId, financial_year: { in: years } },
+      select: { id: true }
+    })
+
+    await this.prisma.pafs_core_funding_contributors.createMany({
+      data: fundingValues.flatMap((fv) =>
+        contributorNames.map((name) => ({
+          funding_value_id: fv.id,
+          contributor_type: contributorType,
+          name,
+          amount: null,
+          created_at: new Date(),
+          updated_at: new Date()
+        }))
+      ),
+      skipDuplicates: true
+    })
+  }
+
+  /**
    * Ensures funding_value rows exist for each financial year of the project and
    * upserts contributor rows (with null amounts) for new contributor names.
    *
@@ -290,78 +379,28 @@ export class ProjectFundingContributorsSyncService {
         providedProjectId ??
         (await this._getProjectIdByReference(referenceNumber))
 
-      let startYear = financialStartYear
-      let endYear = financialEndYear
-
-      if (startYear == null || endYear == null) {
-        const project = await this.prisma.pafs_core_projects.findFirst({
-          where: { id: projectId },
-          select: {
-            earliest_start_year: true,
-            project_end_financial_year: true
-          }
-        })
-
-        if (
-          !project?.earliest_start_year ||
-          !project?.project_end_financial_year
-        ) {
-          this.logger.info(
-            { referenceNumber },
-            'Project has no financial year range, skipping contributor funding rows'
-          )
-          return
-        }
-
-        startYear = project.earliest_start_year
-        endYear = project.project_end_financial_year
-      }
-
-      if (!startYear || !endYear) {
-        this.logger.info(
-          { referenceNumber },
-          'Project has no financial year range, skipping contributor funding rows'
-        )
+      const yearRange = await this._resolveFinancialYears(
+        projectId,
+        referenceNumber,
+        financialStartYear,
+        financialEndYear
+      )
+      if (yearRange === null) {
         return
       }
 
+      const { startYear, endYear } = yearRange
       const years = Array.from(
         { length: endYear - startYear + 1 },
         (_, i) => startYear + i
       )
 
-      // 1) Ensure all funding value rows exist — 1 query
-      await this.prisma.pafs_core_funding_values.createMany({
-        data: years.map((year) => ({
-          project_id: projectId,
-          financial_year: year,
-          total: 0n
-        })),
-        skipDuplicates: true
-      })
-
-      // 2) Fetch IDs for all rows (createMany doesn't return them) — 1 query
-      const fundingValues = await this.prisma.pafs_core_funding_values.findMany(
-        {
-          where: { project_id: projectId, financial_year: { in: years } },
-          select: { id: true }
-        }
+      await this._persistContributorRows(
+        projectId,
+        years,
+        contributorType,
+        contributorNames
       )
-
-      // 3) Ensure all contributor placeholder rows exist — 1 query
-      await this.prisma.pafs_core_funding_contributors.createMany({
-        data: fundingValues.flatMap((fv) =>
-          contributorNames.map((name) => ({
-            funding_value_id: fv.id,
-            contributor_type: contributorType,
-            name,
-            amount: null,
-            created_at: new Date(),
-            updated_at: new Date()
-          }))
-        ),
-        skipDuplicates: true
-      })
 
       this.logger.info(
         {
@@ -373,7 +412,7 @@ export class ProjectFundingContributorsSyncService {
       )
     } catch (error) {
       this.logger.error(
-        { error: error.message, referenceNumber, contributorType },
+        { err: error, referenceNumber, contributorType },
         'Error ensuring contributor funding rows'
       )
       throw error
