@@ -204,18 +204,23 @@ export class AuthService {
   }
 
   async createSuccessfulLoginResponse(user, ipAddress) {
-    await this.invalidateOtherSessions(user.id)
-
     const sessionId = generateSessionId()
 
-    // Fetch user areas with types using shared utility
-    const areas = await fetchUserAreas(this.prisma, user.id)
+    // Run area fetch and login record update in parallel.
+    // updateSuccessfulLogin atomically writes the new sessionId, which
+    // immediately invalidates any prior session — no separate
+    // invalidateOtherSessions call needed.
+    const [areas] = await Promise.all([
+      fetchUserAreas(this.prisma, user.id),
+      this.updateSuccessfulLogin(user.id, sessionId, ipAddress, {
+        signInAt: user.current_sign_in_at,
+        signInIp: user.current_sign_in_ip
+      })
+    ])
     const areaFlags = getAreaTypeFlags(areas)
 
     const accessToken = generateAccessToken(user, sessionId, areas)
     const refreshToken = generateRefreshToken(user, sessionId)
-
-    await this.updateSuccessfulLogin(user.id, sessionId, ipAddress)
 
     this.logger.info({ userId: user.id }, 'User logged in successfully')
 
@@ -294,9 +299,13 @@ export class AuthService {
     })
   }
 
-  async updateSuccessfulLogin(userId, sessionId, ipAddress) {
+  async updateSuccessfulLogin(
+    userId,
+    sessionId,
+    ipAddress,
+    { signInAt, signInIp } = {}
+  ) {
     const now = new Date()
-    const { signInAt, signInIp } = await this.getCurrentSignInData(userId)
 
     await this.prisma.pafs_core_users.update({
       where: { id: userId },
