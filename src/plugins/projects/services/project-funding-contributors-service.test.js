@@ -15,6 +15,7 @@ describe('ProjectFundingContributorsService', () => {
     }
 
     mockPrisma = {
+      $executeRaw: vi.fn().mockResolvedValue(0),
       pafs_core_projects: {
         findFirst: vi.fn()
       },
@@ -139,160 +140,6 @@ describe('ProjectFundingContributorsService', () => {
           financialYear: 2026
         }),
         'Error upserting funding contributor'
-      )
-    })
-  })
-
-  describe('deleteFundingContributor', () => {
-    const base = {
-      referenceNumber: 'REF-001',
-      financialYear: 2026,
-      contributorType: 'public_contributions',
-      name: 'Contributor A'
-    }
-
-    beforeEach(() => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
-    })
-
-    test('returns null when funding value does not exist', async () => {
-      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue(null)
-
-      const result = await service.deleteFundingContributor(base)
-
-      expect(result).toBeNull()
-      expect(
-        mockPrisma.pafs_core_funding_contributors.delete
-      ).not.toHaveBeenCalled()
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: 'REF-001',
-          financialYear: 2026
-        }),
-        'Funding value not found, cannot delete contributor'
-      )
-    })
-
-    test('deletes and returns contributor when found', async () => {
-      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue({
-        id: 10n
-      })
-      mockPrisma.pafs_core_funding_contributors.findFirst.mockResolvedValue({
-        id: 55n
-      })
-      mockPrisma.pafs_core_funding_contributors.delete.mockResolvedValue({
-        id: 55n
-      })
-
-      const result = await service.deleteFundingContributor(base)
-
-      expect(result).toEqual({ id: 55n })
-      expect(
-        mockPrisma.pafs_core_funding_contributors.delete
-      ).toHaveBeenCalledWith({
-        where: { id: 55n }
-      })
-    })
-
-    test('returns null when contributor not found', async () => {
-      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue({
-        id: 10n
-      })
-      mockPrisma.pafs_core_funding_contributors.findFirst.mockResolvedValue(
-        null
-      )
-
-      const result = await service.deleteFundingContributor(base)
-
-      expect(result).toBeNull()
-      expect(
-        mockPrisma.pafs_core_funding_contributors.delete
-      ).not.toHaveBeenCalled()
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: 'REF-001',
-          contributorType: 'public_contributions',
-          name: 'Contributor A'
-        }),
-        'Funding contributor not found, nothing to delete'
-      )
-    })
-
-    test('logs and rethrows on error', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
-
-      await expect(service.deleteFundingContributor(base)).rejects.toThrow(
-        'Project not found with reference number: REF-001'
-      )
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: 'REF-001',
-          financialYear: 2026,
-          contributorType: 'public_contributions',
-          name: 'Contributor A'
-        }),
-        'Error deleting funding contributor'
-      )
-    })
-  })
-
-  describe('deleteAllFundingContributors', () => {
-    beforeEach(() => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
-    })
-
-    test('returns 0 when funding value does not exist', async () => {
-      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue(null)
-
-      const result = await service.deleteAllFundingContributors({
-        referenceNumber: 'REF-001',
-        financialYear: 2026
-      })
-
-      expect(result).toBe(0)
-      expect(
-        mockPrisma.pafs_core_funding_contributors.deleteMany
-      ).not.toHaveBeenCalled()
-    })
-
-    test('deletes all contributors and returns count', async () => {
-      mockPrisma.pafs_core_funding_values.findFirst.mockResolvedValue({
-        id: 10n
-      })
-      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
-        count: 3
-      })
-
-      const result = await service.deleteAllFundingContributors({
-        referenceNumber: 'REF-001',
-        financialYear: 2026
-      })
-
-      expect(result).toBe(3)
-      expect(
-        mockPrisma.pafs_core_funding_contributors.deleteMany
-      ).toHaveBeenCalledWith({
-        where: { funding_value_id: 10n }
-      })
-    })
-
-    test('logs and rethrows on error', async () => {
-      mockPrisma.pafs_core_projects.findFirst.mockResolvedValue(null)
-
-      await expect(
-        service.deleteAllFundingContributors({
-          referenceNumber: 'REF-001',
-          financialYear: 2026
-        })
-      ).rejects.toThrow('Project not found with reference number: REF-001')
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: 'REF-001',
-          financialYear: 2026
-        }),
-        'Error deleting all funding contributors'
       )
     })
   })
@@ -497,28 +344,8 @@ describe('ProjectFundingContributorsService', () => {
       mockPrisma.pafs_core_projects.findFirst.mockResolvedValue({ id: 1n })
     })
 
-    test('returns 0 when no funding values exist', async () => {
-      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([])
-
-      const result = await service.deleteContributorsByType({
-        referenceNumber: 'REF-001',
-        contributorType: 'public_contributions'
-      })
-
-      expect(result).toBe(0)
-      expect(
-        mockPrisma.pafs_core_funding_contributors.deleteMany
-      ).not.toHaveBeenCalled()
-    })
-
-    test('deletes by type and returns count', async () => {
-      mockPrisma.pafs_core_funding_values.findMany.mockResolvedValue([
-        { id: 10n },
-        { id: 11n }
-      ])
-      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
-        count: 2
-      })
+    test('executes a single subquery DELETE and returns row count', async () => {
+      mockPrisma.$executeRaw.mockResolvedValue(2)
 
       const result = await service.deleteContributorsByType({
         referenceNumber: 'REF-001',
@@ -526,14 +353,22 @@ describe('ProjectFundingContributorsService', () => {
       })
 
       expect(result).toBe(2)
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1)
       expect(
-        mockPrisma.pafs_core_funding_contributors.deleteMany
-      ).toHaveBeenCalledWith({
-        where: {
-          funding_value_id: { in: [10n, 11n] },
-          contributor_type: 'public_contributions'
-        }
+        mockPrisma.pafs_core_funding_values.findMany
+      ).not.toHaveBeenCalled()
+    })
+
+    test('returns 0 when no rows are deleted', async () => {
+      mockPrisma.$executeRaw.mockResolvedValue(0)
+
+      const result = await service.deleteContributorsByType({
+        referenceNumber: 'REF-001',
+        contributorType: 'public_contributions'
       })
+
+      expect(result).toBe(0)
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1)
     })
 
     test('logs and rethrows on error', async () => {
@@ -585,10 +420,9 @@ describe('ProjectFundingContributorsService', () => {
 
   describe('_deleteStaleContributors', () => {
     test('deletes stale ids and returns deleted count', async () => {
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
-        { id: 1n, contributor_type: 'public_contributions', name: 'Keep' },
-        { id: 2n, contributor_type: 'public_contributions', name: 'Remove' }
-      ])
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
+        count: 1
+      })
 
       const deleted = await service._syncService._deleteStaleContributors(
         [{ contributorType: 'public_contributions', name: 'Keep' }],
@@ -601,15 +435,18 @@ describe('ProjectFundingContributorsService', () => {
       ).toHaveBeenCalledWith({
         where: {
           funding_value_id: 10n,
-          id: { in: [2n] }
+          NOT: [{ contributor_type: 'public_contributions', name: 'Keep' }]
         }
       })
+      expect(
+        mockPrisma.pafs_core_funding_contributors.findMany
+      ).not.toHaveBeenCalled()
     })
 
-    test('returns 0 and does not delete when there are no stale rows', async () => {
-      mockPrisma.pafs_core_funding_contributors.findMany.mockResolvedValue([
-        { id: 1n, contributor_type: 'public_contributions', name: 'Keep' }
-      ])
+    test('returns 0 and does not call findMany when no stale rows', async () => {
+      mockPrisma.pafs_core_funding_contributors.deleteMany.mockResolvedValue({
+        count: 0
+      })
 
       const deleted = await service._syncService._deleteStaleContributors(
         [{ contributorType: 'public_contributions', name: 'Keep' }],
@@ -618,7 +455,7 @@ describe('ProjectFundingContributorsService', () => {
 
       expect(deleted).toBe(0)
       expect(
-        mockPrisma.pafs_core_funding_contributors.deleteMany
+        mockPrisma.pafs_core_funding_contributors.findMany
       ).not.toHaveBeenCalled()
     })
   })
@@ -679,7 +516,8 @@ describe('ProjectFundingContributorsService', () => {
         ],
         'REF-001',
         2026,
-        expect.any(Function)
+        expect.any(Function),
+        null
       )
       expect(staleSpy).toHaveBeenCalledWith(
         [
@@ -714,7 +552,8 @@ describe('ProjectFundingContributorsService', () => {
         [],
         'REF-001',
         2026,
-        expect.any(Function)
+        expect.any(Function),
+        null
       )
       expect(staleSpy).toHaveBeenCalledWith([], 10n)
     })
@@ -757,7 +596,8 @@ describe('ProjectFundingContributorsService', () => {
         ],
         'REF-001',
         2026,
-        expect.any(Function)
+        expect.any(Function),
+        null
       )
       expect(staleSpy).toHaveBeenCalledWith(
         [

@@ -1,5 +1,9 @@
 import { PROJECT_VALIDATION_LEVELS } from '../../../common/constants/project.js'
 
+// Flip condition to positive (== null) so Sonar does not flag a negated condition.
+const resolveProjectId = (existingProject) =>
+  existingProject?.id == null ? undefined : Number(existingProject.id)
+
 /**
  * Syncs the growthFunding boolean flag with the virtual additionalFcermGia field.
  * When additionalFcermGia is true → growthFunding = true.
@@ -14,11 +18,11 @@ export const syncGrowthFundingFlag = (enrichedPayload, validationLevel) => {
 
   if (enrichedPayload.additionalFcermGia === true) {
     enrichedPayload.growthFunding = true
-  } else if (enrichedPayload.additionalFcermGia === false) {
-    enrichedPayload.growthFunding = false
-  } else {
-    // additionalFcermGia is undefined/null – leave growthFunding unchanged
   }
+  if (enrichedPayload.additionalFcermGia === false) {
+    enrichedPayload.growthFunding = false
+  }
+  // additionalFcermGia is undefined/null — leave growthFunding unchanged
 }
 
 /**
@@ -30,7 +34,8 @@ export const syncGrowthFundingFlag = (enrichedPayload, validationLevel) => {
 export const clearDeselectedAdditionalGiaData = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   if (validationLevel !== PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED) {
     return
@@ -56,7 +61,10 @@ export const clearDeselectedAdditionalGiaData = async (
   }
 
   // Null out the spend columns in pafs_core_funding_values
-  await projectService.nullAdditionalGiaColumns(enrichedPayload.referenceNumber)
+  await projectService.nullAdditionalGiaColumns(
+    enrichedPayload.referenceNumber,
+    resolveProjectId(existingProject)
+  )
 }
 
 /**
@@ -74,13 +82,15 @@ export const clearDeselectedAdditionalGiaData = async (
 export const clearDeselectedContributorData = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   if (validationLevel !== PROJECT_VALIDATION_LEVELS.FUNDING_SOURCES_SELECTED) {
     return
   }
 
   const { referenceNumber } = enrichedPayload
+  const projectId = resolveProjectId(existingProject)
 
   const DESELECT_CONFIG = [
     {
@@ -108,7 +118,8 @@ export const clearDeselectedContributorData = async (
       // Delete all contributor rows of this type across every financial year
       await projectService.deleteContributorsByType({
         referenceNumber,
-        contributorType
+        contributorType,
+        projectId
       })
     }
   }
@@ -142,7 +153,8 @@ const CONTRIBUTOR_CLEANUP_CONFIG = [
 export const cleanupRemovedContributors = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   const config = CONTRIBUTOR_CLEANUP_CONFIG.find(
     (c) => c.level === validationLevel
@@ -165,7 +177,8 @@ export const cleanupRemovedContributors = async (
   await projectService.cleanupContributorsByName({
     referenceNumber,
     contributorType: config.contributorType,
-    currentNames
+    currentNames,
+    projectId: resolveProjectId(existingProject)
   })
 }
 
@@ -180,7 +193,8 @@ export const cleanupRemovedContributors = async (
 export const ensureContributorFundingRows = async (
   enrichedPayload,
   validationLevel,
-  projectService
+  projectService,
+  existingProject
 ) => {
   const config = CONTRIBUTOR_CLEANUP_CONFIG.find(
     (c) => c.level === validationLevel
@@ -207,6 +221,9 @@ export const ensureContributorFundingRows = async (
   await projectService.ensureContributorFundingRows({
     referenceNumber,
     contributorType: config.contributorType,
-    contributorNames: currentNames
+    contributorNames: currentNames,
+    projectId: resolveProjectId(existingProject),
+    financialStartYear: existingProject?.financialStartYear,
+    financialEndYear: existingProject?.financialEndYear
   })
 }

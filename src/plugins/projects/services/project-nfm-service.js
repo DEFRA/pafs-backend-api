@@ -34,15 +34,11 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
   }
 
   /**
-   * Upsert NFM measure data to pafs_core_nfm_measures table
-   * @param {Object} data - NFM measure data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {string} data.measureType - Type of NFM measure (e.g., 'river_floodplain_restoration')
-   * @param {number} data.areaHectares - Area in hectares
-   * @param {number|null} data.storageVolumeM3 - Storage volume in cubic meters (optional)
-   * @param {number|null} data.lengthKm - Length in kilometres (optional)
-   * @param {number|null} data.widthM - Width in metres (optional)
-   * @returns {Promise<Object>} Created or updated NFM measure record
+   * Upsert NFM measure data using Prisma upsert.
+   * @@unique([project_id, measure_type]) added via migration 5-003 enables
+   * a single round-trip — replaces the old findFirst + update/create pattern.
+   * Accepts optional projectId to avoid a redundant _getProjectIdByReference
+   * when the caller (handleMeasureUpsert) already has the value.
    */
   async upsertNfmMeasure({
     referenceNumber,
@@ -50,45 +46,41 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
     areaHectares,
     storageVolumeM3,
     lengthKm,
-    widthM
+    widthM,
+    projectId: providedProjectId
   }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
-      const existingMeasure =
-        await this.prisma.pafs_core_nfm_measures.findFirst({
-          where: {
+      const now = new Date()
+
+      const nfmMeasure = await this.prisma.pafs_core_nfm_measures.upsert({
+        where: {
+          project_id_measure_type: {
             project_id: projectId,
             measure_type: measureType
           }
-        })
-
-      let nfmMeasure
-      if (existingMeasure) {
-        nfmMeasure = await this.prisma.pafs_core_nfm_measures.update({
-          where: { id: existingMeasure.id },
-          data: {
-            area_hectares: areaHectares,
-            storage_volume_m3: storageVolumeM3,
-            length_km: lengthKm,
-            width_m: widthM,
-            updated_at: new Date()
-          }
-        })
-      } else {
-        nfmMeasure = await this.prisma.pafs_core_nfm_measures.create({
-          data: {
-            project_id: projectId,
-            measure_type: measureType,
-            area_hectares: areaHectares,
-            storage_volume_m3: storageVolumeM3,
-            length_km: lengthKm,
-            width_m: widthM,
-            created_at: new Date(),
-            updated_at: new Date()
-          }
-        })
-      }
+        },
+        update: {
+          area_hectares: areaHectares,
+          storage_volume_m3: storageVolumeM3,
+          length_km: lengthKm,
+          width_m: widthM,
+          updated_at: now
+        },
+        create: {
+          project_id: projectId,
+          measure_type: measureType,
+          area_hectares: areaHectares,
+          storage_volume_m3: storageVolumeM3,
+          length_km: lengthKm,
+          width_m: widthM,
+          created_at: now,
+          updated_at: now
+        }
+      })
 
       this.logger.info(
         { projectId, measureType, referenceNumber },
@@ -106,73 +98,25 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
   }
 
   /**
-   * Delete NFM measure data from pafs_core_nfm_measures table
-   * @param {Object} data - NFM measure identification data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {string} data.measureType - Type of NFM measure to delete
-   * @returns {Promise<Object>} Deleted NFM measure record or null if not found
-   */
-  async deleteNfmMeasure({ referenceNumber, measureType }) {
-    try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
-
-      const existingMeasure =
-        await this.prisma.pafs_core_nfm_measures.findFirst({
-          where: {
-            project_id: projectId,
-            measure_type: measureType
-          }
-        })
-
-      if (existingMeasure) {
-        const deletedMeasure = await this.prisma.pafs_core_nfm_measures.delete({
-          where: { id: existingMeasure.id }
-        })
-
-        this.logger.info(
-          { projectId, measureType, referenceNumber },
-          'NFM measure deleted successfully'
-        )
-
-        return deletedMeasure
-      }
-
-      this.logger.info(
-        { projectId, measureType, referenceNumber },
-        'NFM measure not found, nothing to delete'
-      )
-
-      return null
-    } catch (error) {
-      this.logger.error(
-        { error: error.message, referenceNumber, measureType },
-        'Error deleting NFM measure'
-      )
-      throw error
-    }
-  }
-
-  /**
-   * Upsert NFM land use change detail record
-   * @param {Object} data - Land use change data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {string} data.landUseType - Type of land use change
-   * @param {number} data.areaBeforeHectares - Area before change in hectares
-   * @param {number} data.areaAfterHectares - Area after change in hectares
-   * @returns {Promise<Object>} Created or updated land use change record
+   * Upsert NFM land use change detail record.
+   * @@unique([project_id, land_use_type]) already existed — Prisma upsert was
+   * already in use here. Accepts optional projectId to skip _getProjectIdByReference
+   * when the caller (handleLandUseUpsert) already has the value.
    */
   async upsertNfmLandUseChange({
     referenceNumber,
     landUseType,
     areaBeforeHectares,
-    areaAfterHectares
+    areaAfterHectares,
+    projectId: providedProjectId
   }) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
+
       const now = new Date()
 
-      // pafs_core_nfm_land_use_changes has @@unique([project_id, land_use_type])
-      // so Prisma upsert can replace the manual findFirst + update/create (saves one query)
       return await this.prisma.pafs_core_nfm_land_use_changes.upsert({
         where: {
           project_id_land_use_type: {
@@ -204,53 +148,23 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
   }
 
   /**
-   * Delete NFM land use change detail record
-   * @param {Object} data - Land use change identification data
-   * @param {string} data.referenceNumber - Project reference number
-   * @param {string} data.landUseType - Type of land use change to delete
-   * @returns {Promise<Object>} Deleted record or null if not found
-   */
-  async deleteNfmLandUseChange({ referenceNumber, landUseType }) {
-    try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
-
-      const existingRecord =
-        await this.prisma.pafs_core_nfm_land_use_changes.findFirst({
-          where: {
-            project_id: projectId,
-            land_use_type: landUseType
-          }
-        })
-
-      if (!existingRecord) {
-        return null
-      }
-
-      return await this.prisma.pafs_core_nfm_land_use_changes.delete({
-        where: { id: existingRecord.id }
-      })
-    } catch (error) {
-      this.logger.error(
-        { error: error.message, referenceNumber, landUseType },
-        'Error deleting NFM land use change'
-      )
-      throw error
-    }
-  }
-
-  /**
    * Delete multiple NFM measures in a single query.
-   * Resolves the project ID once and uses deleteMany with an IN clause,
-   * replacing the previous loop of individual deleteNfmMeasure calls.
-   * @param {string} referenceNumber
-   * @param {string[]} measureTypes
+   * Accepts optional projectId to avoid a redundant _getProjectIdByReference
+   * when the caller (handleSelectedMeasureCleanup) already has the value.
    */
-  async batchDeleteNfmMeasures({ referenceNumber, measureTypes }) {
+  async batchDeleteNfmMeasures({
+    referenceNumber,
+    measureTypes,
+    projectId: providedProjectId
+  }) {
     if (!measureTypes || measureTypes.length === 0) {
       return
     }
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
+
       await this.prisma.pafs_core_nfm_measures.deleteMany({
         where: {
           project_id: projectId,
@@ -272,17 +186,22 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
 
   /**
    * Delete multiple NFM land use change records in a single query.
-   * Resolves the project ID once and uses deleteMany with an IN clause,
-   * replacing the previous loop of individual deleteNfmLandUseChange calls.
-   * @param {string} referenceNumber
-   * @param {string[]} landUseTypes
+   * Accepts optional projectId to avoid a redundant _getProjectIdByReference
+   * when the caller (handleLandUseCleanup) already has the value.
    */
-  async batchDeleteNfmLandUseChanges({ referenceNumber, landUseTypes }) {
+  async batchDeleteNfmLandUseChanges({
+    referenceNumber,
+    landUseTypes,
+    projectId: providedProjectId
+  }) {
     if (!landUseTypes || landUseTypes.length === 0) {
       return
     }
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
+
       await this.prisma.pafs_core_nfm_land_use_changes.deleteMany({
         where: {
           project_id: projectId,
@@ -303,14 +222,14 @@ export class ProjectNfmService extends ProjectFundingSourcesService {
   }
 
   /**
-   * Delete all NFM child records (land use changes + measures) for a project (bulk delete)
-   * Used when clearing NFM data after an intervention type change away from NFM/SUDS
-   * @param {string} referenceNumber - Project reference number
-   * @returns {Promise<{landUseChangesDeleted: number, measuresDeleted: number}>}
+   * Delete all NFM child records (land use changes + measures) for a project.
+   * Accepts optional projectId to avoid a redundant _getProjectIdByReference.
    */
-  async deleteAllNfmChildRecords(referenceNumber) {
+  async deleteAllNfmChildRecords(referenceNumber, providedProjectId) {
     try {
-      const projectId = await this._getProjectIdByReference(referenceNumber)
+      const projectId =
+        providedProjectId ??
+        (await this._getProjectIdByReference(referenceNumber))
 
       const landUseResult =
         await this.prisma.pafs_core_nfm_land_use_changes.deleteMany({

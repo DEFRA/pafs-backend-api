@@ -14,6 +14,12 @@ import {
 import { resolveStatus } from './project-formatter.js'
 import { config } from '../../../config.js'
 
+// Per-process deduplication lock: prevents concurrent requests for the same
+// project from each making their own S3 presign + DB write when the cached
+// URL is stale. The first request regenerates; subsequent concurrent requests
+// await that same Promise and reuse the result.
+const benefitAreaUrlLocks = new Map()
+
 // ---------------------------------------------------------------------------
 // Individual enrichment steps
 // ---------------------------------------------------------------------------
@@ -39,7 +45,7 @@ async function enrichAreaHierarchy(prisma, rawProject, apiData) {
   applyHierarchyToApiData(apiData, hierarchy)
 }
 
-async function enrichModerationFilename(_prisma, _rawProject, apiData) {
+function enrichModerationFilename(_prisma, _rawProject, apiData) {
   const { slug, urgencyReason } = apiData
 
   if (!urgencyReason || urgencyReason === URGENCY_REASONS.NOT_URGENT) {
@@ -51,7 +57,7 @@ async function enrichModerationFilename(_prisma, _rawProject, apiData) {
   apiData.moderationFilename = `${(slug ?? '').toUpperCase()}_moderation_${code}.txt`
 }
 
-async function enrichProjectStatus(_prisma, _rawProject, apiData) {
+function enrichProjectStatus(_prisma, _rawProject, apiData) {
   apiData.projectState = resolveStatus(
     apiData.projectState,
     apiData.isLegacy ?? false,
@@ -100,18 +106,30 @@ async function enrichBenefitAreaDownloadUrl(
     rawProject.benefit_area_file_s3_key = resolved.benefit_area_file_s3_key
   }
 
-  // URL is missing or stale — regenerate and persist
-  const { downloadUrl, downloadExpiry } = await generateDownloadUrl(
-    rawProject.benefit_area_file_s3_bucket,
-    rawProject.benefit_area_file_s3_key,
-    logger,
-    `${rawProject.slug}_benefit_area.zip`
-  )
+  // URL is missing or stale — regenerate and persist, but deduplicate concurrent
+  // requests for the same project so only one S3 call + DB write happens.
+  const refNum = rawProject.reference_number
+  if (!benefitAreaUrlLocks.has(refNum)) {
+    const regenerate = (async () => {
+      // Use distinct names to avoid shadowing the outer destructuring below
+      const { downloadUrl: presignedUrl, downloadExpiry: presignedExpiry } =
+        await generateDownloadUrl(
+          rawProject.benefit_area_file_s3_bucket,
+          rawProject.benefit_area_file_s3_key,
+          logger,
+          `${rawProject.slug}_benefit_area.zip`
+        )
+      await updateBenefitAreaDownloadUrl(prisma, refNum, {
+        downloadUrl: presignedUrl,
+        downloadExpiry: presignedExpiry
+      })
+      return { downloadUrl: presignedUrl, downloadExpiry: presignedExpiry }
+    })().finally(() => benefitAreaUrlLocks.delete(refNum))
 
-  await updateBenefitAreaDownloadUrl(prisma, rawProject.reference_number, {
-    downloadUrl,
-    downloadExpiry
-  })
+    benefitAreaUrlLocks.set(refNum, regenerate)
+  }
+
+  const { downloadUrl, downloadExpiry } = await benefitAreaUrlLocks.get(refNum)
 
   apiData.benefitAreaFileDownloadUrl = downloadUrl
   apiData.benefitAreaFileDownloadExpiry = downloadExpiry
@@ -148,14 +166,12 @@ async function enrichFundingCalculatorDownloadUrl(
 // Enrichment pipeline
 // ---------------------------------------------------------------------------
 
-const BASE_ENRICHMENT_STEPS = [
-  enrichAreaHierarchy,
-  enrichModerationFilename,
-  enrichProjectStatus
-]
+// Sync enrichments: no I/O, run first before any async parallel work
+const SYNC_ENRICHMENT_STEPS = [enrichModerationFilename, enrichProjectStatus]
 
-const ENRICHMENT_STEPS = [
-  ...BASE_ENRICHMENT_STEPS,
+const ASYNC_ENRICHMENT_STEPS = [enrichAreaHierarchy]
+
+const URL_ENRICHMENT_STEPS = [
   enrichBenefitAreaDownloadUrl,
   enrichFundingCalculatorDownloadUrl
 ]
@@ -167,10 +183,16 @@ export async function enrichProjectResponse(
   logger,
   options = {}
 ) {
-  const steps = options.skipUrlEnrichment
-    ? BASE_ENRICHMENT_STEPS
-    : ENRICHMENT_STEPS
+  // Run sync enrichments first — they return undefined, not Promises
+  for (const step of SYNC_ENRICHMENT_STEPS) {
+    step(prisma, rawProject, apiData, logger)
+  }
+
+  // Run async enrichments in parallel — all return Promises
+  const asyncSteps = options.skipUrlEnrichment
+    ? ASYNC_ENRICHMENT_STEPS
+    : [...ASYNC_ENRICHMENT_STEPS, ...URL_ENRICHMENT_STEPS]
   await Promise.all(
-    steps.map((step) => step(prisma, rawProject, apiData, logger))
+    asyncSteps.map((step) => step(prisma, rawProject, apiData, logger))
   )
 }

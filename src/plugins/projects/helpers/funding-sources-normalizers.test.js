@@ -299,11 +299,12 @@ describe('funding-sources-normalizers', () => {
     beforeEach(() => {
       projectService = {
         getProjectIdByReference: vi.fn().mockResolvedValue(undefined),
-        upsertFundingValue: vi.fn().mockResolvedValue({}),
+        upsertFundingValue: vi.fn().mockResolvedValue({ id: 100n }),
         upsertFundingContributor: vi.fn().mockResolvedValue({}),
         syncFundingContributorsForYear: vi.fn().mockResolvedValue(undefined),
         deleteFundingValue: vi.fn().mockResolvedValue(null),
-        deleteAllFundingContributors: vi.fn().mockResolvedValue(0)
+        deleteAllFundingContributors: vi.fn().mockResolvedValue(0),
+        deleteFundingValueWithContributors: vi.fn().mockResolvedValue(undefined)
       }
     })
 
@@ -344,6 +345,7 @@ describe('funding-sources-normalizers', () => {
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
         projectId: undefined,
+        fundingValueId: expect.anything(),
         contributorEntries: [
           {
             contributorType: 'public_contributions',
@@ -399,6 +401,7 @@ describe('funding-sources-normalizers', () => {
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
         projectId: undefined,
+        fundingValueId: expect.anything(),
         contributorEntries: [
           {
             contributorType: 'public_contributions',
@@ -439,8 +442,9 @@ describe('funding-sources-normalizers', () => {
         projectService
       )
 
-      expect(projectService.deleteAllFundingContributors).toHaveBeenCalled()
-      expect(projectService.deleteFundingValue).toHaveBeenCalled()
+      expect(
+        projectService.deleteFundingValueWithContributors
+      ).toHaveBeenCalled()
       expect(projectService.upsertFundingValue).not.toHaveBeenCalled()
     })
 
@@ -549,24 +553,14 @@ describe('funding-sources-normalizers', () => {
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
         projectId: undefined,
+        fundingValueId: expect.anything(),
         contributorEntries: []
       })
     })
 
     it('deletes contributors before funding value in the empty-row path', async () => {
-      // Verifies sequential ordering: contributors must be deleted first so that
-      // deleteAllFundingContributors can resolve the funding_value_id via findFirst
-      // before the funding value row itself is removed.
-      const callOrder = []
-      projectService.deleteAllFundingContributors.mockImplementation(() => {
-        callOrder.push('deleteAllFundingContributors')
-        return Promise.resolve(0)
-      })
-      projectService.deleteFundingValue.mockImplementation(() => {
-        callOrder.push('deleteFundingValue')
-        return Promise.resolve(null)
-      })
-
+      // deleteFundingValueWithContributors handles the sequential delete of
+      // contributors then the funding value row internally in a single call.
       const payload = {
         referenceNumber: 'ANC501E/000A/001A',
         fundingValues: [
@@ -594,10 +588,15 @@ describe('funding-sources-normalizers', () => {
         projectService
       )
 
-      expect(callOrder).toEqual([
-        'deleteAllFundingContributors',
-        'deleteFundingValue'
-      ])
+      expect(
+        projectService.deleteFundingValueWithContributors
+      ).toHaveBeenCalledWith({
+        projectId: undefined,
+        financialYear: 2026,
+        referenceNumber: 'ANC501E/000A/001A'
+      })
+      expect(projectService.deleteAllFundingContributors).not.toHaveBeenCalled()
+      expect(projectService.deleteFundingValue).not.toHaveBeenCalled()
     })
 
     it('upserts contributor rows and derives public/private totals from contributor data', async () => {
@@ -660,6 +659,7 @@ describe('funding-sources-normalizers', () => {
         referenceNumber: 'ANC501E/000A/001A',
         financialYear: 2026,
         projectId: undefined,
+        fundingValueId: expect.anything(),
         contributorEntries: [
           {
             contributorType: 'public_contributions',
@@ -705,15 +705,12 @@ describe('funding-sources-normalizers', () => {
         projectService
       )
 
-      expect(projectService.deleteAllFundingContributors).toHaveBeenCalledWith({
-        referenceNumber: 'ANC501E/000A/001A',
+      expect(
+        projectService.deleteFundingValueWithContributors
+      ).toHaveBeenCalledWith({
+        projectId: undefined,
         financialYear: 2027,
-        projectId: undefined
-      })
-      expect(projectService.deleteFundingValue).toHaveBeenCalledWith({
-        referenceNumber: 'ANC501E/000A/001A',
-        financialYear: 2027,
-        projectId: undefined
+        referenceNumber: 'ANC501E/000A/001A'
       })
       expect(projectService.upsertFundingValue).not.toHaveBeenCalled()
       expect(payload.fundingValues).toBeUndefined()
@@ -1022,7 +1019,8 @@ describe('funding-sources-normalizers', () => {
       expect(payload.recovery).toBeNull()
       expect(payload.summerEconomicFund).toBeNull()
       expect(projectService.nullAdditionalGiaColumns).toHaveBeenCalledWith(
-        'ANC501E/000A/001A'
+        'ANC501E/000A/001A',
+        undefined
       )
     })
   })
@@ -1377,7 +1375,8 @@ describe('funding-sources-normalizers', () => {
 
       expect(projectService.nullSpecificFundingColumns).toHaveBeenCalledWith(
         'ANC501E/000A/001A',
-        ['localLevy', 'notYetIdentified']
+        ['localLevy', 'notYetIdentified'],
+        undefined
       )
     })
 
@@ -1400,7 +1399,8 @@ describe('funding-sources-normalizers', () => {
 
       expect(projectService.nullSpecificFundingColumns).toHaveBeenCalledWith(
         'ANC501E/000A/001A',
-        ['publicContributions', 'otherEaContributions']
+        ['publicContributions', 'otherEaContributions'],
+        undefined
       )
     })
 
@@ -1449,7 +1449,8 @@ describe('funding-sources-normalizers', () => {
           'assetReplacementAllowance',
           'frequentlyFloodedCommunities',
           'recovery'
-        ]
+        ],
+        undefined
       )
     })
 
@@ -1797,10 +1798,11 @@ describe('funding-sources-normalizers', () => {
     beforeEach(() => {
       projectService = {
         getProjectIdByReference: vi.fn().mockResolvedValue(42),
-        upsertFundingValue: vi.fn().mockResolvedValue({}),
+        upsertFundingValue: vi.fn().mockResolvedValue({ id: 100n }),
         syncFundingContributorsForYear: vi.fn().mockResolvedValue(undefined),
         deleteFundingValue: vi.fn().mockResolvedValue(null),
-        deleteAllFundingContributors: vi.fn().mockResolvedValue(0)
+        deleteAllFundingContributors: vi.fn().mockResolvedValue(0),
+        deleteFundingValueWithContributors: vi.fn().mockResolvedValue(undefined)
       }
     })
 
@@ -1841,17 +1843,7 @@ describe('funding-sources-normalizers', () => {
       )
     })
 
-    it('runs deleteAllFundingContributors and deleteFundingValue in parallel for zero-amount rows', async () => {
-      const callOrder = []
-      projectService.deleteAllFundingContributors.mockImplementation(
-        async () => {
-          callOrder.push('contributors')
-        }
-      )
-      projectService.deleteFundingValue.mockImplementation(async () => {
-        callOrder.push('fundingValue')
-      })
-
+    it('calls deleteFundingValueWithContributors with correct projectId for zero-amount rows', async () => {
       const payload = {
         referenceNumber: 'ANC501E/000A/001A',
         fundingValues: [
@@ -1883,12 +1875,16 @@ describe('funding-sources-normalizers', () => {
         5
       )
 
-      // Both deletes ran (order may vary because they run in parallel)
-      expect(projectService.deleteAllFundingContributors).toHaveBeenCalledOnce()
-      expect(projectService.deleteFundingValue).toHaveBeenCalledOnce()
-      expect(callOrder).toHaveLength(2)
-      expect(callOrder).toContain('contributors')
-      expect(callOrder).toContain('fundingValue')
+      expect(
+        projectService.deleteFundingValueWithContributors
+      ).toHaveBeenCalledOnce()
+      expect(
+        projectService.deleteFundingValueWithContributors
+      ).toHaveBeenCalledWith({
+        projectId: 5,
+        financialYear: 2026,
+        referenceNumber: 'ANC501E/000A/001A'
+      })
     })
   })
 })

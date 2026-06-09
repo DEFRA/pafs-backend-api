@@ -54,4 +54,16 @@
   <!-- Track whether legacy project type migration has completed — replaces brittle intervention_types sentinel -->
   <include file="4-004-legacy-project-type-migration-completed-flag.xml" relativeToChangelogFile="true"/>
 
+  <!-- Single-query project overview view — collapses 3 sequential round-trips into 1 -->
+  <include file="5-001-project-overview-view.xml" relativeToChangelogFile="true"/>
+
+  <!-- Unique constraint on (project_id, financial_year) — enables Prisma upsert, eliminates findFirst+create race -->
+  <include file="5-002-funding-values-unique-constraint.xml" relativeToChangelogFile="true"/>
+
+  <!-- Unique constraint on (project_id, measure_type) — enables Prisma upsert for NFM measures -->
+  <include file="5-003-nfm-measures-unique-constraint.xml" relativeToChangelogFile="true"/>
+
+  <!-- Unique constraint on (funding_value_id, contributor_type, name) — enables Prisma upsert for contributors -->
+  <include file="5-004-funding-contributors-unique-constraint.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

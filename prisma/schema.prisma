@@ -221,9 +221,9 @@ model pafs_core_funding_contributors {
   created_at       DateTime @db.Timestamp(6)
   updated_at       DateTime @db.Timestamp(6)
 
+  @@unique([funding_value_id, contributor_type, name], map: "uq_funding_contributors_fv_type_name")
   @@index([funding_value_id, contributor_type], map: "funding_contributors_on_funding_value_id_and_type")
   @@index([contributor_type], map: "index_pafs_core_funding_contributors_on_contributor_type")
-  @@index([funding_value_id], map: "index_pafs_core_funding_contributors_on_funding_value_id")
 }
 
 model pafs_core_funding_values {
@@ -246,7 +246,7 @@ model pafs_core_funding_values {
   recovery                       BigInt?
   summer_economic_fund           BigInt?
 
-  @@index([project_id, financial_year], map: "funding_values_on_project_id_and_financial_year")
+  @@unique([project_id, financial_year], map: "uq_funding_values_project_year")
   @@index([financial_year], map: "index_pafs_core_funding_values_on_financial_year")
 }
 
@@ -274,7 +274,7 @@ model pafs_core_nfm_measures {
   created_at        DateTime @db.Timestamp(6)
   updated_at        DateTime @db.Timestamp(6)
 
-  @@index([project_id], map: "idx_nfm_measures_project_id")
+  @@unique([project_id, measure_type], map: "uq_nfm_measures_project_type")
   @@index([measure_type], map: "idx_nfm_measures_type")
 }
 

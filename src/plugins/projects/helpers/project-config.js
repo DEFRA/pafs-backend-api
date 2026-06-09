@@ -1,5 +1,3 @@
-import { PROJECT_TYPES } from '../../../common/constants/project.js'
-
 /**
  * Conversion directions and types for data transformations
  */
@@ -245,55 +243,4 @@ export const PROJECT_SELECT_FIELDS_MAP = {
   isLegacy: 'is_legacy',
   isRevised: 'is_revised',
   legacyProjectTypeMigrationCompleted: 'legacy_project_type_migration_completed'
-}
-
-/**
- * Returns Prisma select object for main project fields
- * Used in queries to specify which fields to fetch
- */
-export const getProjectSelectFields = () => {
-  const selectFields = {}
-
-  Object.values(PROJECT_SELECT_FIELDS_MAP).forEach((field) => {
-    selectFields[field] = true
-  })
-
-  return selectFields
-}
-
-/**
- * Returns configuration for joined tables
- * Used for manual joins without foreign keys
- */
-export const getJoinedTableConfig = () => {
-  return structuredClone(PROJECT_JOIN_TABLES)
-}
-
-export const requiredInterventionTypesForProjectType = (projectType) => {
-  const skipInterventionTypes = [
-    PROJECT_TYPES.HCR,
-    PROJECT_TYPES.STR,
-    PROJECT_TYPES.STU,
-    PROJECT_TYPES.ELO
-  ]
-  return !skipInterventionTypes.includes(projectType)
-}
-
-/**
- * Returns Prisma select object for joined tables
- * Used in queries with include/joins
- */
-export const getJoinedSelectFields = () => {
-  return {
-    ...Object.fromEntries(
-      Object.entries(PROJECT_JOIN_TABLES).map(([tableKey, config]) => [
-        tableKey,
-        {
-          select: Object.fromEntries(
-            Object.values(config.fields).map((field) => [field, true])
-          )
-        }
-      ])
-    )
-  }
 }

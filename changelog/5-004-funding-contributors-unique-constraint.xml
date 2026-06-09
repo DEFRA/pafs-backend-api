@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="5-004-funding-contributors-unique-constraint" author="migration-team">
+    <comment>
+      Add unique constraint on (funding_value_id, contributor_type, name) in
+      pafs_core_funding_contributors. Enables the application to use a single Prisma
+      upsert instead of findFirst + create/update.
+
+      Contributors with the same type and name across multiple financial years each have a
+      distinct funding_value_id (one funding_value row per project per year), so the
+      constraint correctly scopes uniqueness within a single year's funding value.
+
+      NULL handling: PostgreSQL treats each NULL as distinct from every other NULL in a
+      unique constraint. Rows where funding_value_id IS NULL (orphaned legacy rows) will
+      never violate this constraint regardless of how many share the same contributor_type
+      and name — each NULL is considered a unique value.
+
+      Cross-proposal rows: contributors with the same contributor_type and name that belong
+      to different proposals have different funding_value_id values and therefore different
+      constraint keys — no conflict.
+
+      The only true violation would be two rows with identical non-null
+      (funding_value_id, contributor_type, name) — i.e. the same contributor written twice
+      into the same financial year's funding value. That is the race condition this
+      constraint is designed to prevent.
+
+      The single-column index on funding_value_id is dropped because the new
+      compound unique index covers it as a left-prefix.
+      This changeset runs before data migration so the table is empty.
+    </comment>
+
+    <!-- Drop the single-column funding_value_id index — redundant once the compound unique exists -->
+    <dropIndex indexName="index_pafs_core_funding_contributors_on_funding_value_id"
+               tableName="pafs_core_funding_contributors"/>
+
+    <!-- Add unique constraint — Prisma generates where-key funding_value_id_contributor_type_name -->
+    <addUniqueConstraint
+      tableName="pafs_core_funding_contributors"
+      columnNames="funding_value_id, contributor_type, name"
+      constraintName="uq_funding_contributors_fv_type_name"/>
+
+    <rollback>
+      <dropUniqueConstraint tableName="pafs_core_funding_contributors"
+                            constraintName="uq_funding_contributors_fv_type_name"/>
+      <createIndex indexName="index_pafs_core_funding_contributors_on_funding_value_id"
+                   tableName="pafs_core_funding_contributors">
+        <column name="funding_value_id"/>
+      </createIndex>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

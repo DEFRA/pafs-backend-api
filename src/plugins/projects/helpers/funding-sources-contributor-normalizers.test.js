@@ -91,7 +91,8 @@ describe('funding-sources-contributor-normalizers', () => {
       expect(payload.recovery).toBeNull()
       expect(payload.summerEconomicFund).toBeNull()
       expect(projectService.nullAdditionalGiaColumns).toHaveBeenCalledWith(
-        'REF-001'
+        'REF-001',
+        undefined
       )
     })
   })
