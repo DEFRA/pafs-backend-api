@@ -85,7 +85,9 @@ export function buildRdsPoolConfig(server, options) {
     maxLifetimeSeconds: options.pool.maxLifetimeSeconds,
     connectionTimeoutMillis:
       options.pool.connectionTimeoutMs ?? CONNECTION_TIMEOUT_MS,
-    idleTimeoutMillis: 30000
+    idleTimeoutMillis: 30000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000
   }
 
   // Add SSL configuration for AWS RDS IAM authentication
