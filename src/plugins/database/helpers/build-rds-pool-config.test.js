@@ -82,8 +82,8 @@ describe('RDS Pool Configuration', () => {
       expect(config.password).toBeTypeOf('function')
       expect(config.max).toBe(10)
       expect(config.maxLifetimeSeconds).toBe(600)
-      expect(config.connectionTimeoutMillis).toBe(5000)
-      expect(config.idleTimeoutMillis).toBe(30000)
+      expect(config.connectionTimeoutMillis).toBe(1500)
+      expect(config.idleTimeoutMillis).toBe(20000)
       expect(config.keepAlive).toBe(true)
       expect(config.keepAliveInitialDelayMillis).toBe(10000)
       expect(config.ssl).toEqual({
@@ -106,7 +106,7 @@ describe('RDS Pool Configuration', () => {
       })
 
       expect(config.password).toBe('devpass123')
-      expect(config.idleTimeoutMillis).toBe(30000)
+      expect(config.idleTimeoutMillis).toBe(20000)
       expect(config.keepAlive).toBe(true)
       expect(config.keepAliveInitialDelayMillis).toBe(10000)
       expect(config.ssl).toBeUndefined()
@@ -126,7 +126,7 @@ describe('RDS Pool Configuration', () => {
       expect(config.connectionTimeoutMillis).toBe(3000)
     })
 
-    test('defaults connectionTimeoutMillis to 5000 when connectionTimeoutMs is not set', () => {
+    test('defaults connectionTimeoutMillis to 1500 when connectionTimeoutMs is not set', () => {
       const server = { logger: mockLogger }
       const config = buildRdsPoolConfig(server, {
         useIamAuth: false,
@@ -137,7 +137,7 @@ describe('RDS Pool Configuration', () => {
         password: 'p',
         pool: { max: 10, maxLifetimeSeconds: 600 }
       })
-      expect(config.connectionTimeoutMillis).toBe(5000)
+      expect(config.connectionTimeoutMillis).toBe(1500)
     })
 
     test('password function generates fresh tokens', async () => {

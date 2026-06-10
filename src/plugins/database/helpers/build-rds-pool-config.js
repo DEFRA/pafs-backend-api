@@ -1,7 +1,7 @@
 import { Signer } from '@aws-sdk/rds-signer'
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
 
-const CONNECTION_TIMEOUT_MS = 5000
+const CONNECTION_TIMEOUT_MS = 1500
 
 /**
  * Generate AWS RDS IAM authentication token
@@ -85,7 +85,7 @@ export function buildRdsPoolConfig(server, options) {
     maxLifetimeSeconds: options.pool.maxLifetimeSeconds,
     connectionTimeoutMillis:
       options.pool.connectionTimeoutMs ?? CONNECTION_TIMEOUT_MS,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 20000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000
   }
