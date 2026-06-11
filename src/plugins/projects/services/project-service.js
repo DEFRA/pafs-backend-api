@@ -12,6 +12,11 @@ import {
   requiresLegacyMigration,
   executeLegacyProjectTypeMigration
 } from './legacy-migration-service.js'
+import {
+  getCachedProjectScalar,
+  setCachedProjectScalar,
+  invalidateCachedProjectScalar
+} from '../helpers/project-scalar-cache.js'
 
 export class ProjectService extends ProjectNfmService {
   constructor(prisma, logger) {
@@ -155,6 +160,8 @@ export class ProjectService extends ProjectNfmService {
           : Promise.resolve()
       ])
 
+      invalidateCachedProjectScalar(referenceNumber)
+
       return result
     } catch (error) {
       this.logger.error(
@@ -185,9 +192,85 @@ export class ProjectService extends ProjectNfmService {
     return this._getProjectDetails(referenceNumber, { includeVersion: true })
   }
 
+  /**
+   * Resolves the raw project row for the validation/write path.
+   * Returns the cached entry if warm, otherwise queries the DB.
+   * Returns { project, cached } so the caller knows whether to store a new
+   * cache entry after enrichment.
+   */
+  async _fetchProjectRaw(referenceNumber, skipUrlEnrichment) {
+    const cached = skipUrlEnrichment
+      ? getCachedProjectScalar(referenceNumber)
+      : null
+    const project =
+      cached ??
+      (skipUrlEnrichment
+        ? await this._queryProjectScalar(referenceNumber)
+        : await this._queryProjectFull(referenceNumber))
+    return { project, cached }
+  }
+
+  /**
+   * Applies the legacy project-type migration in-place when requested.
+   * Extracts the nested-if block from getProjectByReferenceNumber to reduce
+   * its cognitive complexity.
+   */
+  async _applyLegacyMigration(project, withProjectTypeMigration) {
+    if (!withProjectTypeMigration || !requiresLegacyMigration(project)) {
+      return
+    }
+    const migrationResult = await executeLegacyProjectTypeMigration(
+      this.prisma,
+      project,
+      this.logger
+    )
+    if (migrationResult) {
+      project.project_type = migrationResult.project_type
+      project.project_intervention_types =
+        migrationResult.project_intervention_types
+      project.main_intervention_type = migrationResult.main_intervention_type
+      project.legacy_project_type_migration_completed =
+        migrationResult.legacy_project_type_migration_completed
+    }
+  }
+
   async _queryProjectFull(referenceNumber) {
     const rows = await this.prisma.$queryRaw(
       Prisma.sql`SELECT * FROM v_project_full WHERE reference_number = ${referenceNumber}`
+    )
+    if (!rows || rows.length === 0) {
+      return null
+    }
+    return this._reshapeProjectViewRow(rows[0])
+  }
+
+  /**
+   * Lightweight alternative to _queryProjectFull for write/validation paths.
+   *
+   * Queries pafs_core_projects, pafs_core_states, and pafs_core_area_projects
+   * directly, skipping the four json_agg aggregations in v_project_full
+   * (nfm_measures_json, land_use_json, funding_values_json, contributors_json).
+   * Those columns are unused on every upsert and submit validation path, so
+   * avoiding them removes the most expensive part of the view query and
+   * shortens the time each connection is held during peak load.
+   *
+   * _reshapeProjectViewRow handles missing json columns by defaulting to [].
+   */
+  async _queryProjectScalar(referenceNumber) {
+    const rows = await this.prisma.$queryRaw(
+      Prisma.sql`
+        SELECT p.*,
+               ps.state,
+               ap.area_id,
+               ap.owner AS area_owner
+        FROM pafs_core_projects p
+        LEFT JOIN pafs_core_states ps
+          ON ps.project_id = p.id
+        LEFT JOIN pafs_core_area_projects ap
+          ON ap.project_id = p.id AND ap.owner = true
+        WHERE p.reference_number = ${referenceNumber}
+        LIMIT 1
+      `
     )
     if (!rows || rows.length === 0) {
       return null
@@ -232,7 +315,10 @@ export class ProjectService extends ProjectNfmService {
         'Fetching project details by reference number'
       )
 
-      const project = await this._queryProjectFull(referenceNumber)
+      const { project, cached } = await this._fetchProjectRaw(
+        referenceNumber,
+        skipUrlEnrichment
+      )
 
       if (!project) {
         return null
@@ -241,23 +327,7 @@ export class ProjectService extends ProjectNfmService {
       // Execute legacy migration only when explicitly requested (overview page only).
       // Validation paths (upsert, resubmit) must not trigger migration so that
       // user-edited values are never overwritten mid-request.
-      if (withProjectTypeMigration && requiresLegacyMigration(project)) {
-        const migrationResult = await executeLegacyProjectTypeMigration(
-          this.prisma,
-          project,
-          this.logger
-        )
-        if (migrationResult) {
-          // Apply transformed fields to in-memory project before mapping
-          project.project_type = migrationResult.project_type
-          project.project_intervention_types =
-            migrationResult.project_intervention_types
-          project.main_intervention_type =
-            migrationResult.main_intervention_type
-          project.legacy_project_type_migration_completed =
-            migrationResult.legacy_project_type_migration_completed
-        }
-      }
+      await this._applyLegacyMigration(project, withProjectTypeMigration)
 
       const apiData = ProjectMapper.toApi(project)
 
@@ -266,6 +336,10 @@ export class ProjectService extends ProjectNfmService {
       await enrichProjectResponse(this.prisma, project, apiData, this.logger, {
         skipUrlEnrichment
       })
+
+      if (skipUrlEnrichment && !cached) {
+        setCachedProjectScalar(referenceNumber, project)
+      }
 
       return apiData
     } catch (error) {

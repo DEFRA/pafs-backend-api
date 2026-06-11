@@ -17,6 +17,12 @@ vi.mock('./legacy-migration-service.js', () => ({
   executeLegacyProjectTypeMigration: vi.fn().mockResolvedValue(undefined)
 }))
 
+vi.mock('../helpers/project-scalar-cache.js', () => ({
+  getCachedProjectScalar: vi.fn().mockReturnValue(null),
+  setCachedProjectScalar: vi.fn(),
+  invalidateCachedProjectScalar: vi.fn()
+}))
+
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
@@ -1277,6 +1283,145 @@ describe('ProjectService', () => {
         expect.any(Object),
         expect.any(Object),
         { skipUrlEnrichment: false }
+      )
+    })
+
+    describe('scalar query path (skipUrlEnrichment: true)', () => {
+      test('Should query pafs_core_projects directly instead of v_project_full', async () => {
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
+          skipUrlEnrichment: true
+        })
+
+        expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([
+              expect.stringContaining('pafs_core_projects')
+            ])
+          })
+        )
+      })
+
+      test('Should query v_project_full when skipUrlEnrichment is false', async () => {
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
+          skipUrlEnrichment: false
+        })
+
+        expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([
+              expect.stringContaining('v_project_full')
+            ])
+          })
+        )
+      })
+
+      test('Should default json array fields to [] when absent on scalar row', async () => {
+        const scalarRow = buildViewRow()
+        delete scalarRow.nfm_measures_json
+        delete scalarRow.land_use_json
+        delete scalarRow.funding_values_json
+        delete scalarRow.contributors_json
+        mockPrisma.$queryRaw.mockResolvedValue([scalarRow])
+
+        const result = await service.getProjectByReferenceNumber(
+          'ANC501E/000A/001A',
+          { skipUrlEnrichment: true }
+        )
+
+        expect(result.pafs_core_nfm_measures).toEqual([])
+        expect(result.pafs_core_nfm_land_use_changes).toEqual([])
+        expect(result.pafs_core_funding_values).toEqual([])
+        expect(result.pafs_core_funding_contributors).toEqual([])
+      })
+
+      test('Should return null when project does not exist on scalar path', async () => {
+        mockPrisma.$queryRaw.mockResolvedValue([])
+
+        const result = await service.getProjectByReferenceNumber(
+          'ANC501E/000A/999A',
+          { skipUrlEnrichment: true }
+        )
+
+        expect(result).toBeNull()
+      })
+    })
+
+    describe('project scalar cache', () => {
+      test('Should store result in cache after a scalar DB query', async () => {
+        const { setCachedProjectScalar } =
+          await import('../helpers/project-scalar-cache.js')
+
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
+          skipUrlEnrichment: true
+        })
+
+        expect(setCachedProjectScalar).toHaveBeenCalledWith(
+          'ANC501E/000A/001A',
+          expect.any(Object)
+        )
+      })
+
+      test('Should return cached value and skip DB query on cache hit', async () => {
+        const { getCachedProjectScalar } =
+          await import('../helpers/project-scalar-cache.js')
+        const cachedProject = buildViewRow()
+        getCachedProjectScalar.mockReturnValue(cachedProject)
+
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
+          skipUrlEnrichment: true
+        })
+
+        expect(mockPrisma.$queryRaw).not.toHaveBeenCalled()
+      })
+
+      test('Should not cache result when skipUrlEnrichment is false (full view path)', async () => {
+        const { setCachedProjectScalar } =
+          await import('../helpers/project-scalar-cache.js')
+
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
+          skipUrlEnrichment: false
+        })
+
+        expect(setCachedProjectScalar).not.toHaveBeenCalled()
+      })
+
+      test('Should not set cache when getCachedProjectScalar returns a hit', async () => {
+        const { getCachedProjectScalar, setCachedProjectScalar } =
+          await import('../helpers/project-scalar-cache.js')
+        getCachedProjectScalar.mockReturnValue(buildViewRow())
+
+        await service.getProjectByReferenceNumber('ANC501E/000A/001A', {
+          skipUrlEnrichment: true
+        })
+
+        expect(setCachedProjectScalar).not.toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe('upsertProject cache invalidation', () => {
+    beforeEach(() => {
+      mockPrisma.pafs_core_projects.upsert = vi.fn().mockResolvedValue({
+        id: 1n,
+        reference_number: 'ANC501E/000A/001A',
+        slug: 'ANC501E-000A-001A',
+        name: 'Test Project'
+      })
+      mockPrisma.pafs_core_states = { upsert: vi.fn() }
+      mockPrisma.pafs_core_area_projects = { upsert: vi.fn() }
+    })
+
+    test('Should invalidate scalar cache after successful upsert', async () => {
+      const { invalidateCachedProjectScalar } =
+        await import('../helpers/project-scalar-cache.js')
+
+      await service.upsertProject(
+        { referenceNumber: 'ANC501E/000A/001A', name: 'Updated' },
+        123n
+      )
+
+      expect(invalidateCachedProjectScalar).toHaveBeenCalledWith(
+        'ANC501E/000A/001A'
       )
     })
   })
