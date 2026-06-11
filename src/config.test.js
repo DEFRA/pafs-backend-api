@@ -108,7 +108,7 @@ describe('config', () => {
 
     test('Should have correct default pool max connections', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.pool.max')).toBe(10)
+      expect(config.get('postgres.pool.max')).toBe(50)
     })
 
     test('Should have correct default pool max lifetime', async () => {

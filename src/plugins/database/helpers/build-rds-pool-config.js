@@ -1,7 +1,7 @@
 import { Signer } from '@aws-sdk/rds-signer'
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
 
-const CONNECTION_TIMEOUT_MS = 1500
+const CONNECTION_TIMEOUT_MS = 5000
 
 /**
  * Generate AWS RDS IAM authentication token

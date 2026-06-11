@@ -206,17 +206,19 @@ export class AuthService {
   async createSuccessfulLoginResponse(user, ipAddress) {
     const sessionId = generateSessionId()
 
-    // Run area fetch and login record update in parallel.
+    // Run sequentially rather than in parallel (Promise.all) to halve the
+    // peak pg pool connection demand under concurrent login load.
+    // Promise.all would hold 2 connections simultaneously per login —
+    // at 30 concurrent logins this saturates a pool of 30 (2×30 = 60 needed).
+    // Sequential execution uses at most 1 connection per login at any point.
     // updateSuccessfulLogin atomically writes the new sessionId, which
     // immediately invalidates any prior session — no separate
     // invalidateOtherSessions call needed.
-    const [areas] = await Promise.all([
-      fetchUserAreas(this.prisma, user.id),
-      this.updateSuccessfulLogin(user.id, sessionId, ipAddress, {
-        signInAt: user.current_sign_in_at,
-        signInIp: user.current_sign_in_ip
-      })
-    ])
+    const areas = await fetchUserAreas(this.prisma, user.id)
+    await this.updateSuccessfulLogin(user.id, sessionId, ipAddress, {
+      signInAt: user.current_sign_in_at,
+      signInIp: user.current_sign_in_ip
+    })
     const areaFlags = getAreaTypeFlags(areas)
 
     const accessToken = generateAccessToken(user, sessionId, areas)

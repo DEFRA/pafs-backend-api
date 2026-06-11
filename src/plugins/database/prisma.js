@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
 import { buildRdsPoolConfig } from './helpers/build-rds-pool-config.js'
 import { createAuditExtension } from './audit-extension.js'
+import { createConnectionRetryExtension } from './connection-retry-extension.js'
 import { preWarmAreaHierarchyCache } from '../projects/helpers/area-hierarchy.js'
 
 const { Pool } = pg
@@ -73,6 +74,7 @@ function createPrismaClient(pgPool, server) {
   })
 
   setupPrismaListeners(prismaClient, server, isDevelopment)
+
   server.logger.info('Prisma client configured successfully')
   return prismaClient
 }
@@ -170,22 +172,31 @@ export const prisma = {
       server.logger.info('Setting up Prisma ORM with PostgreSQL adapter')
 
       const pgPool = initialisePrismaPool(server, options)
-      const prismaClient = createPrismaClient(pgPool, server)
+      const basePrismaClient = createPrismaClient(pgPool, server)
 
-      await testPrismaConnection(prismaClient, pgPool, server)
+      await testPrismaConnection(basePrismaClient, pgPool, server)
 
-      // Decorate server with base Prisma client (for direct use without audit, e.g. in the audit extension itself)
-      server.decorate('server', 'prisma', prismaClient)
+      // Apply connection retry extension so transient Aurora connection terminations
+      // are automatically retried once for read operations, preventing 500 errors
+      // under load when ACU scaling briefly disrupts idle connections.
+      const prismaWithRetry = basePrismaClient.$extends(
+        createConnectionRetryExtension(server.logger)
+      )
+
+      // server.prisma: retry-wrapped client for server-level ops (e.g. background jobs)
+      server.decorate('server', 'prisma', prismaWithRetry)
+      // request.prisma: retry-wrapped + audit-extended per user (lazy, cached per userId)
       server.decorate(
         'request',
         'prisma',
-        buildRequestPrismaDecorator(server, prismaClient),
+        buildRequestPrismaDecorator(server, prismaWithRetry),
         {
           apply: true
         }
       )
 
-      registerPrismaShutdown(server, prismaClient, pgPool)
+      // Shutdown uses base client — $disconnect() belongs to the base PrismaClient
+      registerPrismaShutdown(server, basePrismaClient, pgPool)
     }
   }
 }

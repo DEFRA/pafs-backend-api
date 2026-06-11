@@ -43,7 +43,7 @@ const postgresSchema = {
       max: {
         doc: 'Maximum number of connections in pool',
         format: 'nat',
-        default: 10,
+        default: 50,
         env: 'POSTGRES_POOL_MAX'
       },
       maxLifetimeSeconds: {
@@ -53,9 +53,9 @@ const postgresSchema = {
         env: 'POSTGRES_POOL_MAX_LIFETIME'
       },
       connectionTimeoutMs: {
-        doc: 'Milliseconds to wait for a pool connection before timing out — keep low so requests fail fast under overload',
+        doc: 'Milliseconds before pg times out waiting for a pool slot or an Aurora query response — must exceed worst-case Aurora response time under load',
         format: 'nat',
-        default: 1500,
+        default: 5000,
         env: 'POSTGRES_POOL_CONNECTION_TIMEOUT_MS'
       }
     }

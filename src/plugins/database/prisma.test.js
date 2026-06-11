@@ -3,7 +3,13 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 const mockPrismaDisconnect = vi.fn()
 const mockPrismaQueryRaw = vi.fn()
 const mockPrismaOn = vi.fn()
-const mockPrismaExtends = vi.fn().mockReturnValue({ _isAuditedClient: true })
+const mockPrismaExtends = vi.fn()
+// Return a chainable client — in production Prisma propagates all methods through $extends;
+// the mock must do the same so buildRequestPrismaDecorator can chain retry → audit.
+mockPrismaExtends.mockReturnValue({
+  _isAuditedClient: true,
+  $extends: mockPrismaExtends
+})
 const mockPoolEnd = vi.fn()
 const mockPoolOn = vi.fn()
 
@@ -19,6 +25,10 @@ vi.mock('@prisma/client', () => ({
 
 vi.mock('./audit-extension.js', () => ({
   createAuditExtension: vi.fn().mockReturnValue({ name: 'audit' })
+}))
+
+vi.mock('./connection-retry-extension.js', () => ({
+  createConnectionRetryExtension: vi.fn().mockReturnValue({ name: 'retry' })
 }))
 
 vi.mock('../projects/helpers/area-hierarchy.js', () => ({
@@ -227,6 +237,18 @@ describe('Prisma Plugin', () => {
     expect(hasQueryLogger).toBe(false)
   })
 
+  test('applies connection retry extension to server.prisma', async () => {
+    const { createConnectionRetryExtension } =
+      await import('./connection-retry-extension.js')
+
+    await prisma.plugin.register(mockServer, {})
+
+    expect(createConnectionRetryExtension).toHaveBeenCalledWith(
+      mockServer.logger
+    )
+    expect(mockPrismaExtends).toHaveBeenCalledWith({ name: 'retry' })
+  })
+
   test('decorates server with Prisma client', async () => {
     await prisma.plugin.register(mockServer, {})
 
@@ -263,10 +285,10 @@ describe('Prisma Plugin', () => {
     const mockRequest = { auth: { credentials: { userId: BigInt(1) } } }
     const proxy = decoratorFn(mockRequest)
 
-    // $extends is not called yet — resolution is lazy until a property is accessed
-    expect(mockPrismaExtends).not.toHaveBeenCalled()
+    // retry extension was applied eagerly during register(); audit extension is lazy
+    expect(mockPrismaExtends).toHaveBeenCalledOnce()
 
-    // Access a property to trigger lazy resolution
+    // Access a property to trigger lazy resolution of the audit extension
     expect(proxy._isAuditedClient).toBe(true)
 
     expect(createAuditExtension).toHaveBeenCalledWith(
@@ -276,7 +298,8 @@ describe('Prisma Plugin', () => {
         logger: mockServer.logger
       })
     )
-    expect(mockPrismaExtends).toHaveBeenCalledOnce()
+    // retry (from register) + audit (lazy on first access) = 2 total
+    expect(mockPrismaExtends).toHaveBeenCalledTimes(2)
   })
 
   test('memoises extended client — $extends called only once for the same userId', async () => {
@@ -297,8 +320,8 @@ describe('Prisma Plugin', () => {
     expect(proxy1._isAuditedClient).toBe(true)
     expect(proxy2._isAuditedClient).toBe(true)
 
-    // Same userId → $extends created only once
-    expect(mockPrismaExtends).toHaveBeenCalledOnce()
+    // retry (from register) + 1 audit (same userId, memoised) = 2 total
+    expect(mockPrismaExtends).toHaveBeenCalledTimes(2)
   })
 
   test('creates separate extended clients for different userIds', async () => {
@@ -318,8 +341,8 @@ describe('Prisma Plugin', () => {
     expect(proxyA._isAuditedClient).toBe(true)
     expect(proxyB._isAuditedClient).toBe(true)
 
-    // Different userIds → $extends called twice
-    expect(mockPrismaExtends).toHaveBeenCalledTimes(2)
+    // retry (from register) + 2 audits (different userIds) = 3 total
+    expect(mockPrismaExtends).toHaveBeenCalledTimes(3)
   })
 
   test('getUserId in audit extension captures the correct userId at creation time', async () => {
