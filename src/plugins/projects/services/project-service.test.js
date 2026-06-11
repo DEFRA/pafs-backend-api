@@ -19,8 +19,7 @@ vi.mock('./legacy-migration-service.js', () => ({
 
 vi.mock('../helpers/project-scalar-cache.js', () => ({
   getCachedProjectScalar: vi.fn().mockReturnValue(null),
-  setCachedProjectScalar: vi.fn(),
-  invalidateCachedProjectScalar: vi.fn()
+  setCachedProjectScalar: vi.fn()
 }))
 
 // ---------------------------------------------------------------------------
@@ -1396,33 +1395,6 @@ describe('ProjectService', () => {
 
         expect(setCachedProjectScalar).not.toHaveBeenCalled()
       })
-    })
-  })
-
-  describe('upsertProject cache invalidation', () => {
-    beforeEach(() => {
-      mockPrisma.pafs_core_projects.upsert = vi.fn().mockResolvedValue({
-        id: 1n,
-        reference_number: 'ANC501E/000A/001A',
-        slug: 'ANC501E-000A-001A',
-        name: 'Test Project'
-      })
-      mockPrisma.pafs_core_states = { upsert: vi.fn() }
-      mockPrisma.pafs_core_area_projects = { upsert: vi.fn() }
-    })
-
-    test('Should invalidate scalar cache after successful upsert', async () => {
-      const { invalidateCachedProjectScalar } =
-        await import('../helpers/project-scalar-cache.js')
-
-      await service.upsertProject(
-        { referenceNumber: 'ANC501E/000A/001A', name: 'Updated' },
-        123n
-      )
-
-      expect(invalidateCachedProjectScalar).toHaveBeenCalledWith(
-        'ANC501E/000A/001A'
-      )
     })
   })
 

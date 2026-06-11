@@ -14,8 +14,7 @@ import {
 } from './legacy-migration-service.js'
 import {
   getCachedProjectScalar,
-  setCachedProjectScalar,
-  invalidateCachedProjectScalar
+  setCachedProjectScalar
 } from '../helpers/project-scalar-cache.js'
 
 export class ProjectService extends ProjectNfmService {
@@ -159,8 +158,6 @@ export class ProjectService extends ProjectNfmService {
           ? this.upsertProjectArea(result.id, proposalPayload.areaId)
           : Promise.resolve()
       ])
-
-      invalidateCachedProjectScalar(referenceNumber)
 
       return result
     } catch (error) {
