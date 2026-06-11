@@ -245,7 +245,22 @@ export class AuthService {
 
   async findUserByEmail(email) {
     return this.prisma.pafs_core_users.findUnique({
-      where: { email }
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        admin: true,
+        status: true,
+        disabled: true,
+        encrypted_password: true,
+        failed_attempts: true,
+        locked_at: true,
+        last_sign_in_at: true,
+        current_sign_in_at: true,
+        current_sign_in_ip: true
+      }
     })
   }
 

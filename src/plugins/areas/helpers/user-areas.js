@@ -1,45 +1,41 @@
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 import { AreaService } from '../services/area-service.js'
+import {
+  getCachedUserAreas,
+  setCachedUserAreas
+} from '../../auth/helpers/user-areas-cache.js'
 
 /**
- * Fetch user areas with area types from database
+ * Fetch user areas with area types from database.
+ * Returns cached result within the 5-minute TTL — zero DB round-trips on hit.
+ * On a miss, executes a single JOIN query (replaces the previous two-query approach)
+ * and caches the result for subsequent calls within the TTL window.
  * @param {Object} prisma - Prisma client instance
  * @param {BigInt|number} userId - User ID
  * @returns {Promise<Array>} Array of user areas with areaId, primary, name, and areaType
  */
 export async function fetchUserAreas(prisma, userId) {
-  const userAreas = await prisma.pafs_core_user_areas.findMany({
-    where: { user_id: BigInt(userId) },
-    select: { area_id: true, primary: true }
-  })
-
-  if (!userAreas?.length) {
-    return []
+  const cached = getCachedUserAreas(userId)
+  if (cached) {
+    return cached
   }
 
-  const areaIds = userAreas.map((ua) => ua.area_id)
+  const rows = await prisma.$queryRaw`
+    SELECT ua.area_id, ua."primary", a.name, a.area_type
+    FROM pafs_core_user_areas ua
+    JOIN pafs_core_areas a ON a.id = ua.area_id
+    WHERE ua.user_id = ${BigInt(userId)}
+  `
 
-  const areas = await prisma.pafs_core_areas.findMany({
-    where: { id: { in: areaIds } },
-    select: { id: true, name: true, area_type: true }
-  })
+  const areas = rows.map((row) => ({
+    areaId: Number(row.area_id),
+    primary: Boolean(row.primary),
+    name: row.name,
+    areaType: row.area_type
+  }))
 
-  const areasById = new Map(areas.map((a) => [a.id.toString(), a]))
-
-  return userAreas
-    .map((ua) => {
-      const area = areasById.get(ua.area_id.toString())
-      if (!area) {
-        return null
-      }
-      return {
-        areaId: Number(area.id),
-        primary: Boolean(ua.primary),
-        name: area.name,
-        areaType: area.area_type
-      }
-    })
-    .filter(Boolean)
+  setCachedUserAreas(userId, areas)
+  return areas
 }
 
 /**

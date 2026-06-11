@@ -14,33 +14,46 @@ vi.mock('../services/area-service.js', () => ({
   AreaService: vi.fn()
 }))
 
+// Mock the user-areas cache — tests control cache hits/misses explicitly
+vi.mock('../../auth/helpers/user-areas-cache.js', () => ({
+  getCachedUserAreas: vi.fn().mockReturnValue(null),
+  setCachedUserAreas: vi.fn()
+}))
+
+import {
+  getCachedUserAreas,
+  setCachedUserAreas
+} from '../../auth/helpers/user-areas-cache.js'
+
 describe('user-areas helpers', () => {
   describe('fetchUserAreas', () => {
     let mockPrisma
 
     beforeEach(() => {
+      vi.clearAllMocks()
+      getCachedUserAreas.mockReturnValue(null) // cache miss by default
       mockPrisma = {
-        pafs_core_user_areas: {
-          findMany: vi.fn()
-        },
-        pafs_core_areas: {
-          findMany: vi.fn()
-        }
+        $queryRaw: vi.fn()
       }
     })
 
-    test('Should fetch user areas with all fields', async () => {
-      const userId = 123
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(10), primary: true },
-        { area_id: BigInt(20), primary: false }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(10), name: 'Area A', area_type: 'RMA' },
-        { id: BigInt(20), name: 'Area B', area_type: 'PSO' }
+    test('returns mapped areas from DB on cache miss', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        {
+          area_id: BigInt(10),
+          primary: true,
+          name: 'Area A',
+          area_type: 'RMA'
+        },
+        {
+          area_id: BigInt(20),
+          primary: false,
+          name: 'Area B',
+          area_type: 'PSO'
+        }
       ])
 
-      const result = await fetchUserAreas(mockPrisma, userId)
+      const result = await fetchUserAreas(mockPrisma, 123)
 
       expect(result).toEqual([
         { areaId: 10, primary: true, name: 'Area A', areaType: 'RMA' },
@@ -48,56 +61,46 @@ describe('user-areas helpers', () => {
       ])
     })
 
-    test('Should query with BigInt userId', async () => {
-      const userId = 123
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
-
-      await fetchUserAreas(mockPrisma, userId)
-
-      expect(mockPrisma.pafs_core_user_areas.findMany).toHaveBeenCalledWith({
-        where: { user_id: BigInt(123) },
-        select: {
-          area_id: true,
-          primary: true
-        }
-      })
-    })
-
-    test('Should handle string userId by converting to BigInt', async () => {
-      const userId = '456'
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
-
-      await fetchUserAreas(mockPrisma, userId)
-
-      expect(mockPrisma.pafs_core_user_areas.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { user_id: BigInt(456) }
-        })
-      )
-    })
-
-    test('Should return empty array when no areas found', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
+    test('returns cached areas without hitting DB on cache hit', async () => {
+      const cached = [
+        { areaId: 10, primary: true, name: 'Area A', areaType: 'RMA' }
+      ]
+      getCachedUserAreas.mockReturnValue(cached)
 
       const result = await fetchUserAreas(mockPrisma, 123)
 
-      expect(result).toEqual([])
+      expect(result).toBe(cached)
+      expect(mockPrisma.$queryRaw).not.toHaveBeenCalled()
     })
 
-    test('Should return empty array when null is returned', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue(null)
-
-      const result = await fetchUserAreas(mockPrisma, 123)
-
-      expect(result).toEqual([])
-    })
-
-    test('Should convert BigInt IDs to numbers', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(999999999), primary: true }
+    test('stores result in cache after DB query', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        { area_id: BigInt(1), primary: true, name: 'Test', area_type: 'RMA' }
       ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(999999999), name: 'Large ID Area', area_type: 'EA' }
+
+      await fetchUserAreas(mockPrisma, 42)
+
+      expect(setCachedUserAreas).toHaveBeenCalledWith(42, [
+        { areaId: 1, primary: true, name: 'Test', areaType: 'RMA' }
+      ])
+    })
+
+    test('returns empty array when no rows returned', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([])
+
+      const result = await fetchUserAreas(mockPrisma, 123)
+
+      expect(result).toEqual([])
+    })
+
+    test('converts BigInt area_id to number', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        {
+          area_id: BigInt(999999999),
+          primary: true,
+          name: 'Large ID Area',
+          area_type: 'EA'
+        }
       ])
 
       const result = await fetchUserAreas(mockPrisma, 1)
@@ -106,12 +109,9 @@ describe('user-areas helpers', () => {
       expect(typeof result[0].areaId).toBe('number')
     })
 
-    test('Should convert primary to boolean', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(1), primary: 1 }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(1), name: 'Test', area_type: 'RMA' }
+    test('converts primary truthy value to boolean', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        { area_id: BigInt(1), primary: 1, name: 'Test', area_type: 'RMA' }
       ])
 
       const result = await fetchUserAreas(mockPrisma, 1)
@@ -120,53 +120,14 @@ describe('user-areas helpers', () => {
       expect(typeof result[0].primary).toBe('boolean')
     })
 
-    test('Should handle all three area types', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(1), primary: true },
-        { area_id: BigInt(2), primary: false },
-        { area_id: BigInt(3), primary: false }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(1), name: 'RMA Area', area_type: 'RMA' },
-        { id: BigInt(2), name: 'PSO Area', area_type: 'PSO Area' },
-        { id: BigInt(3), name: 'EA Area', area_type: 'EA Area' }
-      ])
-
-      const result = await fetchUserAreas(mockPrisma, 1)
-
-      expect(result).toHaveLength(3)
-      expect(result[0].areaType).toBe('RMA')
-      expect(result[1].areaType).toBe('PSO Area')
-      expect(result[2].areaType).toBe('EA Area')
-    })
-
-    test('Should handle null area_type', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(1), primary: true }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(1), name: 'Test', area_type: null }
+    test('handles null area_type', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        { area_id: BigInt(1), primary: true, name: 'Test', area_type: null }
       ])
 
       const result = await fetchUserAreas(mockPrisma, 1)
 
       expect(result[0].areaType).toBeNull()
-    })
-
-    test('Should filter out user areas where area record is not found', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(1), primary: true },
-        { area_id: BigInt(999), primary: false }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(1), name: 'Found Area', area_type: 'RMA' }
-        // area_id 999 not present — should be filtered out
-      ])
-
-      const result = await fetchUserAreas(mockPrisma, 123)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].areaId).toBe(1)
     })
   })
 
@@ -694,10 +655,10 @@ describe('user-areas helpers', () => {
 
     beforeEach(() => {
       vi.clearAllMocks()
+      getCachedUserAreas.mockReturnValue(null) // cache miss — always hit DB in these tests
 
       mockPrisma = {
-        pafs_core_user_areas: { findMany: vi.fn() },
-        pafs_core_areas: { findMany: vi.fn() }
+        $queryRaw: vi.fn()
       }
 
       mockLogger = { info: vi.fn(), error: vi.fn(), warn: vi.fn() }
@@ -709,7 +670,7 @@ describe('user-areas helpers', () => {
     })
 
     test('Should return empty array when user has no areas in the DB', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
+      mockPrisma.$queryRaw.mockResolvedValue([])
 
       const result = await resolveAccessibleAreaIdsForUser(
         mockPrisma,
@@ -718,17 +679,22 @@ describe('user-areas helpers', () => {
       )
 
       expect(result).toEqual([])
-      expect(mockPrisma.pafs_core_areas.findMany).not.toHaveBeenCalled()
     })
 
     test('Should return RMA area IDs directly for an RMA user', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(10), primary: true },
-        { area_id: BigInt(11), primary: false }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(10), name: 'RMA 1', area_type: AREA_TYPE_MAP.RMA },
-        { id: BigInt(11), name: 'RMA 2', area_type: AREA_TYPE_MAP.RMA }
+      mockPrisma.$queryRaw.mockResolvedValue([
+        {
+          area_id: BigInt(10),
+          primary: true,
+          name: 'RMA 1',
+          area_type: AREA_TYPE_MAP.RMA
+        },
+        {
+          area_id: BigInt(11),
+          primary: false,
+          name: 'RMA 2',
+          area_type: AREA_TYPE_MAP.RMA
+        }
       ])
 
       const result = await resolveAccessibleAreaIdsForUser(
@@ -741,11 +707,13 @@ describe('user-areas helpers', () => {
     })
 
     test('Should return descendant RMA IDs for a PSO user', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(30), primary: true }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(30), name: 'PSO 1', area_type: AREA_TYPE_MAP.PSO }
+      mockPrisma.$queryRaw.mockResolvedValue([
+        {
+          area_id: BigInt(30),
+          primary: true,
+          name: 'PSO 1',
+          area_type: AREA_TYPE_MAP.PSO
+        }
       ])
       mockGetDescendantRmaAreaIds.mockResolvedValue([100, 101])
 
@@ -763,11 +731,13 @@ describe('user-areas helpers', () => {
     })
 
     test('Should return descendant RMA IDs for an EA user', async () => {
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(5), primary: true }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(5), name: 'EA 1', area_type: AREA_TYPE_MAP.EA }
+      mockPrisma.$queryRaw.mockResolvedValue([
+        {
+          area_id: BigInt(5),
+          primary: true,
+          name: 'EA 1',
+          area_type: AREA_TYPE_MAP.EA
+        }
       ])
       mockGetDescendantRmaAreaIds.mockResolvedValue([200, 201, 202])
 
@@ -784,13 +754,14 @@ describe('user-areas helpers', () => {
       )
     })
 
-    test('Should return empty array (not null) when no role matches', async () => {
-      // A user whose primary area type doesn't match RMA/PSO/EA
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(99), primary: true }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(99), name: 'Unknown', area_type: 'UNKNOWN_TYPE' }
+    test('Should return empty array when no role matches', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        {
+          area_id: BigInt(99),
+          primary: true,
+          name: 'Unknown',
+          area_type: 'UNKNOWN_TYPE'
+        }
       ])
 
       const result = await resolveAccessibleAreaIdsForUser(
@@ -802,14 +773,9 @@ describe('user-areas helpers', () => {
       expect(result).toEqual([])
     })
 
-    test('Should never return null even when resolveUserAreaIds would return null defensively', async () => {
-      // Simulate a user with areas where getAreaTypeFlags returns all false
-      // (edge case: all areas have an unrecognised type)
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: BigInt(1), primary: false }
-      ])
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: BigInt(1), name: 'X', area_type: null }
+    test('Should return empty array when all areas have unrecognised type', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([
+        { area_id: BigInt(1), primary: false, name: 'X', area_type: null }
       ])
 
       const result = await resolveAccessibleAreaIdsForUser(

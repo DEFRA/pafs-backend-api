@@ -94,6 +94,7 @@ export const SIZE = {
   LENGTH_2: 2,
   LENGTH_3: 3,
   LENGTH_4: 4,
+  LENGTH_5: 5,
   LENGTH_7: 7,
   LENGTH_8: 8,
   LENGTH_11: 11,
