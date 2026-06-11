@@ -1,6 +1,6 @@
 import hapiAuthJwt2 from 'hapi-auth-jwt2'
 import { AUTH_ERROR_CODES } from '../../common/constants/auth.js'
-import { HTTP_STATUS } from '../../common/constants/common.js'
+import { HTTP_STATUS, SIZE } from '../../common/constants/common.js'
 import {
   fetchUserAreas,
   getAreaTypeFlags
@@ -91,36 +91,85 @@ function buildCredentials(user, decoded, areas) {
   }
 }
 
-async function validate(decoded, request) {
-  const decodedErr = checkDecoded(decoded, request)
-  if (decodedErr) {
-    return decodedErr
+// JWT validation runs on every authenticated request — 3 DB queries each time
+// (user lookup + 2 area queries). Under load with 60-75 concurrent users this
+// dominates connection pool usage. Cache successful results for the full token
+// lifetime (15 minutes = 900 s), keyed by userId:sessionId. A cached entry
+// can never outlive its own JWT: hapi-auth-jwt2 rejects the token at signature
+// verify time (checking the exp claim) before validate() is called, so an
+// expired token never reaches the cache. Token refresh issues a new sessionId,
+// which is a cache miss that always re-validates from DB.
+const AUTH_CACHE_TTL_MS = SIZE.LENGTH_15 * 60 * 1_000 // 15 minutes — matches JWT accessExpiresIn
+// Cap the store at 500 entries (handles well above the maximum concurrent
+// session count in any realistic scenario) to prevent unbounded memory growth.
+const AUTH_CACHE_MAX_SIZE = 500
+
+function buildAuthCache() {
+  const store = new Map()
+
+  function get(userId, sessionId) {
+    const key = `${userId}:${sessionId}`
+    const entry = store.get(key)
+    if (!entry) {
+      return null
+    }
+    if (Date.now() > entry.expiresAt) {
+      store.delete(key)
+      return null
+    }
+    return entry.result
   }
 
-  try {
-    const user = await fetchUser(request, decoded.userId)
+  function set(userId, sessionId, result) {
+    if (store.size >= AUTH_CACHE_MAX_SIZE) {
+      store.delete(store.keys().next().value)
+    }
+    const key = `${userId}:${sessionId}`
+    store.set(key, { result, expiresAt: Date.now() + AUTH_CACHE_TTL_MS })
+  }
 
-    const existsErr = checkUserExists(user, request)
-    if (existsErr) {
-      return existsErr
+  return { get, set }
+}
+
+function createValidateFn() {
+  const cache = buildAuthCache()
+
+  return async function validate(decoded, request) {
+    const decodedErr = checkDecoded(decoded, request)
+    if (decodedErr) {
+      return decodedErr
     }
 
-    const statusErr = checkUserStatus(user, decoded, request)
-    if (statusErr) {
-      return statusErr
+    const cached = cache.get(decoded.userId, decoded.sessionId)
+    if (cached) {
+      return cached
     }
 
-    // Fetch user areas with types using shared utility
-    const areas = await fetchUserAreas(request.prisma, decoded.userId)
+    try {
+      const user = await fetchUser(request, decoded.userId)
 
-    return {
-      isValid: true,
-      credentials: buildCredentials(user, decoded, areas)
+      const existsErr = checkUserExists(user, request)
+      if (existsErr) {
+        return existsErr
+      }
+
+      const statusErr = checkUserStatus(user, decoded, request)
+      if (statusErr) {
+        return statusErr
+      }
+
+      const areas = await fetchUserAreas(request.prisma, decoded.userId)
+      const result = {
+        isValid: true,
+        credentials: buildCredentials(user, decoded, areas)
+      }
+      cache.set(decoded.userId, decoded.sessionId, result)
+      return result
+    } catch (error) {
+      request.server.logger.error({ err: error }, 'Error validating JWT token')
+      request.app.jwtErrorCode = AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID
+      return invalidResponse(AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID)
     }
-  } catch (error) {
-    request.server.logger.error({ err: error }, 'Error validating JWT token')
-    request.app.jwtErrorCode = AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID
-    return invalidResponse(AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID)
   }
 }
 
@@ -132,7 +181,7 @@ export default {
 
     server.auth.strategy('jwt', 'jwt', {
       key: options.accessSecret,
-      validate,
+      validate: createValidateFn(),
       verifyOptions: {
         issuer: options.issuer,
         audience: options.audience

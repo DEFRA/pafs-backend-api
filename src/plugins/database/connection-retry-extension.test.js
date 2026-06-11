@@ -104,17 +104,6 @@ describe('retryOnConnectionError — retries once on retryable errors for read o
     logger = makeLogger()
   })
 
-  const retryableOperations = [
-    'findUnique',
-    'findUniqueOrThrow',
-    'findFirst',
-    'findFirstOrThrow',
-    'findMany',
-    'aggregate',
-    'count',
-    'groupBy'
-  ]
-
   const retryablePrismaCodes = [
     {
       label: 'P1001 (cannot reach server)',
@@ -125,11 +114,6 @@ describe('retryOnConnectionError — retries once on retryable errors for read o
       label: 'P1002 (server timed out)',
       code: 'P1002',
       message: 'Database timed out'
-    },
-    {
-      label: 'P2024 (pool timeout)',
-      code: 'P2024',
-      message: 'Timed out fetching connection'
     }
   ]
 
@@ -144,27 +128,6 @@ describe('retryOnConnectionError — retries once on retryable errors for read o
     { label: 'econnrefused', message: 'econnrefused 127.0.0.1:5432' },
     { label: 'socket hang up', message: 'socket hang up' }
   ]
-
-  for (const operation of retryableOperations) {
-    test(`retries ${operation} on P2024 and returns retry result`, async () => {
-      const handler = getHandler(logger)
-      const retryResult = [{ id: 2 }]
-      const query = vi
-        .fn()
-        .mockRejectedValueOnce(makeError('pool timeout', 'P2024'))
-        .mockResolvedValueOnce(retryResult)
-
-      const result = await handler({
-        model: 'pafs_core_projects',
-        operation,
-        args: {},
-        query
-      })
-
-      expect(result).toBe(retryResult)
-      expect(query).toHaveBeenCalledTimes(2)
-    })
-  }
 
   for (const { label, code, message } of retryablePrismaCodes) {
     test(`retries findMany on Prisma error ${label}`, async () => {
@@ -311,6 +274,29 @@ describe('retryOnConnectionError — does NOT retry non-connection errors', () =
   beforeEach(() => {
     vi.clearAllMocks()
     logger = makeLogger()
+  })
+
+  test('throws immediately for P2024 (pool exhaustion — retrying makes congestion worse)', async () => {
+    const handler = getHandler(logger)
+    const error = makeError(
+      'Timed out fetching a new connection from the connection pool',
+      'P2024'
+    )
+    const query = vi.fn().mockRejectedValue(error)
+
+    await expect(
+      handler({
+        model: 'pafs_core_users',
+        operation: 'findMany',
+        args: {},
+        query
+      })
+    ).rejects.toThrow(
+      'Timed out fetching a new connection from the connection pool'
+    )
+
+    expect(query).toHaveBeenCalledOnce()
+    expect(logger.warn).not.toHaveBeenCalled()
   })
 
   test('throws immediately for Prisma not-found error (P2025)', async () => {

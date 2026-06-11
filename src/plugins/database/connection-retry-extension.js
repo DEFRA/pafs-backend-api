@@ -17,11 +17,15 @@ const RETRYABLE_OPERATIONS = new Set([
 
 /**
  * Prisma error codes that represent transient connection failures.
- * P1001 — Can't reach database server
- * P1002 — The database server was reached but timed out
- * P2024 — Timed out fetching a new connection from the pool
+ * P1001 — Can't reach database server (network partition, Aurora cold-start)
+ * P1002 — The database server was reached but timed out (Aurora ACU scaling)
+ *
+ * P2024 is deliberately excluded: it means the connection pool itself is
+ * exhausted ("Timed out fetching a new connection from the pool"). Retrying
+ * a pool-exhausted request 150ms later just re-queues into the same full pool,
+ * doubling the response time from ~5s to ~10s and making congestion worse.
  */
-const RETRYABLE_PRISMA_CODES = new Set(['P1001', 'P1002', 'P2024'])
+const RETRYABLE_PRISMA_CODES = new Set(['P1001', 'P1002'])
 
 /**
  * Substrings matched (case-insensitive) against the raw error message.

@@ -816,6 +816,91 @@ describe('jwt-auth plugin', () => {
         expect(result.credentials).toHaveProperty('areas')
       })
     })
+
+    describe('validation result cache', () => {
+      const activeUser = {
+        id: 1,
+        email: 'test@example.com',
+        first_name: 'Test',
+        last_name: 'User',
+        admin: false,
+        disabled: false,
+        locked_at: null,
+        unique_session_id: 'session-abc'
+      }
+
+      it('serves the second request from cache — no further DB queries', async () => {
+        mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue(
+          activeUser
+        )
+
+        await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+        await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+
+        // DB called only once despite two validations for the same session
+        expect(
+          mockRequest.prisma.pafs_core_users.findUnique
+        ).toHaveBeenCalledOnce()
+      })
+
+      it('returns identical credentials from cache', async () => {
+        mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue(
+          activeUser
+        )
+
+        const first = await validateFn(
+          { userId: 1, sessionId: 'session-abc' },
+          mockRequest
+        )
+        const second = await validateFn(
+          { userId: 1, sessionId: 'session-abc' },
+          mockRequest
+        )
+
+        expect(second).toBe(first)
+      })
+
+      it('bypasses cache for a different sessionId — new token after refresh', async () => {
+        mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue({
+          ...activeUser,
+          unique_session_id: 'session-new'
+        })
+
+        await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+        await validateFn({ userId: 1, sessionId: 'session-new' }, mockRequest)
+
+        // Two different sessionIds → two DB queries
+        expect(
+          mockRequest.prisma.pafs_core_users.findUnique
+        ).toHaveBeenCalledTimes(2)
+      })
+
+      it('does not cache failed validations — re-queries DB each time', async () => {
+        mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue({
+          ...activeUser,
+          disabled: true
+        })
+
+        await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+        await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+
+        expect(
+          mockRequest.prisma.pafs_core_users.findUnique
+        ).toHaveBeenCalledTimes(2)
+      })
+
+      it('does not cache DB errors — re-queries DB each time', async () => {
+        const dbError = new Error('DB down')
+        mockRequest.prisma.pafs_core_users.findUnique.mockRejectedValue(dbError)
+
+        await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+        await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+
+        expect(
+          mockRequest.prisma.pafs_core_users.findUnique
+        ).toHaveBeenCalledTimes(2)
+      })
+    })
   })
 
   describe('onPreResponse handler', () => {
