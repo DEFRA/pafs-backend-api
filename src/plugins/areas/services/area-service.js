@@ -1,6 +1,11 @@
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 import { ConflictError } from '../../../common/errors/index.js'
 import {
+  getCachedHierarchy,
+  setCachedHierarchy,
+  AREA_WITH_PARENTS_KEY_PREFIX
+} from '../../projects/helpers/area-hierarchy-cache.js'
+import {
   buildPaginationMeta,
   normalizePaginationParams
 } from '../../../common/helpers/pagination.js'
@@ -13,6 +18,25 @@ import {
   buildAreasListWhereClause,
   prepareAreaData
 } from '../helpers/area-utils.js'
+
+// Module-level cache for getAreaByIdWithParents results.
+// The area hierarchy (RMA → PSO → EA) is completely static in production —
+// areas are administered separately and never change during a load test or
+// normal usage within an hour. Caching saves 3 sequential DB queries on every
+// upsert step just for the permission check, which is the second-largest source
+// of connection pool pressure after the v_project_full view read.
+//
+// Uses the same backing store as resolveAreaHierarchy (area-hierarchy-cache.js)
+// via a separate key namespace ('awp:' prefix) so the two result shapes —
+// resolveAreaHierarchy returns { rmaName, rmaSubType, ... } while this method
+// returns { id, name, PSO, EA, ... } — never collide.
+function getAreaWithParentsCached(areaId) {
+  return getCachedHierarchy(`${AREA_WITH_PARENTS_KEY_PREFIX}${areaId}`)
+}
+
+function setAreaWithParentsCached(areaId, result) {
+  setCachedHierarchy(`${AREA_WITH_PARENTS_KEY_PREFIX}${areaId}`, result)
+}
 
 export class AreaService {
   constructor(prisma, logger) {
@@ -474,6 +498,11 @@ export class AreaService {
       return null
     }
 
+    const cached = getAreaWithParentsCached(areaId)
+    if (cached) {
+      return cached
+    }
+
     this.logger.info({ areaId }, 'Fetching area by ID with parent hierarchy')
 
     const area = await this._findAreaByIdWithConditions(
@@ -514,6 +543,7 @@ export class AreaService {
       'Area fetched with parent hierarchy'
     )
 
+    setAreaWithParentsCached(areaId, response)
     return response
   }
 

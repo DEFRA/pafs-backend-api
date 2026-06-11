@@ -4,6 +4,7 @@ import {
   preWarmAreaHierarchyCache,
   clearAreaHierarchyCache
 } from './area-hierarchy.js'
+import { getCachedHierarchy } from './area-hierarchy-cache.js'
 
 /**
  * Unit tests for resolveAreaHierarchy.
@@ -384,7 +385,17 @@ describe('preWarmAreaHierarchyCache', () => {
 
     expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledOnce()
     expect(prisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
-      select: { id: true, name: true, sub_type: true, parent_id: true }
+      select: {
+        id: true,
+        name: true,
+        sub_type: true,
+        parent_id: true,
+        area_type: true,
+        identifier: true,
+        end_date: true,
+        created_at: true,
+        updated_at: true
+      }
     })
   })
 
@@ -447,5 +458,167 @@ describe('preWarmAreaHierarchyCache', () => {
       { count: 1 },
       'Area hierarchy cache pre-warmed'
     )
+  })
+
+  test('pre-warms awp: entries so getAreaByIdWithParents skips DB on first request', async () => {
+    const warmPrisma = buildWarmPrisma([
+      {
+        id: 10n,
+        name: 'South Yorkshire',
+        sub_type: 'LA',
+        parent_id: 20,
+        area_type: 'RMA',
+        identifier: 'SY001',
+        end_date: null,
+        created_at: null,
+        updated_at: null
+      },
+      {
+        id: 20n,
+        name: 'Yorkshire RFCC',
+        sub_type: null,
+        parent_id: 30,
+        area_type: 'PSO Area',
+        identifier: null,
+        end_date: null,
+        created_at: null,
+        updated_at: null
+      },
+      {
+        id: 30n,
+        name: 'North East',
+        sub_type: null,
+        parent_id: null,
+        area_type: 'EA Area',
+        identifier: null,
+        end_date: null,
+        created_at: null,
+        updated_at: null
+      }
+    ])
+    await preWarmAreaHierarchyCache(warmPrisma)
+
+    const entry = getCachedHierarchy('awp:10')
+
+    expect(entry).not.toBeNull()
+    expect(entry.id).toBe('10')
+    expect(entry.name).toBe('South Yorkshire')
+    expect(entry.area_type).toBe('RMA')
+    expect(entry.PSO).toMatchObject({
+      id: '20',
+      name: 'Yorkshire RFCC',
+      area_type: 'PSO Area'
+    })
+    expect(entry.EA).toMatchObject({
+      id: '30',
+      name: 'North East',
+      area_type: 'EA Area'
+    })
+  })
+
+  test('awp: entry for a top-level area has null PSO and EA', async () => {
+    const warmPrisma = buildWarmPrisma([
+      {
+        id: 5n,
+        name: 'Standalone RMA',
+        sub_type: null,
+        parent_id: null,
+        area_type: 'RMA',
+        identifier: 'ST001',
+        end_date: null,
+        created_at: null,
+        updated_at: null
+      }
+    ])
+    await preWarmAreaHierarchyCache(warmPrisma)
+
+    const entry = getCachedHierarchy('awp:5')
+
+    expect(entry).not.toBeNull()
+    expect(entry.PSO).toBeNull()
+    expect(entry.EA).toBeNull()
+  })
+
+  test('awp: PSO and EA entries include ISO timestamp strings when timestamps are present', async () => {
+    const psoCreatedAt = new Date('2023-03-15T10:00:00.000Z')
+    const psoUpdatedAt = new Date('2024-06-01T08:30:00.000Z')
+    const eaCreatedAt = new Date('2022-01-01T00:00:00.000Z')
+    const eaUpdatedAt = new Date('2024-01-01T00:00:00.000Z')
+
+    const warmPrisma = buildWarmPrisma([
+      {
+        id: 10n,
+        name: 'Hull City Council',
+        sub_type: 'LA',
+        parent_id: 20,
+        area_type: 'RMA',
+        identifier: 'HCC',
+        end_date: null,
+        created_at: null,
+        updated_at: null
+      },
+      {
+        id: 20n,
+        name: 'Humber RFCC',
+        sub_type: null,
+        parent_id: 30,
+        area_type: 'PSO Area',
+        identifier: null,
+        end_date: null,
+        created_at: psoCreatedAt,
+        updated_at: psoUpdatedAt
+      },
+      {
+        id: 30n,
+        name: 'North East',
+        sub_type: null,
+        parent_id: null,
+        area_type: 'EA Area',
+        identifier: null,
+        end_date: null,
+        created_at: eaCreatedAt,
+        updated_at: eaUpdatedAt
+      }
+    ])
+    await preWarmAreaHierarchyCache(warmPrisma)
+
+    const entry = getCachedHierarchy('awp:10')
+
+    // PSO and EA are serialised with rawTimestamps=false so toISOString() must be called
+    expect(entry.PSO.created_at).toBe(psoCreatedAt.toISOString())
+    expect(entry.PSO.updated_at).toBe(psoUpdatedAt.toISOString())
+    expect(entry.EA.created_at).toBe(eaCreatedAt.toISOString())
+    expect(entry.EA.updated_at).toBe(eaUpdatedAt.toISOString())
+  })
+
+  test('area whose parent_id is not in the loaded set gets null PSO and EA', async () => {
+    // area_id 7 points to parent_id 99, but id 99 is not in the dataset.
+    // lookupInMap(99) falls through to the ?? null branch.
+    const warmPrisma = buildWarmPrisma([
+      {
+        id: 7n,
+        name: 'Orphan RMA',
+        sub_type: null,
+        parent_id: 99,
+        area_type: 'RMA',
+        identifier: 'ORF',
+        end_date: null,
+        created_at: null,
+        updated_at: null
+      }
+    ])
+    await preWarmAreaHierarchyCache(warmPrisma)
+
+    // resolveAreaHierarchy entry should have null PSO/EA
+    const hierarchyEntry = getCachedHierarchy(7)
+    expect(hierarchyEntry.psoAreaId).toBeNull()
+    expect(hierarchyEntry.psoName).toBeNull()
+    expect(hierarchyEntry.eaAreaName).toBeNull()
+
+    // awp: entry should also have null PSO/EA
+    const awpEntry = getCachedHierarchy('awp:7')
+    expect(awpEntry).not.toBeNull()
+    expect(awpEntry.PSO).toBeNull()
+    expect(awpEntry.EA).toBeNull()
   })
 })

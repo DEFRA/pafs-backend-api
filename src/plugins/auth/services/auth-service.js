@@ -388,7 +388,13 @@ export class AuthService {
     }
 
     const user = await this.prisma.pafs_core_users.findUnique({
-      where: { id: decoded.userId }
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        email: true,
+        disabled: true,
+        unique_session_id: true
+      }
     })
 
     if (!user) {

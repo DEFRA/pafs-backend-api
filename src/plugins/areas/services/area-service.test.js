@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AreaService } from './area-service.js'
+import { clearAreaHierarchyCache } from '../../projects/helpers/area-hierarchy-cache.js'
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 import {
   AREA_FIELDS,
@@ -344,6 +345,8 @@ describe('AreaService', () => {
   describe('getAreaByIdWithParents', () => {
     beforeEach(() => {
       mockPrisma.pafs_core_areas.findFirst = vi.fn()
+      // Clear the module-level cache so each test starts with a clean slate
+      clearAreaHierarchyCache()
     })
 
     it('should return null when areaId is not provided', async () => {
@@ -549,6 +552,84 @@ describe('AreaService', () => {
 
       expect(result).toBeDefined()
       expect(result.id).toBe('456')
+    })
+
+    it('returns cached result on second call — no further DB queries', async () => {
+      const mockArea = {
+        id: 1n,
+        name: 'Cached RMA',
+        area_type: 'RMA',
+        parent_id: null,
+        sub_type: null,
+        identifier: 'RMA001',
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-02'),
+        end_date: null
+      }
+
+      mockPrisma.pafs_core_areas.findFirst.mockResolvedValue(mockArea)
+
+      const first = await areaService.getAreaByIdWithParents(1n)
+      const second = await areaService.getAreaByIdWithParents(1n)
+
+      // DB called only once; second call served from cache
+      expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledOnce()
+      expect(second).toBe(first)
+    })
+
+    it('returns same cached object for equivalent areaIds with different types', async () => {
+      const mockArea = {
+        id: 7n,
+        name: 'Test RMA',
+        area_type: 'RMA',
+        parent_id: null,
+        sub_type: null,
+        identifier: 'RMA007',
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-02'),
+        end_date: null
+      }
+
+      mockPrisma.pafs_core_areas.findFirst.mockResolvedValue(mockArea)
+
+      const first = await areaService.getAreaByIdWithParents(7n)
+      // String '7' produces the same cache key 'awp:7' as BigInt 7n
+      const second = await areaService.getAreaByIdWithParents('7')
+
+      expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledOnce()
+      expect(second).toBe(first)
+    })
+
+    it('makes separate DB calls for different areaIds', async () => {
+      const makeArea = (id, name) => ({
+        id: BigInt(id),
+        name,
+        area_type: 'RMA',
+        parent_id: null,
+        sub_type: null,
+        identifier: `RMA${id}`,
+        created_at: new Date('2024-01-01'),
+        updated_at: new Date('2024-01-02'),
+        end_date: null
+      })
+
+      mockPrisma.pafs_core_areas.findFirst
+        .mockResolvedValueOnce(makeArea(1, 'Area One'))
+        .mockResolvedValueOnce(makeArea(2, 'Area Two'))
+
+      await areaService.getAreaByIdWithParents(1n)
+      await areaService.getAreaByIdWithParents(2n)
+
+      expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not cache null (area not found) — re-queries on next call', async () => {
+      mockPrisma.pafs_core_areas.findFirst.mockResolvedValue(null)
+
+      await areaService.getAreaByIdWithParents(99n)
+      await areaService.getAreaByIdWithParents(99n)
+
+      expect(mockPrisma.pafs_core_areas.findFirst).toHaveBeenCalledTimes(2)
     })
   })
 

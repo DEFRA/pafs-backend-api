@@ -1,6 +1,7 @@
 import {
   getCachedHierarchy,
-  setCachedHierarchy
+  setCachedHierarchy,
+  AREA_WITH_PARENTS_KEY_PREFIX
 } from './area-hierarchy-cache.js'
 
 export { clearAreaHierarchyCache } from './area-hierarchy-cache.js'
@@ -12,6 +13,43 @@ const EMPTY_HIERARCHY = {
   psoName: null,
   rfccName: null,
   eaAreaName: null
+}
+
+// Serialise a DB area row into the shape that getAreaByIdWithParents returns.
+// Inlined here to avoid a cross-plugin import from projects → areas.
+// Must stay in sync with serializeArea() in area-utils.js.
+function buildSerializedArea(area, rawTimestamps = false) {
+  const result = {
+    id: area.id.toString(),
+    name: area.name,
+    parent_id: area.parent_id == null ? null : String(area.parent_id),
+    area_type: area.area_type,
+    sub_type: area.sub_type,
+    identifier: area.identifier,
+    end_date: area.end_date
+  }
+  if (rawTimestamps) {
+    result.created_at = area.created_at
+    result.updated_at = area.updated_at
+  } else {
+    if (area.created_at) {
+      result.created_at = area.created_at.toISOString()
+    }
+    if (area.updated_at) {
+      result.updated_at = area.updated_at.toISOString()
+    }
+  }
+  return result
+}
+
+// Build the awp: cache entry shape — mirrors the object produced by
+// getAreaByIdWithParents so a pre-warmed hit is identical to a DB-fetched hit.
+function buildAreaWithParentsResult(area, pso, ea) {
+  return {
+    ...buildSerializedArea(area, true),
+    PSO: pso ? buildSerializedArea(pso) : null,
+    EA: ea ? buildSerializedArea(ea) : null
+  }
 }
 
 function buildHierarchyResult(rma, pso, ea) {
@@ -79,7 +117,17 @@ export async function resolveAreaHierarchy(prisma, areaId) {
  */
 export async function preWarmAreaHierarchyCache(prisma, logger) {
   const allAreas = await prisma.pafs_core_areas.findMany({
-    select: { id: true, name: true, sub_type: true, parent_id: true }
+    select: {
+      id: true,
+      name: true,
+      sub_type: true,
+      parent_id: true,
+      area_type: true,
+      identifier: true,
+      end_date: true,
+      created_at: true,
+      updated_at: true
+    }
   })
 
   if (allAreas.length === 0) {
@@ -103,6 +151,13 @@ export async function preWarmAreaHierarchyCache(prisma, logger) {
     // Cache key must match what resolveAreaHierarchy receives from
     // pafs_core_area_projects.area_id, which is an Int (not BigInt)
     setCachedHierarchy(Number(area.id), buildHierarchyResult(area, pso, ea))
+
+    // Also populate the awp: namespace so getAreaByIdWithParents never hits
+    // the DB on the first upsert after a deploy (same 1-hour TTL applies).
+    setCachedHierarchy(
+      `${AREA_WITH_PARENTS_KEY_PREFIX}${Number(area.id)}`,
+      buildAreaWithParentsResult(area, pso, ea)
+    )
   }
 
   logger?.info({ count: allAreas.length }, 'Area hierarchy cache pre-warmed')
