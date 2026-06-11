@@ -49,6 +49,13 @@ vi.mock('adm-zip', () => ({
   })
 }))
 
+// fetchUserAreas now uses $queryRaw via a cache-miss path — mock the cache
+// so tests never hit real DB and $queryRaw can return [] safely.
+vi.mock('../../auth/helpers/user-areas-cache.js', () => ({
+  getCachedUserAreas: vi.fn().mockReturnValue(null),
+  setCachedUserAreas: vi.fn()
+}))
+
 // ZipArchive mock — constructor returns a shared instance reset in each test that
 // exercises buildBenefitAreasZip.  Must be a regular function so `new` works.
 let mockArchiveInstance
@@ -88,6 +95,7 @@ function makePrisma(overrides = {}) {
     },
     pafs_core_user_areas: { findMany: vi.fn().mockResolvedValue([]) },
     pafs_core_areas: { findMany: vi.fn().mockResolvedValue([]) },
+    $queryRaw: vi.fn().mockResolvedValue([]),
     pafs_core_area_projects: {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue(null)
@@ -171,13 +179,10 @@ describe('getAdminDownloadRecord', () => {
 describe('getProjectCountsForUser', () => {
   // Helper: set up an RMA user with area_id=1 in the prisma mocks.
   // getProjectCountsForUser now resolves area hierarchy (RMA → direct IDs),
-  // which requires both pafs_core_user_areas and pafs_core_areas to be mocked.
+  // fetchUserAreas now uses a single $queryRaw JOIN — mock that instead.
   function mockRmaUser(prisma, areaId = BigInt(1)) {
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: areaId, primary: true }
-    ])
-    prisma.pafs_core_areas.findMany.mockResolvedValue([
-      { id: areaId, name: 'Test RMA', area_type: 'RMA' }
+    prisma.$queryRaw.mockResolvedValue([
+      { area_id: areaId, primary: true, name: 'Test RMA', area_type: 'RMA' }
     ])
   }
 
@@ -477,9 +482,7 @@ describe('runUserGeneration', () => {
 
   test('marks record as FAILED when an error occurs', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockRejectedValue(
-      new Error('db crash')
-    )
+    prisma.$queryRaw.mockRejectedValue(new Error('db crash'))
 
     const logger = makeLogger()
     await runUserGeneration({
@@ -817,11 +820,8 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
   test('builds a FcermPresenter for each found project', async () => {
     const mockProject = { id: BigInt(1), reference_number: 'ABC001' }
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10), primary: true }
-    ])
-    prisma.pafs_core_areas.findMany.mockResolvedValue([
-      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
+    prisma.$queryRaw.mockResolvedValue([
+      { area_id: BigInt(10), primary: true, name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -855,11 +855,8 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
 
   test('skips project (continue) when findFirst returns null for that project', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10), primary: true }
-    ])
-    prisma.pafs_core_areas.findMany.mockResolvedValue([
-      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
+    prisma.$queryRaw.mockResolvedValue([
+      { area_id: BigInt(10), primary: true, name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -888,11 +885,8 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     const mockProject = { id: BigInt(1), reference_number: 'ABC002' }
     const mockFundingValues = [{ id: BigInt(100) }, { id: BigInt(101) }]
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10), primary: true }
-    ])
-    prisma.pafs_core_areas.findMany.mockResolvedValue([
-      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
+    prisma.$queryRaw.mockResolvedValue([
+      { area_id: BigInt(10), primary: true, name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -928,18 +922,14 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
     const mockProject = { id: BigInt(1), reference_number: 'ABC003' }
 
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10), primary: true }
+    // fetchUserAreas now uses $queryRaw — provide joined rows directly
+    prisma.$queryRaw.mockResolvedValue([
+      { area_id: BigInt(10), primary: true, name: 'Test RMA', area_type: 'RMA' }
     ])
-    // First call: resolveAccessibleAreaIdsForUser fetches area metadata for area_id 10
-    // Second call: resolveAreaHierarchiesBulk fetches RMA area for area_id 99
-    prisma.pafs_core_areas.findMany
-      .mockResolvedValueOnce([
-        { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
-      ])
-      .mockResolvedValueOnce([
-        { id: BigInt(99), name: 'Area 99', sub_type: 'RMA', parent_id: null }
-      ])
+    // resolveAreaHierarchiesBulk fetches RMA area for area_id 99 via findMany
+    prisma.pafs_core_areas.findMany.mockResolvedValueOnce([
+      { id: BigInt(99), name: 'Area 99', sub_type: 'RMA', parent_id: null }
+    ])
     // First call: fetchUserProjectIds (area_id IN [10]) → project_id 1
     // Second call: fetchBulkProjectData (project_id IN [1]) → area_id 99
     prisma.pafs_core_area_projects.findMany
@@ -971,11 +961,8 @@ describe('loadProjectsForFcerm1 — internal paths via queueUserGeneration', () 
   test('warns and skips project when assembly throws an error', async () => {
     const loadError = new Error('DB query failed')
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10), primary: true }
-    ])
-    prisma.pafs_core_areas.findMany.mockResolvedValue([
-      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
+    prisma.$queryRaw.mockResolvedValue([
+      { area_id: BigInt(10), primary: true, name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -1184,11 +1171,8 @@ describe('runUserGeneration — FCERM1 upload and email paths', () => {
   test('builds and uploads FCERM1 workbook when presenters exist', async () => {
     const mockProject = { id: BigInt(1), reference_number: 'XLX001' }
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockResolvedValue([
-      { area_id: BigInt(10), primary: true }
-    ])
-    prisma.pafs_core_areas.findMany.mockResolvedValue([
-      { id: BigInt(10), name: 'Test RMA', area_type: 'RMA' }
+    prisma.$queryRaw.mockResolvedValue([
+      { area_id: BigInt(10), primary: true, name: 'Test RMA', area_type: 'RMA' }
     ])
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
       { project_id: 1 }
@@ -1290,9 +1274,7 @@ describe('runUserGeneration — FCERM1 upload and email paths', () => {
 
   test('sends failure email when generation fails and user has email', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockRejectedValue(
-      new Error('DB crash')
-    )
+    prisma.$queryRaw.mockRejectedValue(new Error('DB crash'))
     prisma.pafs_core_users.findFirst.mockResolvedValue({
       email: 'bob@example.gov.uk',
       first_name: 'Bob',
@@ -1325,9 +1307,7 @@ describe('runUserGeneration — FCERM1 upload and email paths', () => {
 
   test('does not send failure email when user has no email on record', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockRejectedValue(
-      new Error('DB crash')
-    )
+    prisma.$queryRaw.mockRejectedValue(new Error('DB crash'))
     prisma.pafs_core_users.findFirst.mockResolvedValue(null)
 
     const mockSend = vi.fn()
@@ -1348,9 +1328,7 @@ describe('runUserGeneration — FCERM1 upload and email paths', () => {
 
   test('swallows updateDownloadRecord failure on error path', async () => {
     const prisma = makePrisma()
-    prisma.pafs_core_user_areas.findMany.mockRejectedValue(
-      new Error('DB crash')
-    )
+    prisma.$queryRaw.mockRejectedValue(new Error('DB crash'))
     prisma.pafs_core_area_downloads.update.mockRejectedValue(
       new Error('update failed')
     )

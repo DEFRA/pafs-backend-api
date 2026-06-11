@@ -3,6 +3,13 @@ import jwtAuthPlugin from './jwt-auth.js'
 
 vi.mock('hapi-auth-jwt2')
 
+// fetchUserAreas now uses $queryRaw — mock the cache so tests control
+// whether the DB is hit. Default: cache miss so $queryRaw is called.
+vi.mock('../areas/helpers/user-areas-cache.js', () => ({
+  getCachedUserAreas: vi.fn().mockReturnValue(null),
+  setCachedUserAreas: vi.fn()
+}))
+
 describe('jwt-auth plugin', () => {
   let mockServer
   let mockOptions
@@ -131,9 +138,7 @@ describe('jwt-auth plugin', () => {
           pafs_core_users: {
             findUnique: vi.fn()
           },
-          pafs_core_user_areas: {
-            findMany: vi.fn().mockResolvedValue([])
-          }
+          $queryRaw: vi.fn().mockResolvedValue([])
         },
         server: {
           logger: {

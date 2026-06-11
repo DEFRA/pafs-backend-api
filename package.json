@@ -38,14 +38,14 @@
     "@aws-sdk/lib-storage": "3.1048.0",
     "@aws-sdk/rds-signer": "3.1048.0",
     "@aws-sdk/s3-request-presigner": "3.1048.0",
-    "@defra/cdp-auditing": "0.6.0",
+    "@defra/cdp-auditing": "0.6.1",
     "@defra/cdp-metrics": "0.6.0",
     "@defra/hapi-secure-context": "0.4.0",
     "@defra/hapi-tracing": "1.30.0",
     "@elastic/ecs-pino-format": "1.5.0",
     "@hapi/boom": "10.0.1",
     "@hapi/hapi": "21.4.9",
-    "@hapi/inert": "7.1.0",
+    "@hapi/inert": "7.1.1",
     "@hapi/vision": "7.0.3",
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "7.8.0",
@@ -95,6 +95,13 @@
     "hapi-swagger": {
       "joi": "$joi"
     },
+    "@defra/cdp-auditing": {
+      "joi": "$joi"
+    },
+    "hapi-pulse": {
+      "joi": "$joi"
+    },
+    "joi": "$joi",
     "hapi-pino": {
       "pino": "$pino"
     },

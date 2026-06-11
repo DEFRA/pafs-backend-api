@@ -6,6 +6,13 @@ vi.mock('../helpers/jwt.js')
 vi.mock('../helpers/session.js')
 vi.mock('../helpers/password.js')
 
+// fetchUserAreas now uses $queryRaw — mock the cache so tests control whether
+// the DB is hit. Default: cache miss so $queryRaw is called.
+vi.mock('../../areas/helpers/user-areas-cache.js', () => ({
+  getCachedUserAreas: vi.fn().mockReturnValue(null),
+  setCachedUserAreas: vi.fn()
+}))
+
 describe('AuthService', () => {
   let authService
   let mockPrisma
@@ -50,6 +57,8 @@ describe('AuthService', () => {
     mockPrisma.pafs_core_areas = {
       findMany: vi.fn().mockResolvedValue([])
     }
+
+    mockPrisma.$queryRaw = vi.fn().mockResolvedValue([])
 
     mockLogger = {
       info: vi.fn(),
@@ -315,15 +324,10 @@ describe('AuthService', () => {
           current_sign_in_ip: null
         })
 
-      // Return flat user area records, then area details in a second query
-      mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([
-        { area_id: 10n, primary: true },
-        { area_id: 20n, primary: false }
-      ])
-
-      mockPrisma.pafs_core_areas.findMany.mockResolvedValue([
-        { id: 10n, name: 'Area A', area_type: 'RMA' },
-        { id: 20n, name: 'Area B', area_type: 'PSO' }
+      // fetchUserAreas now uses a single $queryRaw JOIN — return joined rows directly
+      mockPrisma.$queryRaw.mockResolvedValue([
+        { area_id: 10n, primary: true, name: 'Area A', area_type: 'RMA' },
+        { area_id: 20n, primary: false, name: 'Area B', area_type: 'PSO' }
       ])
 
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
