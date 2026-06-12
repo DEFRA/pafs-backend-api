@@ -17,6 +17,7 @@ describe('jwt-auth plugin', () => {
   beforeEach(() => {
     mockServer = {
       register: vi.fn(),
+      decorate: vi.fn(),
       auth: {
         strategy: vi.fn(),
         default: vi.fn()
