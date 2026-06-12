@@ -124,6 +124,46 @@ describe('jwt-auth plugin', () => {
         expect.any(Function)
       )
     })
+
+    it('decorates server with invalidateAuthCache that evicts a cached session', async () => {
+      await jwtAuthPlugin.register(mockServer, mockOptions)
+
+      // Capture the function registered via server.decorate
+      const [, , invalidateAuthCache] = mockServer.decorate.mock.calls[0]
+      expect(typeof invalidateAuthCache).toBe('function')
+
+      // Wire up validate so we can populate the cache
+      const validateFn = mockServer.auth.strategy.mock.calls[0][2].validate
+      const mockReq = {
+        prisma: {
+          pafs_core_users: { findUnique: vi.fn() },
+          $queryRaw: vi.fn().mockResolvedValue([])
+        },
+        server: { logger: { error: vi.fn(), warn: vi.fn() } },
+        app: {}
+      }
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'a@b.com',
+        first_name: 'A',
+        last_name: 'B',
+        admin: false,
+        disabled: false,
+        locked_at: null,
+        unique_session_id: 'session-evict'
+      })
+
+      // Populate the cache
+      await validateFn({ userId: 1, sessionId: 'session-evict' }, mockReq)
+      expect(mockReq.prisma.pafs_core_users.findUnique).toHaveBeenCalledOnce()
+
+      // Evict via the decorated helper
+      invalidateAuthCache(1, 'session-evict')
+
+      // Next validation must hit DB again — cache entry is gone
+      await validateFn({ userId: 1, sessionId: 'session-evict' }, mockReq)
+      expect(mockReq.prisma.pafs_core_users.findUnique).toHaveBeenCalledTimes(2)
+    })
   })
 
   describe('validate function', () => {
@@ -905,6 +945,66 @@ describe('jwt-auth plugin', () => {
         expect(
           mockRequest.prisma.pafs_core_users.findUnique
         ).toHaveBeenCalledTimes(2)
+      })
+
+      it('re-queries DB after cache entry TTL expires', async () => {
+        vi.useFakeTimers()
+        try {
+          mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue(
+            activeUser
+          )
+
+          // Populate cache
+          await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+          expect(
+            mockRequest.prisma.pafs_core_users.findUnique
+          ).toHaveBeenCalledOnce()
+
+          // Advance past 15-minute TTL
+          vi.advanceTimersByTime(15 * 60 * 1000 + 1)
+
+          // Cache entry is stale — should re-query DB
+          await validateFn({ userId: 1, sessionId: 'session-abc' }, mockRequest)
+          expect(
+            mockRequest.prisma.pafs_core_users.findUnique
+          ).toHaveBeenCalledTimes(2)
+        } finally {
+          vi.useRealTimers()
+        }
+      })
+
+      it('evicts the oldest entry when cache reaches max size (500)', async () => {
+        // Fill cache with 500 unique userId:sessionId pairs
+        mockRequest.prisma.pafs_core_users.findUnique.mockImplementation(
+          ({ where }) =>
+            Promise.resolve({
+              id: where.id,
+              email: `u${where.id}@test.com`,
+              first_name: 'T',
+              last_name: 'U',
+              admin: false,
+              disabled: false,
+              locked_at: null,
+              unique_session_id: `s-${where.id}`
+            })
+        )
+
+        for (let i = 1; i <= 500; i++) {
+          await validateFn({ userId: i, sessionId: `s-${i}` }, mockRequest)
+        }
+        // All 500 should have hit DB (cache misses)
+        expect(
+          mockRequest.prisma.pafs_core_users.findUnique
+        ).toHaveBeenCalledTimes(500)
+
+        // Adding entry 501 evicts entry 1 (oldest)
+        await validateFn({ userId: 501, sessionId: 's-501' }, mockRequest)
+
+        // Re-validating userId 1 should hit DB again — it was evicted
+        await validateFn({ userId: 1, sessionId: 's-1' }, mockRequest)
+        expect(
+          mockRequest.prisma.pafs_core_users.findUnique
+        ).toHaveBeenCalledTimes(502)
       })
     })
   })
