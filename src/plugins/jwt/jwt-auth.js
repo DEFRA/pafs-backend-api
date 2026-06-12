@@ -128,12 +128,16 @@ function buildAuthCache() {
     store.set(key, { result, expiresAt: Date.now() + AUTH_CACHE_TTL_MS })
   }
 
-  return { get, set }
+  // Remove a specific session entry immediately — called on logout so that a
+  // revoked session is rejected on the next request rather than after cache TTL.
+  function invalidate(userId, sessionId) {
+    store.delete(`${userId}:${sessionId}`)
+  }
+
+  return { get, set, invalidate }
 }
 
-function createValidateFn() {
-  const cache = buildAuthCache()
-
+function createValidateFn(cache) {
   return async function validate(decoded, request) {
     const decodedErr = checkDecoded(decoded, request)
     if (decodedErr) {
@@ -179,9 +183,17 @@ export default {
   async register(server, options) {
     await server.register(hapiAuthJwt2)
 
+    const authCache = buildAuthCache()
+
+    // Decorate server so the logout service can evict a session entry
+    // immediately rather than waiting for the 15-minute cache TTL to expire.
+    server.decorate('server', 'invalidateAuthCache', (userId, sessionId) => {
+      authCache.invalidate(userId, sessionId)
+    })
+
     server.auth.strategy('jwt', 'jwt', {
       key: options.accessSecret,
-      validate: createValidateFn(),
+      validate: createValidateFn(authCache),
       verifyOptions: {
         issuer: options.issuer,
         audience: options.audience

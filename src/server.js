@@ -13,7 +13,6 @@ import emailValidationPlugin from './plugins/email-validation/index.js'
 import projectsPlugin from './plugins/projects/index.js'
 import fileUploadPlugin from './plugins/file-upload/index.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
-import { postgres } from './plugins/database/postgres.js'
 import { prisma } from './plugins/database/prisma.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
@@ -67,8 +66,7 @@ async function registerCorePlugins(server) {
   // requestLogger  - automatically logs incoming requests
   // requestTracing - trace header logging and propagation
   // pulse          - provides shutdown handlers
-  // postgres       - sets up PostgreSQL connection pool and attaches to `server` and `request` objects
-  // prisma         - Prisma ORM integration for type-safe database access
+  // prisma         - Prisma ORM integration with pg Pool (sole DB connection pool)
   // jwtAuthPlugin  - JWT authentication strategy
   // schedulerPlugin - distributed task scheduler with PostgreSQL locking
   // router         - routes used in the app
@@ -78,13 +76,6 @@ async function registerCorePlugins(server) {
     secureContext,
     pulse,
     metrics, // AWS EMF metrics (must be after requestTracing)
-    {
-      plugin: postgres,
-      options: {
-        ...config.get('postgres'),
-        awsRegion: config.get('awsRegion')
-      }
-    },
     {
       plugin: prisma,
       options: {

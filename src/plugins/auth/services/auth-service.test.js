@@ -429,13 +429,23 @@ describe('AuthService', () => {
   })
 
   describe('logout', () => {
+    let mockInvalidateAuthCache
+
+    beforeEach(() => {
+      mockInvalidateAuthCache = vi.fn()
+    })
+
     it('successfully logs out user with valid session', async () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         unique_session_id: 'session-123'
       })
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
 
-      const result = await authService.logout(1, 'session-123')
+      const result = await authService.logout(
+        1,
+        'session-123',
+        mockInvalidateAuthCache
+      )
 
       expect(result.success).toBe(true)
       expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
@@ -445,6 +455,7 @@ describe('AuthService', () => {
           updated_at: expect.any(Date)
         }
       })
+      expect(mockInvalidateAuthCache).toHaveBeenCalledWith(1, 'session-123')
       expect(mockLogger.info).toHaveBeenCalledWith(
         { userId: 1, sessionId: 'session-123' },
         'User logged out successfully'
@@ -454,7 +465,11 @@ describe('AuthService', () => {
     it('returns error for non-existent user', async () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
 
-      const result = await authService.logout(999, 'session-123')
+      const result = await authService.logout(
+        999,
+        'session-123',
+        mockInvalidateAuthCache
+      )
 
       expect(result.success).toBe(false)
       expect(result.errorCode).toBe(AUTH_ERROR_CODES.ACCOUNT_NOT_FOUND)
@@ -463,6 +478,7 @@ describe('AuthService', () => {
         'Logout attempted for non-existent user'
       )
       expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
+      expect(mockInvalidateAuthCache).not.toHaveBeenCalled()
     })
 
     it('returns error for mismatched session', async () => {
@@ -470,7 +486,11 @@ describe('AuthService', () => {
         unique_session_id: 'different-session'
       })
 
-      const result = await authService.logout(1, 'session-123')
+      const result = await authService.logout(
+        1,
+        'session-123',
+        mockInvalidateAuthCache
+      )
 
       expect(result.success).toBe(false)
       expect(result.errorCode).toBe(AUTH_ERROR_CODES.SESSION_MISMATCH)
@@ -479,6 +499,7 @@ describe('AuthService', () => {
         'Logout attempted with mismatched session'
       )
       expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
+      expect(mockInvalidateAuthCache).not.toHaveBeenCalled()
     })
 
     it('handles null session ID', async () => {
@@ -486,11 +507,16 @@ describe('AuthService', () => {
         unique_session_id: null
       })
 
-      const result = await authService.logout(1, 'session-123')
+      const result = await authService.logout(
+        1,
+        'session-123',
+        mockInvalidateAuthCache
+      )
 
       expect(result.success).toBe(false)
       expect(result.errorCode).toBe(AUTH_ERROR_CODES.SESSION_MISMATCH)
       expect(mockPrisma.pafs_core_users.update).not.toHaveBeenCalled()
+      expect(mockInvalidateAuthCache).not.toHaveBeenCalled()
     })
   })
 

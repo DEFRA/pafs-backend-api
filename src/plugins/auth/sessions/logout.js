@@ -17,7 +17,11 @@ const logout = {
     const { userId, sessionId } = request.auth.credentials
 
     const authService = new AuthService(request.prisma, request.server.logger)
-    const result = await authService.logout(userId, sessionId)
+    const result = await authService.logout(
+      userId,
+      sessionId,
+      request.server.invalidateAuthCache
+    )
 
     if (!result.success) {
       return h
