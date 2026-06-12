@@ -360,7 +360,7 @@ export class AuthService {
     }
   }
 
-  async logout(userId, sessionId) {
+  async logout(userId, sessionId, invalidateAuthCache) {
     const user = await this.prisma.pafs_core_users.findUnique({
       where: { id: userId },
       select: { unique_session_id: true }
@@ -386,6 +386,11 @@ export class AuthService {
         updated_at: new Date()
       }
     })
+
+    // Evict the in-memory auth cache entry immediately so that any subsequent
+    // request carrying this token is rejected at the next validate() call
+    // rather than after the 15-minute cache TTL expires.
+    invalidateAuthCache(userId, sessionId)
 
     this.logger.info({ userId, sessionId }, 'User logged out successfully')
 

@@ -29,7 +29,8 @@ describe('logout route', () => {
       },
       prisma: {},
       server: {
-        logger: {}
+        logger: {},
+        invalidateAuthCache: vi.fn()
       }
     }
 
@@ -86,7 +87,11 @@ describe('logout route', () => {
 
       await logoutRoute.handler(mockRequest, mockH)
 
-      expect(mockLogout).toHaveBeenCalledWith(1, 'session-123')
+      expect(mockLogout).toHaveBeenCalledWith(
+        1,
+        'session-123',
+        mockRequest.server.invalidateAuthCache
+      )
     })
   })
 })

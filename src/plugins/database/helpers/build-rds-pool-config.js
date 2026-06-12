@@ -85,21 +85,18 @@ export function buildRdsPoolConfig(server, options) {
     maxLifetimeSeconds: options.pool.maxLifetimeSeconds,
     connectionTimeoutMillis:
       options.pool.connectionTimeoutMs ?? CONNECTION_TIMEOUT_MS,
-    idleTimeoutMillis: 20000,
+    idleTimeoutMillis: 60000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000
   }
 
-  // Add SSL configuration for AWS RDS IAM authentication
+  // Add SSL configuration for AWS RDS IAM authentication.
+  // rejectUnauthorized must be true in all real AWS environments so that the
+  // TLS certificate presented by RDS is actually verified — not just encrypted.
   if (options.useIamAuth) {
     poolConfig.ssl = server.secureContext
-      ? {
-          rejectUnauthorized: false,
-          secureContext: server.secureContext
-        }
-      : {
-          rejectUnauthorized: false
-        }
+      ? { rejectUnauthorized: true }
+      : { rejectUnauthorized: false }
     server.logger.info('SSL enabled (required for AWS RDS IAM authentication)')
   }
 

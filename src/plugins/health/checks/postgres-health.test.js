@@ -6,7 +6,9 @@ describe('checkPostgresHealth', () => {
 
   beforeEach(() => {
     mockRequest = {
-      pgQuery: vi.fn(),
+      prisma: {
+        $queryRaw: vi.fn().mockResolvedValue([{ health: 1 }])
+      },
       logger: {
         error: vi.fn()
       }
@@ -14,86 +16,31 @@ describe('checkPostgresHealth', () => {
   })
 
   describe('successful health checks', () => {
-    test('Should return healthy status when database responds correctly', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }],
-        duration: 5
-      })
-
+    test('returns connected and healthy when Prisma query succeeds', async () => {
       const result = await checkPostgresHealth(mockRequest)
 
-      expect(result).toEqual({
-        status: 'connected',
-        healthy: true,
-        responseTime: 5
-      })
-      expect(mockRequest.pgQuery).toHaveBeenCalledWith('SELECT 1 as health')
+      expect(result.status).toBe('connected')
+      expect(result.healthy).toBe(true)
+      expect(typeof result.responseTime).toBe('number')
     })
 
-    test('Should return healthy false when health check returns non-1', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 0 }],
-        duration: 10
-      })
-
+    test('responseTime is a non-negative number', async () => {
       const result = await checkPostgresHealth(mockRequest)
 
-      expect(result).toEqual({
-        status: 'connected',
-        healthy: false,
-        responseTime: 10
-      })
+      expect(result.responseTime).toBeGreaterThanOrEqual(0)
     })
 
-    test('Should handle null duration in response', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }],
-        duration: null
-      })
+    test('calls prisma.$queryRaw exactly once', async () => {
+      await checkPostgresHealth(mockRequest)
 
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result).toEqual({
-        status: 'connected',
-        healthy: true,
-        responseTime: null
-      })
-    })
-
-    test('Should handle undefined duration in response', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }]
-      })
-
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result).toEqual({
-        status: 'connected',
-        healthy: true,
-        responseTime: null
-      })
-    })
-
-    test('Should handle zero duration', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }],
-        duration: 0
-      })
-
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result).toEqual({
-        status: 'connected',
-        healthy: true,
-        responseTime: null // 0 is falsy, so || null returns null
-      })
+      expect(mockRequest.prisma.$queryRaw).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('error handling', () => {
-    test('Should return error status when database query fails', async () => {
+    test('returns error status when Prisma query throws', async () => {
       const dbError = new Error('Connection timeout')
-      mockRequest.pgQuery.mockRejectedValue(dbError)
+      mockRequest.prisma.$queryRaw.mockRejectedValue(dbError)
 
       const result = await checkPostgresHealth(mockRequest)
 
@@ -104,9 +51,9 @@ describe('checkPostgresHealth', () => {
       })
     })
 
-    test('Should log error when database check fails', async () => {
+    test('logs error when database check fails', async () => {
       const dbError = new Error('Database unavailable')
-      mockRequest.pgQuery.mockRejectedValue(dbError)
+      mockRequest.prisma.$queryRaw.mockRejectedValue(dbError)
 
       await checkPostgresHealth(mockRequest)
 
@@ -116,9 +63,9 @@ describe('checkPostgresHealth', () => {
       )
     })
 
-    test('Should handle error with empty message', async () => {
+    test('returns empty error message when error has no message', async () => {
       const dbError = new Error('')
-      mockRequest.pgQuery.mockRejectedValue(dbError)
+      mockRequest.prisma.$queryRaw.mockRejectedValue(dbError)
 
       const result = await checkPostgresHealth(mockRequest)
 
@@ -129,36 +76,32 @@ describe('checkPostgresHealth', () => {
       })
     })
 
-    test('Should handle connection refused error', async () => {
+    test('handles connection refused error', async () => {
       const dbError = new Error('ECONNREFUSED')
-      mockRequest.pgQuery.mockRejectedValue(dbError)
+      mockRequest.prisma.$queryRaw.mockRejectedValue(dbError)
 
       const result = await checkPostgresHealth(mockRequest)
 
-      expect(result).toEqual({
-        status: 'error',
-        healthy: false,
-        error: 'ECONNREFUSED'
-      })
+      expect(result.status).toBe('error')
+      expect(result.healthy).toBe(false)
+      expect(result.error).toBe('ECONNREFUSED')
       expect(mockRequest.logger.error).toHaveBeenCalled()
     })
 
-    test('Should handle authentication error', async () => {
+    test('handles authentication error', async () => {
       const dbError = new Error('password authentication failed')
-      mockRequest.pgQuery.mockRejectedValue(dbError)
+      mockRequest.prisma.$queryRaw.mockRejectedValue(dbError)
 
       const result = await checkPostgresHealth(mockRequest)
 
-      expect(result).toEqual({
-        status: 'error',
-        healthy: false,
-        error: 'password authentication failed'
-      })
+      expect(result.status).toBe('error')
+      expect(result.healthy).toBe(false)
+      expect(result.error).toBe('password authentication failed')
     })
 
-    test('Should handle network timeout', async () => {
+    test('handles network timeout', async () => {
       const dbError = new Error('timeout exceeded')
-      mockRequest.pgQuery.mockRejectedValue(dbError)
+      mockRequest.prisma.$queryRaw.mockRejectedValue(dbError)
 
       const result = await checkPostgresHealth(mockRequest)
 
@@ -166,86 +109,11 @@ describe('checkPostgresHealth', () => {
       expect(result.healthy).toBe(false)
       expect(result.error).toBe('timeout exceeded')
     })
-  })
 
-  describe('edge cases', () => {
-    test('Should handle unexpected response structure', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }]
-        // missing duration
-      })
-
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result.status).toBe('connected')
-      expect(result.responseTime).toBeNull()
-    })
-
-    test('Should handle boolean health value (truthy)', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: true }],
-        duration: 3
-      })
-
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result).toEqual({
-        status: 'connected',
-        healthy: false, // true !== 1 (strict equality check)
-        responseTime: 3
-      })
-    })
-
-    test('Should handle string "1" as health value', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: '1' }],
-        duration: 2
-      })
-
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result).toEqual({
-        status: 'connected',
-        healthy: false, // '1' !== 1 (strict equality)
-        responseTime: 2
-      })
-    })
-
-    test('Should call pgQuery exactly once', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }],
-        duration: 4
-      })
-
+    test('does not call logger.error on success', async () => {
       await checkPostgresHealth(mockRequest)
 
-      expect(mockRequest.pgQuery).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  describe('performance', () => {
-    test('Should handle fast response times', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }],
-        duration: 0.5
-      })
-
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result.responseTime).toBe(0.5)
-      expect(result.healthy).toBe(true)
-    })
-
-    test('Should handle slow response times', async () => {
-      mockRequest.pgQuery.mockResolvedValue({
-        rows: [{ health: 1 }],
-        duration: 5000
-      })
-
-      const result = await checkPostgresHealth(mockRequest)
-
-      expect(result.responseTime).toBe(5000)
-      expect(result.healthy).toBe(true)
+      expect(mockRequest.logger.error).not.toHaveBeenCalled()
     })
   })
 })

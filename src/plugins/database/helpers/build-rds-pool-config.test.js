@@ -83,12 +83,11 @@ describe('RDS Pool Configuration', () => {
       expect(config.max).toBe(10)
       expect(config.maxLifetimeSeconds).toBe(600)
       expect(config.connectionTimeoutMillis).toBe(5000)
-      expect(config.idleTimeoutMillis).toBe(20000)
+      expect(config.idleTimeoutMillis).toBe(60000)
       expect(config.keepAlive).toBe(true)
       expect(config.keepAliveInitialDelayMillis).toBe(10000)
       expect(config.ssl).toEqual({
-        rejectUnauthorized: false,
-        secureContext: { ca: 'mock-ca' }
+        rejectUnauthorized: true
       })
     })
 
@@ -106,7 +105,7 @@ describe('RDS Pool Configuration', () => {
       })
 
       expect(config.password).toBe('devpass123')
-      expect(config.idleTimeoutMillis).toBe(20000)
+      expect(config.idleTimeoutMillis).toBe(60000)
       expect(config.keepAlive).toBe(true)
       expect(config.keepAliveInitialDelayMillis).toBe(10000)
       expect(config.ssl).toBeUndefined()

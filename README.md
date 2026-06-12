@@ -327,13 +327,7 @@ docker run -p 3001:3001 pafs-backend-api
 
 ## Environment Variables
 
-| Variable       | Description           | Default       |
-| -------------- | --------------------- | ------------- |
-| `NODE_ENV`     | Environment           | `development` |
-| `PORT`         | Server port           | `3001`        |
-| `LOG_LEVEL`    | Log level             | `info`        |
-| `DATABASE_URL` | PostgreSQL connection | -             |
-| `JWT_SECRET`   | JWT signing secret    | -             |
+For local developer setup see the **[API DEVELOPER setup (local)](https://github.com/DEFRA/defra-pafs-docs/blob/main/service_details/environments.md#api-developer-setup-local)** section in `defra-pafs-docs`.
 
 **CDP Environments:** Manage secrets via [CDP Portal](https://portal.cdp-int.defra.cloud/)
 
