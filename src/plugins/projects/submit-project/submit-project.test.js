@@ -147,16 +147,14 @@ describe('submit-project handler', () => {
     request.params.referenceNumber = 'LCR-123-456'
     await submitProjectRoute.options.handler(request, h)
     expect(mockProjectService.getProjectByReferenceNumber).toHaveBeenCalledWith(
-      'LCR/123/456',
-      { skipUrlEnrichment: true }
+      'LCR/123/456'
     )
   })
 
   test('passes slashes through unchanged', async () => {
     await submitProjectRoute.options.handler(request, h)
     expect(mockProjectService.getProjectByReferenceNumber).toHaveBeenCalledWith(
-      'LCR/123/456',
-      { skipUrlEnrichment: true }
+      'LCR/123/456'
     )
   })
 

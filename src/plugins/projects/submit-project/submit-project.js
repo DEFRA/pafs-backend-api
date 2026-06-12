@@ -21,12 +21,8 @@ import { sendExternalSubmissionMessage } from '../../../common/helpers/sqs/send-
 
 const loadProject = async (projectService, referenceNumber, h) => {
   try {
-    const project = await projectService.getProjectByReferenceNumber(
-      referenceNumber,
-      {
-        skipUrlEnrichment: true
-      }
-    )
+    const project =
+      await projectService.getProjectByReferenceNumber(referenceNumber)
     if (!project) {
       return {
         project: null,
