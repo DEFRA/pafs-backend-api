@@ -16,6 +16,7 @@ import {
   NEW_COLUMNS
 } from '../helpers/fcerm1/fcerm1-new-columns.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
+import { validateDownloadPermissions } from '../../projects/helpers/project-download-permissions.js'
 
 // Re-export template paths so existing tests and consumers keep working
 export {
@@ -62,6 +63,19 @@ function createFcerm1Handler({
       }
 
       const { project, contributors, areaId } = data
+
+      const permissionError = await validateDownloadPermissions(
+        request.auth.credentials,
+        areaId,
+        request.prisma,
+        h,
+        request.server.logger,
+        referenceNumber
+      )
+      if (permissionError) {
+        return permissionError
+      }
+
       const areaHierarchy = await resolveAreaHierarchy(request.prisma, areaId)
       const presenter = new PresenterClass(project, areaHierarchy, contributors)
 

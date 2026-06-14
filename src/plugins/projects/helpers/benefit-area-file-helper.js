@@ -5,10 +5,14 @@ import {
 } from '../../../common/constants/index.js'
 import { validateProjectWithBenefitAreaFile } from './benefit-area-validation-helper.js'
 import { buildValidationErrorResponse } from '../../../common/helpers/response-builder.js'
+import {
+  fetchProjectAreaId,
+  validateDownloadPermissions
+} from './project-download-permissions.js'
 
 /**
  * Common handler wrapper for benefit area file operations
- * Handles validation and error handling consistently
+ * Handles validation, permission enforcement, and error handling consistently
  */
 export async function withBenefitAreaFileValidation(
   request,
@@ -27,6 +31,21 @@ export async function withBenefitAreaFileValidation(
     }
 
     const { project } = validation
+    const referenceNumber = request.params.referenceNumber
+
+    const projectAreaId = await fetchProjectAreaId(request.prisma, project.id)
+    const permissionError = await validateDownloadPermissions(
+      request.auth.credentials,
+      projectAreaId,
+      request.prisma,
+      h,
+      logger,
+      referenceNumber
+    )
+    if (permissionError) {
+      return permissionError
+    }
+
     return await operation(project, request, h)
   } catch (error) {
     const referenceNumber = request.params.referenceNumber

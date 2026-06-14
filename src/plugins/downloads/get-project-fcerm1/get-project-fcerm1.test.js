@@ -13,12 +13,14 @@ import { buildSingleWorkbook } from '../helpers/fcerm1/fcerm1-builder.js'
 import { resolveAreaHierarchy } from '../../projects/helpers/area-hierarchy.js'
 import { FCERM1_YEARS } from '../helpers/fcerm1/fcerm1-legacy-columns.js'
 import { NEW_FCERM1_YEARS } from '../helpers/fcerm1/fcerm1-new-columns.js'
+import { validateDownloadPermissions } from '../../projects/helpers/project-download-permissions.js'
 
 vi.mock('../services/project-fcerm1-service.js')
 vi.mock('../helpers/fcerm1/fcerm1-presenter.js')
 vi.mock('../helpers/fcerm1/fcerm1-legacy-presenter.js')
 vi.mock('../helpers/fcerm1/fcerm1-builder.js')
 vi.mock('../../projects/helpers/area-hierarchy.js')
+vi.mock('../../projects/helpers/project-download-permissions.js')
 
 describe('getProjectFcerm1Legacy', () => {
   let mockRequest
@@ -47,6 +49,9 @@ describe('getProjectFcerm1Legacy', () => {
         referenceNumber: 'AC-2021-00001-000'
       },
       prisma: {},
+      auth: {
+        credentials: { isAdmin: false, areas: [] }
+      },
       server: {
         logger: mockLogger
       }
@@ -64,6 +69,8 @@ describe('getProjectFcerm1Legacy', () => {
     })
     resolveAreaHierarchy.mockResolvedValue({ rmaName: 'Test RMA' })
     buildSingleWorkbook.mockResolvedValue(MOCK_BUFFER)
+    // Ensure permission check allows by default after vi.clearAllMocks()
+    validateDownloadPermissions.mockResolvedValue(null)
   })
 
   describe('Route configuration', () => {
@@ -200,6 +207,29 @@ describe('getProjectFcerm1Legacy', () => {
         HTTP_STATUS.INTERNAL_SERVER_ERROR
       )
     })
+
+    test('returns 403 when validateDownloadPermissions denies access', async () => {
+      const forbiddenResponse = Symbol('forbidden')
+      validateDownloadPermissions.mockResolvedValueOnce(forbiddenResponse)
+
+      const result = await getProjectFcerm1Legacy.handler(mockRequest, mockH)
+
+      expect(result).toBe(forbiddenResponse)
+      expect(buildSingleWorkbook).not.toHaveBeenCalled()
+    })
+
+    test('calls validateDownloadPermissions with credentials and areaId', async () => {
+      await getProjectFcerm1Legacy.handler(mockRequest, mockH)
+
+      expect(validateDownloadPermissions).toHaveBeenCalledWith(
+        mockRequest.auth.credentials,
+        5,
+        mockRequest.prisma,
+        mockH,
+        mockLogger,
+        'AC/2021/00001/000'
+      )
+    })
   })
 })
 
@@ -229,6 +259,9 @@ describe('getProjectFcerm1New', () => {
         referenceNumber: 'AC-2024-00042-000'
       },
       prisma: {},
+      auth: {
+        credentials: { isAdmin: false, areas: [] }
+      },
       server: {
         logger: mockLogger
       }
@@ -245,6 +278,8 @@ describe('getProjectFcerm1New', () => {
     })
     resolveAreaHierarchy.mockResolvedValue({ rmaName: 'New RMA' })
     buildSingleWorkbook.mockResolvedValue(MOCK_BUFFER)
+    // Ensure permission check allows by default after vi.clearAllMocks()
+    validateDownloadPermissions.mockResolvedValue(null)
   })
 
   describe('Route configuration', () => {
@@ -352,6 +387,29 @@ describe('getProjectFcerm1New', () => {
       )
       expect(mockResponseChain.code).toHaveBeenCalledWith(
         HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
+    })
+
+    test('returns 403 when validateDownloadPermissions denies access', async () => {
+      const forbiddenResponse = Symbol('forbidden')
+      validateDownloadPermissions.mockResolvedValueOnce(forbiddenResponse)
+
+      const result = await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(result).toBe(forbiddenResponse)
+      expect(buildSingleWorkbook).not.toHaveBeenCalled()
+    })
+
+    test('calls validateDownloadPermissions with credentials and areaId', async () => {
+      await getProjectFcerm1New.handler(mockRequest, mockH)
+
+      expect(validateDownloadPermissions).toHaveBeenCalledWith(
+        mockRequest.auth.credentials,
+        7,
+        mockRequest.prisma,
+        mockH,
+        mockLogger,
+        'AC/2024/00042/000'
       )
     })
   })
@@ -475,6 +533,9 @@ describe('getProjectFcerm1New', () => {
       mockRequest = {
         params: { referenceNumber: 'AC-2024-00042-000' },
         prisma: {},
+        auth: {
+          credentials: { isAdmin: false, areas: [] }
+        },
         server: { logger: mockLogger }
       }
       mockH = { response: vi.fn(() => mockResponseChain) }
@@ -486,6 +547,7 @@ describe('getProjectFcerm1New', () => {
       })
       resolveAreaHierarchy.mockResolvedValue({ rmaName: 'New RMA' })
       buildSingleWorkbook.mockResolvedValue(MOCK_BUFFER)
+      validateDownloadPermissions.mockResolvedValue(null)
     })
 
     test('converts hyphens to slashes in the reference number', async () => {

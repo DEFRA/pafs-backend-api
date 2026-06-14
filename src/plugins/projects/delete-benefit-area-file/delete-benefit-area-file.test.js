@@ -21,6 +21,12 @@ vi.mock('../helpers/benefit-area-validation-helper.js', () => ({
   validateProjectWithBenefitAreaFile: vi.fn()
 }))
 
+// Mock permission check — default allows all; individual tests can deny
+vi.mock('../helpers/project-download-permissions.js', () => ({
+  fetchProjectAreaId: vi.fn().mockResolvedValue(5),
+  validateDownloadPermissions: vi.fn().mockResolvedValue(null)
+}))
+
 describe('delete-benefit-area-file endpoint', () => {
   let mockRequest
   let mockH
@@ -28,6 +34,7 @@ describe('delete-benefit-area-file endpoint', () => {
   let mockPrisma
   let helpers
   let validateProjectWithBenefitAreaFile
+  let deletePermissions
 
   beforeEach(async () => {
     helpers = await import('../helpers/benefit-area-file-helper.js')
@@ -35,6 +42,8 @@ describe('delete-benefit-area-file endpoint', () => {
       await import('../helpers/benefit-area-validation-helper.js')
     validateProjectWithBenefitAreaFile =
       validationModule.validateProjectWithBenefitAreaFile
+    deletePermissions =
+      await import('../helpers/project-download-permissions.js')
 
     mockLogger = {
       info: vi.fn(),
@@ -561,6 +570,58 @@ describe('delete-benefit-area-file endpoint', () => {
           referenceNumber: 'TEST/001/001'
         },
         'Delete failed'
+      )
+    })
+  })
+
+  describe('error handling - permission denied', () => {
+    it('should short-circuit when validateDownloadPermissions returns an error response', async () => {
+      const forbiddenResponse = Symbol('forbidden')
+      deletePermissions.validateDownloadPermissions.mockResolvedValueOnce(
+        forbiddenResponse
+      )
+
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: {
+          id: 1n,
+          reference_number: 'TEST/001/001',
+          benefit_area_file_s3_bucket: 'bucket',
+          benefit_area_file_s3_key: 'key'
+        }
+      })
+
+      const result = await deleteBenefitAreaFile.handler(mockRequest, mockH)
+
+      expect(result).toBe(forbiddenResponse)
+      expect(helpers.deleteFromS3).not.toHaveBeenCalled()
+      expect(helpers.clearBenefitAreaFile).not.toHaveBeenCalled()
+    })
+
+    it('should pass credentials and area id to validateDownloadPermissions', async () => {
+      deletePermissions.fetchProjectAreaId.mockResolvedValueOnce(7)
+
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: {
+          id: 1n,
+          reference_number: 'TEST/001/001',
+          benefit_area_file_s3_bucket: 'bucket',
+          benefit_area_file_s3_key: 'key'
+        }
+      })
+      helpers.deleteFromS3.mockResolvedValue(undefined)
+      helpers.clearBenefitAreaFile.mockResolvedValue(undefined)
+
+      await deleteBenefitAreaFile.handler(mockRequest, mockH)
+
+      expect(
+        deletePermissions.validateDownloadPermissions
+      ).toHaveBeenCalledWith(
+        mockRequest.auth.credentials,
+        7,
+        mockRequest.prisma,
+        mockH,
+        mockLogger,
+        mockRequest.params.referenceNumber
       )
     })
   })

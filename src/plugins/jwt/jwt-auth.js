@@ -1,10 +1,7 @@
 import hapiAuthJwt2 from 'hapi-auth-jwt2'
 import { AUTH_ERROR_CODES } from '../../common/constants/auth.js'
 import { HTTP_STATUS, SIZE } from '../../common/constants/common.js'
-import {
-  fetchUserAreas,
-  getAreaTypeFlags
-} from '../areas/helpers/user-areas.js'
+import { getAreaTypeFlags } from '../areas/helpers/user-areas.js'
 
 async function fetchUser(request, userId) {
   return request.prisma.pafs_core_users.findUnique({
@@ -162,7 +159,7 @@ function createValidateFn(cache) {
         return statusErr
       }
 
-      const areas = await fetchUserAreas(request.prisma, decoded.userId)
+      const areas = decoded.areas ?? []
       const result = {
         isValid: true,
         credentials: buildCredentials(user, decoded, areas)
