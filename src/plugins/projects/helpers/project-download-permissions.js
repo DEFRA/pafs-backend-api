@@ -2,7 +2,7 @@ import { AreaService } from '../../areas/services/area-service.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { PROJECT_VALIDATION_MESSAGES } from '../../../common/constants/project.js'
 import { buildErrorResponse } from '../../../common/helpers/response-builder.js'
-import { hasAccessToArea, hasAccessToParentPso } from './project-permissions.js'
+import { canUpdateProject, hasAccessToParentEa } from './project-permissions.js'
 
 /**
  * Look up the project's area_id from the junction table.
@@ -20,12 +20,12 @@ export async function fetchProjectAreaId(prisma, projectId) {
 }
 
 /**
- * Validate that the authenticated user may access a project for download or delete.
+ * Validate that the authenticated user may access a project for download.
  *
- * Permission rules mirror canUpdateProject:
+ * Permission rules extend canUpdateProject with EA access:
  *   - Admin: always allowed (fast path, no DB)
- *   - RMA user with direct area match in JWT areas: allowed (fast path, no DB)
- *   - User with access to the PSO parent area: allowed (one cached DB query)
+ *   - RMA user with direct area match or PSO parent access: delegated to canUpdateProject
+ *   - EA user with access to the EA grandparent area: allowed
  *   - Otherwise: 403 Forbidden
  *
  * @param {Object} credentials    request.auth.credentials
@@ -48,16 +48,16 @@ export async function validateDownloadPermissions(
     return null
   }
 
-  if (projectAreaId && hasAccessToArea(credentials.areas, projectAreaId)) {
-    return null
-  }
-
   if (projectAreaId) {
     const areaService = new AreaService(prisma, logger)
     const projectAreaDetails =
       await areaService.getAreaByIdWithParents(projectAreaId)
 
-    if (hasAccessToParentPso(credentials.areas, projectAreaDetails)) {
+    if (canUpdateProject(credentials, projectAreaDetails).allowed) {
+      return null
+    }
+
+    if (hasAccessToParentEa(credentials.areas, projectAreaDetails)) {
       return null
     }
   }

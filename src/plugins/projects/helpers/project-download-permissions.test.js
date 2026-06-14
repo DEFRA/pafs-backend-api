@@ -11,8 +11,8 @@ vi.mock('../../areas/services/area-service.js', () => ({
 }))
 
 vi.mock('./project-permissions.js', () => ({
-  hasAccessToArea: vi.fn(),
-  hasAccessToParentPso: vi.fn()
+  canUpdateProject: vi.fn(),
+  hasAccessToParentEa: vi.fn()
 }))
 
 describe('project-download-permissions', () => {
@@ -20,8 +20,8 @@ describe('project-download-permissions', () => {
   let mockH
   let mockLogger
   let mockResponseChain
-  let hasAccessToArea
-  let hasAccessToParentPso
+  let canUpdateProject
+  let hasAccessToParentEa
   let AreaService
 
   const REFERENCE_NUMBER = 'AC/2021/00001/000'
@@ -31,8 +31,8 @@ describe('project-download-permissions', () => {
     vi.clearAllMocks()
 
     const permissionsModule = await import('./project-permissions.js')
-    hasAccessToArea = permissionsModule.hasAccessToArea
-    hasAccessToParentPso = permissionsModule.hasAccessToParentPso
+    canUpdateProject = permissionsModule.canUpdateProject
+    hasAccessToParentEa = permissionsModule.hasAccessToParentEa
 
     const areaServiceModule =
       await import('../../areas/services/area-service.js')
@@ -102,7 +102,7 @@ describe('project-download-permissions', () => {
 
   describe('validateDownloadPermissions', () => {
     describe('admin user', () => {
-      it('returns null immediately without any DB or area check', async () => {
+      it('returns null immediately without any DB or permission check', async () => {
         const credentials = { isAdmin: true, userId: 1, areas: [] }
 
         const result = await validateDownloadPermissions(
@@ -115,47 +115,19 @@ describe('project-download-permissions', () => {
         )
 
         expect(result).toBeNull()
-        expect(hasAccessToArea).not.toHaveBeenCalled()
+        expect(canUpdateProject).not.toHaveBeenCalled()
         expect(AreaService).not.toHaveBeenCalled()
       })
     })
 
-    describe('non-admin with direct area access', () => {
-      it('returns null when user has direct RMA access (no PSO lookup needed)', async () => {
+    describe('non-admin with canUpdateProject access (RMA or PSO)', () => {
+      it('returns null when canUpdateProject allows access', async () => {
         const credentials = {
           isAdmin: false,
           userId: 2,
           areas: [{ areaId: PROJECT_AREA_ID, primary: true }]
         }
-        hasAccessToArea.mockReturnValue(true)
-
-        const result = await validateDownloadPermissions(
-          credentials,
-          PROJECT_AREA_ID,
-          mockPrisma,
-          mockH,
-          mockLogger,
-          REFERENCE_NUMBER
-        )
-
-        expect(result).toBeNull()
-        expect(hasAccessToArea).toHaveBeenCalledWith(
-          credentials.areas,
-          PROJECT_AREA_ID
-        )
-        expect(AreaService).not.toHaveBeenCalled()
-      })
-    })
-
-    describe('non-admin with PSO parent access', () => {
-      it('returns null when user has access via PSO parent area', async () => {
-        const credentials = {
-          isAdmin: false,
-          userId: 3,
-          areas: [{ areaId: 99, primary: true, areaType: 'PSO' }]
-        }
-        hasAccessToArea.mockReturnValue(false)
-        hasAccessToParentPso.mockReturnValue(true)
+        canUpdateProject.mockReturnValue({ allowed: true })
 
         const mockAreaDetails = { id: PROJECT_AREA_ID, PSO: { id: 99 } }
         const mockGetAreaByIdWithParents = vi
@@ -176,7 +148,48 @@ describe('project-download-permissions', () => {
 
         expect(result).toBeNull()
         expect(mockGetAreaByIdWithParents).toHaveBeenCalledWith(PROJECT_AREA_ID)
-        expect(hasAccessToParentPso).toHaveBeenCalledWith(
+        expect(canUpdateProject).toHaveBeenCalledWith(
+          credentials,
+          mockAreaDetails
+        )
+        expect(hasAccessToParentEa).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('non-admin with EA grandparent access', () => {
+      it('returns null when user has access via EA grandparent area', async () => {
+        const credentials = {
+          isAdmin: false,
+          userId: 5,
+          areas: [{ areaId: 1, primary: true, areaType: 'EA' }]
+        }
+        canUpdateProject.mockReturnValue({ allowed: false })
+        hasAccessToParentEa.mockReturnValue(true)
+
+        const mockAreaDetails = {
+          id: PROJECT_AREA_ID,
+          PSO: { id: 99 },
+          EA: { id: 1 }
+        }
+        const mockGetAreaByIdWithParents = vi
+          .fn()
+          .mockResolvedValue(mockAreaDetails)
+        AreaService.mockImplementation(function () {
+          this.getAreaByIdWithParents = mockGetAreaByIdWithParents
+        })
+
+        const result = await validateDownloadPermissions(
+          credentials,
+          PROJECT_AREA_ID,
+          mockPrisma,
+          mockH,
+          mockLogger,
+          REFERENCE_NUMBER
+        )
+
+        expect(result).toBeNull()
+        expect(mockGetAreaByIdWithParents).toHaveBeenCalledWith(PROJECT_AREA_ID)
+        expect(hasAccessToParentEa).toHaveBeenCalledWith(
           credentials.areas,
           mockAreaDetails
         )
@@ -186,8 +199,8 @@ describe('project-download-permissions', () => {
     describe('non-admin without any access', () => {
       it('returns 403 and logs a warning', async () => {
         const credentials = { isAdmin: false, userId: 4, areas: [] }
-        hasAccessToArea.mockReturnValue(false)
-        hasAccessToParentPso.mockReturnValue(false)
+        canUpdateProject.mockReturnValue({ allowed: false })
+        hasAccessToParentEa.mockReturnValue(false)
 
         const mockGetAreaByIdWithParents = vi
           .fn()
@@ -226,7 +239,6 @@ describe('project-download-permissions', () => {
 
       it('returns 403 when projectAreaId is null', async () => {
         const credentials = { isAdmin: false, userId: 4, areas: [] }
-        hasAccessToArea.mockReturnValue(false)
 
         const result = await validateDownloadPermissions(
           credentials,
@@ -242,6 +254,7 @@ describe('project-download-permissions', () => {
         )
         expect(result).toBe(mockResponseChain)
         expect(AreaService).not.toHaveBeenCalled()
+        expect(canUpdateProject).not.toHaveBeenCalled()
       })
     })
   })

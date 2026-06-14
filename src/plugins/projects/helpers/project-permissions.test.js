@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   hasAccessToArea,
   hasAccessToParentPso,
+  hasAccessToParentEa,
   canCreateProject,
   canUpdateProject
 } from './project-permissions.js'
@@ -101,6 +102,59 @@ describe('project-permissions', () => {
       const userAreas = [{ areaId: '5', primary: true }]
 
       expect(hasAccessToParentPso(userAreas, null)).toBe(false)
+    })
+  })
+
+  describe('hasAccessToParentEa', () => {
+    it('should return true when user has access to parent EA', () => {
+      const userAreas = [{ areaId: '20', primary: true }]
+      const areaWithParents = {
+        id: 5,
+        area_type: 'RMA',
+        PSO: { id: 10, area_type: 'PSO Area' },
+        EA: { id: 20, area_type: 'EA Area' }
+      }
+
+      expect(hasAccessToParentEa(userAreas, areaWithParents)).toBe(true)
+    })
+
+    it('should return false when user does not have access to parent EA', () => {
+      const userAreas = [{ areaId: '5', primary: true }]
+      const areaWithParents = {
+        id: 5,
+        area_type: 'RMA',
+        EA: { id: 20, area_type: 'EA Area' }
+      }
+
+      expect(hasAccessToParentEa(userAreas, areaWithParents)).toBe(false)
+    })
+
+    it('should return false when EA parent is missing', () => {
+      const userAreas = [{ areaId: '5', primary: true }]
+      const areaWithParents = {
+        id: 5,
+        area_type: 'RMA',
+        PSO: { id: 10, area_type: 'PSO Area' }
+      }
+
+      expect(hasAccessToParentEa(userAreas, areaWithParents)).toBe(false)
+    })
+
+    it('should return false when EA id is missing', () => {
+      const userAreas = [{ areaId: '5', primary: true }]
+      const areaWithParents = {
+        id: 5,
+        area_type: 'RMA',
+        EA: { area_type: 'EA Area' }
+      }
+
+      expect(hasAccessToParentEa(userAreas, areaWithParents)).toBe(false)
+    })
+
+    it('should return false when areaWithParents is null', () => {
+      const userAreas = [{ areaId: '5', primary: true }]
+
+      expect(hasAccessToParentEa(userAreas, null)).toBe(false)
     })
   })
 
