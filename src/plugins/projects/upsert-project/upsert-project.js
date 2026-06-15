@@ -9,6 +9,7 @@ import {
   buildErrorResponse,
   buildSuccessResponse
 } from '../../../common/helpers/response-builder.js'
+import { invalidateCachedProjectScalar } from '../helpers/project-scalar-cache.js'
 import {
   normalizeInterventionTypes,
   resetEarliestWithGiaFields,
@@ -298,6 +299,11 @@ const processUpsert = async (request, h, apiPayload) => {
     userId,
     rfccCode
   )
+
+  // Invalidate the scalar project cache so the next validation request reads
+  // the updated boolean flags (e.g. assetReplacementAllowance, fcermGia) from
+  // the DB rather than the pre-upsert snapshot stored during this validation.
+  invalidateCachedProjectScalar(project.reference_number)
 
   return createSuccessResponse(h, project, isCreate)
 }

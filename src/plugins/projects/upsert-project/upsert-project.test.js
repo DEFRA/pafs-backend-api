@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { invalidateCachedProjectScalar } from '../helpers/project-scalar-cache.js'
 import upsertProject from './upsert-project.js'
 import { HTTP_STATUS } from '../../../common/constants/index.js'
 import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
@@ -10,6 +11,13 @@ import {
 } from '../../../common/constants/project.js'
 import { ProjectService } from '../services/project-service.js'
 import { AreaService } from '../../areas/services/area-service.js'
+
+vi.mock('../helpers/project-scalar-cache.js', () => ({
+  getCachedProjectScalar: vi.fn(() => null),
+  setCachedProjectScalar: vi.fn(),
+  invalidateCachedProjectScalar: vi.fn(),
+  clearProjectScalarCache: vi.fn()
+}))
 
 describe('upsertProject handler', () => {
   let mockRequest
@@ -1784,6 +1792,33 @@ describe('upsertProject handler', () => {
       expect(AreaService.prototype.getAreaByIdWithParents).toHaveBeenCalledWith(
         1
       )
+    })
+  })
+
+  describe('scalar cache invalidation after upsert', () => {
+    beforeEach(() => {
+      mockRequest.auth.credentials.isRma = true
+    })
+
+    it('invalidates the scalar cache after a successful upsert so stale boolean flags do not affect next validation', async () => {
+      // upsertProject spy returns a project with reference_number (set up in outer beforeEach)
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(invalidateCachedProjectScalar).toHaveBeenCalledWith(
+        'ANC501E/000A/001A'
+      )
+    })
+
+    it('does not invalidate the cache when validation fails before reaching the upsert', async () => {
+      vi.spyOn(
+        ProjectService.prototype,
+        'getProjectByReferenceNumber'
+      ).mockResolvedValueOnce(null)
+      mockRequest.payload.payload.referenceNumber = 'REF-MISSING'
+
+      await upsertProject.options.handler(mockRequest, mockH)
+
+      expect(invalidateCachedProjectScalar).not.toHaveBeenCalled()
     })
   })
 })

@@ -99,20 +99,15 @@ const validateFundingValuesYearRange = (
 
 const validateEnabledFundingSourceFields = (
   row,
-  rowIndex,
-  existingProject,
-  h
+  _rowIndex,
+  existingProject
 ) => {
   for (const { rowField, projectField } of FUNDING_SOURCE_FIELD_CONFIG) {
     if (!hasValue(row[rowField]) || existingProject?.[projectField] === true) {
       continue
     }
 
-    return createValidationError(
-      `fundingValues[${rowIndex}].${rowField}`,
-      `${rowField} is not enabled for this project`,
-      h
-    )
+    row[rowField] = null
   }
 
   return null
@@ -120,42 +115,27 @@ const validateEnabledFundingSourceFields = (
 
 const validateContributorGroup = (
   row,
-  rowIndex,
   existingProject,
-  { rowField, projectField },
-  h
+  { rowField, projectField }
 ) => {
   const contributors = row[rowField]
   if (!Array.isArray(contributors) || contributors.length === 0) {
-    return null
+    return
   }
 
   if (existingProject?.[projectField] !== true) {
-    return createValidationError(
-      `fundingValues[${rowIndex}].${rowField}`,
-      `${rowField} is not enabled for this project`,
-      h
-    )
+    // Strip contributor arrays for disabled sources instead of rejecting —
+    // belt-and-suspenders for stale form submissions where a previously-rendered
+    // page is submitted after the source was deselected.  Mirrors the approach
+    // used by validateEnabledFundingSourceFields for scalar spend fields.
+    row[rowField] = null
   }
-
-  return null
 }
 
-const validateContributorFields = (row, rowIndex, existingProject, h) => {
+const validateContributorFields = (row, existingProject) => {
   for (const config of CONTRIBUTOR_CONFIG) {
-    const groupError = validateContributorGroup(
-      row,
-      rowIndex,
-      existingProject,
-      config,
-      h
-    )
-    if (groupError) {
-      return groupError
-    }
+    validateContributorGroup(row, existingProject, config)
   }
-
-  return null
 }
 
 const validateFundingValueRow = (
@@ -184,14 +164,14 @@ const validateFundingValueRow = (
   const sourceError = validateEnabledFundingSourceFields(
     row,
     rowIndex,
-    existingProject,
-    h
+    existingProject
   )
   if (sourceError) {
     return sourceError
   }
 
-  return validateContributorFields(row, rowIndex, existingProject, h)
+  validateContributorFields(row, existingProject)
+  return null
 }
 
 /**
