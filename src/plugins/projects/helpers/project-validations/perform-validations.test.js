@@ -334,7 +334,7 @@ describe('performValidations', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
     })
 
-    it('should return bad request when a funding source is not enabled on the project', async () => {
+    it('strips values for disabled funding sources and passes validation instead of returning bad request', async () => {
       validateProjectExists.validateProjectExists.mockResolvedValue({
         error: null,
         project: {
@@ -346,31 +346,28 @@ describe('performValidations', () => {
         }
       })
 
+      const payload = {
+        referenceNumber: 'REF123',
+        areaId: 1n,
+        fundingValues: [{ financialYear: 2025, fcermGia: '1000' }]
+      }
+
       const result = await performValidations(
         mockProjectService,
         mockAreaService,
-        {
-          referenceNumber: 'REF123',
-          areaId: 1n,
-          fundingValues: [{ financialYear: 2025, fcermGia: '1000' }]
-        },
+        payload,
         mockCredentials,
         'FUNDING_SOURCES_ESTIMATED_SPEND',
         mockLogger,
         mockH
       )
 
-      expect(result.error).toBeDefined()
-      expect(mockH.response).toHaveBeenCalledWith({
-        validationErrors: [
-          {
-            field: 'fundingValues[0].fcermGia',
-            message: 'fcermGia is not enabled for this project',
-            errorCode: PROJECT_VALIDATION_MESSAGES.INVALID_DATA
-          }
-        ]
-      })
-      expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST)
+      // Validation now passes — the disallowed field is silently nulled
+      expect(result.error).toBeUndefined()
+      expect(payload.fundingValues[0].fcermGia).toBeNull()
+      expect(mockH.response).not.toHaveBeenCalledWith(
+        expect.objectContaining({ validationErrors: expect.any(Array) })
+      )
     })
 
     it('should allow contributor names not previously configured on the project', async () => {
@@ -471,7 +468,7 @@ describe('performValidations', () => {
       expect(result.error).toBeUndefined()
     })
 
-    it('should return error when contributor type is present but not enabled on project', async () => {
+    it('strips contributor arrays for disabled sources and passes validation instead of returning bad request', async () => {
       validateProjectExists.validateProjectExists.mockResolvedValue({
         error: null,
         project: {
@@ -483,38 +480,40 @@ describe('performValidations', () => {
         }
       })
 
+      const payload = {
+        referenceNumber: 'REF123',
+        areaId: 1n,
+        fundingValues: [
+          {
+            financialYear: 2025,
+            publicContributors: [
+              {
+                name: 'Some Org',
+                contributorType: 'public_contributions',
+                amount: '1000'
+              }
+            ]
+          }
+        ]
+      }
+
       const result = await performValidations(
         mockProjectService,
         mockAreaService,
-        {
-          referenceNumber: 'REF123',
-          areaId: 1n,
-          fundingValues: [
-            {
-              financialYear: 2025,
-              publicContributors: [
-                {
-                  name: 'Some Org',
-                  contributorType: 'public_contributions',
-                  amount: '1000'
-                }
-              ]
-            }
-          ]
-        },
+        payload,
         mockCredentials,
         'FUNDING_SOURCES_ESTIMATED_SPEND',
         mockLogger,
         mockH
       )
 
-      expect(result.error).toBeDefined()
-      expect(mockH.response).toHaveBeenCalledWith(
+      expect(result.error).toBeUndefined()
+      expect(payload.fundingValues[0].publicContributors).toBeNull()
+      expect(mockH.response).not.toHaveBeenCalledWith(
         expect.objectContaining({
           validationErrors: expect.arrayContaining([
             expect.objectContaining({
-              field: 'fundingValues[0].publicContributors',
-              message: 'publicContributors is not enabled for this project'
+              field: 'fundingValues[0].publicContributors'
             })
           ])
         })
