@@ -360,20 +360,17 @@ describe('AuthService', () => {
       const { shouldResetLockout } = await import('../helpers/session.js')
       vi.mocked(shouldResetLockout).mockReturnValue(true)
 
-      mockPrisma.pafs_core_users.findUnique
-        .mockResolvedValueOnce({
-          id: 1,
-          email: 'test@example.com',
-          encrypted_password: 'hash',
-          first_name: 'Test',
-          last_name: 'User',
-          admin: false,
-          status: 'active',
-          failed_attempts: 5,
-          locked_at: new Date(Date.now() - 60 * 60 * 1000)
-        })
-        .mockResolvedValueOnce({ current_sign_in_at: null })
-        .mockResolvedValueOnce({ current_sign_in_ip: null })
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValueOnce({
+        id: 1,
+        email: 'test@example.com',
+        encrypted_password: 'hash',
+        first_name: 'Test',
+        last_name: 'User',
+        admin: false,
+        status: 'active',
+        failed_attempts: 5,
+        locked_at: new Date(Date.now() - 60 * 60 * 1000)
+      })
 
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
 
@@ -384,12 +381,15 @@ describe('AuthService', () => {
       )
 
       expect(result.success).toBe(true)
+      // resetLockout is no longer a separate DB call — updateSuccessfulLogin
+      // atomically clears failed_attempts and locked_at as part of the success write.
       expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: {
+        data: expect.objectContaining({
           failed_attempts: 0,
-          locked_at: null
-        }
+          locked_at: null,
+          unique_session_id: expect.any(String)
+        })
       })
     })
   })

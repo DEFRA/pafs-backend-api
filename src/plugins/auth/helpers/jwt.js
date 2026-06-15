@@ -11,13 +11,15 @@ const JWT_AUDIENCE = config.get('auth.jwt.audience')
  * Generate an access token for a user
  * @param {Object} user - User object with id and email
  * @param {string} sessionId - Unique session identifier
+ * @param {Array} [areas=[]] - User area assignments
  * @returns {string} Signed JWT access token
  */
-export function generateAccessToken(user, sessionId) {
+export function generateAccessToken(user, sessionId, areas = []) {
   const payload = {
     userId: Number(user.id),
     email: user.email,
     sessionId,
+    areas,
     type: 'access'
   }
 

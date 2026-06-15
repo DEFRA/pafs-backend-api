@@ -20,12 +20,19 @@ vi.mock('../helpers/benefit-area-validation-helper.js', () => ({
   validateProjectWithBenefitAreaFile: vi.fn()
 }))
 
+// Mock permission check — default allows all; individual tests can deny
+vi.mock('../helpers/project-download-permissions.js', () => ({
+  fetchProjectAreaId: vi.fn().mockResolvedValue(5),
+  validateDownloadPermissions: vi.fn().mockResolvedValue(null)
+}))
+
 describe('download-benefit-area-file endpoint', () => {
   let mockRequest
   let mockH
   let mockLogger
   let helpers
   let validateProjectWithBenefitAreaFile
+  let downloadPermissions
 
   beforeEach(async () => {
     helpers = await import('../helpers/benefit-area-file-helper.js')
@@ -33,6 +40,8 @@ describe('download-benefit-area-file endpoint', () => {
       await import('../helpers/benefit-area-validation-helper.js')
     validateProjectWithBenefitAreaFile =
       validationModule.validateProjectWithBenefitAreaFile
+    downloadPermissions =
+      await import('../helpers/project-download-permissions.js')
 
     mockLogger = {
       info: vi.fn(),
@@ -270,6 +279,59 @@ describe('download-benefit-area-file endpoint', () => {
         })
       )
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    })
+  })
+
+  describe('error handling — permission denied', () => {
+    it('should short-circuit when validateDownloadPermissions returns an error response', async () => {
+      const forbiddenResponse = Symbol('forbidden')
+      downloadPermissions.validateDownloadPermissions.mockResolvedValueOnce(
+        forbiddenResponse
+      )
+
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: {
+          reference_number: 'TEST/001/001',
+          slug: 'TEST-001-001',
+          benefit_area_file_s3_bucket: 'pafs-bucket',
+          benefit_area_file_s3_key: 'key'
+        }
+      })
+
+      const result = await downloadBenefitAreaFile.handler(mockRequest, mockH)
+
+      expect(result).toBe(forbiddenResponse)
+      expect(helpers.generateDownloadUrl).not.toHaveBeenCalled()
+    })
+
+    it('should pass credentials and area id to validateDownloadPermissions', async () => {
+      downloadPermissions.fetchProjectAreaId.mockResolvedValueOnce(42)
+
+      validateProjectWithBenefitAreaFile.mockResolvedValue({
+        project: {
+          reference_number: 'TEST/001/001',
+          slug: 'TEST-001-001',
+          benefit_area_file_s3_bucket: 'pafs-bucket',
+          benefit_area_file_s3_key: 'key'
+        }
+      })
+      helpers.generateDownloadUrl.mockResolvedValue({
+        downloadUrl: 'https://s3.example.com/presigned',
+        downloadExpiry: new Date()
+      })
+
+      await downloadBenefitAreaFile.handler(mockRequest, mockH)
+
+      expect(
+        downloadPermissions.validateDownloadPermissions
+      ).toHaveBeenCalledWith(
+        mockRequest.auth.credentials,
+        42,
+        mockRequest.prisma,
+        mockH,
+        mockLogger,
+        mockRequest.params.referenceNumber
+      )
     })
   })
 })

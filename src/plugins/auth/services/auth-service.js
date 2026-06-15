@@ -21,7 +21,7 @@ import { config } from '../../../config.js'
 import {
   AUTH_ERROR_CODES,
   ACCOUNT_STATUS,
-  SIZE
+  PASSWORD
 } from '../../../common/constants/index.js'
 
 // Generated once at module load from a cryptographically random value.
@@ -30,7 +30,7 @@ import {
 // user enumeration via timing differences. The result of compare is discarded.
 const TIMING_ATTACK_DUMMY_HASH = await bcrypt.hash(
   randomBytes(32).toString('hex'),
-  SIZE.LENGTH_12
+  PASSWORD.BCRYPT_ROUNDS
 )
 
 export class AuthService {
@@ -83,7 +83,7 @@ export class AuthService {
       return disabledCheck
     }
 
-    await this._handleLockoutReset(user)
+    this._handleLockoutReset(user)
 
     const lockedCheck = this._checkAccountLocked(user)
     if (lockedCheck) {
@@ -121,13 +121,14 @@ export class AuthService {
   }
 
   /**
-   * Handle lockout reset if applicable
+   * Handle lockout reset if applicable — in-memory only.
+   * updateSuccessfulLogin atomically clears failed_attempts and locked_at
+   * as part of the success write, so no separate DB call is needed here.
    * @param {Object} user - User object
    * @private
    */
-  async _handleLockoutReset(user) {
+  _handleLockoutReset(user) {
     if (shouldResetLockout(user)) {
-      await this.resetLockout(user.id)
       user.failed_attempts = 0
       user.locked_at = null
     }

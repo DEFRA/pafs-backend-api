@@ -45,6 +45,25 @@ describe('jwt helper', () => {
       expect(decoded.iss).toBe(config.get('auth.jwt.issuer'))
       expect(decoded.aud).toBe(config.get('auth.jwt.audience'))
     })
+
+    it('includes areas in token payload', () => {
+      const sessionId = 'session-456'
+      const areas = [
+        { areaId: 1, primary: true, name: 'Area A', areaType: 'RMA' }
+      ]
+      const token = generateAccessToken(mockUser, sessionId, areas)
+      const decoded = verifyAccessToken(token)
+
+      expect(decoded.areas).toEqual(areas)
+    })
+
+    it('defaults to empty areas array when areas not provided', () => {
+      const sessionId = 'session-456'
+      const token = generateAccessToken(mockUser, sessionId)
+      const decoded = verifyAccessToken(token)
+
+      expect(decoded.areas).toEqual([])
+    })
   })
 
   describe('generateRefreshToken', () => {

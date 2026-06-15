@@ -33,6 +33,20 @@ export function hasAccessToParentPso(userAreas, areaWithParents) {
 }
 
 /**
+ * Check if user has access to the EA grandparent area of a given RMA area
+ * @param {Array} userAreas - User's areas array
+ * @param {Object} areaWithParents - Area object with EA grandparent information
+ * @returns {boolean} True if user has access to the parent EA area
+ */
+export function hasAccessToParentEa(userAreas, areaWithParents) {
+  if (!areaWithParents?.EA?.id) {
+    return false
+  }
+
+  return hasAccessToArea(userAreas, areaWithParents.EA.id)
+}
+
+/**
  * Check if user can create a project
  * Rules:
  * - User must be RMA or Admin

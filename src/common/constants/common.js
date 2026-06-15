@@ -58,7 +58,7 @@ export const SESSION = {
  * Password Constants
  */
 export const PASSWORD = {
-  BCRYPT_ROUNDS: 12,
+  BCRYPT_ROUNDS: 10,
   BCRYPT_PREFIX: '$2',
   // Valid bcrypt prefixes: $2, $2a (original), $2b (OpenBSD/Ruby on Rails), $2x, $2y
   BCRYPT_VALID_PREFIXES: /^\$2[abxy]?\$/,
