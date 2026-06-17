@@ -6,6 +6,10 @@ import {
   checkExternalSubmissionHealth
 } from './checks/index.js'
 import { HTTP_STATUS } from '../../common/constants/index.js'
+import {
+  registerHealthBearerAuth,
+  HEALTH_BEARER_STRATEGY
+} from './health-bearer-scheme.js'
 
 /**
  * Aggregate all health checks and determine overall system health
@@ -62,7 +66,7 @@ const healthFull = {
   method: 'GET',
   path: '/health-detailed',
   options: {
-    auth: false,
+    auth: HEALTH_BEARER_STRATEGY,
     description: 'Full health check with all service checks',
     tags: ['api', 'health']
   },
@@ -101,6 +105,7 @@ const healthPlugin = {
   name: 'health',
   version: '1.0.0',
   register: (server, _options) => {
+    registerHealthBearerAuth(server)
     server.route([healthFull, health])
     server.logger.info('Health plugin registered')
   }

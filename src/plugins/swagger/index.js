@@ -1,12 +1,12 @@
-import { readFileSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import Inert from '@hapi/inert'
 import Vision from '@hapi/vision'
 import HapiSwagger from 'hapi-swagger'
 import { config } from '../../config.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
+const dirName = dirname(fileURLToPath(import.meta.url))
 
 /**
  * hapi-swagger options.
@@ -151,7 +151,7 @@ const swaggerPlugin = {
     }
 
     const staticSpec = JSON.parse(
-      readFileSync(join(__dirname, 'openapi.json'), 'utf8')
+      readFileSync(join(dirName, 'openapi.json'), 'utf8')
     )
 
     await server.register([

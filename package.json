@@ -109,10 +109,20 @@
     "@prisma/config": {
       "effect": "3.21.0"
     },
-    "hono": "4.12.23",
+    "hono": "4.12.25",
     "@hono/node-server": "1.19.13",
     "minimatch": "10.2.4",
     "fast-xml-parser": "5.7.1",
     "uuid": "14.0.0"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "prisma@7.8.0": true,
+    "@prisma/engines@7.8.0": true,
+    "@defra/cdp-auditing@0.6.1": true,
+    "@defra/hapi-secure-context@0.4.0": true,
+    "@defra/hapi-tracing@1.30.0": true,
+    "@defra/cdp-metrics@0.6.0": true,
+    "@scarf/scarf@1.4.0": true
   }
 }

@@ -109,6 +109,15 @@ const authSchema = {
         default: 5,
         env: 'AUTH_PASSWORD_HISTORY_LIMIT'
       }
+    },
+    health: {
+      bearerToken: {
+        doc: 'Static bearer token required in the Authorization header to access /health-detailed',
+        format: String,
+        default: '',
+        sensitive: true,
+        env: 'HEALTH_BEARER_TOKEN'
+      }
     }
   }
 }
