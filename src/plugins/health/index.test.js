@@ -16,6 +16,18 @@ vi.mock('./checks/index.js', () => ({
   checkExternalSubmissionHealth: mockCheckExternalSubmissionHealth
 }))
 
+vi.mock('./health-bearer-scheme.js', () => ({
+  registerHealthBearerAuth: vi.fn((server) => {
+    server.auth.scheme('health-bearer-scheme', () => ({
+      authenticate: (_req, h) =>
+        h.authenticated({ credentials: { scope: 'health' } })
+    }))
+    server.auth.strategy('health-bearer', 'health-bearer-scheme')
+  }),
+  HEALTH_BEARER_SCHEME: 'health-bearer-scheme',
+  HEALTH_BEARER_STRATEGY: 'health-bearer'
+}))
+
 const module = await import('./index.js')
 const healthPlugin = module.default
 const { healthFull, health, performHealthChecks, buildHealthResponse } = module
@@ -251,9 +263,9 @@ describe('health plugin', () => {
       expect(healthFull.handler).toBeTypeOf('function')
     })
 
-    test('Should have auth disabled for public access', () => {
+    test('Should require bearer token authentication', () => {
       expect(healthFull.options).toBeDefined()
-      expect(healthFull.options.auth).toBe(false)
+      expect(healthFull.options.auth).toBe('health-bearer')
     })
   })
 
