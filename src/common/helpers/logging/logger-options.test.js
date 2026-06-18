@@ -95,7 +95,7 @@ describe('loggerOptions', () => {
       const module = await import('./logger-options.js')
       loggerOptions = module.loggerOptions
 
-      expect(loggerOptions.ignorePaths).toEqual(['/health'])
+      expect(loggerOptions.ignorePaths).toEqual(['/health', '/health-detailed'])
     })
 
     test('Uses log level from config', async () => {
