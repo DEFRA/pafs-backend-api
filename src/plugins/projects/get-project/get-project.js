@@ -75,7 +75,10 @@ const getProject = {
     description: 'Get project overview by reference number',
     notes:
       'Returns the project overview details for a given project reference number',
-    tags: ['api', 'referenceNumber']
+    tags: ['api', 'referenceNumber'],
+    app: {
+      usePrimaryDb: true
+    }
   },
   handler: async (request, h) => {
     try {

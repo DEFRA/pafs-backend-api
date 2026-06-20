@@ -14,7 +14,7 @@ describe('buildDatabaseUrl', () => {
   })
 
   it('builds URL from environment variables', () => {
-    process.env.DB_HOST = 'db.example.com'
+    process.env.DB_WRITER_HOST = 'db.example.com'
     process.env.DB_PORT = '5433'
     process.env.DB_DATABASE = 'test_db'
     process.env.DB_USERNAME = 'testuser'
@@ -28,7 +28,7 @@ describe('buildDatabaseUrl', () => {
   })
 
   it('uses default values when environment variables are not set (except password)', () => {
-    delete process.env.DB_HOST
+    delete process.env.DB_WRITER_HOST
     delete process.env.DB_PORT
     delete process.env.DB_DATABASE
     delete process.env.DB_USERNAME
@@ -50,11 +50,11 @@ describe('buildDatabaseUrl', () => {
   })
 
   it('accepts options that override environment variables', () => {
-    process.env.DB_HOST = 'env.example.com'
+    process.env.DB_WRITER_HOST = 'env.example.com'
     process.env.DB_PORT = '5432'
 
     const url = buildDatabaseUrl({
-      host: 'override.example.com',
+      writerHost: 'override.example.com',
       port: '5433',
       database: 'override_db',
       username: 'override_user',
@@ -96,7 +96,7 @@ describe('buildDatabaseUrl', () => {
   })
 
   it('uses environment variables with partial options override', () => {
-    process.env.DB_HOST = 'db.example.com'
+    process.env.DB_WRITER_HOST = 'db.example.com'
     process.env.DB_PORT = '5432'
     process.env.DB_DATABASE = 'test_db'
     process.env.DB_USERNAME = 'testuser'

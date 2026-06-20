@@ -39,7 +39,7 @@ export async function generateRdsAuthToken(config) {
  *
  * @param {Object} server - Hapi server instance for logging
  * @param {Object} options - Database configuration options
- * @param {string} options.host - Database host
+ * @param {string} options.writerHost - Database writer host
  * @param {number} options.port - Database port
  * @param {string} options.database - Database name
  * @param {string} options.username - Database username
@@ -47,7 +47,7 @@ export async function generateRdsAuthToken(config) {
  * @param {boolean} options.useIamAuth - Whether to use IAM authentication
  * @param {string} [options.awsRegion] - AWS region (required for IAM auth)
  * @param {Object} options.pool - Pool configuration
- * @param {number} options.pool.max - Maximum pool size
+ * @param {number} options.pool.writerMax - Maximum pool size
  * @param {number} options.pool.maxLifetimeSeconds - Max connection lifetime
  * @returns {Object} Complete pg.Pool configuration
  */
@@ -65,7 +65,12 @@ export function buildRdsPoolConfig(server, options) {
     )
     // Return a function that generates a fresh token each time a new connection is created
     passwordProvider = async () => {
-      const token = await generateRdsAuthToken(options)
+      const token = await generateRdsAuthToken({
+        host: options.writerHost,
+        port: options.port,
+        username: options.username,
+        awsRegion: options.awsRegion
+      })
       server.logger.debug('Generated new RDS IAM auth token')
       return token
     }
@@ -76,12 +81,12 @@ export function buildRdsPoolConfig(server, options) {
 
   // Build base pool configuration
   const poolConfig = {
-    host: options.host,
+    host: options.writerHost,
     port: options.port,
     database: options.database,
     user: options.username,
     password: passwordProvider,
-    max: options.pool.max,
+    max: options.pool.writerMax,
     maxLifetimeSeconds: options.pool.maxLifetimeSeconds,
     connectionTimeoutMillis:
       options.pool.connectionTimeoutMs ?? CONNECTION_TIMEOUT_MS,

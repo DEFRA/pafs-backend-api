@@ -16,37 +16,37 @@ const notifySchema = {
     templatePasswordReset: {
       doc: 'GOV.UK Notify template ID for password reset emails',
       format: String,
-      default: 'password-reset-template-id',
+      default: '0e084c72-bda2-4c73-b0b1-61bd8d14e2b1',
       env: 'NOTIFY_TEMPLATE_PASSWORD_RESET'
     },
     templateAccountVerification: {
       doc: 'GOV.UK Notify template ID for account verification emails',
       format: String,
-      default: 'account-verification-template-id',
+      default: '862026da-ab79-48ce-aa33-e1272cdee1db',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_VERIFICATION'
     },
     templateAccountApprovedSetPassword: {
       doc: 'GOV.UK Notify template ID for auto-approved accounts',
       format: String,
-      default: 'auto-approved-template-id',
+      default: '024ba234-df91-4ac1-934a-7665c14ab344',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_APPROVED_SET_PASSWORD'
     },
     templateAccountApprovedToAdmin: {
       doc: 'GOV.UK Notify template ID for account approval emails',
       format: String,
-      default: 'account-approved-template-id',
+      default: 'ee6e3576-2e79-48e0-a9a3-0fedf01ad4d4',
       env: 'NOTIFY_TEMPLATE_AUTO_APPROVED_TO_ADMIN'
     },
     templateAccountInactivityWarning: {
       doc: 'GOV.UK Notify template ID for account inactivity warning (335 days)',
       format: String,
-      default: 'account-inactivity-warning-template-id',
+      default: '29217265-c18c-4aea-89ee-7428fcfa3e03',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_WARNING'
     },
     templateAccountReactivated: {
       doc: 'GOV.UK Notify template ID for account reactivation notification',
       format: String,
-      default: 'account-reactivated-template-id',
+      default: 'c226356d-8295-4170-9e21-335d805e4221',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_REACTIVATED'
     },
     adminEmail: {
@@ -58,13 +58,13 @@ const notifySchema = {
     templateProgrammeDownloadComplete: {
       doc: 'GOV.UK Notify template ID for area programme download completion notification',
       format: String,
-      default: 'programme-download-complete-template-id',
+      default: '4d8fd6c9-0cf8-445c-89ce-ea35d5af7121',
       env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_COMPLETE'
     },
     templateProgrammeDownloadFailed: {
       doc: 'GOV.UK Notify template ID for area programme download failure notification',
       format: String,
-      default: 'programme-download-failed-template-id',
+      default: '1c72ccc3-5daa-4722-91e9-d3998bac6567',
       env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_FAILED'
     }
   }
