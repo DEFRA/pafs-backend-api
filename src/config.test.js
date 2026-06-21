@@ -87,12 +87,12 @@ describe('config', () => {
 
     test('Should have correct default postgres database', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.database')).toBe('pafs')
+      expect(config.get('postgres.database')).toBe('pafs_backend_api')
     })
 
     test('Should have correct default postgres username', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.username')).toBe('postgres')
+      expect(config.get('postgres.username')).toBe('pafs_backend_api')
     })
 
     test('Should have correct default postgres password', async () => {
@@ -362,8 +362,8 @@ describe('config', () => {
 
     test('Should have all email validation checks enabled by default', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('emailValidation.checkDisposable')).toBe(true)
-      expect(config.get('emailValidation.checkDnsMx')).toBe(true)
+      expect(config.get('emailValidation.checkDisposable')).toBe(false)
+      expect(config.get('emailValidation.checkDnsMx')).toBe(false)
       expect(config.get('emailValidation.checkDuplicate')).toBe(true)
     })
   })

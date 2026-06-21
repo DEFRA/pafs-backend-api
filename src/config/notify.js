@@ -52,7 +52,7 @@ const notifySchema = {
     adminEmail: {
       doc: 'GOV.UK Notify admin email address',
       format: String,
-      default: '',
+      default: 'pafs-support@environment-agency.gov.uk',
       env: 'NOTIFY_ADMIN_EMAIL'
     },
     templateProgrammeDownloadComplete: {
