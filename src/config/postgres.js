@@ -23,13 +23,13 @@ const postgresSchema = {
     database: {
       doc: 'PostgreSQL database name',
       format: String,
-      default: 'pafs',
+      default: 'pafs_backend_api',
       env: 'DB_DATABASE'
     },
     username: {
       doc: 'PostgreSQL username',
       format: String,
-      default: 'postgres',
+      default: 'pafs_backend_api',
       env: 'DB_USERNAME'
     },
     password: {

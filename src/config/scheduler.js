@@ -25,13 +25,13 @@ const schedulerSchema = {
     checkDisposable: {
       doc: 'Enable disposable email domain blocking',
       format: Boolean,
-      default: true,
+      default: false,
       env: 'EMAIL_VALIDATION_CHECK_DISPOSABLE'
     },
     checkDnsMx: {
       doc: 'Enable DNS MX record verification',
       format: Boolean,
-      default: true,
+      default: false,
       env: 'EMAIL_VALIDATION_CHECK_DNS_MX'
     },
     checkDuplicate: {

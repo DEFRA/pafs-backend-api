@@ -3,7 +3,7 @@ export const externalSubmissionSchema = {
     enabled: {
       doc: 'Enable external (AIMS PD / Pipeline) submission integration',
       format: Boolean,
-      default: false,
+      default: true,
       env: 'EXTERNAL_SUBMISSION_ENABLED'
     },
     baseUrl: {
