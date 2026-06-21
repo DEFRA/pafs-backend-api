@@ -69,12 +69,12 @@ describe('RDS Pool Configuration', () => {
 
       const config = buildRdsPoolConfig(server, {
         useIamAuth: true,
-        host: 'prod-db.rds.amazonaws.com',
+        writerHost: 'prod-db.rds.amazonaws.com',
         port: 5432,
         database: 'mydb',
         username: 'admin',
         awsRegion: 'eu-west-2',
-        pool: { max: 10, maxLifetimeSeconds: 600 }
+        pool: { writerMax: 10, maxLifetimeSeconds: 600 }
       })
 
       expect(config.host).toBe('prod-db.rds.amazonaws.com')
@@ -96,12 +96,12 @@ describe('RDS Pool Configuration', () => {
 
       const config = buildRdsPoolConfig(server, {
         useIamAuth: false,
-        host: 'localhost',
+        writerHost: 'localhost',
         port: 5432,
         database: 'testdb',
         username: 'dev',
         password: 'devpass123',
-        pool: { max: 5, maxLifetimeSeconds: 0 }
+        pool: { writerMax: 5, maxLifetimeSeconds: 0 }
       })
 
       expect(config.password).toBe('devpass123')
@@ -115,12 +115,16 @@ describe('RDS Pool Configuration', () => {
       const server = { logger: mockLogger }
       const config = buildRdsPoolConfig(server, {
         useIamAuth: false,
-        host: 'localhost',
+        writerHost: 'localhost',
         port: 5432,
         database: 'db',
         username: 'u',
         password: 'p',
-        pool: { max: 10, maxLifetimeSeconds: 600, connectionTimeoutMs: 3000 }
+        pool: {
+          writerMax: 10,
+          maxLifetimeSeconds: 600,
+          connectionTimeoutMs: 3000
+        }
       })
       expect(config.connectionTimeoutMillis).toBe(3000)
     })
@@ -129,12 +133,12 @@ describe('RDS Pool Configuration', () => {
       const server = { logger: mockLogger }
       const config = buildRdsPoolConfig(server, {
         useIamAuth: false,
-        host: 'localhost',
+        writerHost: 'localhost',
         port: 5432,
         database: 'db',
         username: 'u',
         password: 'p',
-        pool: { max: 10, maxLifetimeSeconds: 600 }
+        pool: { writerMax: 10, maxLifetimeSeconds: 600 }
       })
       expect(config.connectionTimeoutMillis).toBe(5000)
     })
@@ -144,12 +148,12 @@ describe('RDS Pool Configuration', () => {
 
       const config = buildRdsPoolConfig(server, {
         useIamAuth: true,
-        host: 'db.rds.amazonaws.com',
+        writerHost: 'db.rds.amazonaws.com',
         port: 5432,
         database: 'mydb',
         username: 'user',
         awsRegion: 'us-east-1',
-        pool: { max: 10, maxLifetimeSeconds: 600 }
+        pool: { writerMax: 10, maxLifetimeSeconds: 600 }
       })
 
       const token = await config.password()

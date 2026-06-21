@@ -77,7 +77,7 @@ describe('config', () => {
   describe('postgres configuration', () => {
     test('Should have correct default postgres host', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.host')).toBe('127.0.0.1')
+      expect(config.get('postgres.writerHost')).toBe('127.0.0.1')
     })
 
     test('Should have correct default postgres port', async () => {
@@ -106,9 +106,19 @@ describe('config', () => {
       expect(config.get('postgres.useIamAuth')).toBe(false)
     })
 
-    test('Should have correct default pool max connections', async () => {
+    test('Should have correct default writer pool max connections', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.pool.max')).toBe(50)
+      expect(config.get('postgres.pool.writerMax')).toBe(20)
+    })
+
+    test('Should have correct default reader pool max connections', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('postgres.pool.readerMax')).toBe(30)
+    })
+
+    test('Should default readerHost to empty string', async () => {
+      const { config } = await import('./config.js')
+      expect(config.get('postgres.readerHost')).toBe('')
     })
 
     test('Should have correct default pool max lifetime', async () => {
@@ -150,7 +160,7 @@ describe('config', () => {
 
     test('Should allow getting nested config values', async () => {
       const { config } = await import('./config.js')
-      expect(() => config.get('postgres.host')).not.toThrow()
+      expect(() => config.get('postgres.writerHost')).not.toThrow()
       expect(() => config.get('log.level')).not.toThrow()
     })
 
@@ -208,8 +218,8 @@ describe('config', () => {
     test('Should have env property for postgres host', async () => {
       const { config } = await import('./config.js')
       const schema = config.getSchema()
-      expect(schema._cvtProperties.postgres._cvtProperties.host.env).toBe(
-        'DB_HOST'
+      expect(schema._cvtProperties.postgres._cvtProperties.writerHost.env).toBe(
+        'DB_WRITER_HOST'
       )
     })
 
@@ -236,7 +246,7 @@ describe('config', () => {
 
     test('Should validate postgres pool max as natural number', async () => {
       const { config } = await import('./config.js')
-      const max = config.get('postgres.pool.max')
+      const max = config.get('postgres.pool.writerMax')
       expect(max).toBeTypeOf('number')
       expect(max).toBeGreaterThan(0)
     })

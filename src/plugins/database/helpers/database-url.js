@@ -6,8 +6,8 @@ function getConfigValue(optionValue, envValue, defaultValue) {
 
 export function buildDatabaseUrl(options = {}) {
   const dbHost = getConfigValue(
-    options.host,
-    process.env.DB_HOST,
+    options.writerHost,
+    process.env.DB_WRITER_HOST,
     DB_DEFAULTS.HOST
   )
   const dbPort = getConfigValue(

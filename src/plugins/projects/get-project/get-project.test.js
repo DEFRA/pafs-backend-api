@@ -74,6 +74,10 @@ describe('getProject', () => {
     test('Should have proper tags', () => {
       expect(getProject.options.tags).toEqual(['api', 'referenceNumber'])
     })
+
+    test('Should set usePrimaryDb to true for read-after-write consistency', () => {
+      expect(getProject.options.app?.usePrimaryDb).toBe(true)
+    })
   })
 
   describe('Handler', () => {
