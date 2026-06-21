@@ -1,24 +1,45 @@
 /**
- * Check PostgreSQL database connectivity via the Prisma pool.
- * Uses a raw $queryRaw so no additional connection pool is required.
- * @param {Object} request - Hapi request object with prisma client
- * @returns {Promise<Object>} Health check result with status, healthy flag, and optional responseTime or error
+ * Ping a single Prisma client endpoint and return its health result.
+ * @param {Object} client - Prisma client (writer or reader)
+ * @returns {Promise<Object>} { healthy, responseTime? } or { healthy: false, error }
  */
-export async function checkPostgresHealth(request) {
+async function pingEndpoint(client) {
   try {
     const start = Date.now()
-    await request.prisma.$queryRaw`SELECT 1 as health`
-    return {
-      status: 'connected',
-      healthy: true,
-      responseTime: Date.now() - start
-    }
+    await client.$queryRaw`SELECT 1 as health`
+    return { healthy: true, responseTime: Date.now() - start }
   } catch (err) {
-    request.logger.error({ err }, 'PostgreSQL health check failed')
-    return {
-      status: 'error',
-      healthy: false,
-      error: err.message
-    }
+    return { healthy: false, error: err.message }
+  }
+}
+
+/**
+ * Check PostgreSQL connectivity for both writer ($primary) and reader ($replica)
+ * endpoints independently. Reports each endpoint's result so the health response
+ * shows exactly which side is down.
+ * @param {Object} request - Hapi request object
+ * @returns {Promise<Object>} { status, healthy, writer, reader }
+ */
+export async function checkPostgresHealth(request) {
+  const prisma = request.server.prisma
+  const [writer, reader] = await Promise.all([
+    pingEndpoint(prisma.$primary()),
+    pingEndpoint(prisma.$replica())
+  ])
+
+  const healthy = writer.healthy && reader.healthy
+
+  if (!healthy) {
+    request.server.logger.error(
+      { writer, reader },
+      'PostgreSQL health check failed'
+    )
+  }
+
+  return {
+    status: healthy ? 'connected' : 'error',
+    healthy,
+    writer,
+    reader
   }
 }
