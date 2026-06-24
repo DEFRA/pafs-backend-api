@@ -21,7 +21,7 @@ function stripSharedFormulaAttrs(cellXml) {
   return cellXml.replace(/<f([^>]*)>/, (_, attrs) => {
     let cleaned = attrs
     // Literal string split — no regex needed for an exact-match removal
-    cleaned = cleaned.split(' t="shared"').join('')
+    cleaned = cleaned.replaceAll(' t="shared"', '')
     // Cell range is always column letters, digits, colon, dollar — no ambiguous chars
     cleaned = cleaned.replace(/ ref="[A-Z0-9:$]+"/, '')
     // si value is always a non-negative integer

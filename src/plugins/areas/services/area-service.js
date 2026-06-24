@@ -335,7 +335,7 @@ export class AreaService {
    */
   async _validateUniqueNameWithinType(areaData) {
     const { id, name } = areaData
-    const normalizedName = name.trim().split(/\s+/).join(' ')
+    const normalizedName = name.trim().replaceAll(/\s+/g, ' ')
 
     const where = {
       name: {
