@@ -56,6 +56,10 @@ const upsertAccount = {
         authenticatedUser
       })
 
+      if (result.sessionCleared) {
+        request.server.invalidateAuthCacheForUser(result.userId)
+      }
+
       const statusCode = accountData.id ? HTTP_STATUS.OK : HTTP_STATUS.CREATED
 
       return h.response(result).code(statusCode)

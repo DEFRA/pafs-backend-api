@@ -35,6 +35,15 @@ export class ProjectFilterService {
    */
   async getProjects({ search, areaIds, status, page, pageSize }) {
     const pagination = normalizePaginationParams(page, pageSize)
+
+    // areaIds === null  → admin/unrestricted, no area filter
+    // areaIds === []    → user has no area assignments; must see nothing, not everything
+    if (Array.isArray(areaIds) && areaIds.length === 0) {
+      return {
+        data: [],
+        pagination: buildPaginationMeta(pagination.page, pagination.pageSize, 0)
+      }
+    }
     const where = await this._buildWhereClause(search, areaIds, status)
 
     const [projects, total] = await Promise.all([

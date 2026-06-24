@@ -17,7 +17,7 @@ describe('project-level - risk and properties validation', () => {
     it('should validate valid risks', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         risks: [PROJECT_RISK_TYPES.FLUVIAL, PROJECT_RISK_TYPES.TIDAL]
       })
       expect(error).toBeUndefined()
@@ -26,7 +26,7 @@ describe('project-level - risk and properties validation', () => {
     it('should allow optional property fields for clearing', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         risks: [PROJECT_RISK_TYPES.FLUVIAL],
         noPropertiesAtCoastalErosionRisk: null,
         propertiesBenefitMaintainingAssetsCoastal: null,
@@ -38,7 +38,7 @@ describe('project-level - risk and properties validation', () => {
     it('should allow flooding property fields as null', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         risks: [PROJECT_RISK_TYPES.COASTAL_EROSION],
         noPropertiesAtRisk: null,
         maintainingExistingAssets: null,
@@ -52,7 +52,7 @@ describe('project-level - risk and properties validation', () => {
     it('should reject empty risks array', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         risks: []
       })
       expect(error).toBeDefined()
@@ -80,7 +80,7 @@ describe('project-level - risk and properties validation', () => {
     it('should validate valid main risk', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.MAIN_RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         mainRisk: PROJECT_RISK_TYPES.FLUVIAL
       })
       expect(error).toBeUndefined()
@@ -89,7 +89,7 @@ describe('project-level - risk and properties validation', () => {
     it('should validate coastal erosion as main risk', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.MAIN_RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         mainRisk: PROJECT_RISK_TYPES.COASTAL_EROSION
       })
       expect(error).toBeUndefined()
@@ -98,7 +98,7 @@ describe('project-level - risk and properties validation', () => {
     it('should reject missing main risk', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.MAIN_RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A'
+        referenceNumber: 'SWC501E/001A/002A'
       })
       expect(error).toBeDefined()
     })
@@ -106,7 +106,7 @@ describe('project-level - risk and properties validation', () => {
     it('should reject invalid risk type', () => {
       const schema = generateSchemaForLevel(PROJECT_VALIDATION_LEVELS.MAIN_RISK)
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         mainRisk: 'invalid_risk'
       })
       expect(error).toBeDefined()
@@ -129,7 +129,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_FLOODING
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtRisk: true,
         maintainingExistingAssets: null,
         reducingFloodRisk50Plus: null,
@@ -144,7 +144,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_FLOODING
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtRisk: false,
         maintainingExistingAssets: 10,
         reducingFloodRisk50Plus: 5,
@@ -159,7 +159,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_FLOODING
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtRisk: true,
         maintainingExistingAssets: null,
         reducingFloodRisk50Plus: null,
@@ -174,7 +174,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_FLOODING
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A'
+        referenceNumber: 'SWC501E/001A/002A'
       })
       expect(error).toBeDefined()
     })
@@ -184,7 +184,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_FLOODING
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtRisk: false,
         maintainingExistingAssets: -5
       })
@@ -211,7 +211,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtCoastalErosionRisk: true,
         propertiesBenefitMaintainingAssetsCoastal: null,
         propertiesBenefitInvestmentCoastalErosion: null
@@ -224,7 +224,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtCoastalErosionRisk: false,
         propertiesBenefitMaintainingAssetsCoastal: 8,
         propertiesBenefitInvestmentCoastalErosion: 12
@@ -237,7 +237,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtCoastalErosionRisk: true,
         propertiesBenefitMaintainingAssetsCoastal: null,
         propertiesBenefitInvestmentCoastalErosion: null
@@ -250,7 +250,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A'
+        referenceNumber: 'SWC501E/001A/002A'
       })
       expect(error).toBeDefined()
     })
@@ -260,7 +260,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtCoastalErosionRisk: false,
         propertiesBenefitMaintainingAssetsCoastal: -3
       })
@@ -272,7 +272,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.PROPERTY_AFFECTED_COASTAL_EROSION
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         noPropertiesAtCoastalErosionRisk: false,
         propertiesBenefitInvestmentCoastalErosion: 10.5
       })
@@ -288,7 +288,7 @@ describe('project-level - risk and properties validation', () => {
       ])
 
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         risks: [PROJECT_RISK_TYPES.FLUVIAL],
         mainRisk: PROJECT_RISK_TYPES.FLUVIAL
       })
@@ -319,7 +319,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties20PercentDeprived: '50'
       })
       expect(error).toBeUndefined()
@@ -330,7 +330,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties20PercentDeprived: '45.5'
       })
       expect(error).toBeDefined()
@@ -341,7 +341,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties20PercentDeprived: '67.89'
       })
       expect(error).toBeDefined()
@@ -352,7 +352,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties20PercentDeprived: '0'
       })
       expect(error).toBeUndefined()
@@ -363,7 +363,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties20PercentDeprived: '100'
       })
       expect(error).toBeUndefined()
@@ -374,7 +374,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties20PercentDeprived: -5
       })
       expect(error).toBeDefined()
@@ -385,7 +385,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.TWENTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties20PercentDeprived: 101
       })
       expect(error).toBeDefined()
@@ -407,7 +407,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties40PercentDeprived: '25'
       })
       expect(error).toBeUndefined()
@@ -418,7 +418,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties40PercentDeprived: '33.3'
       })
       expect(error).toBeDefined()
@@ -429,7 +429,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties40PercentDeprived: '88.99'
       })
       expect(error).toBeDefined()
@@ -440,7 +440,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties40PercentDeprived: '0'
       })
       expect(error).toBeUndefined()
@@ -451,7 +451,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties40PercentDeprived: '100'
       })
       expect(error).toBeUndefined()
@@ -462,7 +462,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties40PercentDeprived: -10
       })
       expect(error).toBeDefined()
@@ -473,7 +473,7 @@ describe('project-level - risk and properties validation', () => {
         PROJECT_VALIDATION_LEVELS.FORTY_PERCENT_DEPRIVED
       )
       const { error } = schema.validate({
-        referenceNumber: 'EAC501E/001A/002A',
+        referenceNumber: 'SWC501E/001A/002A',
         percentProperties40PercentDeprived: 150
       })
       expect(error).toBeDefined()

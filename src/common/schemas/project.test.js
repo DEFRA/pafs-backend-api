@@ -61,8 +61,23 @@ describe('project schemas', () => {
       ).toBeUndefined()
     })
 
+    it('should accept legacy reference number formats', () => {
+      expect(
+        projectReferenceNumberSchema.validate('ANC401I/000A/002A').error
+      ).toBeUndefined()
+      expect(
+        projectReferenceNumberSchema.validate('SOC500E/001A/001A').error
+      ).toBeUndefined()
+    })
+
     it('should reject invalid format', () => {
       const { error } = projectReferenceNumberSchema.validate('INVALID_FORMAT')
+      expect(error).toBeDefined()
+    })
+
+    it('should reject reference numbers with unknown RFCC codes', () => {
+      const { error } =
+        projectReferenceNumberSchema.validate('XYC501E/001A/001A')
       expect(error).toBeDefined()
     })
 
