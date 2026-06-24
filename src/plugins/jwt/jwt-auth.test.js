@@ -156,6 +156,113 @@ describe('jwt-auth plugin', () => {
       await validateFn({ userId: 1, sessionId: 'session-evict' }, mockReq)
       expect(mockReq.prisma.pafs_core_users.findUnique).toHaveBeenCalledTimes(2)
     })
+
+    it('decorates server with invalidateAuthCacheForUser that evicts all sessions for a user', async () => {
+      await jwtAuthPlugin.register(mockServer, mockOptions)
+
+      // The second decorate call registers invalidateAuthCacheForUser
+      const [, , invalidateAuthCacheForUser] = mockServer.decorate.mock.calls[1]
+      expect(typeof invalidateAuthCacheForUser).toBe('function')
+
+      const validateFn = mockServer.auth.strategy.mock.calls[0][2].validate
+      const mockReq = {
+        prisma: { pafs_core_users: { findUnique: vi.fn() } },
+        server: { logger: { error: vi.fn(), warn: vi.fn() } },
+        app: {}
+      }
+      const baseUser = {
+        id: 2,
+        email: 'u@b.com',
+        first_name: 'U',
+        last_name: 'B',
+        admin: false,
+        disabled: false,
+        locked_at: null
+      }
+
+      // Populate the cache with two distinct sessions for the same user
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue({
+        ...baseUser,
+        unique_session_id: 'sess-a'
+      })
+      await validateFn({ userId: 2, sessionId: 'sess-a' }, mockReq)
+
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue({
+        ...baseUser,
+        unique_session_id: 'sess-b'
+      })
+      await validateFn({ userId: 2, sessionId: 'sess-b' }, mockReq)
+
+      expect(mockReq.prisma.pafs_core_users.findUnique).toHaveBeenCalledTimes(2)
+
+      // Evict all sessions for user 2 in one call
+      invalidateAuthCacheForUser(2)
+
+      // Both cache entries are gone — DB must be queried for each
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue({
+        ...baseUser,
+        unique_session_id: 'sess-a'
+      })
+      await validateFn({ userId: 2, sessionId: 'sess-a' }, mockReq)
+
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue({
+        ...baseUser,
+        unique_session_id: 'sess-b'
+      })
+      await validateFn({ userId: 2, sessionId: 'sess-b' }, mockReq)
+
+      expect(mockReq.prisma.pafs_core_users.findUnique).toHaveBeenCalledTimes(4)
+    })
+
+    it('invalidateAuthCacheForUser does not evict sessions belonging to other users', async () => {
+      await jwtAuthPlugin.register(mockServer, mockOptions)
+
+      const [, , invalidateAuthCacheForUser] = mockServer.decorate.mock.calls[1]
+
+      const validateFn = mockServer.auth.strategy.mock.calls[0][2].validate
+      const mockReq = {
+        prisma: { pafs_core_users: { findUnique: vi.fn() } },
+        server: { logger: { error: vi.fn(), warn: vi.fn() } },
+        app: {}
+      }
+
+      const makeUser = (id, sessionId) => ({
+        id,
+        email: `u${id}@b.com`,
+        first_name: 'U',
+        last_name: 'B',
+        admin: false,
+        disabled: false,
+        locked_at: null,
+        unique_session_id: sessionId
+      })
+
+      // Populate cache for user 3 and user 4
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue(
+        makeUser(3, 'sess-3')
+      )
+      await validateFn({ userId: 3, sessionId: 'sess-3' }, mockReq)
+
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue(
+        makeUser(4, 'sess-4')
+      )
+      await validateFn({ userId: 4, sessionId: 'sess-4' }, mockReq)
+
+      expect(mockReq.prisma.pafs_core_users.findUnique).toHaveBeenCalledTimes(2)
+
+      // Evict only user 3
+      invalidateAuthCacheForUser(3)
+
+      // User 3 must re-query DB; user 4 is still cached
+      mockReq.prisma.pafs_core_users.findUnique.mockResolvedValue(
+        makeUser(3, 'sess-3')
+      )
+      await validateFn({ userId: 3, sessionId: 'sess-3' }, mockReq)
+      await validateFn({ userId: 4, sessionId: 'sess-4' }, mockReq)
+
+      // Only user 3 triggered a DB query; user 4 hit cache
+      expect(mockReq.prisma.pafs_core_users.findUnique).toHaveBeenCalledTimes(3)
+    })
   })
 
   describe('validate function', () => {

@@ -138,9 +138,17 @@ export const STATIC_TEXT = {
   not_specified: 'Not specified'
 }
 
+/**
+ * RFCC code (first 2 chars) is whitelisted to the 13 known valid codes.
+ * New format example:     SWC501E/001A/123A
+ * Legacy format examples: SOC500E/001A/001A, ANC401I/000A/002A
+ */
+const PROJECT_REFERENCE_NUMBER_REGEX =
+  /^(A[CEN]|N[OW]|S[NOW]|T[HRS]|WX|YO)[A-Z]\d{3,4}[A-Z]?\/\d{2,3}[A-Z]?\/\d{2,4}[A-Z]{1,2}$/
+
 export const PATTERN = {
-  NAME_WITH_ALPHANUMERIC_SPACE_UNDERSCORE_DASH: /^[a-zA-Z0-9_ -]+$/,
-  PROJECT_REFERENCE_NUMBER: /^[A-Z]{2}C501E\/\d{3}A\/\d{3}A$/
+  NAME_WITH_ALPHANUMERIC_SPACE_UNDERSCORE_DASH: /^[\w ()/-]+$/,
+  PROJECT_REFERENCE_NUMBER: PROJECT_REFERENCE_NUMBER_REGEX
 }
 
 export const AREA_TYPE_MAP = {

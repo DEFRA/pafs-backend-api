@@ -99,6 +99,20 @@ describe('ProjectFilterService', () => {
       )
     })
 
+    test('Should return empty result when areaIds is an empty array', async () => {
+      const result = await service.getProjects({
+        areaIds: [],
+        page: 1,
+        pageSize: 10
+      })
+
+      expect(result.data).toHaveLength(0)
+      expect(result.pagination.total).toBe(0)
+      // No DB queries should be fired — return immediately
+      expect(mockPrisma.pafs_core_projects.findMany).not.toHaveBeenCalled()
+      expect(mockPrisma.pafs_core_projects.count).not.toHaveBeenCalled()
+    })
+
     test('Should filter projects by search term', async () => {
       const mockProjects = [
         {

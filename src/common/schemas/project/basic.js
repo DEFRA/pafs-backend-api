@@ -24,9 +24,10 @@ export const projectIdSchema = Joi.number()
 
 /**
  * Project reference number schema - for updates
- * Format: {RFCC_CODE}C501E/{HIGH_COUNTER:3digits}A/{LOW_COUNTER:3digits}A
- * Example: SWC501E/001A/123A
- * Optional by default
+ * New format: {RFCC_CODE}C501E/{HIGH:3digits}A/{LOW:3digits}A — e.g. SWC501E/001A/123A
+ * Legacy format: {RFCC_CODE}{letter}{3-4digits}{letter?}/{2-3digits}{letter?}/{2-4digits}{1-2letters}
+ *   e.g. ANC401I/000A/002A, SOC500E/001A/001A
+ * Optional by default — validation only fires when the field is present and non-empty.
  */
 export const projectReferenceNumberSchema = Joi.string()
   .trim()

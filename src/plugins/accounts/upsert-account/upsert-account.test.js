@@ -49,7 +49,8 @@ describe('upsert-account endpoint', () => {
       },
       prisma: {},
       server: {
-        logger: mockLogger
+        logger: mockLogger,
+        invalidateAuthCacheForUser: vi.fn()
       }
     }
 
@@ -193,6 +194,46 @@ describe('upsert-account endpoint', () => {
       await upsertAccount.handler(mockRequest, mockH)
 
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
+    })
+
+    it('evicts auth cache when service reports sessionCleared', async () => {
+      mockRequest.auth = {
+        isAuthenticated: true,
+        credentials: { userId: 100, isAdmin: true }
+      }
+      mockRequest.payload = { id: 5, email: 'user@example.com', admin: false }
+
+      mockAccountUpsertService.upsertAccount.mockResolvedValue({
+        message: 'Account updated successfully',
+        userId: 5,
+        sessionCleared: true
+      })
+
+      await upsertAccount.handler(mockRequest, mockH)
+
+      expect(
+        mockRequest.server.invalidateAuthCacheForUser
+      ).toHaveBeenCalledWith(5)
+    })
+
+    it('does not evict auth cache when sessionCleared is false', async () => {
+      mockRequest.auth = {
+        isAuthenticated: true,
+        credentials: { userId: 100, isAdmin: true }
+      }
+      mockRequest.payload = { id: 5, email: 'user@example.com' }
+
+      mockAccountUpsertService.upsertAccount.mockResolvedValue({
+        message: 'Account updated successfully',
+        userId: 5,
+        sessionCleared: false
+      })
+
+      await upsertAccount.handler(mockRequest, mockH)
+
+      expect(
+        mockRequest.server.invalidateAuthCacheForUser
+      ).not.toHaveBeenCalled()
     })
   })
 

@@ -6,6 +6,7 @@ import { EmailValidationService } from '../../../common/services/email/email-val
 import { AccountEmailService } from './account-email-service.js'
 import { AccountAreaValidator } from './account-area-validator.js'
 import { AccountInvitationService } from './account-invitation-service.js'
+import { invalidateCachedUserAreas } from '../../auth/helpers/user-areas-cache.js'
 
 export class AccountUpsertService {
   constructor(prisma, logger, emailService, areaService) {
@@ -44,7 +45,7 @@ export class AccountUpsertService {
     const { invitationDetails, invitationToken, hashedToken } =
       this._prepareInvitationData(data.email, authenticatedUser)
 
-    const user = await this._performUpsert(
+    const { user, sessionCleared } = await this._performUpsert(
       dbData,
       uniqueWhere,
       invitationDetails,
@@ -61,7 +62,7 @@ export class AccountUpsertService {
       areas: data.areas || []
     })
 
-    return this._buildUpsertResponse(user, isNewAccount)
+    return this._buildUpsertResponse(user, isNewAccount, sessionCleared)
   }
 
   /**
@@ -106,11 +107,24 @@ export class AccountUpsertService {
       hashedToken
     )
 
-    return this.prisma.pafs_core_users.upsert({
+    // Only invalidate the user's active session when the admin flag is actually
+    // changing (upgrade or downgrade). This forces an immediate re-login so the
+    // new role takes effect without waiting for the 15-minute auth cache TTL.
+    const existing = await this.prisma.pafs_core_users.findUnique({
       where: uniqueWhere,
-      update: commonFields,
+      select: { admin: true }
+    })
+    const adminChanged = existing !== null && existing.admin !== dbData.admin
+    const updateFields = adminChanged
+      ? { ...commonFields, unique_session_id: null }
+      : commonFields
+
+    const user = await this.prisma.pafs_core_users.upsert({
+      where: uniqueWhere,
+      update: updateFields,
       create: createOnlyFields
     })
+    return { user, sessionCleared: adminChanged }
   }
 
   /**
@@ -142,12 +156,13 @@ export class AccountUpsertService {
    * Build upsert response
    * @private
    */
-  _buildUpsertResponse(user, isNewAccount) {
+  _buildUpsertResponse(user, isNewAccount, sessionCleared = false) {
     return {
       message: `Account ${isNewAccount ? 'created' : 'updated'} successfully`,
       email: user.email,
       status: user.status,
-      userId: Number(user.id)
+      userId: Number(user.id),
+      sessionCleared
     }
   }
 
@@ -310,6 +325,8 @@ export class AccountUpsertService {
         await tx.pafs_core_user_areas.createMany({ data: userAreas })
       }
     })
+    // Evict the in-process cache so the next request reads fresh areas from DB
+    invalidateCachedUserAreas(userId)
   }
 
   /**

@@ -131,7 +131,18 @@ function buildAuthCache() {
     store.delete(`${userId}:${sessionId}`)
   }
 
-  return { get, set, invalidate }
+  // Remove ALL cache entries for a user — called when the user's role changes
+  // so the stale credentials are not served from cache on the next request.
+  function invalidateUser(userId) {
+    const prefix = `${userId}:`
+    for (const key of store.keys()) {
+      if (key.startsWith(prefix)) {
+        store.delete(key)
+      }
+    }
+  }
+
+  return { get, set, invalidate, invalidateUser }
 }
 
 function createValidateFn(cache) {
@@ -182,10 +193,16 @@ export default {
 
     const authCache = buildAuthCache()
 
-    // Decorate server so the logout service can evict a session entry
+    // Decorate server so the logout service can evict a specific session entry
     // immediately rather than waiting for the 15-minute cache TTL to expire.
     server.decorate('server', 'invalidateAuthCache', (userId, sessionId) => {
       authCache.invalidate(userId, sessionId)
+    })
+
+    // Decorate server so role-change code can evict ALL cache entries for a
+    // user by userId alone (sessionId is not available at the call site).
+    server.decorate('server', 'invalidateAuthCacheForUser', (userId) => {
+      authCache.invalidateUser(userId)
     })
 
     server.auth.strategy('jwt', 'jwt', {

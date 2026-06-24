@@ -3,11 +3,16 @@ import { AccountUpsertService } from './account-upsert-service.js'
 import { ACCOUNT_STATUS } from '../../../common/constants/index.js'
 import { ACCOUNT_INVITATION_BY } from '../../../common/constants/accounts.js'
 import { BadRequestError } from '../../../common/errors/index.js'
+import { invalidateCachedUserAreas } from '../../auth/helpers/user-areas-cache.js'
 
 // Mock dependencies
 vi.mock('../../auth/helpers/secure-token.js', () => ({
   generateSecureToken: vi.fn(() => 'mock-token-123'),
   hashToken: vi.fn((token) => `hashed-${token}`)
+}))
+
+vi.mock('../../auth/helpers/user-areas-cache.js', () => ({
+  invalidateCachedUserAreas: vi.fn()
 }))
 
 vi.mock('../../../config.js', () => ({
@@ -87,6 +92,9 @@ describe('AccountUpsertService', () => {
 
     // Default findMany to return empty array (no existing areas)
     mockPrisma.pafs_core_user_areas.findMany.mockResolvedValue([])
+
+    // Default findUnique to null — new user, no existing record (admin flag not changing)
+    mockPrisma.pafs_core_users.findUnique.mockResolvedValue(null)
 
     vi.clearAllMocks()
   })
@@ -244,6 +252,7 @@ describe('AccountUpsertService', () => {
             ]
           }
         )
+        expect(invalidateCachedUserAreas).toHaveBeenCalledWith(1n)
       })
 
       it('skips area management when areas is undefined', async () => {
@@ -300,14 +309,19 @@ describe('AccountUpsertService', () => {
     })
 
     describe('updating existing account', () => {
-      it('updates account by id', async () => {
+      it('updates account by id without clearing session when admin flag unchanged', async () => {
         const accountData = {
           id: 5,
           email: 'updated@example.com',
           firstName: 'Updated',
-          lastName: 'User'
+          lastName: 'User',
+          admin: false
         }
 
+        // Existing user is already non-admin — admin flag not changing
+        mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+          admin: false
+        })
         mockPrisma.pafs_core_users.upsert.mockResolvedValue({
           id: 5n,
           email: 'updated@example.com'
@@ -318,14 +332,67 @@ describe('AccountUpsertService', () => {
         expect(mockPrisma.pafs_core_users.upsert).toHaveBeenCalledWith({
           where: { id: 5n },
           create: expect.any(Object),
-          update: expect.objectContaining({
-            email: 'updated@example.com',
-            first_name: 'Updated',
-            last_name: 'User'
-          })
+          update: expect.not.objectContaining({ unique_session_id: null })
         })
         expect(result.message).toContain('updated')
         expect(result.userId).toBe(5)
+        expect(result.sessionCleared).toBe(false)
+      })
+
+      it('clears session when admin flag is downgraded from true to false', async () => {
+        const accountData = {
+          id: 5,
+          email: 'user@example.com',
+          firstName: 'User',
+          lastName: 'Name',
+          admin: false
+        }
+
+        // Existing user was admin — admin flag is changing
+        mockPrisma.pafs_core_users.findUnique.mockResolvedValue({ admin: true })
+        mockPrisma.pafs_core_users.upsert.mockResolvedValue({
+          id: 5n,
+          email: 'user@example.com'
+        })
+
+        const result = await service.upsertAccount(accountData)
+
+        expect(mockPrisma.pafs_core_users.upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            update: expect.objectContaining({ unique_session_id: null })
+          })
+        )
+        expect(result.sessionCleared).toBe(true)
+      })
+
+      it('clears session when admin flag is upgraded from false to true', async () => {
+        const accountData = {
+          id: 5,
+          email: 'user@example.com',
+          firstName: 'User',
+          lastName: 'Name',
+          admin: true
+        }
+
+        // Existing user was not admin — admin flag is changing
+        mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+          admin: false
+        })
+        mockPrisma.pafs_core_users.upsert.mockResolvedValue({
+          id: 5n,
+          email: 'user@example.com'
+        })
+
+        const result = await service.upsertAccount(accountData, {
+          authenticatedUser: authenticatedAdmin
+        })
+
+        expect(mockPrisma.pafs_core_users.upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            update: expect.objectContaining({ unique_session_id: null })
+          })
+        )
+        expect(result.sessionCleared).toBe(true)
       })
 
       it('does not send admin notification for updates', async () => {
