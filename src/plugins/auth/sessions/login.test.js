@@ -29,7 +29,8 @@ describe('login route', () => {
       },
       prisma: {},
       server: {
-        logger: {}
+        logger: {},
+        invalidateAuthCacheForUser: vi.fn()
       }
     }
 
@@ -167,6 +168,38 @@ describe('login route', () => {
         'password',
         '127.0.0.1'
       )
+    })
+
+    it('invalidates the auth cache for the user on successful login', async () => {
+      mockLogin.mockResolvedValue({
+        success: true,
+        user: { id: 7, email: 'test@example.com' },
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        expiresIn: '15m'
+      })
+
+      await loginRoute.handler(mockRequest, mockH)
+
+      expect(
+        mockRequest.server.invalidateAuthCacheForUser
+      ).toHaveBeenCalledWith(7)
+      expect(
+        mockRequest.server.invalidateAuthCacheForUser
+      ).toHaveBeenCalledOnce()
+    })
+
+    it('does not call invalidateAuthCacheForUser on failed login', async () => {
+      mockLogin.mockResolvedValue({
+        success: false,
+        errorCode: 'AUTH_INVALID_CREDENTIALS'
+      })
+
+      await loginRoute.handler(mockRequest, mockH)
+
+      expect(
+        mockRequest.server.invalidateAuthCacheForUser
+      ).not.toHaveBeenCalled()
     })
   })
 })
