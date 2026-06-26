@@ -66,7 +66,8 @@ export const PROJECT_STATUS = {
   SUBMITTED: 'submitted',
   APPROVED: 'approved',
   REJECTED: 'rejected',
-  ARCHIVED: 'archived'
+  ARCHIVED: 'archived',
+  COMPLETED: 'completed'
 }
 
 export const EDITABLE_STATUSES = [PROJECT_STATUS.DRAFT, PROJECT_STATUS.REVISE]

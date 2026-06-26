@@ -10,7 +10,16 @@ export async function getProjectCountsForUser(prisma, userId, logger) {
   const areaIds = await resolveAccessibleAreaIdsForUser(prisma, logger, userId)
 
   if (areaIds.length === 0) {
-    return { total: 0, submitted: 0, draft: 0, rejected: 0, archived: 0 }
+    return {
+      total: 0,
+      submitted: 0,
+      draft: 0,
+      revise: 0,
+      approved: 0,
+      rejected: 0,
+      archived: 0,
+      completed: 0
+    }
   }
 
   const areaProjectRows = await prisma.pafs_core_area_projects.findMany({
@@ -28,7 +37,8 @@ export async function getProjectCountsForUser(prisma, userId, logger) {
       revise: 0,
       approved: 0,
       rejected: 0,
-      archived: 0
+      archived: 0,
+      completed: 0
     }
   }
 
@@ -43,19 +53,32 @@ export async function getProjectCountsForUser(prisma, userId, logger) {
 
 /**
  * Count all proposals system-wide, grouped by status.
+ * Orphaned state rows (project_id has no matching pafs_core_projects record)
+ * are excluded so they cannot inflate any counter.
  */
 export async function getAllProjectCounts(prisma) {
-  const states = await prisma.pafs_core_states.findMany({
-    select: { state: true, project_id: true }
-  })
-  const reviseProjectIds = await fetchReviseProjectIds(prisma, states)
-  return tabulateCounts(states, reviseProjectIds)
+  const [states, projects] = await Promise.all([
+    prisma.pafs_core_states.findMany({
+      select: { state: true, project_id: true }
+    }),
+    prisma.pafs_core_projects.findMany({ select: { id: true } })
+  ])
+
+  const validProjectIds = new Set(projects.map((p) => Number(p.id)))
+  const validStates = states.filter(
+    (s) => s.project_id != null && validProjectIds.has(s.project_id)
+  )
+
+  const reviseProjectIds = await fetchReviseProjectIds(prisma, validStates)
+  return tabulateCounts(validStates, reviseProjectIds)
 }
 
 /**
  * Resolve which draft project IDs should be displayed as 'revise' on the UI.
- * A draft proposal is treated as 'revise' when it is a legacy or revised project
- * (is_legacy = true OR is_revised = true in pafs_core_projects).
+ * Matches the resolveStatus logic in project-formatter.js:
+ * a draft is treated as 'revise' only when is_legacy=true AND is_revised is not true.
+ * Migrated legacy projects (is_revised=true) and new projects (is_legacy=false)
+ * are shown as plain 'draft'.
  */
 async function fetchReviseProjectIds(prisma, stateRows) {
   const draftProjectIds = stateRows
@@ -69,7 +92,8 @@ async function fetchReviseProjectIds(prisma, stateRows) {
   const revised = await prisma.pafs_core_projects.findMany({
     where: {
       id: { in: draftProjectIds },
-      OR: [{ is_legacy: true }, { is_revised: true }]
+      is_legacy: true,
+      is_revised: { not: true }
     },
     select: { id: true }
   })
@@ -83,7 +107,8 @@ const TRACKED_STATES = new Set([
   'revise',
   'approved',
   'rejected',
-  'archived'
+  'archived',
+  'completed'
 ])
 
 function tabulateCounts(stateRows, reviseProjectIds = new Set()) {
@@ -94,7 +119,8 @@ function tabulateCounts(stateRows, reviseProjectIds = new Set()) {
     revise: 0,
     approved: 0,
     rejected: 0,
-    archived: 0
+    archived: 0,
+    completed: 0
   }
   for (const { state, project_id: projectId } of stateRows) {
     counts.total++

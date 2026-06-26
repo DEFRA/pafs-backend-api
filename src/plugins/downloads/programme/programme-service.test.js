@@ -193,8 +193,11 @@ describe('getProjectCountsForUser', () => {
       total: 0,
       submitted: 0,
       draft: 0,
+      revise: 0,
+      approved: 0,
       rejected: 0,
-      archived: 0
+      archived: 0,
+      completed: 0
     })
   })
 
@@ -233,7 +236,8 @@ describe('getProjectCountsForUser', () => {
       revise: 0,
       approved: 0,
       rejected: 0,
-      archived: 1
+      archived: 1,
+      completed: 0
     })
   })
 
@@ -258,7 +262,7 @@ describe('getProjectCountsForUser', () => {
     expect(result.total).toBe(2)
   })
 
-  test('reclassifies draft as revise when project is_revised=true', async () => {
+  test('does NOT reclassify draft as revise when project is_revised=true (migrated legacy stays draft)', async () => {
     const prisma = makePrisma()
     mockRmaUser(prisma)
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
@@ -267,15 +271,16 @@ describe('getProjectCountsForUser', () => {
     prisma.pafs_core_states.findMany.mockResolvedValue([
       { state: 'draft', project_id: 20 }
     ])
-    prisma.pafs_core_projects.findMany.mockResolvedValue([{ id: BigInt(20) }])
+    // findMany returns empty — project 20 is NOT in the revise set (is_revised=true excluded)
+    prisma.pafs_core_projects.findMany.mockResolvedValue([])
 
     const result = await getProjectCountsForUser(prisma, 5, makeLogger())
 
-    expect(result.draft).toBe(0)
-    expect(result.revise).toBe(1)
+    expect(result.draft).toBe(1)
+    expect(result.revise).toBe(0)
   })
 
-  test('queries pafs_core_projects with OR is_legacy/is_revised filter for draft projects', async () => {
+  test('queries pafs_core_projects with is_legacy=true and is_revised!=true filter for draft projects', async () => {
     const prisma = makePrisma()
     mockRmaUser(prisma)
     prisma.pafs_core_area_projects.findMany.mockResolvedValue([
@@ -291,7 +296,8 @@ describe('getProjectCountsForUser', () => {
     expect(prisma.pafs_core_projects.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: [{ is_legacy: true }, { is_revised: true }]
+          is_legacy: true,
+          is_revised: { not: true }
         })
       })
     )
@@ -316,14 +322,21 @@ describe('getProjectCountsForUser', () => {
 // â”€â”€ getAllProjectCounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('getAllProjectCounts', () => {
-  test('counts all state rows system-wide', async () => {
+  test('counts all state rows for existing projects only', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([
       { state: 'submitted', project_id: 1 },
       { state: 'rejected', project_id: 2 },
       { state: 'draft', project_id: 3 }
     ])
-    prisma.pafs_core_projects.findMany.mockResolvedValue([])
+    // 1st call: getAllProjectCounts valid-ID filter; 2nd call: fetchReviseProjectIds
+    prisma.pafs_core_projects.findMany
+      .mockResolvedValueOnce([
+        { id: BigInt(1) },
+        { id: BigInt(2) },
+        { id: BigInt(3) }
+      ])
+      .mockResolvedValue([])
 
     const result = await getAllProjectCounts(prisma)
 
@@ -334,11 +347,32 @@ describe('getAllProjectCounts', () => {
       revise: 0,
       approved: 0,
       rejected: 1,
-      archived: 0
+      archived: 0,
+      completed: 0
     })
     expect(prisma.pafs_core_states.findMany).toHaveBeenCalledWith({
       select: { state: true, project_id: true }
     })
+  })
+
+  test('excludes orphaned state rows where project no longer exists', async () => {
+    const prisma = makePrisma()
+    prisma.pafs_core_states.findMany.mockResolvedValue([
+      { state: 'submitted', project_id: 1 },
+      { state: 'archived', project_id: 999 }, // orphan — no project record
+      { state: 'draft', project_id: 888 } // orphan — no project record
+    ])
+    // Only project 1 exists
+    prisma.pafs_core_projects.findMany
+      .mockResolvedValueOnce([{ id: BigInt(1) }]) // valid-ID filter
+      .mockResolvedValue([]) // fetchReviseProjectIds
+
+    const result = await getAllProjectCounts(prisma)
+
+    expect(result.total).toBe(1)
+    expect(result.submitted).toBe(1)
+    expect(result.archived).toBe(0)
+    expect(result.draft).toBe(0)
   })
 
   test('reclassifies legacy draft projects as revise system-wide', async () => {
@@ -348,8 +382,14 @@ describe('getAllProjectCounts', () => {
       { state: 'draft', project_id: 2 },
       { state: 'submitted', project_id: 3 }
     ])
-    // Project 1 is legacy, project 2 is not
-    prisma.pafs_core_projects.findMany.mockResolvedValue([{ id: BigInt(1) }])
+    // 1st call: valid-ID filter (all 3 exist); 2nd call: fetchReviseProjectIds (project 1 is legacy)
+    prisma.pafs_core_projects.findMany
+      .mockResolvedValueOnce([
+        { id: BigInt(1) },
+        { id: BigInt(2) },
+        { id: BigInt(3) }
+      ])
+      .mockResolvedValueOnce([{ id: BigInt(1) }])
 
     const result = await getAllProjectCounts(prisma)
 
@@ -682,9 +722,12 @@ describe('tabulateCounts rejected and unknown state branches', () => {
   test('counts rejected state correctly', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([
-      { state: 'rejected' },
-      { state: 'rejected' }
+      { state: 'rejected', project_id: 1 },
+      { state: 'rejected', project_id: 2 }
     ])
+    prisma.pafs_core_projects.findMany
+      .mockResolvedValueOnce([{ id: BigInt(1) }, { id: BigInt(2) }])
+      .mockResolvedValue([])
     const result = await getAllProjectCounts(prisma)
     expect(result).toEqual({
       total: 2,
@@ -693,34 +736,46 @@ describe('tabulateCounts rejected and unknown state branches', () => {
       revise: 0,
       approved: 0,
       rejected: 2,
-      archived: 0
+      archived: 0,
+      completed: 0
     })
   })
 
-  test('counts revise and approved states correctly', async () => {
+  test('counts approved state correctly', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([
-      { state: 'revise' },
-      { state: 'revise' },
-      { state: 'approved' }
+      { state: 'approved', project_id: 1 },
+      { state: 'approved', project_id: 2 },
+      { state: 'approved', project_id: 3 }
     ])
+    prisma.pafs_core_projects.findMany
+      .mockResolvedValueOnce([
+        { id: BigInt(1) },
+        { id: BigInt(2) },
+        { id: BigInt(3) }
+      ])
+      .mockResolvedValue([])
     const result = await getAllProjectCounts(prisma)
     expect(result).toEqual({
       total: 3,
       submitted: 0,
       draft: 0,
-      revise: 2,
-      approved: 1,
+      revise: 0,
+      approved: 3,
       rejected: 0,
-      archived: 0
+      archived: 0,
+      completed: 0
     })
   })
 
-  test('counts unknown state as total-only (no named bucket incremented)', async () => {
+  test('counts unknown state in total only (no named bucket incremented)', async () => {
     const prisma = makePrisma()
     prisma.pafs_core_states.findMany.mockResolvedValue([
-      { state: 'unknown_future_state' }
+      { state: 'unknown_future_state', project_id: 1 }
     ])
+    prisma.pafs_core_projects.findMany
+      .mockResolvedValueOnce([{ id: BigInt(1) }])
+      .mockResolvedValue([])
     const result = await getAllProjectCounts(prisma)
     expect(result).toEqual({
       total: 1,
@@ -729,7 +784,8 @@ describe('tabulateCounts rejected and unknown state branches', () => {
       revise: 0,
       approved: 0,
       rejected: 0,
-      archived: 0
+      archived: 0,
+      completed: 0
     })
   })
 })
