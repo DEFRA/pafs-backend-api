@@ -417,10 +417,14 @@ export class ProjectService extends ProjectNfmService {
     )
   }
 
-  async setSubmittedAt(referenceNumber) {
+  async setSubmittedAt(referenceNumber, isLegacy = false) {
+    const data = { submitted_at: new Date() }
+    if (isLegacy) {
+      data.is_revised = true
+    }
     await this.prisma.pafs_core_projects.updateMany({
       where: { reference_number: referenceNumber },
-      data: { submitted_at: new Date() }
+      data
     })
   }
 
@@ -444,7 +448,13 @@ export class ProjectService extends ProjectNfmService {
    *
    * @private
    */
-  async _submitStateAndTimestamp(tx, projectId, referenceNumber, now) {
+  async _submitStateAndTimestamp(
+    tx,
+    projectId,
+    referenceNumber,
+    now,
+    isLegacy
+  ) {
     await tx.pafs_core_states.upsert({
       where: { project_id: Number(projectId) },
       update: { state: PROJECT_STATUS.SUBMITTED, updated_at: now },
@@ -455,23 +465,36 @@ export class ProjectService extends ProjectNfmService {
         created_at: now
       }
     })
+    const projectData = { submitted_at: now, updated_at: now }
+    if (isLegacy) {
+      projectData.is_revised = true
+    }
     await tx.pafs_core_projects.updateMany({
       where: { reference_number: referenceNumber },
-      data: { submitted_at: now, updated_at: now }
+      data: projectData
     })
   }
 
   /**
    * Atomically transition a project to SUBMITTED status and record
    * submitted_at — replaces the two-step upsertProjectState + setSubmittedAt.
+   * When isLegacy is true, also sets is_revised = true so the project is no
+   * longer counted as pending revision.
    *
    * @param {bigint} projectId
    * @param {string} referenceNumber
+   * @param {boolean} isLegacy
    */
-  async transitionToSubmitted(projectId, referenceNumber) {
+  async transitionToSubmitted(projectId, referenceNumber, isLegacy = false) {
     const now = new Date()
     await this.prisma.$transaction((tx) =>
-      this._submitStateAndTimestamp(tx, projectId, referenceNumber, now)
+      this._submitStateAndTimestamp(
+        tx,
+        projectId,
+        referenceNumber,
+        now,
+        isLegacy
+      )
     )
   }
 
