@@ -18,13 +18,13 @@ const authSchema = {
       accessExpiresIn: {
         doc: 'Access token expiration time',
         format: String,
-        default: '15m',
+        default: '25m',
         env: 'JWT_ACCESS_EXPIRES_IN'
       },
       refreshExpiresIn: {
         doc: 'Refresh token expiration time',
         format: String,
-        default: '7d',
+        default: '9d',
         env: 'JWT_REFRESH_EXPIRES_IN'
       },
       issuer: {
@@ -50,13 +50,13 @@ const authSchema = {
       maxAttempts: {
         doc: 'Maximum failed login attempts before locking',
         format: 'nat',
-        default: 5,
+        default: 15,
         env: 'AUTH_MAX_ATTEMPTS'
       },
       lockDuration: {
         doc: 'Account lock duration in minutes',
         format: 'nat',
-        default: 30,
+        default: 300,
         env: 'AUTH_LOCK_DURATION'
       }
     },
@@ -68,15 +68,15 @@ const authSchema = {
         env: 'AUTH_ACCOUNT_DISABLING_ENABLED'
       },
       inactivityWarningDays: {
-        doc: 'Days of inactivity before sending warning email (335 days)',
+        doc: 'Days of inactivity before sending warning email ',
         format: 'nat',
-        default: 335,
+        default: 135,
         env: 'AUTH_ACCOUNT_DISABLING_WARNING_DAYS'
       },
       inactivityDays: {
-        doc: 'Days of inactivity before account is disabled (365 days = 335 + 30)',
+        doc: 'Days of inactivity before account is disabled',
         format: 'nat',
-        default: 365,
+        default: 165,
         env: 'AUTH_ACCOUNT_DISABLING_INACTIVITY_DAYS'
       }
     },
@@ -84,7 +84,7 @@ const authSchema = {
       tokenExpiryHours: {
         doc: 'Password reset token expiry time in hours',
         format: 'nat',
-        default: 6,
+        default: 1,
         env: 'AUTH_PASSWORD_RESET_EXPIRY_HOURS'
       }
     },
@@ -92,7 +92,7 @@ const authSchema = {
       tokenExpiryHours: {
         doc: 'Invitation token expiry time in hours',
         format: 'nat',
-        default: 720,
+        default: 120,
         env: 'AUTH_INVITATION_EXPIRY_HOURS'
       }
     },
@@ -106,7 +106,7 @@ const authSchema = {
       limit: {
         doc: 'Number of previous passwords to check against',
         format: 'nat',
-        default: 5,
+        default: 15,
         env: 'AUTH_PASSWORD_HISTORY_LIMIT'
       }
     },

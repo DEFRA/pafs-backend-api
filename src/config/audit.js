@@ -11,31 +11,31 @@ const auditArchiveSchema = {
     retentionDays: {
       doc: 'Number of days to retain audit log records before they are eligible for archival',
       format: 'nat',
-      default: 730, // 2 years
+      default: 1730,
       env: 'AUDIT_ARCHIVE_RETENTION_DAYS'
     },
     maxRecords: {
       doc: 'Maximum number of records allowed in audit_log before archival is triggered regardless of age',
       format: 'nat',
-      default: 1000000,
+      default: 100000,
       env: 'AUDIT_ARCHIVE_MAX_RECORDS'
     },
     s3Bucket: {
       doc: 'S3 bucket to store archived audit log files',
       format: String,
-      default: 'pafs-audit-archive',
+      default: 'changeme-audit-archive-bucket-for-development',
       env: 'AUDIT_ARCHIVE_S3_BUCKET'
     },
     s3Prefix: {
       doc: 'S3 key prefix (folder) under which archived files are stored',
       format: String,
-      default: 'audit-logs',
+      default: 'changeme-audit-logs-prefix-for-development',
       env: 'AUDIT_ARCHIVE_S3_PREFIX'
     },
     batchSize: {
       doc: 'Number of audit_log rows fetched and uploaded per S3 object',
       format: 'nat',
-      default: 10000,
+      default: 1000,
       env: 'AUDIT_ARCHIVE_BATCH_SIZE'
     }
   }

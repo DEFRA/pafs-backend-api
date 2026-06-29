@@ -23,19 +23,19 @@ const postgresSchema = {
     database: {
       doc: 'PostgreSQL database name',
       format: String,
-      default: 'pafs_backend_api',
+      default: 'change-me-in-development',
       env: 'DB_DATABASE'
     },
     username: {
       doc: 'PostgreSQL username',
       format: String,
-      default: 'pafs_backend_api',
+      default: 'change-me-in-development',
       env: 'DB_USERNAME'
     },
     password: {
       doc: 'PostgreSQL password (only used for local development, not with IAM auth)',
       format: String,
-      default: 'postgres',
+      default: 'change-me-in-development',
       sensitive: true,
       env: 'DB_PASSWORD'
     },

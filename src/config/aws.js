@@ -11,15 +11,13 @@ const awsSchema = {
     baseUrl: {
       doc: 'CDP Uploader base URL (http://localhost:7337 for local development)',
       format: 'url',
-      default: isProduction
-        ? 'https://cdp-uploader.prod.cdp-int.defra.cloud'
-        : 'http://localhost:7337',
+      default: 'http://localhost:7337',
       env: 'CDP_UPLOADER_BASE_URL'
     },
     s3Bucket: {
       doc: 'S3 bucket name for file uploads',
       format: String,
-      default: 'pafs-uploads',
+      default: 'changeme-uploads-bucket-for-development',
       env: 'CDP_UPLOADER_S3_BUCKET'
     },
     s3Path: {

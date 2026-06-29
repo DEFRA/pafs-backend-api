@@ -19,7 +19,7 @@ const schedulerSchema = {
     autoApprovedDomains: {
       doc: 'Auto Approved email Domain',
       format: String,
-      default: 'gov.uk',
+      default: 'test.com',
       env: 'AUTO_APPROVED_EMAIL_DOMAINS'
     },
     checkDisposable: {

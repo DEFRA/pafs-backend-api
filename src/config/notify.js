@@ -16,55 +16,55 @@ const notifySchema = {
     templatePasswordReset: {
       doc: 'GOV.UK Notify template ID for password reset emails',
       format: String,
-      default: '0e084c72-bda2-4c73-b0b1-61bd8d14e2b1',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_PASSWORD_RESET'
     },
     templateAccountVerification: {
       doc: 'GOV.UK Notify template ID for account verification emails',
       format: String,
-      default: '862026da-ab79-48ce-aa33-e1272cdee1db',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_VERIFICATION'
     },
     templateAccountApprovedSetPassword: {
       doc: 'GOV.UK Notify template ID for auto-approved accounts',
       format: String,
-      default: '024ba234-df91-4ac1-934a-7665c14ab344',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_APPROVED_SET_PASSWORD'
     },
     templateAccountApprovedToAdmin: {
       doc: 'GOV.UK Notify template ID for account approval emails',
       format: String,
-      default: 'ee6e3576-2e79-48e0-a9a3-0fedf01ad4d4',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_AUTO_APPROVED_TO_ADMIN'
     },
     templateAccountInactivityWarning: {
       doc: 'GOV.UK Notify template ID for account inactivity warning (335 days)',
       format: String,
-      default: '29217265-c18c-4aea-89ee-7428fcfa3e03',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_WARNING'
     },
     templateAccountReactivated: {
       doc: 'GOV.UK Notify template ID for account reactivation notification',
       format: String,
-      default: 'c226356d-8295-4170-9e21-335d805e4221',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_ACCOUNT_REACTIVATED'
     },
     adminEmail: {
       doc: 'GOV.UK Notify admin email address',
       format: String,
-      default: 'pafs-support@environment-agency.gov.uk',
+      default: 'changeme-support-email-for-development',
       env: 'NOTIFY_ADMIN_EMAIL'
     },
     templateProgrammeDownloadComplete: {
       doc: 'GOV.UK Notify template ID for area programme download completion notification',
       format: String,
-      default: '4d8fd6c9-0cf8-445c-89ce-ea35d5af7121',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_COMPLETE'
     },
     templateProgrammeDownloadFailed: {
       doc: 'GOV.UK Notify template ID for area programme download failure notification',
       format: String,
-      default: '1c72ccc3-5daa-4722-91e9-d3998bac6567',
+      default: 'changeme-template-id-for-development',
       env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_FAILED'
     }
   }
