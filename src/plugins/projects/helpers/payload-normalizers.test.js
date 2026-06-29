@@ -651,6 +651,8 @@ describe('handleNfmMeasureData', () => {
       nfmSaltmarshLength: null,
       nfmSandDuneArea: null,
       nfmSandDuneLength: null,
+      nfmFloodplainWetlandRestorationArea: null,
+      nfmFloodplainWetlandRestorationVolume: null,
       untouchedField: 'keep-me'
     }
 
@@ -672,7 +674,8 @@ describe('handleNfmMeasureData', () => {
         'headwater_drainage_management',
         'runoff_attenuation_management',
         'saltmarsh_management',
-        'sand_dune_management'
+        'sand_dune_management',
+        'floodplain_wetland_restoration'
       ]
     })
 
@@ -691,6 +694,8 @@ describe('handleNfmMeasureData', () => {
     expect(payload.nfmSaltmarshLength).toBeUndefined()
     expect(payload.nfmSandDuneArea).toBeUndefined()
     expect(payload.nfmSandDuneLength).toBeUndefined()
+    expect(payload.nfmFloodplainWetlandRestorationArea).toBeUndefined()
+    expect(payload.nfmFloodplainWetlandRestorationVolume).toBeUndefined()
     expect(payload.untouchedField).toBe('keep-me')
   })
 
@@ -883,6 +888,24 @@ describe('handleNfmMeasureData', () => {
         lengthKm: 0.4
       },
       removedFields: ['nfmSandDuneArea', 'nfmSandDuneLength']
+    },
+    {
+      level: PROJECT_VALIDATION_LEVELS.NFM_FLOODPLAIN_WETLAND_RESTORATION,
+      payload: {
+        referenceNumber: 'REF-109',
+        nfmFloodplainWetlandRestorationArea: 7.7,
+        nfmFloodplainWetlandRestorationVolume: 88.8
+      },
+      expected: {
+        referenceNumber: 'REF-109',
+        measureType: 'floodplain_wetland_restoration',
+        areaHectares: 7.7,
+        storageVolumeM3: 88.8
+      },
+      removedFields: [
+        'nfmFloodplainWetlandRestorationArea',
+        'nfmFloodplainWetlandRestorationVolume'
+      ]
     }
   ])(
     'upserts measure and removes fields for $level',

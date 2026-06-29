@@ -383,6 +383,28 @@ export const nfmRunoffManagementVolumeSchema = createOptionalPositiveSchema(
   VOLUME_MESSAGES
 )
 
+// --- Floodplain Wetland Restoration ---
+
+/**
+ * NFM Floodplain Wetland Restoration - Area field schema
+ * Database field: area_hectares (NUMERIC)
+ */
+export const nfmFloodplainWetlandRestorationAreaSchema =
+  createRequiredPositiveSchema(
+    'nfmFloodplainWetlandRestorationArea',
+    AREA_MESSAGES
+  )
+
+/**
+ * NFM Floodplain Wetland Restoration - Volume field schema
+ * Database field: storage_volume_m3 (NUMERIC)
+ */
+export const nfmFloodplainWetlandRestorationVolumeSchema =
+  createOptionalPositiveSchema(
+    'nfmFloodplainWetlandRestorationVolume',
+    VOLUME_MESSAGES
+  )
+
 // --- Saltmarsh ---
 
 /**
@@ -586,6 +608,18 @@ export const nfmHeadwaterDrainageSchema = Joi.object({
 export const nfmRunoffManagementSchema = Joi.object({
   nfmRunoffManagementArea: nfmRunoffManagementAreaSchema,
   nfmRunoffManagementVolume: nfmRunoffManagementVolumeSchema
+})
+
+/**
+ * NFM Floodplain Wetland Restoration schema
+ * Validates area and volume for floodplain wetland restoration measures
+ * This data will be stored in pafs_core_nfm_measures table
+ */
+export const nfmFloodplainWetlandRestorationSchema = Joi.object({
+  nfmFloodplainWetlandRestorationArea:
+    nfmFloodplainWetlandRestorationAreaSchema,
+  nfmFloodplainWetlandRestorationVolume:
+    nfmFloodplainWetlandRestorationVolumeSchema
 })
 
 /**

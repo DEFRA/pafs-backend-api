@@ -58,6 +58,10 @@ export const NFM_MEASURE_CONFIGS = [
   {
     type: 'sand_dune_management',
     requiredFields: ['areaHectares']
+  },
+  {
+    type: 'floodplain_wetland_restoration',
+    requiredFields: ['areaHectares']
   }
 ]
 

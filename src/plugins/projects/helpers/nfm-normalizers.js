@@ -36,6 +36,13 @@ const NFM_SELECTED_MEASURE_MAPPINGS = [
   {
     type: 'sand_dune_management',
     fields: ['nfmSandDuneArea', 'nfmSandDuneLength']
+  },
+  {
+    type: 'floodplain_wetland_restoration',
+    fields: [
+      'nfmFloodplainWetlandRestorationArea',
+      'nfmFloodplainWetlandRestorationVolume'
+    ]
   }
 ]
 
@@ -196,6 +203,13 @@ const NFM_UPSERT_CONFIG = {
     fieldMap: {
       areaHectares: 'nfmSandDuneArea',
       lengthKm: 'nfmSandDuneLength'
+    }
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_FLOODPLAIN_WETLAND_RESTORATION]: {
+    measureType: 'floodplain_wetland_restoration',
+    fieldMap: {
+      areaHectares: 'nfmFloodplainWetlandRestorationArea',
+      storageVolumeM3: 'nfmFloodplainWetlandRestorationVolume'
     }
   }
 }

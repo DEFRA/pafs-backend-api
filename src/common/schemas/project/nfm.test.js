@@ -17,6 +17,8 @@ import {
   nfmHeadwaterDrainageAreaSchema,
   nfmRunoffManagementAreaSchema,
   nfmRunoffManagementVolumeSchema,
+  nfmFloodplainWetlandRestorationAreaSchema,
+  nfmFloodplainWetlandRestorationVolumeSchema,
   nfmSaltmarshAreaSchema,
   nfmSaltmarshLengthSchema,
   nfmSandDuneAreaSchema,
@@ -47,6 +49,7 @@ import {
   nfmWoodlandSchema,
   nfmHeadwaterDrainageSchema,
   nfmRunoffManagementSchema,
+  nfmFloodplainWetlandRestorationSchema,
   nfmSaltmarshSchema,
   nfmSandDuneSchema,
   nfmLandUseEnclosedArableFarmlandSchema,
@@ -244,6 +247,33 @@ describe('NFM Schemas - Backend', () => {
     test('should reject missing width', () => {
       const result = nfmLeakyBarriersWidthSchema.validate(undefined)
       expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('Floodplain Wetland Restoration Area Schema', () => {
+    test('should validate valid area value', () => {
+      const result = nfmFloodplainWetlandRestorationAreaSchema.validate(8.5)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe('8.5')
+    })
+
+    test('should reject zero area', () => {
+      const result = nfmFloodplainWetlandRestorationAreaSchema.validate(0)
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('Floodplain Wetland Restoration Volume Schema', () => {
+    test('should allow null value', () => {
+      const result = nfmFloodplainWetlandRestorationVolumeSchema.validate(null)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe(null)
+    })
+
+    test('should validate valid volume value', () => {
+      const result = nfmFloodplainWetlandRestorationVolumeSchema.validate(45.25)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe('45.25')
     })
   })
 
@@ -818,6 +848,23 @@ describe('NFM Composite Object Schemas', () => {
     test('should reject missing area', () => {
       const result = nfmRunoffManagementSchema.validate({
         nfmRunoffManagementVolume: 1.1
+      })
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('nfmFloodplainWetlandRestorationSchema', () => {
+    test('should validate valid payload', () => {
+      const result = nfmFloodplainWetlandRestorationSchema.validate({
+        nfmFloodplainWetlandRestorationArea: 12.5,
+        nfmFloodplainWetlandRestorationVolume: 88.8
+      })
+      expect(result.error).toBeUndefined()
+    })
+
+    test('should reject missing required area', () => {
+      const result = nfmFloodplainWetlandRestorationSchema.validate({
+        nfmFloodplainWetlandRestorationVolume: 88.8
       })
       expect(result.error).toBeDefined()
     })

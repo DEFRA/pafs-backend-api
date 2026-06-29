@@ -54,7 +54,7 @@ const landUseRow = (landUseType, extras = {}) => ({
 
 describe('NFM_MEASURE_CONFIGS', () => {
   test('contains 8 measure types', () => {
-    expect(NFM_MEASURE_CONFIGS).toHaveLength(8)
+    expect(NFM_MEASURE_CONFIGS).toHaveLength(9)
   })
 
   test('each entry has type and requiredFields array', () => {
@@ -84,6 +84,14 @@ describe('NFM_MEASURE_CONFIGS', () => {
     const config = NFM_MEASURE_CONFIGS.find(
       (c) => c.type === 'river_floodplain_restoration'
     )
+    expect(config.requiredFields).not.toContain('storageVolumeM3')
+  })
+
+  test('includes floodplain_wetland_restoration requiring area_hectares', () => {
+    const config = NFM_MEASURE_CONFIGS.find(
+      (c) => c.type === 'floodplain_wetland_restoration'
+    )
+    expect(config.requiredFields).toContain('areaHectares')
     expect(config.requiredFields).not.toContain('storageVolumeM3')
   })
 })

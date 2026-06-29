@@ -90,7 +90,11 @@ export const NFM_MEASURE_FIELD_MAP = {
     volume: 'runoff_attenuation_volume'
   },
   saltmarsh_management: { area: 'saltmarsh_area', length: 'saltmarsh_length' },
-  sand_dune_management: { area: 'sand_dune_area', length: 'sand_dune_length' }
+  sand_dune_management: { area: 'sand_dune_area', length: 'sand_dune_length' },
+  floodplain_wetland_restoration: {
+    area: 'floodplain_wetland_restoration_area',
+    volume: 'floodplain_wetland_restoration_volume'
+  }
 }
 
 // ---------------------------------------------------------------------------

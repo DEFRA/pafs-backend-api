@@ -12,6 +12,8 @@ import {
   nfmHeadwaterDrainageAreaSchema,
   nfmRunoffManagementAreaSchema,
   nfmRunoffManagementVolumeSchema,
+  nfmFloodplainWetlandRestorationAreaSchema,
+  nfmFloodplainWetlandRestorationVolumeSchema,
   nfmSaltmarshAreaSchema,
   nfmSaltmarshLengthSchema,
   nfmSandDuneAreaSchema,
@@ -112,6 +114,12 @@ const OPTIONAL_NFM_MEASURE_FIELDS = {
   nfmHeadwaterDrainageArea: optionalNullable(nfmHeadwaterDrainageAreaSchema),
   nfmRunoffManagementArea: optionalNullable(nfmRunoffManagementAreaSchema),
   nfmRunoffManagementVolume: optionalNullable(nfmRunoffManagementVolumeSchema),
+  nfmFloodplainWetlandRestorationArea: optionalNullable(
+    nfmFloodplainWetlandRestorationAreaSchema
+  ),
+  nfmFloodplainWetlandRestorationVolume: optionalNullable(
+    nfmFloodplainWetlandRestorationVolumeSchema
+  ),
   nfmSaltmarshArea: optionalNullable(nfmSaltmarshAreaSchema),
   nfmSaltmarshLength: optionalNullable(nfmSaltmarshLengthSchema),
   nfmSandDuneArea: optionalNullable(nfmSandDuneAreaSchema),
@@ -150,6 +158,12 @@ const NFM_LEVEL_FIELD_SCHEMAS = {
   [PROJECT_VALIDATION_LEVELS.NFM_RUNOFF_MANAGEMENT]: {
     nfmRunoffManagementArea: nfmRunoffManagementAreaSchema,
     nfmRunoffManagementVolume: nfmRunoffManagementVolumeSchema
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_FLOODPLAIN_WETLAND_RESTORATION]: {
+    nfmFloodplainWetlandRestorationArea:
+      nfmFloodplainWetlandRestorationAreaSchema,
+    nfmFloodplainWetlandRestorationVolume:
+      nfmFloodplainWetlandRestorationVolumeSchema
   },
   [PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH]: {
     nfmSaltmarshArea: nfmSaltmarshAreaSchema,
