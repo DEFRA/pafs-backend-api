@@ -104,10 +104,10 @@ function buildCredentials(user, decoded, areas) {
 //   (3 DB queries). A cache entry is only ever keyed against the sessionId that
 //   was current at the time the entry was written, so it cannot outlive its JWT.
 //
-// Tier 2 — SESSION VERSION cache (60 sec TTL, keyed by userId):
+// Tier 2 — SESSION VERSION cache (10 sec TTL, keyed by userId):
 //   Stores only `unique_session_id` from the DB. Checked on every tier-1 cache
 //   hit. If the version is stale (TTL expired) a single cheap DB query re-fetches
-//   it. This bounds the concurrent-login detection window to 60 s across every
+//   it. This bounds the concurrent-login detection window to 10 s across every
 //   instance, instead of the full 15-min auth cache lifetime.
 //
 // On the instance that handles a new login, `invalidateUser` is called
@@ -126,7 +126,7 @@ const AUTH_CACHE_MAX_SIZE = 500
 
 function buildAuthCache() {
   const store = new Map() // tier-1: full auth results, 15-min TTL
-  const versionStore = new Map() // tier-2: unique_session_id per userId, 60-sec TTL
+  const versionStore = new Map() // tier-2: unique_session_id per userId, 10-sec TTL
 
   function get(userId, sessionId) {
     const key = `${userId}:${sessionId}`
@@ -162,6 +162,9 @@ function buildAuthCache() {
   }
 
   function setSessionVersion(userId, sessionId) {
+    if (versionStore.size >= AUTH_CACHE_MAX_SIZE) {
+      versionStore.delete(versionStore.keys().next().value)
+    }
     versionStore.set(String(userId), {
       sessionId,
       expiresAt: Date.now() + SESSION_VERSION_CACHE_TTL_MS
@@ -239,10 +242,18 @@ function createValidateFn(cache) {
       const versionErrCode = await verifySessionVersion(cache, decoded, request)
       if (versionErrCode) {
         cache.invalidate(decoded.userId, decoded.sessionId)
-        request.server.logger.warn(
-          { userId: decoded.userId, tokenSession: decoded.sessionId },
-          'JWT validation failed: session superseded (concurrent login detected)'
-        )
+        if (versionErrCode === AUTH_ERROR_CODES.SESSION_MISMATCH) {
+          request.server.logger.warn(
+            { userId: decoded.userId, tokenSession: decoded.sessionId },
+            'JWT validation failed: session superseded (concurrent login detected)'
+          )
+        }
+        if (versionErrCode === AUTH_ERROR_CODES.ACCOUNT_NOT_FOUND) {
+          request.server.logger.warn(
+            { userId: decoded.userId },
+            'JWT validation failed: account not found during session version check'
+          )
+        }
         request.app.jwtErrorCode = versionErrCode
         return invalidResponse(versionErrCode)
       }
