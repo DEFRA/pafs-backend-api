@@ -1,3 +1,4 @@
+import { CONFIG_DEFAULTS } from '../common/constants/common.js'
 import { isProduction } from './environment.js'
 
 const postgresSchema = {
@@ -23,19 +24,19 @@ const postgresSchema = {
     database: {
       doc: 'PostgreSQL database name',
       format: String,
-      default: 'change-me-in-development',
+      default: CONFIG_DEFAULTS.CHANGEME_IN_DEVELOPMENT,
       env: 'DB_DATABASE'
     },
     username: {
       doc: 'PostgreSQL username',
       format: String,
-      default: 'change-me-in-development',
+      default: CONFIG_DEFAULTS.CHANGEME_IN_DEVELOPMENT,
       env: 'DB_USERNAME'
     },
     password: {
       doc: 'PostgreSQL password (only used for local development, not with IAM auth)',
       format: String,
-      default: 'change-me-in-development',
+      default: CONFIG_DEFAULTS.CHANGEME_IN_DEVELOPMENT,
       sensitive: true,
       env: 'DB_PASSWORD'
     },

@@ -158,3 +158,8 @@ export const AREA_TYPE_MAP = {
   PSO: 'PSO Area',
   RMA: 'RMA'
 }
+
+export const CONFIG_DEFAULTS = {
+  CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT: 'changeme-template-id-for-development',
+  CHANGEME_IN_DEVELOPMENT: 'change-me-in-development'
+}

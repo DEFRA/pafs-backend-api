@@ -1,3 +1,5 @@
+import { CONFIG_DEFAULTS } from '../common/constants/common.js'
+
 const notifySchema = {
   notify: {
     enabled: {
@@ -16,37 +18,37 @@ const notifySchema = {
     templatePasswordReset: {
       doc: 'GOV.UK Notify template ID for password reset emails',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_PASSWORD_RESET'
     },
     templateAccountVerification: {
       doc: 'GOV.UK Notify template ID for account verification emails',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_ACCOUNT_VERIFICATION'
     },
     templateAccountApprovedSetPassword: {
       doc: 'GOV.UK Notify template ID for auto-approved accounts',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_ACCOUNT_APPROVED_SET_PASSWORD'
     },
     templateAccountApprovedToAdmin: {
       doc: 'GOV.UK Notify template ID for account approval emails',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_AUTO_APPROVED_TO_ADMIN'
     },
     templateAccountInactivityWarning: {
       doc: 'GOV.UK Notify template ID for account inactivity warning (335 days)',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_ACCOUNT_INACTIVITY_WARNING'
     },
     templateAccountReactivated: {
       doc: 'GOV.UK Notify template ID for account reactivation notification',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_ACCOUNT_REACTIVATED'
     },
     adminEmail: {
@@ -58,13 +60,13 @@ const notifySchema = {
     templateProgrammeDownloadComplete: {
       doc: 'GOV.UK Notify template ID for area programme download completion notification',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_COMPLETE'
     },
     templateProgrammeDownloadFailed: {
       doc: 'GOV.UK Notify template ID for area programme download failure notification',
       format: String,
-      default: 'changeme-template-id-for-development',
+      default: CONFIG_DEFAULTS.CHANGEME_TEMPLATE_ID_FOR_DEVELOPMENT,
       env: 'NOTIFY_TEMPLATE_PROGRAMME_DOWNLOAD_FAILED'
     }
   }
