@@ -1,4 +1,5 @@
 import { PROJECT_STATUS } from '../../../common/constants/project.js'
+import { AREA_TYPE_MAP } from '../../../common/constants/common.js'
 
 // Project select fields for Prisma queries
 export const PROJECT_SELECT_FIELDS = {
@@ -37,7 +38,7 @@ export async function resolveAreaNames(prisma, projectIds) {
 
   const areaIds = [...new Set(areaProjects.map((ap) => BigInt(ap.area_id)))]
   const areas = await prisma.pafs_core_areas.findMany({
-    where: { id: { in: areaIds } },
+    where: { id: { in: areaIds }, area_type: AREA_TYPE_MAP.RMA },
     select: { id: true, name: true }
   })
 
@@ -55,7 +56,7 @@ export function formatProject(project, state = null, areaName = null) {
   const isLegacy = project.is_legacy ?? false
   const isRevised = project.is_revised ?? false
   const resolvedStatus = resolveStatus(state, isLegacy, isRevised)
-  const rmaName = project.rma_name || areaName || null
+  const rmaName = areaName || project.rma_name || null
 
   return {
     id: Number(project.id),
