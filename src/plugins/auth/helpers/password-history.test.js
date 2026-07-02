@@ -84,7 +84,7 @@ describe('password-history helper', () => {
     it('returns the configured password history limit', () => {
       const limit = getPasswordHistoryLimit()
 
-      expect(limit).toBe(5)
+      expect(limit).toBe(15)
       expect(typeof limit).toBe('number')
     })
   })

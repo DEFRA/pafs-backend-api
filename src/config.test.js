@@ -87,17 +87,17 @@ describe('config', () => {
 
     test('Should have correct default postgres database', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.database')).toBe('pafs_backend_api')
+      expect(config.get('postgres.database')).toBe('change-me-in-development')
     })
 
     test('Should have correct default postgres username', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.username')).toBe('pafs_backend_api')
+      expect(config.get('postgres.username')).toBe('change-me-in-development')
     })
 
     test('Should have correct default postgres password', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('postgres.password')).toBe('postgres')
+      expect(config.get('postgres.password')).toBe('change-me-in-development')
     })
 
     test('Should not use IAM auth by default in non-production', async () => {
@@ -286,40 +286,40 @@ describe('config', () => {
       const { config } = await import('./config.js')
       expect(config.get('auth.jwt.accessSecret')).toBeDefined()
       expect(config.get('auth.jwt.refreshSecret')).toBeDefined()
-      expect(config.get('auth.jwt.accessExpiresIn')).toBe('15m')
-      expect(config.get('auth.jwt.refreshExpiresIn')).toBe('7d')
+      expect(config.get('auth.jwt.accessExpiresIn')).toBe('25m')
+      expect(config.get('auth.jwt.refreshExpiresIn')).toBe('9d')
     })
 
     test('Should have account locking configuration', async () => {
       const { config } = await import('./config.js')
       expect(config.get('auth.accountLocking.enabled')).toBe(true)
-      expect(config.get('auth.accountLocking.maxAttempts')).toBe(5)
-      expect(config.get('auth.accountLocking.lockDuration')).toBe(30)
+      expect(config.get('auth.accountLocking.maxAttempts')).toBe(15)
+      expect(config.get('auth.accountLocking.lockDuration')).toBe(300)
     })
 
     test('Should have account disabling configuration', async () => {
       const { config } = await import('./config.js')
       expect(config.get('auth.accountDisabling.enabled')).toBe(true)
       expect(config.get('auth.accountDisabling.inactivityWarningDays')).toBe(
-        335
+        135
       )
-      expect(config.get('auth.accountDisabling.inactivityDays')).toBe(365)
+      expect(config.get('auth.accountDisabling.inactivityDays')).toBe(165)
     })
 
     test('Should have password reset configuration', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('auth.passwordReset.tokenExpiryHours')).toBe(6)
+      expect(config.get('auth.passwordReset.tokenExpiryHours')).toBe(1)
     })
 
     test('Should have invitation configuration', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('auth.invitation.tokenExpiryHours')).toBe(720)
+      expect(config.get('auth.invitation.tokenExpiryHours')).toBe(120)
     })
 
     test('Should have password history configuration', async () => {
       const { config } = await import('./config.js')
       expect(config.get('auth.passwordHistory.enabled')).toBe(true)
-      expect(config.get('auth.passwordHistory.limit')).toBe(5)
+      expect(config.get('auth.passwordHistory.limit')).toBe(15)
     })
   })
 
@@ -400,7 +400,9 @@ describe('config', () => {
 
     test('Should have S3 configuration', async () => {
       const { config } = await import('./config.js')
-      expect(config.get('cdpUploader.s3Bucket')).toBe('pafs-uploads')
+      expect(config.get('cdpUploader.s3Bucket')).toBe(
+        'changeme-uploads-bucket-for-development'
+      )
       expect(config.get('cdpUploader.s3Path')).toBe('')
     })
 
@@ -545,10 +547,13 @@ describe('config', () => {
 
     test('Should use production CDP uploader URL in production', async () => {
       process.env.NODE_ENV = 'production'
+      process.env.CDP_UPLOADER_BASE_URL =
+        'https://cdp-uploader.prod.cdp-int.defra.cloud'
       const { config } = await import('./config.js')
       expect(config.get('cdpUploader.baseUrl')).toBe(
         'https://cdp-uploader.prod.cdp-int.defra.cloud'
       )
+      delete process.env.CDP_UPLOADER_BASE_URL
     })
 
     test('Should have null S3 endpoint in production', async () => {
