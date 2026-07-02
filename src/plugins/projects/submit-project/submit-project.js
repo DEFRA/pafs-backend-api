@@ -87,7 +87,11 @@ const transitionToSubmitted = async (
   logger
 ) => {
   try {
-    await projectService.transitionToSubmitted(project.id, referenceNumber)
+    await projectService.transitionToSubmitted(
+      project.id,
+      referenceNumber,
+      project.isLegacy
+    )
     logger.info(
       { referenceNumber, userId: credentials.userId },
       'Project submitted successfully'
