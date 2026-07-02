@@ -386,7 +386,7 @@ describe('project-formatter', () => {
       expect(result.rmaName).toBe('Area From Lookup')
     })
 
-    test('Should prefer rma_name over areaName when both present', () => {
+    test('Should prefer areaName over rma_name when both present', () => {
       const mockProject = {
         id: BigInt(17),
         reference_number: 'RMS10008',
@@ -402,7 +402,7 @@ describe('project-formatter', () => {
 
       const result = formatProject(mockProject, null, 'Area From Lookup')
 
-      expect(result.rmaName).toBe('Original RMA')
+      expect(result.rmaName).toBe('Area From Lookup')
     })
 
     test('Should return null rmaName when both rma_name and areaName are null', () => {
@@ -473,7 +473,7 @@ describe('project-formatter', () => {
         select: { project_id: true, area_id: true }
       })
       expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
-        where: { id: { in: [BigInt(10), BigInt(20)] } },
+        where: { id: { in: [BigInt(10), BigInt(20)] }, area_type: 'RMA' },
         select: { id: true, name: true }
       })
     })
@@ -499,7 +499,7 @@ describe('project-formatter', () => {
       expect(result.get(2)).toBe('Shared Area')
       // Should deduplicate area IDs
       expect(mockPrisma.pafs_core_areas.findMany).toHaveBeenCalledWith({
-        where: { id: { in: [BigInt(10)] } },
+        where: { id: { in: [BigInt(10)] }, area_type: 'RMA' },
         select: { id: true, name: true }
       })
     })
