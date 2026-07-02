@@ -25,7 +25,7 @@ const benefitAreaUrlLocks = new Map()
 // ---------------------------------------------------------------------------
 
 function applyHierarchyToApiData(apiData, hierarchy) {
-  apiData.rmaName = apiData.rmaName || hierarchy.rmaName || null
+  apiData.rmaName = hierarchy.rmaName || apiData.rmaName || null
   apiData.rmaSubType = hierarchy.rmaSubType ?? null
   apiData.psoAreaId = hierarchy.psoAreaId ?? null
   apiData.psoName = hierarchy.psoName ?? null

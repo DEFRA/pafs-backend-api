@@ -19,6 +19,15 @@ async function fetchUser(request, userId) {
   })
 }
 
+// Lightweight single-column select used by the session version check path.
+// Much cheaper than fetchUser — no joins, minimal network payload.
+async function fetchSessionVersion(request, userId) {
+  return request.prisma.pafs_core_users.findUnique({
+    where: { id: userId },
+    select: { unique_session_id: true }
+  })
+}
+
 function invalidResponse(errorCode) {
   return {
     isValid: false,
@@ -88,21 +97,36 @@ function buildCredentials(user, decoded, areas) {
   }
 }
 
-// JWT validation runs on every authenticated request — 3 DB queries each time
-// (user lookup + 2 area queries). Under load with 60-75 concurrent users this
-// dominates connection pool usage. Cache successful results for the full token
-// lifetime (15 minutes = 900 s), keyed by userId:sessionId. A cached entry
-// can never outlive its own JWT: hapi-auth-jwt2 rejects the token at signature
-// verify time (checking the exp claim) before validate() is called, so an
-// expired token never reaches the cache. Token refresh issues a new sessionId,
-// which is a cache miss that always re-validates from DB.
+// Two-tier auth cache strategy (no shared store available between instances):
+//
+// Tier 1 — AUTH cache (15 min TTL, keyed userId:sessionId):
+//   Caches the full validation result (user fields + areas). Expensive to rebuild
+//   (3 DB queries). A cache entry is only ever keyed against the sessionId that
+//   was current at the time the entry was written, so it cannot outlive its JWT.
+//
+// Tier 2 — SESSION VERSION cache (60 sec TTL, keyed by userId):
+//   Stores only `unique_session_id` from the DB. Checked on every tier-1 cache
+//   hit. If the version is stale (TTL expired) a single cheap DB query re-fetches
+//   it. This bounds the concurrent-login detection window to 60 s across every
+//   instance, instead of the full 15-min auth cache lifetime.
+//
+// On the instance that handles a new login, `invalidateUser` is called
+// immediately (both tiers), giving instant eviction with zero window.
+// On other instances the worst-case window is the SESSION_VERSION_CACHE_TTL_MS.
 const AUTH_CACHE_TTL_MS = SIZE.LENGTH_15 * 60 * 1_000 // 15 minutes — matches JWT accessExpiresIn
+// 10-second window: cheap enough (single-column PK lookup, ~1 ms) at typical
+// concurrency (75 users ≈ 7–8 DB version-checks/s) while limiting the
+// concurrent-login exposure window to 10 s on any instance.
+// SNS fan-out is unavailable in this infrastructure; this TTL is the knob
+// to trade off DB load against invalidation latency across instances.
+const SESSION_VERSION_CACHE_TTL_MS = 10 * 1_000 // 10 seconds
 // Cap the store at 500 entries (handles well above the maximum concurrent
 // session count in any realistic scenario) to prevent unbounded memory growth.
 const AUTH_CACHE_MAX_SIZE = 500
 
 function buildAuthCache() {
-  const store = new Map()
+  const store = new Map() // tier-1: full auth results, 15-min TTL
+  const versionStore = new Map() // tier-2: unique_session_id per userId, 60-sec TTL
 
   function get(userId, sessionId) {
     const key = `${userId}:${sessionId}`
@@ -125,14 +149,35 @@ function buildAuthCache() {
     store.set(key, { result, expiresAt: Date.now() + AUTH_CACHE_TTL_MS })
   }
 
-  // Remove a specific session entry immediately — called on logout so that a
-  // revoked session is rejected on the next request rather than after cache TTL.
-  function invalidate(userId, sessionId) {
-    store.delete(`${userId}:${sessionId}`)
+  function getSessionVersion(userId) {
+    const entry = versionStore.get(String(userId))
+    if (!entry) {
+      return null
+    }
+    if (Date.now() > entry.expiresAt) {
+      versionStore.delete(String(userId))
+      return null
+    }
+    return entry.sessionId
   }
 
-  // Remove ALL cache entries for a user — called when the user's role changes
-  // so the stale credentials are not served from cache on the next request.
+  function setSessionVersion(userId, sessionId) {
+    versionStore.set(String(userId), {
+      sessionId,
+      expiresAt: Date.now() + SESSION_VERSION_CACHE_TTL_MS
+    })
+  }
+
+  // Remove a specific session entry immediately — called on logout so that a
+  // revoked session is rejected on the next request rather than after cache TTL.
+  // Also clears the version entry so the next request re-checks DB.
+  function invalidate(userId, sessionId) {
+    store.delete(`${userId}:${sessionId}`)
+    versionStore.delete(String(userId))
+  }
+
+  // Remove ALL cache entries for a user — called on login and role-change so
+  // the old session and stale credentials are not served from cache.
   function invalidateUser(userId) {
     const prefix = `${userId}:`
     for (const key of store.keys()) {
@@ -140,9 +185,46 @@ function buildAuthCache() {
         store.delete(key)
       }
     }
+    versionStore.delete(String(userId))
   }
 
-  return { get, set, invalidate, invalidateUser }
+  return {
+    get,
+    set,
+    getSessionVersion,
+    setSessionVersion,
+    invalidate,
+    invalidateUser
+  }
+}
+
+// Called on every tier-1 cache hit to confirm the session has not been
+// superseded by a newer login on another instance. Uses the tier-2 version
+// cache so the DB is only hit once per SESSION_VERSION_CACHE_TTL_MS window.
+// Returns the AUTH_ERROR_CODE string if the session is stale, or null if valid.
+async function verifySessionVersion(cache, decoded, request) {
+  const cachedVersion = cache.getSessionVersion(decoded.userId)
+  if (cachedVersion !== null) {
+    const sessionMatches = cachedVersion === decoded.sessionId
+    return sessionMatches ? null : AUTH_ERROR_CODES.SESSION_MISMATCH
+  }
+  try {
+    const row = await fetchSessionVersion(request, decoded.userId)
+    if (!row) {
+      return AUTH_ERROR_CODES.ACCOUNT_NOT_FOUND
+    }
+    cache.setSessionVersion(decoded.userId, row.unique_session_id)
+    const sessionMatches = row.unique_session_id === decoded.sessionId
+    return sessionMatches ? null : AUTH_ERROR_CODES.SESSION_MISMATCH
+  } catch (error) {
+    // Allow through on DB error — cached result is still trustworthy and
+    // blocking legitimate users on a transient failure would be worse.
+    request.server.logger.error(
+      { err: error },
+      'Error fetching session version from DB'
+    )
+    return null
+  }
 }
 
 function createValidateFn(cache) {
@@ -154,6 +236,16 @@ function createValidateFn(cache) {
 
     const cached = cache.get(decoded.userId, decoded.sessionId)
     if (cached) {
+      const versionErrCode = await verifySessionVersion(cache, decoded, request)
+      if (versionErrCode) {
+        cache.invalidate(decoded.userId, decoded.sessionId)
+        request.server.logger.warn(
+          { userId: decoded.userId, tokenSession: decoded.sessionId },
+          'JWT validation failed: session superseded (concurrent login detected)'
+        )
+        request.app.jwtErrorCode = versionErrCode
+        return invalidResponse(versionErrCode)
+      }
       return cached
     }
 
@@ -176,6 +268,7 @@ function createValidateFn(cache) {
         credentials: buildCredentials(user, decoded, areas)
       }
       cache.set(decoded.userId, decoded.sessionId, result)
+      cache.setSessionVersion(decoded.userId, decoded.sessionId)
       return result
     } catch (error) {
       request.server.logger.error({ err: error }, 'Error validating JWT token')

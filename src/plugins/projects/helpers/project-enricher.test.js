@@ -170,7 +170,7 @@ describe('enrichProjectResponse', () => {
       expect(api.rmaName).toBe('Hierarchy RMA')
     })
 
-    test('Should keep existing apiData.rmaName when already set', async () => {
+    test('Should prefer hierarchy rmaName over existing apiData.rmaName', async () => {
       resolveAreaHierarchy.mockResolvedValue({
         rmaName: 'Hierarchy RMA',
         psoName: null,
@@ -183,7 +183,7 @@ describe('enrichProjectResponse', () => {
 
       await enrichProjectResponse(prisma, raw, api)
 
-      expect(api.rmaName).toBe('Original RMA')
+      expect(api.rmaName).toBe('Hierarchy RMA')
     })
 
     test('Should backfill rma_name on rawProject when rma_name is empty and hierarchy provides it', async () => {
