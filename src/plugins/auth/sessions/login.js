@@ -38,6 +38,11 @@ const login = {
       return h.response({ errors: [response] }).code(HTTP_STATUS.UNAUTHORIZED)
     }
 
+    // Evict any prior session for this user from this instance's cache
+    // immediately. Other instances will re-check the DB within
+    // SESSION_VERSION_CACHE_TTL_MS (10 s) via the session version check.
+    request.server.invalidateAuthCacheForUser(result.user.id)
+
     return h
       .response({
         user: result.user,
