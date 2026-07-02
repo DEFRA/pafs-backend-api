@@ -104,7 +104,7 @@ describe('jwt helper', () => {
       const sessionId = 'session-456'
       const token = generateAccessToken(mockUser, sessionId)
 
-      vi.advanceTimersByTime(20 * 60 * 1000)
+      vi.advanceTimersByTime(26 * 60 * 1000)
 
       const decoded = verifyAccessToken(token)
       expect(decoded).toBeNull()

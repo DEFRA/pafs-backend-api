@@ -220,7 +220,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         encrypted_password: 'hash',
         status: 'active',
-        failed_attempts: 4
+        failed_attempts: 14
       })
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
 
@@ -236,7 +236,7 @@ describe('AuthService', () => {
       expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: expect.objectContaining({
-          failed_attempts: 5,
+          failed_attempts: 15,
           locked_at: expect.any(Date)
         })
       })
@@ -305,7 +305,7 @@ describe('AuthService', () => {
       })
       expect(result.accessToken).toBe('access-token')
       expect(result.refreshToken).toBe('refresh-token')
-      expect(result.expiresIn).toBe('15m')
+      expect(result.expiresIn).toBe('25m')
     })
 
     it('includes assigned areas with names in successful login response', async () => {
@@ -411,13 +411,13 @@ describe('AuthService', () => {
     })
 
     it('locks account when max attempts reached', async () => {
-      const user = { id: 1, failed_attempts: 4 }
+      const user = { id: 1, failed_attempts: 14 }
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
       const newFailedAttempts = (user.failed_attempts || 0) + 1
 
       await authService.handleFailedAttempt(user, '127.0.0.1')
 
-      expect(newFailedAttempts).toBe(5)
+      expect(newFailedAttempts).toBe(15)
       expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: expect.objectContaining({
@@ -580,7 +580,7 @@ describe('AuthService', () => {
       expect(result.success).toBe(true)
       expect(result.accessToken).toBe('access-token')
       expect(result.refreshToken).toBe('refresh-token')
-      expect(result.expiresIn).toBe('15m')
+      expect(result.expiresIn).toBe('25m')
     })
 
     it('updates user session on successful refresh', async () => {

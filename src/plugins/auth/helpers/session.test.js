@@ -51,7 +51,7 @@ describe('session helper', () => {
 
       const user = { locked_at: lockTime }
 
-      vi.advanceTimersByTime(31 * 60 * 1000)
+      vi.advanceTimersByTime(301 * 60 * 1000)
 
       expect(shouldResetLockout(user)).toBe(true)
     })
@@ -113,7 +113,7 @@ describe('session helper', () => {
 
       const user = { locked_at: lockTime }
 
-      vi.advanceTimersByTime(31 * 60 * 1000)
+      vi.advanceTimersByTime(301 * 60 * 1000)
 
       expect(isAccountLocked(user)).toBe(false)
     })
@@ -176,17 +176,17 @@ describe('session helper', () => {
     it('returns max attempts for user with no failed attempts', () => {
       const user = { failed_attempts: 0 }
 
-      expect(remainingAttempts(user)).toBe(5)
+      expect(remainingAttempts(user)).toBe(15)
     })
 
     it('calculates remaining attempts correctly', () => {
       const user = { failed_attempts: 3 }
 
-      expect(remainingAttempts(user)).toBe(2)
+      expect(remainingAttempts(user)).toBe(12)
     })
 
     it('returns 0 when attempts exceeded', () => {
-      const user = { failed_attempts: 10 }
+      const user = { failed_attempts: 20 }
 
       expect(remainingAttempts(user)).toBe(0)
     })
@@ -194,13 +194,13 @@ describe('session helper', () => {
     it('handles undefined failed_attempts', () => {
       const user = {}
 
-      expect(remainingAttempts(user)).toBe(5)
+      expect(remainingAttempts(user)).toBe(15)
     })
   })
 
   describe('isLastAttempt', () => {
     it('returns true when one attempt remaining', () => {
-      const user = { failed_attempts: 4 }
+      const user = { failed_attempts: 14 }
 
       expect(isLastAttempt(user)).toBe(true)
     })
@@ -212,7 +212,7 @@ describe('session helper', () => {
     })
 
     it('returns false when no attempts remaining', () => {
-      const user = { failed_attempts: 5 }
+      const user = { failed_attempts: 15 }
 
       expect(isLastAttempt(user)).toBe(false)
     })
