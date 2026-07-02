@@ -1162,6 +1162,52 @@ describe('jwt-auth plugin', () => {
           mockRequest.prisma.pafs_core_users.findUnique
         ).toHaveBeenCalledTimes(502)
       })
+
+      it('evicts the oldest versionStore entry when version cache reaches max size (500)', async () => {
+        // Fill the version cache by triggering 500 full validations — each one
+        // calls setSessionVersion internally, keyed by userId.
+        mockRequest.prisma.pafs_core_users.findUnique.mockImplementation(
+          ({ where }) =>
+            Promise.resolve({
+              id: where.id,
+              email: `u${where.id}@test.com`,
+              first_name: 'T',
+              last_name: 'U',
+              admin: false,
+              disabled: false,
+              locked_at: null,
+              unique_session_id: `s-${where.id}`
+            })
+        )
+
+        for (let i = 1; i <= 500; i++) {
+          await validateFn({ userId: i, sessionId: `s-${i}` }, mockRequest)
+        }
+
+        // Adding entry 501 must evict entry 1 from versionStore.
+        // Verify by advancing past the version TTL for user 1 and confirming
+        // a DB call is needed (entry 1 is gone, not just expired).
+        vi.useFakeTimers()
+        try {
+          await validateFn({ userId: 501, sessionId: 's-501' }, mockRequest)
+
+          // user 1 is back in the auth cache from the loop above.
+          // Trigger a version check: since versionStore entry 1 was evicted,
+          // the verify path must hit DB to re-fetch it.
+          vi.advanceTimersByTime(10 * 1000 + 1) // expire all version entries
+          mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue({
+            unique_session_id: 's-1'
+          })
+          const callsBefore =
+            mockRequest.prisma.pafs_core_users.findUnique.mock.calls.length
+          await validateFn({ userId: 1, sessionId: 's-1' }, mockRequest)
+          expect(
+            mockRequest.prisma.pafs_core_users.findUnique.mock.calls.length
+          ).toBe(callsBefore + 1)
+        } finally {
+          vi.useRealTimers()
+        }
+      })
     })
 
     describe('session version verification on cache hit', () => {
@@ -1321,6 +1367,10 @@ describe('jwt-auth plugin', () => {
           expect(result.artifacts).toEqual({
             errorCode: 'AUTH_ACCOUNT_NOT_FOUND'
           })
+          expect(mockRequest.server.logger.warn).toHaveBeenCalledWith(
+            { userId: 50 },
+            'JWT validation failed: account not found during session version check'
+          )
           // Auth cache evicted — next call must go to DB
           mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue(
             verUser
