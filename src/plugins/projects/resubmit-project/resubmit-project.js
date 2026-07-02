@@ -90,7 +90,7 @@ async function performResubmission(
   })
 
   try {
-    await projectService.setSubmittedAt(referenceNumber)
+    await projectService.setSubmittedAt(referenceNumber, project.isLegacy)
   } catch (stampError) {
     logger.warn(
       { error: stampError.message, referenceNumber },

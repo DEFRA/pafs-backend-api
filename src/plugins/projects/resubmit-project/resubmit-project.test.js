@@ -78,7 +78,8 @@ const SUBMITTED_PROJECT = {
   id: PROJECT_ID,
   referenceNumber: REFERENCE_NUMBER,
   projectState: PROJECT_STATUS.SUBMITTED,
-  creatorId: 42
+  creatorId: 42,
+  isLegacy: false
 }
 
 // ─── Route definition ─────────────────────────────────────────────────────────
@@ -224,7 +225,8 @@ describe('resubmit-project handler — submission outcome', () => {
   test('stamps submitted_at regardless of external submission outcome', async () => {
     await resubmitProjectRoute.options.handler(request, h)
     expect(mockProjectService.setSubmittedAt).toHaveBeenCalledWith(
-      REFERENCE_NUMBER
+      REFERENCE_NUMBER,
+      SUBMITTED_PROJECT.isLegacy
     )
   })
 
@@ -235,7 +237,20 @@ describe('resubmit-project handler — submission outcome', () => {
     })
     await resubmitProjectRoute.options.handler(request, h)
     expect(mockProjectService.setSubmittedAt).toHaveBeenCalledWith(
-      REFERENCE_NUMBER
+      REFERENCE_NUMBER,
+      SUBMITTED_PROJECT.isLegacy
+    )
+  })
+
+  test('passes isLegacy=true to setSubmittedAt when project is legacy', async () => {
+    mockProjectService.getProjectByReferenceNumber.mockResolvedValue({
+      ...SUBMITTED_PROJECT,
+      isLegacy: true
+    })
+    await resubmitProjectRoute.options.handler(request, h)
+    expect(mockProjectService.setSubmittedAt).toHaveBeenCalledWith(
+      REFERENCE_NUMBER,
+      true
     )
   })
 

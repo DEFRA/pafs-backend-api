@@ -82,7 +82,8 @@ const DRAFT_PROJECT = {
   referenceNumber: 'LCR/123/456',
   areaId: 10,
   psoAreaId: 5,
-  projectState: PROJECT_STATUS.DRAFT
+  projectState: PROJECT_STATUS.DRAFT,
+  isLegacy: false
 }
 
 // ─── Route shape ─────────────────────────────────────────────────────────────
@@ -348,11 +349,25 @@ describe('submit-project handler', () => {
 
   // ─── Successful submission ────────────────────────────────────────────────
 
-  test('calls transitionToSubmitted with project id and referenceNumber', async () => {
+  test('calls transitionToSubmitted with project id, referenceNumber and isLegacy', async () => {
     await submitProjectRoute.options.handler(request, h)
     expect(mockProjectService.transitionToSubmitted).toHaveBeenCalledWith(
       DRAFT_PROJECT.id,
-      'LCR/123/456'
+      'LCR/123/456',
+      DRAFT_PROJECT.isLegacy
+    )
+  })
+
+  test('passes isLegacy=true when project is a legacy project', async () => {
+    mockProjectService.getProjectByReferenceNumber.mockResolvedValue({
+      ...DRAFT_PROJECT,
+      isLegacy: true
+    })
+    await submitProjectRoute.options.handler(request, h)
+    expect(mockProjectService.transitionToSubmitted).toHaveBeenCalledWith(
+      DRAFT_PROJECT.id,
+      'LCR/123/456',
+      true
     )
   })
 

@@ -822,6 +822,26 @@ describe('ProjectService', () => {
         'DB write error'
       )
     })
+
+    test('sets is_revised to true when isLegacy is true', async () => {
+      mockPrisma.pafs_core_projects.updateMany.mockResolvedValue({ count: 1 })
+
+      await service.setSubmittedAt('LCR/123/456', true)
+
+      expect(mockPrisma.pafs_core_projects.updateMany).toHaveBeenCalledWith({
+        where: { reference_number: 'LCR/123/456' },
+        data: expect.objectContaining({ is_revised: true })
+      })
+    })
+
+    test('does not set is_revised when isLegacy is false', async () => {
+      mockPrisma.pafs_core_projects.updateMany.mockResolvedValue({ count: 1 })
+
+      await service.setSubmittedAt('LCR/123/456', false)
+
+      const [{ data }] = mockPrisma.pafs_core_projects.updateMany.mock.calls[0]
+      expect(data).not.toHaveProperty('is_revised')
+    })
   })
 
   // ─── cacheShapefileBase64 ──────────────────────────────────────────────────
@@ -909,6 +929,20 @@ describe('ProjectService', () => {
       await expect(
         service.transitionToSubmitted(BigInt(99), 'LCR/123/456')
       ).rejects.toThrow('tx failed')
+    })
+
+    test('sets is_revised to true on the project row when isLegacy is true', async () => {
+      await service.transitionToSubmitted(BigInt(99), 'LCR/123/456', true)
+      expect(mockTx.pafs_core_projects.updateMany).toHaveBeenCalledWith({
+        where: { reference_number: 'LCR/123/456' },
+        data: expect.objectContaining({ is_revised: true })
+      })
+    })
+
+    test('does not set is_revised on the project row when isLegacy is false', async () => {
+      await service.transitionToSubmitted(BigInt(99), 'LCR/123/456', false)
+      const [{ data }] = mockTx.pafs_core_projects.updateMany.mock.calls[0]
+      expect(data).not.toHaveProperty('is_revised')
     })
   })
 
