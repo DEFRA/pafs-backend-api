@@ -1245,7 +1245,7 @@ describe('jwt-auth plugin', () => {
         ).toHaveBeenCalledOnce()
       })
 
-      it('re-checks DB via lightweight select when version cache TTL (60 s) expires and session still matches', async () => {
+      it('re-checks DB via lightweight select when version cache TTL (10 s) expires and session still matches', async () => {
         vi.useFakeTimers()
         try {
           mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue(
@@ -1253,7 +1253,7 @@ describe('jwt-auth plugin', () => {
           )
           await validateFn({ userId: 50, sessionId: 'vsess-1' }, mockRequest)
 
-          // Expire only the version cache (60 s), leaving the 15-min auth cache alive
+          // Expire only the version cache (10 s), leaving the 15-min auth cache alive
           vi.advanceTimersByTime(10 * 1000 + 1)
 
           mockRequest.prisma.pafs_core_users.findUnique.mockResolvedValue({
