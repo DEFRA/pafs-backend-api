@@ -77,8 +77,19 @@ const NFM_LAND_USE_DETAIL_MAPPINGS = [
     fields: ['nfmWoodlandLandUseBefore', 'nfmWoodlandLandUseAfter']
   },
   {
+    landUseType: 'woodland_for_timber_harvesting',
+    fields: [
+      'nfmWoodlandForTimberHarvestingBefore',
+      'nfmWoodlandForTimberHarvestingAfter'
+    ]
+  },
+  {
     landUseType: 'mountain_moors_and_heath',
     fields: ['nfmMountainMoorsAndHeathBefore', 'nfmMountainMoorsAndHeathAfter']
+  },
+  {
+    landUseType: 'peatland_degraded',
+    fields: ['nfmPeatlandDegradedBefore', 'nfmPeatlandDegradedAfter']
   },
   {
     landUseType: 'peatland_restoration',
@@ -123,10 +134,20 @@ const NFM_LAND_USE_UPSERT_CONFIG = {
     beforeField: 'nfmWoodlandLandUseBefore',
     afterField: 'nfmWoodlandLandUseAfter'
   },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_WOODLAND_FOR_TIMBER_HARVESTING]: {
+    landUseType: 'woodland_for_timber_harvesting',
+    beforeField: 'nfmWoodlandForTimberHarvestingBefore',
+    afterField: 'nfmWoodlandForTimberHarvestingAfter'
+  },
   [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_MOUNTAIN_MOORS_AND_HEATH]: {
     landUseType: 'mountain_moors_and_heath',
     beforeField: 'nfmMountainMoorsAndHeathBefore',
     afterField: 'nfmMountainMoorsAndHeathAfter'
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_DEGRADED]: {
+    landUseType: 'peatland_degraded',
+    beforeField: 'nfmPeatlandDegradedBefore',
+    afterField: 'nfmPeatlandDegradedAfter'
   },
   [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_RESTORATION]: {
     landUseType: 'peatland_restoration',

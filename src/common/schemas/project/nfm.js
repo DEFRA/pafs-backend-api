@@ -15,7 +15,9 @@ const NFM_LAND_USE_TYPES = new Set([
   'enclosed_dairying_farmland',
   'semi_natural_grassland',
   'woodland',
+  'woodland_for_timber_harvesting',
   'mountain_moors_and_heath',
+  'peatland_degraded',
   'peatland_restoration',
   'rivers_wetlands_and_freshwater_habitats',
   'coastal_margins'
@@ -505,6 +507,18 @@ export const nfmWoodlandLandUseAfterSchema = createRequiredNonNegativeSchema(
   LAND_USE_AFTER_MESSAGES
 )
 
+export const nfmWoodlandForTimberHarvestingBeforeSchema =
+  createRequiredNonNegativeSchema(
+    'nfmWoodlandForTimberHarvestingBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
+
+export const nfmWoodlandForTimberHarvestingAfterSchema =
+  createRequiredNonNegativeSchema(
+    'nfmWoodlandForTimberHarvestingAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
+
 export const nfmMountainMoorsAndHeathBeforeSchema =
   createRequiredNonNegativeSchema(
     'nfmMountainMoorsAndHeathBefore',
@@ -516,6 +530,16 @@ export const nfmMountainMoorsAndHeathAfterSchema =
     'nfmMountainMoorsAndHeathAfter',
     LAND_USE_AFTER_MESSAGES
   )
+
+export const nfmPeatlandDegradedBeforeSchema = createRequiredNonNegativeSchema(
+  'nfmPeatlandDegradedBefore',
+  LAND_USE_BEFORE_MESSAGES
+)
+
+export const nfmPeatlandDegradedAfterSchema = createRequiredNonNegativeSchema(
+  'nfmPeatlandDegradedAfter',
+  LAND_USE_AFTER_MESSAGES
+)
 
 export const nfmPeatlandRestorationBeforeSchema =
   createRequiredNonNegativeSchema(
@@ -667,9 +691,20 @@ export const nfmLandUseWoodlandSchema = Joi.object({
   nfmWoodlandLandUseAfter: nfmWoodlandLandUseAfterSchema
 })
 
+export const nfmLandUseWoodlandForTimberHarvestingSchema = Joi.object({
+  nfmWoodlandForTimberHarvestingBefore:
+    nfmWoodlandForTimberHarvestingBeforeSchema,
+  nfmWoodlandForTimberHarvestingAfter: nfmWoodlandForTimberHarvestingAfterSchema
+})
+
 export const nfmLandUseMountainMoorsAndHeathSchema = Joi.object({
   nfmMountainMoorsAndHeathBefore: nfmMountainMoorsAndHeathBeforeSchema,
   nfmMountainMoorsAndHeathAfter: nfmMountainMoorsAndHeathAfterSchema
+})
+
+export const nfmLandUsePeatlandDegradedSchema = Joi.object({
+  nfmPeatlandDegradedBefore: nfmPeatlandDegradedBeforeSchema,
+  nfmPeatlandDegradedAfter: nfmPeatlandDegradedAfterSchema
 })
 
 export const nfmLandUsePeatlandRestorationSchema = Joi.object({

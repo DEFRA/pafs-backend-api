@@ -35,8 +35,12 @@ import {
   nfmSemiNaturalGrasslandAfterSchema,
   nfmWoodlandLandUseBeforeSchema,
   nfmWoodlandLandUseAfterSchema,
+  nfmWoodlandForTimberHarvestingBeforeSchema,
+  nfmWoodlandForTimberHarvestingAfterSchema,
   nfmMountainMoorsAndHeathBeforeSchema,
   nfmMountainMoorsAndHeathAfterSchema,
+  nfmPeatlandDegradedBeforeSchema,
+  nfmPeatlandDegradedAfterSchema,
   nfmPeatlandRestorationBeforeSchema,
   nfmPeatlandRestorationAfterSchema,
   nfmRiversWetlandsFreshwaterBeforeSchema,
@@ -57,7 +61,9 @@ import {
   nfmLandUseEnclosedDairyingFarmlandSchema,
   nfmLandUseSemiNaturalGrasslandSchema,
   nfmLandUseWoodlandSchema,
+  nfmLandUseWoodlandForTimberHarvestingSchema,
   nfmLandUseMountainMoorsAndHeathSchema,
+  nfmLandUsePeatlandDegradedSchema,
   nfmLandUsePeatlandRestorationSchema,
   nfmLandUseRiversWetlandsFreshwaterSchema,
   nfmLandUseCoastalMarginsSchema,
@@ -664,6 +670,16 @@ describe('NFM Land Use Area Schemas', () => {
       requiredMessage: AFTER_REQUIRED_MESSAGE
     },
     {
+      name: 'nfmWoodlandForTimberHarvestingBefore',
+      schema: nfmWoodlandForTimberHarvestingBeforeSchema,
+      requiredMessage: BEFORE_REQUIRED_MESSAGE
+    },
+    {
+      name: 'nfmWoodlandForTimberHarvestingAfter',
+      schema: nfmWoodlandForTimberHarvestingAfterSchema,
+      requiredMessage: AFTER_REQUIRED_MESSAGE
+    },
+    {
       name: 'nfmMountainMoorsAndHeathBefore',
       schema: nfmMountainMoorsAndHeathBeforeSchema,
       requiredMessage: BEFORE_REQUIRED_MESSAGE
@@ -671,6 +687,16 @@ describe('NFM Land Use Area Schemas', () => {
     {
       name: 'nfmMountainMoorsAndHeathAfter',
       schema: nfmMountainMoorsAndHeathAfterSchema,
+      requiredMessage: AFTER_REQUIRED_MESSAGE
+    },
+    {
+      name: 'nfmPeatlandDegradedBefore',
+      schema: nfmPeatlandDegradedBeforeSchema,
+      requiredMessage: BEFORE_REQUIRED_MESSAGE
+    },
+    {
+      name: 'nfmPeatlandDegradedAfter',
+      schema: nfmPeatlandDegradedAfterSchema,
       requiredMessage: AFTER_REQUIRED_MESSAGE
     },
     {
@@ -949,10 +975,22 @@ describe('NFM Composite Object Schemas', () => {
         afterField: 'nfmWoodlandLandUseAfter'
       },
       {
+        name: 'nfmLandUseWoodlandForTimberHarvestingSchema',
+        schema: nfmLandUseWoodlandForTimberHarvestingSchema,
+        beforeField: 'nfmWoodlandForTimberHarvestingBefore',
+        afterField: 'nfmWoodlandForTimberHarvestingAfter'
+      },
+      {
         name: 'nfmLandUseMountainMoorsAndHeathSchema',
         schema: nfmLandUseMountainMoorsAndHeathSchema,
         beforeField: 'nfmMountainMoorsAndHeathBefore',
         afterField: 'nfmMountainMoorsAndHeathAfter'
+      },
+      {
+        name: 'nfmLandUsePeatlandDegradedSchema',
+        schema: nfmLandUsePeatlandDegradedSchema,
+        beforeField: 'nfmPeatlandDegradedBefore',
+        afterField: 'nfmPeatlandDegradedAfter'
       },
       {
         name: 'nfmLandUsePeatlandRestorationSchema',

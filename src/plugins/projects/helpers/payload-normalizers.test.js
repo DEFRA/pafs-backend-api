@@ -961,8 +961,12 @@ describe('handleNfmMeasureData', () => {
         nfmSemiNaturalGrasslandAfter: null,
         nfmWoodlandLandUseBefore: null,
         nfmWoodlandLandUseAfter: null,
+        nfmWoodlandForTimberHarvestingBefore: null,
+        nfmWoodlandForTimberHarvestingAfter: null,
         nfmMountainMoorsAndHeathBefore: null,
         nfmMountainMoorsAndHeathAfter: null,
+        nfmPeatlandDegradedBefore: null,
+        nfmPeatlandDegradedAfter: null,
         nfmPeatlandRestorationBefore: null,
         nfmPeatlandRestorationAfter: null,
         nfmRiversWetlandsFreshwaterBefore: null,
@@ -988,7 +992,9 @@ describe('handleNfmMeasureData', () => {
           'enclosed_dairying_farmland',
           'semi_natural_grassland',
           'woodland',
+          'woodland_for_timber_harvesting',
           'mountain_moors_and_heath',
+          'peatland_degraded',
           'peatland_restoration',
           'rivers_wetlands_and_freshwater_habitats',
           'coastal_margins'
@@ -1110,6 +1116,20 @@ describe('handleNfmMeasureData', () => {
         removedFields: ['nfmWoodlandLandUseBefore', 'nfmWoodlandLandUseAfter']
       },
       {
+        level:
+          PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_WOODLAND_FOR_TIMBER_HARVESTING,
+        payload: {
+          referenceNumber: 'REF-205A',
+          nfmWoodlandForTimberHarvestingBefore: 2.25,
+          nfmWoodlandForTimberHarvestingAfter: 1.75
+        },
+        expectedLandUseType: 'woodland_for_timber_harvesting',
+        removedFields: [
+          'nfmWoodlandForTimberHarvestingBefore',
+          'nfmWoodlandForTimberHarvestingAfter'
+        ]
+      },
+      {
         level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_MOUNTAIN_MOORS_AND_HEATH,
         payload: {
           referenceNumber: 'REF-206',
@@ -1121,6 +1141,16 @@ describe('handleNfmMeasureData', () => {
           'nfmMountainMoorsAndHeathBefore',
           'nfmMountainMoorsAndHeathAfter'
         ]
+      },
+      {
+        level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_DEGRADED,
+        payload: {
+          referenceNumber: 'REF-206A',
+          nfmPeatlandDegradedBefore: 5.5,
+          nfmPeatlandDegradedAfter: 4.1
+        },
+        expectedLandUseType: 'peatland_degraded',
+        removedFields: ['nfmPeatlandDegradedBefore', 'nfmPeatlandDegradedAfter']
       },
       {
         level: PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_RESTORATION,
