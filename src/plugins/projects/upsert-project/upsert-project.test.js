@@ -729,7 +729,7 @@ describe('upsertProject handler', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })
 
-    it('should reject area change when user is not admin', async () => {
+    it('should reject area change when user does not have access to new area', async () => {
       vi.spyOn(
         ProjectService.prototype,
         'getProjectByReferenceNumber'
@@ -739,8 +739,10 @@ describe('upsertProject handler', () => {
         rmaId: 2n,
         areaId: 2n // Different from payload.areaId
       })
-      mockRequest.payload.payload.areaId = 1n
-      mockRequest.auth.credentials.isAdmin = false // Not admin
+      mockRequest.payload.payload.areaId = 5n // area user does not have access to
+      mockRequest.auth.credentials.isAdmin = false
+      mockRequest.auth.credentials.isRma = true
+      mockRequest.auth.credentials.areas = [{ areaId: '1', primary: true }] // no access to area 5
 
       await upsertProject.options.handler(mockRequest, mockH)
 
@@ -749,7 +751,7 @@ describe('upsertProject handler', () => {
         errors: [
           {
             errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE,
-            message: 'Only admin users can change the area of a project'
+            message: expect.any(String)
           }
         ]
       })

@@ -64,7 +64,7 @@ describe('validateUpdateAreaChange', () => {
     expect(mockAreaService.getAreaByIdWithParents).not.toHaveBeenCalled()
   })
 
-  it('should reject area change when user is not admin', async () => {
+  it('should reject area change when user has no access to the new area', async () => {
     const existingProject = {
       referenceNumber: 'REF123',
       areaId: 1n
@@ -74,7 +74,7 @@ describe('validateUpdateAreaChange', () => {
       mockAreaService,
       2n, // Different from existingProject.areaId
       existingProject,
-      { isAdmin: false },
+      { isAdmin: false, isRma: false, areas: [] },
       123n,
       mockLogger,
       mockH
@@ -88,18 +88,67 @@ describe('validateUpdateAreaChange', () => {
         currentAreaId: 1n,
         newAreaId: 2n
       },
-      'Non-admin user attempted to change project area'
+      'User does not have permission to change project area'
     )
-    expect(mockH.response).toHaveBeenCalledWith({
-      statusCode: HTTP_STATUS.FORBIDDEN,
-      errors: [
-        {
-          errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE,
-          message: 'Only admin users can change the area of a project'
-        }
-      ]
-    })
+    expect(mockH.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        errors: [
+          expect.objectContaining({
+            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE
+          })
+        ]
+      })
+    )
     expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.FORBIDDEN)
+  })
+
+  it('should reject area change when RMA user does not have access to new area', async () => {
+    const existingProject = { referenceNumber: 'REF123', areaId: 1n }
+
+    const result = await validateUpdateAreaChange(
+      mockAreaService,
+      2n,
+      existingProject,
+      { isAdmin: false, isRma: true, areas: [{ areaId: '1' }] },
+      123n,
+      mockLogger,
+      mockH
+    )
+
+    expect(result.error).toBeDefined()
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ newAreaId: 2n }),
+      'User does not have permission to change project area'
+    )
+  })
+
+  it('should allow area change when RMA user has access to new area', async () => {
+    const existingProject = { referenceNumber: 'REF123', areaId: 1n }
+
+    const mockAreaWithParents = {
+      id: 2n,
+      name: 'New RMA Area',
+      area_type: AREA_TYPE_MAP.RMA,
+      PSO: { id: 3n, sub_type: 'RFCC456' }
+    }
+    mockAreaService.getAreaByIdWithParents.mockResolvedValue(
+      mockAreaWithParents
+    )
+
+    const result = await validateUpdateAreaChange(
+      mockAreaService,
+      2n,
+      existingProject,
+      { isAdmin: false, isRma: true, areas: [{ areaId: '2' }] },
+      123n,
+      mockLogger,
+      mockH
+    )
+
+    expect(result).toEqual({ areaData: mockAreaWithParents })
+    expect(mockAreaService.getAreaByIdWithParents).toHaveBeenCalledWith(2n)
+    expect(mockLogger.warn).not.toHaveBeenCalled()
   })
 
   it('should allow area change and validate area when user is admin', async () => {
