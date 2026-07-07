@@ -64,7 +64,7 @@ describe('validateUpdateAreaChange', () => {
     expect(mockAreaService.getAreaByIdWithParents).not.toHaveBeenCalled()
   })
 
-  it('should reject area change when user has no access to the new area', async () => {
+  it('should reject area change when user does not have RMA or admin role', async () => {
     const existingProject = {
       referenceNumber: 'REF123',
       areaId: 1n
@@ -95,7 +95,8 @@ describe('validateUpdateAreaChange', () => {
         statusCode: HTTP_STATUS.FORBIDDEN,
         errors: [
           expect.objectContaining({
-            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE
+            errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE,
+            message: 'Only RMA or Admin users can change the project area'
           })
         ]
       })

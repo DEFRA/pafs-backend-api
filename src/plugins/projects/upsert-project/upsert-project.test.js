@@ -751,7 +751,7 @@ describe('upsertProject handler', () => {
         errors: [
           {
             errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE,
-            message: expect.any(String)
+            message: 'You do not have access to the specified area'
           }
         ]
       })

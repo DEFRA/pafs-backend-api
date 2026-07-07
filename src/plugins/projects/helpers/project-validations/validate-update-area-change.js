@@ -17,7 +17,8 @@ export const validateUpdateAreaChange = async (
   logger,
   h
 ) => {
-  const needsValidation = areaId && existingProject?.areaId !== areaId
+  const needsValidation =
+    areaId && Number(existingProject?.areaId) !== Number(areaId)
   if (!needsValidation) {
     return { areaData: null }
   }
@@ -25,6 +26,12 @@ export const validateUpdateAreaChange = async (
   // Check if user can assign to the new area (same permissions as project creation)
   const accessCheck = canCreateProject(credentials, areaId)
   if (!accessCheck.allowed) {
+    const UPDATE_AREA_REASONS = {
+      'Only RMA or Admin users can create projects':
+        'Only RMA or Admin users can change the project area'
+    }
+    const message =
+      UPDATE_AREA_REASONS[accessCheck.reason] ?? accessCheck.reason
     logger.warn(
       {
         userId,
@@ -41,7 +48,7 @@ export const validateUpdateAreaChange = async (
           errors: [
             {
               errorCode: PROJECT_VALIDATION_MESSAGES.NOT_ALLOWED_TO_UPDATE,
-              message: accessCheck.reason
+              message
             }
           ]
         })
