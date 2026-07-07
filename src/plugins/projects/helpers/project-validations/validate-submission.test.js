@@ -1701,6 +1701,49 @@ describe('validateSubmission', () => {
         expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
       }
     )
+
+    test.each([PROJECT_TYPES.STU, PROJECT_TYPES.STR])(
+      '%s: ignores stale middle dates in chronological check',
+      (type) => {
+        // End date is BEFORE an old stale middle date — must not trigger OUT_OF_RANGE
+        const errors = validateSubmission(
+          makeSimplifiedProject(type, {
+            startOutlineBusinessCaseMonth: 5,
+            startOutlineBusinessCaseYear: 2025,
+            // stale legacy values for the 3 suppressed steps
+            completeOutlineBusinessCaseMonth: 8,
+            completeOutlineBusinessCaseYear: 2025,
+            awardContractMonth: 11,
+            awardContractYear: 2025,
+            startConstructionMonth: 4,
+            startConstructionYear: 2026,
+            // end date appears "before" the stale construction date — still valid
+            readyForServiceMonth: 6,
+            readyForServiceYear: 2025
+          })
+        )
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
+      }
+    )
+
+    test.each([PROJECT_TYPES.STU, PROJECT_TYPES.STR])(
+      '%s: ignores stale middle dates in financial-range check',
+      (type) => {
+        // A stale middle date is outside the FY range — must not fail
+        const errors = validateSubmission(
+          makeSimplifiedProject(type, {
+            startOutlineBusinessCaseMonth: 5,
+            startOutlineBusinessCaseYear: 2025,
+            // stale date far outside the 2025–2027 FY window
+            awardContractMonth: 1,
+            awardContractYear: 2020,
+            readyForServiceMonth: 3,
+            readyForServiceYear: 2027
+          })
+        )
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
+      }
+    )
   })
 })
 
