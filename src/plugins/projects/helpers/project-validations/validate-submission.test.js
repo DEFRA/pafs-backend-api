@@ -1609,6 +1609,99 @@ describe('validateSubmission', () => {
       )
     })
   })
+
+  // ─── STR / STU simplified important dates ─────────────────────────────────
+
+  describe('STR/STU simplified important dates', () => {
+    const makeSimplifiedProject = (type, overrides = {}) => ({
+      projectType: type,
+      financialStartYear: 2025,
+      financialEndYear: 2027,
+      benefitAreaFileName: 'file.shp',
+      startOutlineBusinessCaseMonth: 5,
+      startOutlineBusinessCaseYear: 2025,
+      // middle 3 dates intentionally absent
+      readyForServiceMonth: 3,
+      readyForServiceYear: 2027,
+      couldStartEarly: false,
+      pafs_core_funding_values: [{ financialYear: 2025, total: 5000 }],
+      noPropertiesAtRisk: true,
+      noPropertiesAtCoastalErosionRisk: true,
+      percentProperties20PercentDeprived: 0,
+      percentProperties40PercentDeprived: 0,
+      risks: [],
+      approach: 'A strategy.',
+      environmentalBenefits: false,
+      urgencyReason: 'not_urgent',
+      carbonCostBuild: null,
+      carbonOperationalCostForecast: null,
+      ...overrides
+    })
+
+    test.each([PROJECT_TYPES.STU, PROJECT_TYPES.STR])(
+      '%s: passes with only start and end dates (middle dates null)',
+      (type) => {
+        const errors = validateSubmission(makeSimplifiedProject(type))
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
+      }
+    )
+
+    test.each([PROJECT_TYPES.STU, PROJECT_TYPES.STR])(
+      '%s: returns INCOMPLETE when start date is missing',
+      (type) => {
+        const errors = validateSubmission(
+          makeSimplifiedProject(type, {
+            startOutlineBusinessCaseMonth: null,
+            startOutlineBusinessCaseYear: null
+          })
+        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
+      }
+    )
+
+    test.each([PROJECT_TYPES.STU, PROJECT_TYPES.STR])(
+      '%s: returns INCOMPLETE when end date is missing',
+      (type) => {
+        const errors = validateSubmission(
+          makeSimplifiedProject(type, {
+            readyForServiceMonth: null,
+            readyForServiceYear: null
+          })
+        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
+      }
+    )
+
+    test.each([PROJECT_TYPES.STU, PROJECT_TYPES.STR])(
+      '%s: does not require the 3 middle dates',
+      (type) => {
+        const project = makeSimplifiedProject(type, {
+          completeOutlineBusinessCaseMonth: null,
+          completeOutlineBusinessCaseYear: null,
+          awardContractMonth: null,
+          awardContractYear: null,
+          startConstructionMonth: null,
+          startConstructionYear: null
+        })
+        const errors = validateSubmission(project)
+        expect(errors).not.toContain(SUBMISSION_IMPORTANT_DATES_INCOMPLETE)
+      }
+    )
+
+    test.each([PROJECT_TYPES.STU, PROJECT_TYPES.STR])(
+      '%s: returns OUT_OF_RANGE when start date is outside financial year',
+      (type) => {
+        const errors = validateSubmission(
+          makeSimplifiedProject(type, {
+            startOutlineBusinessCaseMonth: 1,
+            startOutlineBusinessCaseYear: 2024 // before FY 2025 start
+          })
+        )
+        expect(errors).toContain(SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE)
+      }
+    )
+  })
 })
 
 // ─── canSubmitProject ─────────────────────────────────────────────────────────

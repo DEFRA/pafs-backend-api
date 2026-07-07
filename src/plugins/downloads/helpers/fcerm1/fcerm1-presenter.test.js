@@ -373,6 +373,56 @@ describe('FcermPresenter', () => {
       )
       expect(p.earliestStartDate()).toBe('03/2025')
     })
+
+    describe('STU/STR simplified dates — middle 3 dates suppressed', () => {
+      test.each(['STU', 'STR'])(
+        '%s: completeBusinessCaseDate returns null',
+        (projectType) => {
+          const p = new FcermPresenter(
+            makeProject({ project_type: projectType })
+          )
+          expect(p.completeBusinessCaseDate()).toBeNull()
+        }
+      )
+
+      test.each(['STU', 'STR'])(
+        '%s: awardContractDate returns null',
+        (projectType) => {
+          const p = new FcermPresenter(
+            makeProject({ project_type: projectType })
+          )
+          expect(p.awardContractDate()).toBeNull()
+        }
+      )
+
+      test.each(['STU', 'STR'])(
+        '%s: startConstructionDate returns null',
+        (projectType) => {
+          const p = new FcermPresenter(
+            makeProject({ project_type: projectType })
+          )
+          expect(p.startConstructionDate()).toBeNull()
+        }
+      )
+
+      test.each(['STU', 'STR'])(
+        '%s: startBusinessCaseDate and readyForServiceDate are still returned',
+        (projectType) => {
+          const p = new FcermPresenter(
+            makeProject({ project_type: projectType })
+          )
+          expect(p.startBusinessCaseDate()).toBe('09/2024')
+          expect(p.readyForServiceDate()).toBe('03/2027')
+        }
+      )
+
+      test('DEF: completeBusinessCaseDate is not suppressed', () => {
+        const p = new FcermPresenter(makeProject({ project_type: 'DEF' }))
+        expect(p.completeBusinessCaseDate()).toBe('03/2025')
+        expect(p.awardContractDate()).toBe('06/2025')
+        expect(p.startConstructionDate()).toBe('09/2025')
+      })
+    })
   })
 
   describe('projectProtectsHouseholds', () => {

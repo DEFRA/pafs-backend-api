@@ -131,6 +131,7 @@ const validateBenefitArea = (p) => {
   return null
 }
 
+// Required date fields for the full journey (all project types except STR/STU)
 const REQUIRED_DATE_FIELDS = [
   'startOutlineBusinessCaseMonth',
   'startOutlineBusinessCaseYear',
@@ -140,6 +141,14 @@ const REQUIRED_DATE_FIELDS = [
   'awardContractYear',
   'startConstructionMonth',
   'startConstructionYear',
+  'readyForServiceMonth',
+  'readyForServiceYear'
+]
+
+// Required date fields for the simplified journey (STR / STU: start + end only)
+const SIMPLIFIED_REQUIRED_DATE_FIELDS = [
+  'startOutlineBusinessCaseMonth',
+  'startOutlineBusinessCaseYear',
   'readyForServiceMonth',
   'readyForServiceYear'
 ]
@@ -217,7 +226,11 @@ const validateCouldStartEarly = (p, now) => {
 }
 
 const validateImportantDates = (p, now) => {
-  if (REQUIRED_DATE_FIELDS.some((f) => !hasValue(p[f]))) {
+  const requiredFields = CARBON_FREE_TYPES.has(p.projectType)
+    ? SIMPLIFIED_REQUIRED_DATE_FIELDS
+    : REQUIRED_DATE_FIELDS
+
+  if (requiredFields.some((f) => !hasValue(p[f]))) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
   }
 

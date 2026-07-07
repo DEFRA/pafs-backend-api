@@ -58,23 +58,30 @@ function buildProjectDetails(project, creatorEmail, shapefileBase64 = null) {
 }
 
 function buildGatewayDates(project) {
+  const isSimplified =
+    project.projectType === PROJECT_TYPES.STU ||
+    project.projectType === PROJECT_TYPES.STR
+
   return {
     aspirational_gateway_1: formatDate(
       project.startOutlineBusinessCaseMonth,
       project.startOutlineBusinessCaseYear
     ),
-    aspirational_gateway_2: formatDate(
-      project.completeOutlineBusinessCaseMonth,
-      project.completeOutlineBusinessCaseYear
-    ),
-    aspirational_gateway_3: formatDate(
-      project.awardContractMonth,
-      project.awardContractYear
-    ),
-    aspirational_start_of_construction: formatDate(
-      project.startConstructionMonth,
-      project.startConstructionYear
-    ),
+    aspirational_gateway_2: isSimplified
+      ? null
+      : formatDate(
+          project.completeOutlineBusinessCaseMonth,
+          project.completeOutlineBusinessCaseYear
+        ),
+    aspirational_gateway_3: isSimplified
+      ? null
+      : formatDate(project.awardContractMonth, project.awardContractYear),
+    aspirational_start_of_construction: isSimplified
+      ? null
+      : formatDate(
+          project.startConstructionMonth,
+          project.startConstructionYear
+        ),
     aspirational_gateway_4: formatDate(
       project.readyForServiceMonth,
       project.readyForServiceYear

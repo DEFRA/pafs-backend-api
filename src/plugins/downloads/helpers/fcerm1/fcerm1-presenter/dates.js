@@ -1,4 +1,7 @@
+import { PROJECT_TYPES } from '../../../../../common/constants/project.js'
 import { formatDate } from '../fcerm1-presenter-utils.js'
+
+const SIMPLIFIED_DATE_TYPES = new Set([PROJECT_TYPES.STU, PROJECT_TYPES.STR])
 
 export const datesMixin = {
   earliestStartDate() {
@@ -17,6 +20,9 @@ export const datesMixin = {
     )
   },
   completeBusinessCaseDate() {
+    if (SIMPLIFIED_DATE_TYPES.has(this._p.project_type)) {
+      return null
+    }
     return formatDate(
       this._p,
       'complete_outline_business_case_month',
@@ -24,9 +30,15 @@ export const datesMixin = {
     )
   },
   awardContractDate() {
+    if (SIMPLIFIED_DATE_TYPES.has(this._p.project_type)) {
+      return null
+    }
     return formatDate(this._p, 'award_contract_month', 'award_contract_year')
   },
   startConstructionDate() {
+    if (SIMPLIFIED_DATE_TYPES.has(this._p.project_type)) {
+      return null
+    }
     return formatDate(
       this._p,
       'start_construction_month',
