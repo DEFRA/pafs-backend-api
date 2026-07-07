@@ -107,9 +107,7 @@ describe('NFM_LAND_USE_TYPES', () => {
     expect(NFM_LAND_USE_TYPES).toContain('enclosed_arable_farmland')
     expect(NFM_LAND_USE_TYPES).toContain('woodland')
     expect(NFM_LAND_USE_TYPES).toContain('peatland_restoration')
-    expect(NFM_LAND_USE_TYPES).toContain(
-      'rivers_wetlands_and_freshwater_habitats'
-    )
+    expect(NFM_LAND_USE_TYPES).toContain('wetlands')
     expect(NFM_LAND_USE_TYPES).toContain('coastal_margins')
   })
 })

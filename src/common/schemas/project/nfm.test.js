@@ -142,15 +142,14 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('River Restoration Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
-      expect(result.value).toBe(null)
+      expect(result.error).toBeDefined()
     })
 
-    test('should allow undefined value', () => {
+    test('should reject undefined value', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(undefined)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -169,16 +168,16 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
-    test('should allow zero volume (AC: 0 treated same as empty)', () => {
+    test('should allow zero volume', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(0)
       expect(result.error).toBeUndefined()
     })
   })
 
   describe('Leaky Barriers Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmLeakyBarriersVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -196,7 +195,7 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
-    test('should allow zero volume (AC: 0 treated same as empty)', () => {
+    test('should allow zero volume', () => {
       const result = nfmLeakyBarriersVolumeSchema.validate(0)
       expect(result.error).toBeUndefined()
     })
@@ -270,10 +269,9 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Floodplain Wetland Restoration Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmFloodplainWetlandRestorationVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
-      expect(result.value).toBe(null)
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -317,10 +315,9 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Offline Storage Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmOfflineStorageVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
-      expect(result.value).toBe(null)
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -402,9 +399,9 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Runoff Management Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmRunoffManagementVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -436,14 +433,14 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Saltmarsh Length Schema', () => {
-    test('should allow null value (optional)', () => {
+    test('should reject null value', () => {
       const result = nfmSaltmarshLengthSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
-    test('should allow undefined value (optional)', () => {
+    test('should reject undefined value', () => {
       const result = nfmSaltmarshLengthSchema.validate(undefined)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid length value', () => {
@@ -480,9 +477,9 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Sand Dune Length Schema', () => {
-    test('should allow null value (optional)', () => {
+    test('should reject null value', () => {
       const result = nfmSandDuneLengthSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid length value', () => {
@@ -776,12 +773,12 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null volume', () => {
+    test('should reject null volume', () => {
       const result = nfmRiverRestorationSchema.validate({
         nfmRiverRestorationArea: 10.5,
         nfmRiverRestorationVolume: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing area', () => {
@@ -802,13 +799,13 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null volume', () => {
+    test('should reject null volume', () => {
       const result = nfmLeakyBarriersSchema.validate({
         nfmLeakyBarriersLength: 5.5,
         nfmLeakyBarriersWidth: 2.5,
         nfmLeakyBarriersVolume: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing length', () => {
@@ -905,12 +902,12 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null length', () => {
+    test('should reject null length', () => {
       const result = nfmSaltmarshSchema.validate({
         nfmSaltmarshArea: 6.6,
         nfmSaltmarshLength: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing area', () => {
@@ -928,12 +925,12 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null length', () => {
+    test('should reject null length', () => {
       const result = nfmSandDuneSchema.validate({
         nfmSandDuneArea: 3.3,
         nfmSandDuneLength: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing area', () => {

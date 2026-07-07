@@ -77,7 +77,7 @@ export const NFM_LAND_USE_TYPES = [
   'woodland',
   'mountain_moors_and_heath',
   'peatland_restoration',
-  'rivers_wetlands_and_freshwater_habitats',
+  'wetlands',
   'coastal_margins'
 ]
 

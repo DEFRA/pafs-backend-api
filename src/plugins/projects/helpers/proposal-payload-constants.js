@@ -127,7 +127,7 @@ export const NFM_LAND_USE_FIELD_MAP = {
     before: 'peatland_restoration_before',
     after: 'peatland_restoration_after'
   },
-  rivers_wetlands_and_freshwater_habitats: {
+  wetlands: {
     before: 'rivers_wetlands_before',
     after: 'rivers_wetlands_after'
   },

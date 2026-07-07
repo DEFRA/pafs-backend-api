@@ -996,7 +996,7 @@ describe('handleNfmMeasureData', () => {
           'mountain_moors_and_heath',
           'peatland_degraded',
           'peatland_restoration',
-          'rivers_wetlands_and_freshwater_habitats',
+          'wetlands',
           'coastal_margins'
         ]
       })
@@ -1173,7 +1173,7 @@ describe('handleNfmMeasureData', () => {
           nfmRiversWetlandsFreshwaterBefore: 3.3,
           nfmRiversWetlandsFreshwaterAfter: 4.4
         },
-        expectedLandUseType: 'rivers_wetlands_and_freshwater_habitats',
+        expectedLandUseType: 'wetlands',
         removedFields: [
           'nfmRiversWetlandsFreshwaterBefore',
           'nfmRiversWetlandsFreshwaterAfter'

@@ -96,7 +96,7 @@ const NFM_LAND_USE_DETAIL_MAPPINGS = [
     fields: ['nfmPeatlandRestorationBefore', 'nfmPeatlandRestorationAfter']
   },
   {
-    landUseType: 'rivers_wetlands_and_freshwater_habitats',
+    landUseType: 'wetlands',
     fields: [
       'nfmRiversWetlandsFreshwaterBefore',
       'nfmRiversWetlandsFreshwaterAfter'
@@ -155,7 +155,7 @@ const NFM_LAND_USE_UPSERT_CONFIG = {
     afterField: 'nfmPeatlandRestorationAfter'
   },
   [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_RIVERS_WETLANDS_FRESHWATER]: {
-    landUseType: 'rivers_wetlands_and_freshwater_habitats',
+    landUseType: 'wetlands',
     beforeField: 'nfmRiversWetlandsFreshwaterBefore',
     afterField: 'nfmRiversWetlandsFreshwaterAfter'
   },

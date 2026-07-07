@@ -19,7 +19,7 @@ const NFM_LAND_USE_TYPES = new Set([
   'mountain_moors_and_heath',
   'peatland_degraded',
   'peatland_restoration',
-  'rivers_wetlands_and_freshwater_habitats',
+  'wetlands',
   'coastal_margins'
 ])
 
@@ -81,6 +81,7 @@ const AREA_MESSAGES = {
 }
 
 const VOLUME_MESSAGES = {
+  required: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_REQUIRED,
   invalid: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_INVALID,
   precision: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_PRECISION
 }
@@ -149,20 +150,23 @@ const createRequiredPositiveSchema = (
     })
 
 /**
- * Factory: optional non-negative numeric field (volume in m³, optional length in km).
- * Accepts 0 as a valid value (AC: 0 treated same as empty/null).
+ * Factory: required non-negative numeric field (volume in m³).
+ * Accepts 0 as a valid value.
  */
-const createOptionalPositiveSchema = (label, { invalid, precision }) =>
+const createOptionalPositiveSchema = (
+  label,
+  { required, invalid, precision }
+) =>
   Joi.number()
     .unsafe()
     .min(0)
     .custom(maxTwoDecimalPlaces)
-    .allow(null)
-    .optional()
+    .required()
     .label(label)
     .messages({
       'number.base': invalid,
       'number.min': invalid,
+      'any.required': required,
       'number.precision': precision
     })
 
