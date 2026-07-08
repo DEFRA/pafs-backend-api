@@ -1,4 +1,5 @@
 import externalUpdateProposalStatus from './update-proposal-status/update-proposal-status.js'
+import fixLegacyCompleted from './fix-legacy-completed/fix-legacy-completed.js'
 
 /**
  * External API Plugin
@@ -12,7 +13,7 @@ const externalPlugin = {
   name: 'external',
   version: '1.0.0',
   register: (server, _options) => {
-    server.route([externalUpdateProposalStatus])
+    server.route([externalUpdateProposalStatus, fixLegacyCompleted])
     server.logger.info('External API plugin registered')
   }
 }

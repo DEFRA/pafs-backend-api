@@ -10,6 +10,7 @@ import { awsSchema } from './config/aws.js'
 import { schedulerSchema } from './config/scheduler.js'
 import { externalSubmissionSchema } from './config/external-submission.js'
 import { auditArchiveSchema } from './config/audit.js'
+import { maintenanceSchema } from './config/maintenance.js'
 
 convict.addFormats(convictFormatWithValidator)
 
@@ -22,7 +23,8 @@ const config = convict({
   ...awsSchema,
   ...schedulerSchema,
   ...externalSubmissionSchema,
-  ...auditArchiveSchema
+  ...auditArchiveSchema,
+  ...maintenanceSchema
 })
 
 config.validate({ allowed: 'strict' })
