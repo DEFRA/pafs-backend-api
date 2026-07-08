@@ -8,7 +8,7 @@ export const maintenanceSchema = {
           'Must be explicitly set to true to activate; defaults to false to ' +
           'prevent accidental execution.',
         format: Boolean,
-        default: true,
+        default: false,
         env: 'MAINTENANCE_LEGACY_COMPLETED_FIX_ENABLED'
       }
     }

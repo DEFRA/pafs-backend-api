@@ -123,6 +123,16 @@ describe('fixLegacyCompleted route', () => {
       const { error } = schema.validate({})
       expect(error).toBeDefined()
     })
+
+    it('rejects an empty string item', () => {
+      const { error } = schema.validate({ referenceNumbers: [''] })
+      expect(error).toBeDefined()
+    })
+
+    it('rejects a whitespace-only item', () => {
+      const { error } = schema.validate({ referenceNumbers: ['   '] })
+      expect(error).toBeDefined()
+    })
   })
 
   // ── Feature flag ──────────────────────────────────────────────────────────

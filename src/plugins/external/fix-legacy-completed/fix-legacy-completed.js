@@ -61,7 +61,8 @@ async function applyFix(projectId, prisma) {
 
 /**
  * Process one reference number: look up, assess eligibility, apply fix if eligible.
- * Returns a per-item result object with an outcome of 'updated' | 'skipped' | 'not_found'.
+ * Returns a per-item result object with an outcome of
+ * 'updated' | 'skipped' | 'not_found' | 'error'.
  */
 async function processItem(referenceNumber, prisma, logger) {
   const found = await fetchProjectWithState(referenceNumber, prisma)
@@ -122,7 +123,7 @@ const fixLegacyCompleted = {
     validate: {
       payload: Joi.object({
         referenceNumbers: Joi.array()
-          .items(Joi.string().required())
+          .items(Joi.string().trim().min(1).required())
           .min(1)
           .max(50)
           .required()
