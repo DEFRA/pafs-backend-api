@@ -53,7 +53,7 @@ const landUseRow = (landUseType, extras = {}) => ({
 // ─── NFM_MEASURE_CONFIGS ───────────────────────────────────────────────────────
 
 describe('NFM_MEASURE_CONFIGS', () => {
-  test('contains 8 measure types', () => {
+  test('contains 9 measure types', () => {
     expect(NFM_MEASURE_CONFIGS).toHaveLength(9)
   })
 
@@ -65,47 +65,51 @@ describe('NFM_MEASURE_CONFIGS', () => {
     }
   })
 
-  test('includes river_floodplain_restoration requiring area_hectares', () => {
+  test('includes river_floodplain_restoration requiring area_hectares and storage_volume_m3', () => {
     const config = NFM_MEASURE_CONFIGS.find(
       (c) => c.type === 'river_floodplain_restoration'
     )
     expect(config.requiredFields).toContain('areaHectares')
+    expect(config.requiredFields).toContain('storageVolumeM3')
   })
 
-  test('includes leaky_barriers_in_channel_storage requiring length_km and width_m', () => {
+  test('includes leaky_barriers_in_channel_storage requiring storage_volume_m3, length_km and width_m', () => {
     const config = NFM_MEASURE_CONFIGS.find(
       (c) => c.type === 'leaky_barriers_in_channel_storage'
     )
+    expect(config.requiredFields).toContain('storageVolumeM3')
     expect(config.requiredFields).toContain('lengthKm')
     expect(config.requiredFields).toContain('widthM')
   })
 
-  test('does not include storage_volume_m3 as required for river_floodplain_restoration', () => {
+  test('includes storage_volume_m3 as required for river_floodplain_restoration', () => {
     const config = NFM_MEASURE_CONFIGS.find(
       (c) => c.type === 'river_floodplain_restoration'
     )
-    expect(config.requiredFields).not.toContain('storageVolumeM3')
+    expect(config.requiredFields).toContain('storageVolumeM3')
   })
 
-  test('includes floodplain_wetland_restoration requiring area_hectares', () => {
+  test('includes floodplain_wetland_restoration requiring area_hectares and storage_volume_m3', () => {
     const config = NFM_MEASURE_CONFIGS.find(
       (c) => c.type === 'floodplain_wetland_restoration'
     )
     expect(config.requiredFields).toContain('areaHectares')
-    expect(config.requiredFields).not.toContain('storageVolumeM3')
+    expect(config.requiredFields).toContain('storageVolumeM3')
   })
 })
 
 // ─── NFM_LAND_USE_TYPES ───────────────────────────────────────────────────────
 
 describe('NFM_LAND_USE_TYPES', () => {
-  test('contains 9 land use types', () => {
-    expect(NFM_LAND_USE_TYPES).toHaveLength(9)
+  test('contains 11 land use types', () => {
+    expect(NFM_LAND_USE_TYPES).toHaveLength(11)
   })
 
   test('includes all expected types', () => {
     expect(NFM_LAND_USE_TYPES).toContain('enclosed_arable_farmland')
     expect(NFM_LAND_USE_TYPES).toContain('woodland')
+    expect(NFM_LAND_USE_TYPES).toContain('woodland_for_timber_harvesting')
+    expect(NFM_LAND_USE_TYPES).toContain('peatland_degraded')
     expect(NFM_LAND_USE_TYPES).toContain('peatland_restoration')
     expect(NFM_LAND_USE_TYPES).toContain('wetlands')
     expect(NFM_LAND_USE_TYPES).toContain('coastal_margins')
@@ -236,13 +240,16 @@ describe('per-measure quantity validation', () => {
   // ─ river_floodplain_restoration ─────────────────────────────────────────
 
   describe('river_floodplain_restoration', () => {
-    test('returns null when area_hectares is present', () => {
+    test('returns null when area_hectares and storage_volume_m3 are present', () => {
       expect(
         validateNfm(
           nfmProject({
             nfmSelectedMeasures: 'river_floodplain_restoration',
             pafs_core_nfm_measures: [
-              measureRow('river_floodplain_restoration', { areaHectares: 3.5 })
+              measureRow('river_floodplain_restoration', {
+                areaHectares: 3.5,
+                storageVolumeM3: 10.0
+              })
             ]
           })
         )
@@ -268,7 +275,7 @@ describe('per-measure quantity validation', () => {
       ).toBe(SUBMISSION_NFM_INCOMPLETE)
     })
 
-    test('does not require storage_volume_m3 (optional field)', () => {
+    test('returns INCOMPLETE when storage_volume_m3 is null', () => {
       expect(
         validateNfm(
           nfmProject({
@@ -281,14 +288,31 @@ describe('per-measure quantity validation', () => {
             ]
           })
         )
-      ).toBeNull()
+      ).toBe(SUBMISSION_NFM_INCOMPLETE)
     })
   })
 
   // ─ leaky_barriers_in_channel_storage ─────────────────────────────────────
 
   describe('leaky_barriers_in_channel_storage', () => {
-    test('returns null when length_km and width_m are present', () => {
+    test('returns null when storage_volume_m3, length_km and width_m are present', () => {
+      expect(
+        validateNfm(
+          nfmProject({
+            nfmSelectedMeasures: 'leaky_barriers_in_channel_storage',
+            pafs_core_nfm_measures: [
+              measureRow('leaky_barriers_in_channel_storage', {
+                storageVolumeM3: 50.0,
+                lengthKm: 2.0,
+                widthM: 15.0
+              })
+            ]
+          })
+        )
+      ).toBeNull()
+    })
+
+    test('returns INCOMPLETE when storage_volume_m3 is null for leaky barriers', () => {
       expect(
         validateNfm(
           nfmProject({
@@ -301,7 +325,7 @@ describe('per-measure quantity validation', () => {
             ]
           })
         )
-      ).toBeNull()
+      ).toBe(SUBMISSION_NFM_INCOMPLETE)
     })
 
     test('returns INCOMPLETE when length_km is null', () => {
@@ -332,7 +356,7 @@ describe('per-measure quantity validation', () => {
       ).toBe(SUBMISSION_NFM_INCOMPLETE)
     })
 
-    test('does not require storage_volume_m3 for leaky barriers', () => {
+    test('returns INCOMPLETE when storage_volume_m3 is null for leaky barriers even with length/width', () => {
       expect(
         validateNfm(
           nfmProject({
@@ -346,7 +370,7 @@ describe('per-measure quantity validation', () => {
             ]
           })
         )
-      ).toBeNull()
+      ).toBe(SUBMISSION_NFM_INCOMPLETE)
     })
   })
 
@@ -405,7 +429,10 @@ describe('per-measure quantity validation', () => {
         nfmProject({
           nfmSelectedMeasures: 'river_floodplain_restoration,woodland',
           pafs_core_nfm_measures: [
-            measureRow('river_floodplain_restoration', { areaHectares: 3.5 }),
+            measureRow('river_floodplain_restoration', {
+              areaHectares: 3.5,
+              storageVolumeM3: 10.0
+            }),
             measureRow('woodland', { areaHectares: 10.0 })
           ]
         })
@@ -434,7 +461,10 @@ describe('per-measure quantity validation', () => {
           nfmSelectedMeasures: 'woodland,offline_storage',
           pafs_core_nfm_measures: [
             measureRow('woodland', { areaHectares: 5.0 }),
-            measureRow('offline_storage', { areaHectares: 2.0 })
+            measureRow('offline_storage', {
+              areaHectares: 2.0,
+              storageVolumeM3: 20.0
+            })
           ]
         })
       )
@@ -690,8 +720,14 @@ describe('combined measure and land use validation', () => {
         nfmProject({
           nfmSelectedMeasures: 'river_floodplain_restoration,offline_storage',
           pafs_core_nfm_measures: [
-            measureRow('river_floodplain_restoration', { areaHectares: 3.5 }),
-            measureRow('offline_storage', { areaHectares: 1.0 })
+            measureRow('river_floodplain_restoration', {
+              areaHectares: 3.5,
+              storageVolumeM3: 10.0
+            }),
+            measureRow('offline_storage', {
+              areaHectares: 1.0,
+              storageVolumeM3: 5.0
+            })
           ],
           nfmLandUseChange: 'woodland',
           pafs_core_nfm_land_use_changes: [landUseRow('woodland')]
@@ -719,7 +755,10 @@ describe('combined measure and land use validation', () => {
         nfmProject({
           nfmSelectedMeasures: 'offline_storage',
           pafs_core_nfm_measures: [
-            measureRow('offline_storage', { areaHectares: 2.0 })
+            measureRow('offline_storage', {
+              areaHectares: 2.0,
+              storageVolumeM3: 5.0
+            })
           ],
           nfmLandUseChange: 'coastal_margins',
           pafs_core_nfm_land_use_changes: [

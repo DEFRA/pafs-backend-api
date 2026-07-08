@@ -1,4 +1,5 @@
 import { PROJECT_VALIDATION_MESSAGES } from '../../../../../common/constants/project.js'
+import { NFM_LAND_USE_TYPES as NFM_SCHEMA_LAND_USE_TYPES } from '../../../../../common/schemas/project/nfm.js'
 import {
   hasValue,
   MANDATORY_WL_TYPES,
@@ -23,21 +24,21 @@ const parseCsv = (v) => {
 
 /**
  * NFM measure types mapped to the DB column names that are mandatory for each.
- * Optional columns (e.g. storage_volume_m3, length_km for saltmarsh/sand_dune)
- * are intentionally excluded — they are validated by the per-level Joi schema.
+ * Optional columns (e.g. length_km for saltmarsh/sand_dune)
+ * are intentionally excluded.
  */
 export const NFM_MEASURE_CONFIGS = [
   {
     type: 'river_floodplain_restoration',
-    requiredFields: ['areaHectares']
+    requiredFields: ['areaHectares', 'storageVolumeM3']
   },
   {
     type: 'leaky_barriers_in_channel_storage',
-    requiredFields: ['lengthKm', 'widthM']
+    requiredFields: ['storageVolumeM3', 'lengthKm', 'widthM']
   },
   {
     type: 'offline_storage',
-    requiredFields: ['areaHectares']
+    requiredFields: ['areaHectares', 'storageVolumeM3']
   },
   {
     type: 'woodland',
@@ -49,7 +50,7 @@ export const NFM_MEASURE_CONFIGS = [
   },
   {
     type: 'runoff_attenuation_management',
-    requiredFields: ['areaHectares']
+    requiredFields: ['areaHectares', 'storageVolumeM3']
   },
   {
     type: 'saltmarsh_management',
@@ -61,25 +62,13 @@ export const NFM_MEASURE_CONFIGS = [
   },
   {
     type: 'floodplain_wetland_restoration',
-    requiredFields: ['areaHectares']
+    requiredFields: ['areaHectares', 'storageVolumeM3']
   }
 ]
 
-/**
- * All valid NFM land use change types. Every selected type requires
- * area_before_hectares and area_after_hectares in pafs_core_nfm_land_use_changes.
- */
-export const NFM_LAND_USE_TYPES = [
-  'enclosed_arable_farmland',
-  'enclosed_livestock_farmland',
-  'enclosed_dairying_farmland',
-  'semi_natural_grassland',
-  'woodland',
-  'mountain_moors_and_heath',
-  'peatland_restoration',
-  'wetlands',
-  'coastal_margins'
-]
+// Reuse the canonical land use types from Joi validation schema
+// to avoid drift between validation layers.
+export const NFM_LAND_USE_TYPES = NFM_SCHEMA_LAND_USE_TYPES
 
 const LAND_USE_REQUIRED_FIELDS = ['areaBeforeHectares', 'areaAfterHectares']
 

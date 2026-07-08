@@ -9,7 +9,7 @@ import {
 /**
  * Valid land use types for NFM land use change
  */
-const NFM_LAND_USE_TYPES = new Set([
+export const NFM_LAND_USE_TYPES = [
   'enclosed_arable_farmland',
   'enclosed_livestock_farmland',
   'enclosed_dairying_farmland',
@@ -21,7 +21,9 @@ const NFM_LAND_USE_TYPES = new Set([
   'peatland_restoration',
   'wetlands',
   'coastal_margins'
-])
+]
+
+const NFM_LAND_USE_TYPES_SET = new Set(NFM_LAND_USE_TYPES)
 
 /**
  * Maximum digits allowed for whole-number values — matches Decimal(20,2) DB column
@@ -150,10 +152,10 @@ const createRequiredPositiveSchema = (
     })
 
 /**
- * Factory: required non-negative numeric field (volume in m³).
+ * Factory: required non-negative numeric field for measure values.
  * Accepts 0 as a valid value.
  */
-const createOptionalPositiveSchema = (
+const createRequiredNonNegativeMeasureSchema = (
   label,
   { required, invalid, precision }
 ) =>
@@ -216,7 +218,7 @@ export const nfmLandUseChangeSchema = Joi.string()
       return helpers.error('string.empty')
     }
 
-    if (selected.some((item) => !NFM_LAND_USE_TYPES.has(item))) {
+    if (selected.some((item) => !NFM_LAND_USE_TYPES_SET.has(item))) {
       return helpers.error('any.invalid')
     }
 
@@ -293,10 +295,11 @@ export const nfmRiverRestorationAreaSchema = createRequiredPositiveSchema(
  * NFM River Restoration - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmRiverRestorationVolumeSchema = createOptionalPositiveSchema(
-  'nfmRiverRestorationVolume',
-  VOLUME_MESSAGES
-)
+export const nfmRiverRestorationVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmRiverRestorationVolume',
+    VOLUME_MESSAGES
+  )
 
 // --- Leaky Barriers ---
 
@@ -304,10 +307,11 @@ export const nfmRiverRestorationVolumeSchema = createOptionalPositiveSchema(
  * NFM Leaky Barriers - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmLeakyBarriersVolumeSchema = createOptionalPositiveSchema(
-  'nfmLeakyBarriersVolume',
-  VOLUME_MESSAGES
-)
+export const nfmLeakyBarriersVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmLeakyBarriersVolume',
+    VOLUME_MESSAGES
+  )
 
 /**
  * NFM Leaky Barriers - Length field schema
@@ -342,10 +346,11 @@ export const nfmOfflineStorageAreaSchema = createRequiredPositiveSchema(
  * NFM Offline Storage - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmOfflineStorageVolumeSchema = createOptionalPositiveSchema(
-  'nfmOfflineStorageVolume',
-  VOLUME_MESSAGES
-)
+export const nfmOfflineStorageVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmOfflineStorageVolume',
+    VOLUME_MESSAGES
+  )
 
 // --- Woodland ---
 
@@ -384,10 +389,11 @@ export const nfmRunoffManagementAreaSchema = createRequiredPositiveSchema(
  * NFM Runoff Management - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmRunoffManagementVolumeSchema = createOptionalPositiveSchema(
-  'nfmRunoffManagementVolume',
-  VOLUME_MESSAGES
-)
+export const nfmRunoffManagementVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmRunoffManagementVolume',
+    VOLUME_MESSAGES
+  )
 
 // --- Floodplain Wetland Restoration ---
 
@@ -406,7 +412,7 @@ export const nfmFloodplainWetlandRestorationAreaSchema =
  * Database field: storage_volume_m3 (NUMERIC)
  */
 export const nfmFloodplainWetlandRestorationVolumeSchema =
-  createOptionalPositiveSchema(
+  createRequiredNonNegativeMeasureSchema(
     'nfmFloodplainWetlandRestorationVolume',
     VOLUME_MESSAGES
   )
@@ -423,10 +429,10 @@ export const nfmSaltmarshAreaSchema = createRequiredPositiveSchema(
 )
 
 /**
- * NFM Saltmarsh - Length field schema (optional)
+ * NFM Saltmarsh - Length field schema
  * Database field: length_km (NUMERIC)
  */
-export const nfmSaltmarshLengthSchema = createOptionalPositiveSchema(
+export const nfmSaltmarshLengthSchema = createRequiredNonNegativeMeasureSchema(
   'nfmSaltmarshLength',
   LENGTH_MESSAGES
 )
@@ -443,10 +449,10 @@ export const nfmSandDuneAreaSchema = createRequiredPositiveSchema(
 )
 
 /**
- * NFM Sand Dune - Length field schema (optional)
+ * NFM Sand Dune - Length field schema
  * Database field: length_km (NUMERIC)
  */
-export const nfmSandDuneLengthSchema = createOptionalPositiveSchema(
+export const nfmSandDuneLengthSchema = createRequiredNonNegativeMeasureSchema(
   'nfmSandDuneLength',
   LENGTH_MESSAGES
 )

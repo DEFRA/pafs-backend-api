@@ -119,9 +119,17 @@ export const NFM_LAND_USE_FIELD_MAP = {
     after: 'semi_natural_grassland_after'
   },
   woodland: { before: 'woodland_before', after: 'woodland_after' },
+  woodland_for_timber_harvesting: {
+    before: 'woodland_for_timber_harvesting_before',
+    after: 'woodland_for_timber_harvesting_after'
+  },
   mountain_moors_and_heath: {
     before: 'mountain_moors_before',
     after: 'mountain_moors_after'
+  },
+  peatland_degraded: {
+    before: 'peatland_degraded_before',
+    after: 'peatland_degraded_after'
   },
   peatland_restoration: {
     before: 'peatland_restoration_before',
