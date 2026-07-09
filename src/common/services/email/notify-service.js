@@ -12,6 +12,13 @@ export class EmailService {
         throw new Error('NOTIFY_API_KEY is required when NOTIFY_ENABLED=true')
       }
       this.client = new NotifyClient(apiKey)
+      // Disable axios's own proxy detection (introduced in axios v1.8+).
+      // Without this, axios creates an HttpsProxyAgent from https-proxy-agent v5
+      // when HTTP_PROXY is set, bypassing global-agent and causing an SSL
+      // handshake failure (alert 40) on the DEFRA CDP SSL-inspection proxy.
+      // Setting proxy:false makes axios fall through to https.globalAgent,
+      // which global-agent patches correctly.
+      this.client.setProxy(false)
       this.logger.info('GOV.UK Notify initialized')
     } else {
       this.logger.warn('Email disabled - will log only')
