@@ -17,8 +17,15 @@ export function setupProxy() {
   if (proxyUrl) {
     logger.info('setting up global proxies')
 
-    // Undici proxy
-    setGlobalDispatcher(new ProxyAgent(proxyUrl))
+    // Undici proxy — disable H2 ALPN to avoid SSL handshake failure (alert 40)
+    // on SSL-inspection proxies that do not support HTTP/2 tunnelling.
+    // undici v8 changed allowH2 default to true; we must explicitly opt out.
+    setGlobalDispatcher(
+      new ProxyAgent({
+        uri: proxyUrl,
+        requestTls: { allowH2: false }
+      })
+    )
 
     // global-agent (axios/request/and others)
     bootstrap()
