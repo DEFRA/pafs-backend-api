@@ -10,7 +10,6 @@ const mockSendEmail = vi.fn()
 vi.mock('notifications-node-client', () => ({
   NotifyClient: class {
     sendEmail = mockSendEmail
-    setProxy = vi.fn()
   }
 }))
 
