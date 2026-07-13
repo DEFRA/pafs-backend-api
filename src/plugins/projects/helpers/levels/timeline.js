@@ -105,7 +105,10 @@ const createReadyForServiceLevel = (referenceNumber) => ({
     startConstructionMonth: Joi.number().integer().optional().allow(null),
     startConstructionYear: Joi.number().integer().optional().allow(null),
     // Context for STR/STU: sequential check against startOutlineBusinessCase
-    startOutlineBusinessCaseMonth: Joi.number().integer().optional().allow(null),
+    startOutlineBusinessCaseMonth: Joi.number()
+      .integer()
+      .optional()
+      .allow(null),
     startOutlineBusinessCaseYear: Joi.number().integer().optional().allow(null)
   }
 })
