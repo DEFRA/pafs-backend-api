@@ -13,7 +13,10 @@ import {
   earliestWithGiaMonthSchema,
   earliestWithGiaYearSchema
 } from '../../../../common/schemas/project.js'
-import { PROJECT_VALIDATION_LEVELS } from '../../../../common/constants/project.js'
+import {
+  PROJECT_VALIDATION_LEVELS,
+  PROJECT_TYPES
+} from '../../../../common/constants/project.js'
 import Joi from 'joi'
 
 // Optional financial year schemas for validation context
@@ -84,15 +87,29 @@ const createStartConstructionLevel = (referenceNumber) => ({
 
 /**
  * Create Ready for Service level
+ * startConstruction fields are optional: STR/STU projects skip the
+ * intermediate stages and validate RFS against startOutlineBusinessCase instead.
  */
 const createReadyForServiceLevel = (referenceNumber) => ({
   name: PROJECT_VALIDATION_LEVELS.READY_FOR_SERVICE,
   fields: {
     ...createFinancialYearFields(referenceNumber),
+    projectType: Joi.string()
+      .valid(...Object.values(PROJECT_TYPES))
+      .optional(),
     readyForServiceMonth: readyForServiceMonthSchema,
     readyForServiceYear: readyForServiceYearSchema,
-    startConstructionMonth: startConstructionMonthSchema,
-    startConstructionYear: startConstructionYearSchema
+    // Context for non-STR/STU: sequential check against startConstruction.
+    // Use plain nullable optional — no full schema validation needed here;
+    // null is sent by STR/STU (DB value) and must not cause a validation error.
+    startConstructionMonth: Joi.number().integer().optional().allow(null),
+    startConstructionYear: Joi.number().integer().optional().allow(null),
+    // Context for STR/STU: sequential check against startOutlineBusinessCase
+    startOutlineBusinessCaseMonth: Joi.number()
+      .integer()
+      .optional()
+      .allow(null),
+    startOutlineBusinessCaseYear: Joi.number().integer().optional().allow(null)
   }
 })
 

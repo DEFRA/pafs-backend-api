@@ -28,6 +28,10 @@ const OPTIONAL_WL_TYPES = new Set([PROJECT_TYPES.HCR, PROJECT_TYPES.ELO])
 // Project types exempt from carbon impact validation
 const CARBON_FREE_TYPES = new Set([PROJECT_TYPES.STU, PROJECT_TYPES.STR])
 
+// Project types that use the simplified 2-date important-dates journey
+// (start date + end date only — middle 3 dates are not collected or validated)
+const SIMPLIFIED_DATE_TYPES = new Set([PROJECT_TYPES.STU, PROJECT_TYPES.STR])
+
 const FULL_TYPES = new Set([...MANDATORY_WL_TYPES, ...OPTIONAL_WL_TYPES])
 
 const ALL_VALID_TYPES = new Set(Object.values(PROJECT_TYPES))
@@ -131,6 +135,7 @@ const validateBenefitArea = (p) => {
   return null
 }
 
+// Required date fields for the full journey (all project types except STR/STU)
 const REQUIRED_DATE_FIELDS = [
   'startOutlineBusinessCaseMonth',
   'startOutlineBusinessCaseYear',
@@ -144,6 +149,15 @@ const REQUIRED_DATE_FIELDS = [
   'readyForServiceYear'
 ]
 
+// Required date fields for the simplified journey (STR / STU: start + end only)
+const SIMPLIFIED_REQUIRED_DATE_FIELDS = [
+  'startOutlineBusinessCaseMonth',
+  'startOutlineBusinessCaseYear',
+  'readyForServiceMonth',
+  'readyForServiceYear'
+]
+
+// Full 5-step date sequence used by all project types except STR/STU
 const DATE_SEQUENCE = [
   ['startOutlineBusinessCaseMonth', 'startOutlineBusinessCaseYear'],
   ['completeOutlineBusinessCaseMonth', 'completeOutlineBusinessCaseYear'],
@@ -152,21 +166,32 @@ const DATE_SEQUENCE = [
   ['readyForServiceMonth', 'readyForServiceYear']
 ]
 
+// Simplified 2-step date sequence for STR/STU
+const SIMPLIFIED_DATE_SEQUENCE = [
+  ['startOutlineBusinessCaseMonth', 'startOutlineBusinessCaseYear'],
+  ['readyForServiceMonth', 'readyForServiceYear']
+]
+
 const INCOMPLETE =
   PROJECT_VALIDATION_MESSAGES.SUBMISSION_RISK_PROPERTIES_INCOMPLETE
 
-const areDatesInProposalRange = (p, startYear, endYear) => {
+const areDatesInProposalRange = (
+  p,
+  startYear,
+  endYear,
+  sequence = DATE_SEQUENCE
+) => {
   const lower = fyStartOrdinal(startYear)
   const upper = fyEndOrdinal(endYear)
-  return DATE_SEQUENCE.every(([monthField, yearField]) => {
+  return sequence.every(([monthField, yearField]) => {
     const ordinal = toDateOrdinal(p[monthField], p[yearField])
     return ordinal === null || (ordinal >= lower && ordinal <= upper)
   })
 }
 
-const areDatesChronological = (p) => {
+const areDatesChronological = (p, sequence = DATE_SEQUENCE) => {
   let prev = null
-  for (const [monthField, yearField] of DATE_SEQUENCE) {
+  for (const [monthField, yearField] of sequence) {
     const ordinal = toDateOrdinal(p[monthField], p[yearField])
     if (ordinal === null) {
       continue
@@ -217,11 +242,17 @@ const validateCouldStartEarly = (p, now) => {
 }
 
 const validateImportantDates = (p, now) => {
-  if (REQUIRED_DATE_FIELDS.some((f) => !hasValue(p[f]))) {
+  const isSimplified = SIMPLIFIED_DATE_TYPES.has(p.projectType)
+  const requiredFields = isSimplified
+    ? SIMPLIFIED_REQUIRED_DATE_FIELDS
+    : REQUIRED_DATE_FIELDS
+  const dateSequence = isSimplified ? SIMPLIFIED_DATE_SEQUENCE : DATE_SEQUENCE
+
+  if (requiredFields.some((f) => !hasValue(p[f]))) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_INCOMPLETE
   }
 
-  if (!areDatesChronological(p)) {
+  if (!areDatesChronological(p, dateSequence)) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
   }
 
@@ -234,7 +265,10 @@ const validateImportantDates = (p, now) => {
     !Number.isNaN(startYear) &&
     !Number.isNaN(endYear)
 
-  if (hasValidRange && !areDatesInProposalRange(p, startYear, endYear)) {
+  if (
+    hasValidRange &&
+    !areDatesInProposalRange(p, startYear, endYear, dateSequence)
+  ) {
     return PROJECT_VALIDATION_MESSAGES.SUBMISSION_IMPORTANT_DATES_OUT_OF_RANGE
   }
 

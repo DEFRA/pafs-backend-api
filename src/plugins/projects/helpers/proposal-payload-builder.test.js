@@ -573,6 +573,40 @@ describe('buildProposalPayload', () => {
     )
     expect(payload.coastal_erosion_flood_risk).toBe('medium_term')
   })
+
+  // ── STU/STR gateway date suppression ─────────────────────────────────────
+
+  test.each(['STU', 'STR'])(
+    '%s: nulls out aspirational_gateway_2, _gateway_3 and start_of_construction',
+    (projectType) => {
+      const payload = buildProposalPayload(
+        { ...FULL_PROJECT, projectType },
+        null
+      )
+      expect(payload.aspirational_gateway_2).toBeNull()
+      expect(payload.aspirational_gateway_3).toBeNull()
+      expect(payload.aspirational_start_of_construction).toBeNull()
+    }
+  )
+
+  test.each(['STU', 'STR'])(
+    '%s: still includes aspirational_gateway_1 and aspirational_gateway_4',
+    (projectType) => {
+      const payload = buildProposalPayload(
+        { ...FULL_PROJECT, projectType },
+        null
+      )
+      expect(payload.aspirational_gateway_1).toBe('03/2025')
+      expect(payload.aspirational_gateway_4).toBe('11/2027')
+    }
+  )
+
+  test('DEF preserves all gateway dates', () => {
+    const payload = buildProposalPayload(FULL_PROJECT, null)
+    expect(payload.aspirational_gateway_2).not.toBeNull()
+    expect(payload.aspirational_gateway_3).not.toBeNull()
+    expect(payload.aspirational_start_of_construction).not.toBeNull()
+  })
 })
 
 // ─── toNumber edge cases ──────────────────────────────────────────────────────

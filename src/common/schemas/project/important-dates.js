@@ -1,11 +1,13 @@
 import Joi from 'joi'
-import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
+import {
+  PROJECT_VALIDATION_MESSAGES,
+  PROJECT_TYPES
+} from '../../constants/project.js'
 import { SIZE } from '../../constants/common.js'
 
 // Financial year constants
 const FINANCIAL_YEAR_START_MONTH = SIZE.LENGTH_4 // April
 const FINANCIAL_YEAR_END_MONTH = SIZE.LENGTH_3 // March
-
 /**
  * Helper: Get current financial month and year
  * Financial year starts in April, so if current month is Jan-Mar, financial year is previous year
@@ -122,7 +124,16 @@ const yearSchema = Joi.number()
   })
 
 /**
- * Validate standard timeline dates (within financial year range and sequential)
+ * Resolve a prev-field argument that may be a static string or a dynamic
+ * function (data) => string resolved at validation time.
+ */
+const resolvePrevField = (fieldOrFn, data) =>
+  typeof fieldOrFn === 'function' ? fieldOrFn(data) : fieldOrFn
+
+/**
+ * Validate standard timeline dates (within financial year range and sequential).
+ * prevMonthField / prevYearField may be a plain field-name string or a function
+ * (data) => string that resolves the field name at validation time.
  */
 const validateStandardTimelineDate = (
   monthField,
@@ -159,21 +170,21 @@ const validateStandardTimelineDate = (
       })
     }
 
-    // Check sequential ordering if previous stage exists
-    if (prevMonthField && prevYearField) {
-      const prevMonth = Number(data[prevMonthField])
-      const prevYear = Number(data[prevYearField])
-      const prevDataExists = !Number.isNaN(prevMonth) && !Number.isNaN(prevYear)
+    // Resolve prev field names — support both static strings and dynamic functions
+    const resolvedPrevMonth = resolvePrevField(prevMonthField, data)
+    const resolvedPrevYear = resolvePrevField(prevYearField, data)
 
-      if (prevDataExists) {
-        const comparison = compareMonthYear(month, year, prevMonth, prevYear)
-        // Require strictly greater than previous stage (not equal)
-        // To allow equal dates, change <= to < below
-        if (comparison <= 0) {
-          return helpers.error('custom.date_not_after_previous_stage', {
-            stageName
-          })
-        }
+    if (resolvedPrevMonth && resolvedPrevYear) {
+      const prevMonth = Number(data[resolvedPrevMonth])
+      const prevYear = Number(data[resolvedPrevYear])
+      if (
+        !Number.isNaN(prevMonth) &&
+        !Number.isNaN(prevYear) &&
+        compareMonthYear(month, year, prevMonth, prevYear) <= 0
+      ) {
+        return helpers.error('custom.date_not_after_previous_stage', {
+          stageName
+        })
       }
     }
 
@@ -327,6 +338,24 @@ export const startConstructionYearSchema = yearSchema.label(
   'startConstructionYear'
 )
 
+// Dynamic prev-field resolvers for Ready for Service.
+// STR/STU have a condensed timeline (Start OBC → RFS only), so RFS is
+// validated against startOutlineBusinessCase instead of startConstruction.
+const isStrStuType = (projectType) => {
+  const normalized = String(projectType ?? '')
+  return normalized === PROJECT_TYPES.STR || normalized === PROJECT_TYPES.STU
+}
+
+const resolveRfsPrevMonthField = (data) =>
+  isStrStuType(data.projectType)
+    ? 'startOutlineBusinessCaseMonth'
+    : 'startConstructionMonth'
+
+const resolveRfsPrevYearField = (data) =>
+  isStrStuType(data.projectType)
+    ? 'startOutlineBusinessCaseYear'
+    : 'startConstructionYear'
+
 /**
  * Ready for Service schemas
  */
@@ -335,8 +364,8 @@ export const readyForServiceMonthSchema = monthSchema
     validateStandardTimelineDate(
       'readyForServiceMonth',
       'readyForServiceYear',
-      'startConstructionMonth',
-      'startConstructionYear',
+      resolveRfsPrevMonthField,
+      resolveRfsPrevYearField,
       'Ready for Service'
     )
   )
