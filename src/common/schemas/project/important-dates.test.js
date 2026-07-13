@@ -671,4 +671,157 @@ describe('important-dates schemas', () => {
       expect(error).toBeUndefined()
     })
   })
+
+  describe('readyForServiceMonthSchema - STR/STU project type behaviour', () => {
+    it('should validate against startOutlineBusinessCase for STR projects', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+        startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'STR',
+        startOutlineBusinessCaseMonth: 4,
+        startOutlineBusinessCaseYear: 2025,
+        readyForServiceMonth: 8,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('should validate against startOutlineBusinessCase for STU projects', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+        startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'STU',
+        startOutlineBusinessCaseMonth: 4,
+        startOutlineBusinessCaseYear: 2025,
+        readyForServiceMonth: 8,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject RFS before startOutlineBusinessCase for STR', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+        startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'STR',
+        startOutlineBusinessCaseMonth: 8,
+        startOutlineBusinessCaseYear: 2025,
+        readyForServiceMonth: 5,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeDefined()
+      expect(error.message).toContain('DATE_BEFORE_PREVIOUS_STAGE')
+    })
+
+    it('should reject RFS equal to startOutlineBusinessCase for STU', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+        startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'STU',
+        startOutlineBusinessCaseMonth: 6,
+        startOutlineBusinessCaseYear: 2025,
+        readyForServiceMonth: 6,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeDefined()
+      expect(error.message).toContain('DATE_BEFORE_PREVIOUS_STAGE')
+    })
+
+    it('should not require startConstruction dates for STR', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        startOutlineBusinessCaseMonth: startOutlineBusinessCaseMonthSchema,
+        startOutlineBusinessCaseYear: startOutlineBusinessCaseYearSchema,
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'STR',
+        startOutlineBusinessCaseMonth: 4,
+        startOutlineBusinessCaseYear: 2025,
+        readyForServiceMonth: 10,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('should still use startConstruction as previous stage for non-STR/STU types', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        startConstructionMonth: startConstructionMonthSchema,
+        startConstructionYear: startConstructionYearSchema,
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'DEF',
+        startConstructionMonth: 10,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 12,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject RFS before startConstruction for non-STR/STU types', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        startConstructionMonth: startConstructionMonthSchema,
+        startConstructionYear: startConstructionYearSchema,
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'DEF',
+        startConstructionMonth: 10,
+        startConstructionYear: 2025,
+        readyForServiceMonth: 8,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeDefined()
+      expect(error.message).toContain('DATE_BEFORE_PREVIOUS_STAGE')
+    })
+
+    it('should skip sequential check when startOutlineBusinessCase is absent for STR', () => {
+      const schema = Joi.object({
+        projectType: Joi.string().optional(),
+        readyForServiceMonth: readyForServiceMonthSchema,
+        readyForServiceYear: readyForServiceYearSchema
+      })
+
+      const { error } = schema.validate({
+        projectType: 'STR',
+        readyForServiceMonth: 6,
+        readyForServiceYear: 2025
+      })
+      expect(error).toBeUndefined()
+    })
+  })
 })
