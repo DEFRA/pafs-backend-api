@@ -4,7 +4,7 @@ import {
   FUNDING_SOURCE_OPTIONS
 } from '../../constants/project.js'
 
-const MAX_DIGITS = 18
+const MAX_VALUE = 100_000_000_000
 const DIGITS_ONLY_REGEX = /^\d+$/
 
 /**
@@ -53,13 +53,13 @@ export const SPENDING_FUNDING_SOURCE_FIELDS = [
 ]
 
 /**
- * Validates a spend value: must be digits-only and at most MAX_DIGITS chars.
+ * Validates a spend value: must be digits-only and at most 100 billion.
  */
 const validateSpendString = (value, helpers) => {
   if (!DIGITS_ONLY_REGEX.test(value)) {
     return helpers.error('string.pattern.base')
   }
-  if (value.length > MAX_DIGITS) {
+  if (Number(value) > MAX_VALUE) {
     return helpers.error('string.max')
   }
   return value
@@ -76,7 +76,7 @@ const createFundingSourceBoolSchema = (invalidMessage) =>
 
 /**
  * Creates an optional spend value schema.
- * Accepts a digits-only string of up to MAX_DIGITS characters, or null / ''.
+ * Accepts a digits-only string with a value up to 100 billion, or null / ''.
  */
 const createOptionalSpendSchema = (label) =>
   Joi.string()

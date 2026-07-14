@@ -1140,10 +1140,9 @@ describe('WLB estimate schemas', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject a string exceeding 18 digits', () => {
-      const { error } = wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(
-        '1234567890123456789'
-      )
+    it('should reject a string exceeding 100 billion', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate('100000000001')
       expect(error).toBeDefined()
     })
 
@@ -1153,11 +1152,9 @@ describe('WLB estimate schemas', () => {
       expect(error).toBeUndefined()
     })
 
-    it('should accept exactly 18 digits', () => {
+    it('should accept exactly 100 billion', () => {
       const { error } =
-        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(
-          '123456789012345678'
-        )
+        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate('100000000000')
       expect(error).toBeUndefined()
     })
   })
@@ -1181,10 +1178,9 @@ describe('WLB estimate schemas', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject a string exceeding 18 digits', () => {
-      const { error } = wlbEstimatedWholeLifePvBenefitsOptionalSchema.validate(
-        '1234567890123456789'
-      )
+    it('should reject a string exceeding 100 billion', () => {
+      const { error } =
+        wlbEstimatedWholeLifePvBenefitsOptionalSchema.validate('100000000001')
       expect(error).toBeDefined()
     })
 
@@ -1204,10 +1200,9 @@ describe('WLC cost schemas', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject a string exceeding 18 digits', () => {
-      const { error } = wlcEstimatedWholeLifePvCostsRequiredSchema.validate(
-        '1234567890123456789'
-      )
+    it('should reject a string exceeding 100 billion', () => {
+      const { error } =
+        wlcEstimatedWholeLifePvCostsRequiredSchema.validate('100000000001')
       expect(error).toBeDefined()
     })
 
@@ -1242,10 +1237,9 @@ describe('WLC cost schemas', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject a string exceeding 18 digits', () => {
-      const { error } = wlcEstimatedWholeLifePvCostsOptionalSchema.validate(
-        '1234567890123456789'
-      )
+    it('should reject a string exceeding 100 billion', () => {
+      const { error } =
+        wlcEstimatedWholeLifePvCostsOptionalSchema.validate('100000000001')
       expect(error).toBeDefined()
     })
   })

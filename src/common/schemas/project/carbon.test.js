@@ -128,8 +128,8 @@ describe('Carbon Impact Schemas', () => {
       expect(error.details[0].message).toBe('CARBON_COST_INVALID')
     })
 
-    it('should reject values exceeding max digits', () => {
-      const oversized = '1234567890123456789'
+    it('should reject values exceeding 100 billion', () => {
+      const oversized = '100000000001'
       const { error } =
         carbonSavingsNetEconomicBenefitOptionalSchema.validate(oversized)
       expect(error).toBeDefined()
@@ -157,20 +157,20 @@ describe('Carbon Impact Schemas', () => {
       expect(value).toBe('-5')
     })
 
-    it('should reject negative values exceeding max digits (excluding minus)', () => {
-      const oversized = '-1234567890123456789' // 19 digits
+    it('should reject negative values exceeding 100 billion (excluding minus)', () => {
+      const oversized = '-100000000001' // just over 100 billion
       const { error } =
         carbonSavingsNetEconomicBenefitOptionalSchema.validate(oversized)
       expect(error).toBeDefined()
       expect(error.details[0].message).toBe('CARBON_COST_INVALID')
     })
 
-    it('should accept negative values at max digits boundary', () => {
-      const maxDigits = '-123456789012345678' // 18 digits
+    it('should accept negative values at 100 billion boundary', () => {
+      const maxValue = '-100000000000' // exactly 100 billion
       const { error, value } =
-        carbonSavingsNetEconomicBenefitOptionalSchema.validate(maxDigits)
+        carbonSavingsNetEconomicBenefitOptionalSchema.validate(maxValue)
       expect(error).toBeUndefined()
-      expect(value).toBe(maxDigits)
+      expect(value).toBe(maxValue)
     })
   })
 
@@ -204,8 +204,8 @@ describe('Carbon Impact Schemas', () => {
       expect(error.details[0].message).toBe('CARBON_COST_INVALID')
     })
 
-    it('should reject values exceeding max digits', () => {
-      const oversized = '1234567890123456789'
+    it('should reject values exceeding 100 billion', () => {
+      const oversized = '100000000001'
       const { error } =
         carbonOperationalCostForecastRequiredSchema.validate(oversized)
       expect(error).toBeDefined()

@@ -1,18 +1,18 @@
 import Joi from 'joi'
 import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
-const MAX_DIGITS = 18
+const MAX_VALUE = 100_000_000_000 // 100 billion (inclusive)
 const DIGITS_ONLY_REGEX = /^\d+$/
 
 /**
- * Validates the value is a digits-only string with at most MAX_DIGITS digits.
+ * Validates the value is a digits-only string not exceeding 100 billion.
  */
 const validateWlbEstimateString = (value, helpers) => {
   if (!DIGITS_ONLY_REGEX.test(value)) {
     return helpers.error('string.pattern.base')
   }
 
-  if (value.length > MAX_DIGITS) {
+  if (Number(value) > MAX_VALUE) {
     return helpers.error('string.max')
   }
 
@@ -21,7 +21,7 @@ const validateWlbEstimateString = (value, helpers) => {
 
 /**
  * WLB estimate field: required variant.
- * Accepts a non-negative integer with at most 18 digits.
+ * Accepts a non-negative integer up to and including 100 billion.
  */
 const createRequiredWlbEstimateSchema = (label) =>
   Joi.string()

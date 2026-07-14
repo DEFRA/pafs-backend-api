@@ -435,9 +435,9 @@ describe('fundingValueRowSchema', () => {
       expect(error).toBeUndefined()
     })
 
-    it('accepts exactly 18-digit spend value', () => {
+    it('accepts spend value of exactly 100 billion', () => {
       const { error } = fundingValueRowSchema.validate(
-        validRow({ fcermGia: '9'.repeat(18) })
+        validRow({ fcermGia: '100000000000' })
       )
       expect(error).toBeUndefined()
     })
@@ -542,9 +542,9 @@ describe('fundingValueRowSchema', () => {
       )
     })
 
-    it('fails when spend value exceeds 18 digits', () => {
+    it('fails when spend value exceeds 100 billion', () => {
       const { error } = fundingValueRowSchema.validate(
-        validRow({ fcermGia: '9'.repeat(19) })
+        validRow({ fcermGia: '100000000001' })
       )
       expect(error).toBeDefined()
       expect(error.details[0].message).toBe(
@@ -801,10 +801,10 @@ describe('createFundingValuesSchema', () => {
       )
     })
 
-    it('fails when a row has a spend value exceeding 18 digits', () => {
+    it('fails when a row has a spend value exceeding 100 billion', () => {
       const schema = createFundingValuesSchema([])
       const { error } = schema.validate([
-        validRow({ localLevy: '1'.repeat(19) })
+        validRow({ localLevy: '100000000001' })
       ])
       expect(error).toBeDefined()
       expect(error.details[0].message).toBe(
