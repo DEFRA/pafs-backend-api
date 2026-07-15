@@ -3,7 +3,7 @@ import { PROJECT_VALIDATION_MESSAGES } from '../../constants/project.js'
 
 const MAX_EMISSION_DIGITS = 16
 const MAX_WHOLE_NUMBER_DIGITS = 18
-const MAX_COST_DIGITS = 18
+const MAX_INTEGER_VALUE = 100_000_000_000
 const MAX_HEXDIGEST_LENGTH = 255
 const DECIMAL_REGEX = /^\d+(\.(\d{1,2}))?$/
 const INTEGER_REGEX = /^\d+$/
@@ -47,7 +47,7 @@ const validateCarbonIntegerString = (value, helpers) => {
   if (!INTEGER_REGEX.test(value)) {
     return helpers.error(ERROR_STRING_PATTERN_BASE)
   }
-  if (value.length > MAX_COST_DIGITS) {
+  if (Number(value) > MAX_INTEGER_VALUE) {
     return helpers.error(ERROR_STRING_MAX)
   }
   return value
@@ -62,9 +62,9 @@ const validateCarbonSignedIntegerString = (value, helpers) => {
   if (!SIGNED_INTEGER_REGEX.test(value)) {
     return helpers.error(ERROR_STRING_PATTERN_BASE)
   }
-  // Count digits excluding minus sign
+  // Check magnitude excluding minus sign
   const digits = value.replace(/^-/, '')
-  if (digits.length > MAX_COST_DIGITS) {
+  if (Number(digits) > MAX_INTEGER_VALUE) {
     return helpers.error(ERROR_STRING_MAX)
   }
   return value

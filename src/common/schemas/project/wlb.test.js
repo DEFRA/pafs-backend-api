@@ -23,10 +23,10 @@ describe('WLB Schemas', () => {
       expect(error).toBeUndefined()
     })
 
-    it('should accept maximum 18-digit number', () => {
-      const max18Digits = '999999999999999999'
+    it('should accept exactly 100 billion', () => {
+      const maxValue = '100000000000'
       const { error } =
-        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(max18Digits)
+        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(maxValue)
       expect(error).toBeUndefined()
     })
 
@@ -59,10 +59,10 @@ describe('WLB Schemas', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject numbers with more than 18 digits', () => {
-      const max19Digits = '9999999999999999999'
+    it('should reject numbers greater than 100 billion', () => {
+      const overLimit = '100000000001'
       const { error } =
-        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(max19Digits)
+        wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(overLimit)
       expect(error).toBeDefined()
       expect(error?.details[0]?.message).toContain(
         PROJECT_VALIDATION_MESSAGES.WLB_ESTIMATE_MAX_DIGITS
@@ -144,10 +144,10 @@ describe('WLB Schemas', () => {
       )
     })
 
-    it('should reject strings with more than 18 digits', () => {
-      const max19Digits = '9999999999999999999'
+    it('should reject strings greater than 100 billion', () => {
+      const overLimit = '100000000001'
       const { error } =
-        wlbEstimatedPropertyDamagesAvoidedOptionalSchema.validate(max19Digits)
+        wlbEstimatedPropertyDamagesAvoidedOptionalSchema.validate(overLimit)
       expect(error).toBeDefined()
       expect(error?.details[0]?.message).toContain(
         PROJECT_VALIDATION_MESSAGES.WLB_ESTIMATE_MAX_DIGITS
@@ -160,10 +160,10 @@ describe('WLB Schemas', () => {
       expect(error).toBeUndefined()
     })
 
-    it('should accept maximum 18-digit number', () => {
-      const max18Digits = '999999999999999999'
+    it('should accept exactly 100 billion', () => {
+      const maxValue = '100000000000'
       const { error } =
-        wlbEstimatedPropertyDamagesAvoidedOptionalSchema.validate(max18Digits)
+        wlbEstimatedPropertyDamagesAvoidedOptionalSchema.validate(maxValue)
       expect(error).toBeUndefined()
     })
   })
@@ -272,10 +272,10 @@ describe('WLB Schemas', () => {
       expect(error).toBeDefined()
     })
 
-    it('should reject numbers with more than 18 digits', () => {
-      const oversized = '99999999999999999999'
+    it('should reject numbers greater than 100 billion', () => {
+      const overLimit = '100000000001'
       const { error } =
-        wlbEstimatedLandValueUpliftBenefitsOptionalSchema.validate(oversized)
+        wlbEstimatedLandValueUpliftBenefitsOptionalSchema.validate(overLimit)
       expect(error).toBeDefined()
     })
   })
@@ -353,7 +353,7 @@ describe('WLB Schemas', () => {
     })
 
     it('should handle very large valid numbers', () => {
-      const largeNumber = '999999999999999999' // 18 nines
+      const largeNumber = '100000000000' // 100 billion (inclusive max)
       const { error: reqError } =
         wlbEstimatedWholeLifePvBenefitsRequiredSchema.validate(largeNumber)
       const { error: optError } =

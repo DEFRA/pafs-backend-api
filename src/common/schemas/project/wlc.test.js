@@ -32,11 +32,18 @@ describe('wlc.js schema', () => {
     }
   })
 
-  it('fails required WLC cost for too many digits', () => {
-    const longStr = '1'.repeat(19)
+  it('fails required WLC cost for values greater than 100 billion', () => {
+    const overLimit = '100000000001'
     for (const key of requiredSchemas) {
-      const { error } = schemas[key].validate(longStr)
+      const { error } = schemas[key].validate(overLimit)
       expect(error).toBeDefined()
+    }
+  })
+
+  it('accepts required WLC cost of exactly 100 billion', () => {
+    for (const key of requiredSchemas) {
+      const { error } = schemas[key].validate('100000000000')
+      expect(error).toBeUndefined()
     }
   })
 
@@ -62,10 +69,10 @@ describe('wlc.js schema', () => {
     }
   })
 
-  it('fails optional WLC cost for too many digits', () => {
-    const longStr = '1'.repeat(19)
+  it('fails optional WLC cost for values greater than 100 billion', () => {
+    const overLimit = '100000000001'
     for (const key of optionalSchemas) {
-      const { error } = schemas[key].validate(longStr)
+      const { error } = schemas[key].validate(overLimit)
       expect(error).toBeDefined()
     }
   })
