@@ -446,7 +446,10 @@ export class AuthService {
     }
 
     const newSessionId = generateSessionId()
-    const newAccessToken = generateAccessToken(user, newSessionId)
+    // Fetch current area assignments so they are preserved in the refreshed token.
+    // Users with no area rows (e.g. admin accounts) will receive an empty areas array.
+    const areas = await fetchUserAreas(this.prisma, user.id)
+    const newAccessToken = generateAccessToken(user, newSessionId, areas)
     const newRefreshToken = generateRefreshToken(user, newSessionId)
 
     await this.prisma.pafs_core_users.update({
