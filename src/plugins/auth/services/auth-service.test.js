@@ -8,7 +8,7 @@ vi.mock('../helpers/password.js')
 
 // fetchUserAreas now uses $queryRaw — mock the cache so tests control whether
 // the DB is hit. Default: cache miss so $queryRaw is called.
-vi.mock('../../areas/helpers/user-areas-cache.js', () => ({
+vi.mock('../helpers/user-areas-cache.js', () => ({
   getCachedUserAreas: vi.fn().mockReturnValue(null),
   setCachedUserAreas: vi.fn()
 }))
@@ -426,6 +426,20 @@ describe('AuthService', () => {
         })
       })
     })
+
+    it('treats undefined failed_attempts as zero', async () => {
+      const user = { id: 1 }
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      const result = await authService.handleFailedAttempt(user, '127.0.0.1')
+
+      expect(result.newFailedAttempts).toBe(1)
+      expect(result.isLocked).toBe(false)
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ failed_attempts: 1 })
+      })
+    })
   })
 
   describe('logout', () => {
@@ -602,6 +616,53 @@ describe('AuthService', () => {
         }
       })
     })
+
+    it('embeds area assignments in the refreshed access token for RMA/PSO/EA users', async () => {
+      const { generateAccessToken } = await import('../helpers/jwt.js')
+      mockPrisma.$queryRaw.mockResolvedValue([
+        {
+          area_id: BigInt(10),
+          primary: true,
+          name: 'Test RMA Area',
+          area_type: 'rma'
+        }
+      ])
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'rma@example.com',
+        disabled: false,
+        unique_session_id: 'session-123'
+      })
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      await authService.refreshSession('valid-token')
+
+      expect(vi.mocked(generateAccessToken)).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1, email: 'rma@example.com' }),
+        'session-123',
+        [{ areaId: 10, primary: true, name: 'Test RMA Area', areaType: 'rma' }]
+      )
+    })
+
+    it('passes empty areas for admin users in the refreshed access token', async () => {
+      const { generateAccessToken } = await import('../helpers/jwt.js')
+      // $queryRaw returns [] by default (no area rows for admin users)
+      mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
+        id: 2,
+        email: 'admin@example.com',
+        disabled: false,
+        unique_session_id: 'session-123'
+      })
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      await authService.refreshSession('valid-token')
+
+      expect(vi.mocked(generateAccessToken)).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 2, email: 'admin@example.com' }),
+        'session-123',
+        []
+      )
+    })
   })
 
   describe('getCurrentSignInData', () => {
@@ -649,6 +710,32 @@ describe('AuthService', () => {
       expect(result).toEqual({
         signInAt: null,
         signInIp: null
+      })
+    })
+  })
+
+  describe('resetLockout', () => {
+    it('resets failed_attempts and locked_at for the given user', async () => {
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      await authService.resetLockout(1)
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { failed_attempts: 0, locked_at: null }
+      })
+    })
+  })
+
+  describe('invalidateOtherSessions', () => {
+    it('clears unique_session_id for the given user', async () => {
+      mockPrisma.pafs_core_users.update.mockResolvedValue({})
+
+      await authService.invalidateOtherSessions(1)
+
+      expect(mockPrisma.pafs_core_users.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { unique_session_id: null }
       })
     })
   })
