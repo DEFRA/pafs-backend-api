@@ -645,7 +645,12 @@ describe('AuthService', () => {
     })
 
     it('passes empty areas for admin users in the refreshed access token', async () => {
-      const { generateAccessToken } = await import('../helpers/jwt.js')
+      const { generateAccessToken, verifyRefreshToken } =
+        await import('../helpers/jwt.js')
+      vi.mocked(verifyRefreshToken).mockReturnValue({
+        userId: 2,
+        sessionId: 'session-123'
+      })
       // $queryRaw returns [] by default (no area rows for admin users)
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 2,
