@@ -53,7 +53,7 @@ export const SPENDING_FUNDING_SOURCE_FIELDS = [
 ]
 
 /**
- * Validates a spend value: must be digits-only and at most 100 billion.
+ * Validates a spend value: must be digits-only; by default enforces the 100 billion cap.
  */
 const validateSpendString = (value, helpers, { enforceMax = true } = {}) => {
   if (!DIGITS_ONLY_REGEX.test(value)) {
