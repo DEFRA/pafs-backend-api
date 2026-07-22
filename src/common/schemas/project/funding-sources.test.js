@@ -552,6 +552,30 @@ describe('fundingValueRowSchema', () => {
       )
     })
 
+    it('accepts aggregated public contributions above 100 billion', () => {
+      const { error } = fundingValueRowSchema.validate(
+        validRow({ publicContributions: '200000000000' })
+      )
+      expect(error).toBeUndefined()
+    })
+
+    it('accepts financial year total above 100 billion', () => {
+      const { error } = fundingValueRowSchema.validate(
+        validRow({ total: '500000000000' })
+      )
+      expect(error).toBeUndefined()
+    })
+
+    it('fails for non-digit aggregated public contributions', () => {
+      const { error } = fundingValueRowSchema.validate(
+        validRow({ publicContributions: '200,000' })
+      )
+      expect(error).toBeDefined()
+      expect(error.details[0].message).toBe(
+        PROJECT_VALIDATION_MESSAGES.FUNDING_SOURCES_ESTIMATED_SPEND_INVALID
+      )
+    })
+
     it('fails when contributor amount contains non-digits', () => {
       const { error } = fundingValueRowSchema.validate(
         validRow({
