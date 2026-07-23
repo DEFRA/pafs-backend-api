@@ -12,6 +12,8 @@ import {
   nfmHeadwaterDrainageAreaSchema,
   nfmRunoffManagementAreaSchema,
   nfmRunoffManagementVolumeSchema,
+  nfmFloodplainWetlandRestorationAreaSchema,
+  nfmFloodplainWetlandRestorationVolumeSchema,
   nfmSaltmarshAreaSchema,
   nfmSaltmarshLengthSchema,
   nfmSandDuneAreaSchema,
@@ -30,8 +32,12 @@ import {
   nfmSemiNaturalGrasslandAfterSchema,
   nfmWoodlandLandUseBeforeSchema,
   nfmWoodlandLandUseAfterSchema,
+  nfmWoodlandForTimberHarvestingBeforeSchema,
+  nfmWoodlandForTimberHarvestingAfterSchema,
   nfmMountainMoorsAndHeathBeforeSchema,
   nfmMountainMoorsAndHeathAfterSchema,
+  nfmPeatlandDegradedBeforeSchema,
+  nfmPeatlandDegradedAfterSchema,
   nfmPeatlandRestorationBeforeSchema,
   nfmPeatlandRestorationAfterSchema,
   nfmRiversWetlandsFreshwaterBeforeSchema,
@@ -78,12 +84,20 @@ const OPTIONAL_NFM_LAND_USE_FIELDS = {
   ),
   nfmWoodlandLandUseBefore: optionalNullable(nfmWoodlandLandUseBeforeSchema),
   nfmWoodlandLandUseAfter: optionalNullable(nfmWoodlandLandUseAfterSchema),
+  nfmWoodlandForTimberHarvestingBefore: optionalNullable(
+    nfmWoodlandForTimberHarvestingBeforeSchema
+  ),
+  nfmWoodlandForTimberHarvestingAfter: optionalNullable(
+    nfmWoodlandForTimberHarvestingAfterSchema
+  ),
   nfmMountainMoorsAndHeathBefore: optionalNullable(
     nfmMountainMoorsAndHeathBeforeSchema
   ),
   nfmMountainMoorsAndHeathAfter: optionalNullable(
     nfmMountainMoorsAndHeathAfterSchema
   ),
+  nfmPeatlandDegradedBefore: optionalNullable(nfmPeatlandDegradedBeforeSchema),
+  nfmPeatlandDegradedAfter: optionalNullable(nfmPeatlandDegradedAfterSchema),
   nfmPeatlandRestorationBefore: optionalNullable(
     nfmPeatlandRestorationBeforeSchema
   ),
@@ -112,6 +126,12 @@ const OPTIONAL_NFM_MEASURE_FIELDS = {
   nfmHeadwaterDrainageArea: optionalNullable(nfmHeadwaterDrainageAreaSchema),
   nfmRunoffManagementArea: optionalNullable(nfmRunoffManagementAreaSchema),
   nfmRunoffManagementVolume: optionalNullable(nfmRunoffManagementVolumeSchema),
+  nfmFloodplainWetlandRestorationArea: optionalNullable(
+    nfmFloodplainWetlandRestorationAreaSchema
+  ),
+  nfmFloodplainWetlandRestorationVolume: optionalNullable(
+    nfmFloodplainWetlandRestorationVolumeSchema
+  ),
   nfmSaltmarshArea: optionalNullable(nfmSaltmarshAreaSchema),
   nfmSaltmarshLength: optionalNullable(nfmSaltmarshLengthSchema),
   nfmSandDuneArea: optionalNullable(nfmSandDuneAreaSchema),
@@ -151,6 +171,12 @@ const NFM_LEVEL_FIELD_SCHEMAS = {
     nfmRunoffManagementArea: nfmRunoffManagementAreaSchema,
     nfmRunoffManagementVolume: nfmRunoffManagementVolumeSchema
   },
+  [PROJECT_VALIDATION_LEVELS.NFM_FLOODPLAIN_WETLAND_RESTORATION]: {
+    nfmFloodplainWetlandRestorationArea:
+      nfmFloodplainWetlandRestorationAreaSchema,
+    nfmFloodplainWetlandRestorationVolume:
+      nfmFloodplainWetlandRestorationVolumeSchema
+  },
   [PROJECT_VALIDATION_LEVELS.NFM_SALTMARSH]: {
     nfmSaltmarshArea: nfmSaltmarshAreaSchema,
     nfmSaltmarshLength: nfmSaltmarshLengthSchema
@@ -184,9 +210,19 @@ const NFM_LEVEL_FIELD_SCHEMAS = {
     nfmWoodlandLandUseBefore: nfmWoodlandLandUseBeforeSchema,
     nfmWoodlandLandUseAfter: nfmWoodlandLandUseAfterSchema
   },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_WOODLAND_FOR_TIMBER_HARVESTING]: {
+    nfmWoodlandForTimberHarvestingBefore:
+      nfmWoodlandForTimberHarvestingBeforeSchema,
+    nfmWoodlandForTimberHarvestingAfter:
+      nfmWoodlandForTimberHarvestingAfterSchema
+  },
   [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_MOUNTAIN_MOORS_AND_HEATH]: {
     nfmMountainMoorsAndHeathBefore: nfmMountainMoorsAndHeathBeforeSchema,
     nfmMountainMoorsAndHeathAfter: nfmMountainMoorsAndHeathAfterSchema
+  },
+  [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_DEGRADED]: {
+    nfmPeatlandDegradedBefore: nfmPeatlandDegradedBeforeSchema,
+    nfmPeatlandDegradedAfter: nfmPeatlandDegradedAfterSchema
   },
   [PROJECT_VALIDATION_LEVELS.NFM_LAND_USE_PEATLAND_RESTORATION]: {
     nfmPeatlandRestorationBefore: nfmPeatlandRestorationBeforeSchema,

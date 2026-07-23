@@ -17,6 +17,8 @@ import {
   nfmHeadwaterDrainageAreaSchema,
   nfmRunoffManagementAreaSchema,
   nfmRunoffManagementVolumeSchema,
+  nfmFloodplainWetlandRestorationAreaSchema,
+  nfmFloodplainWetlandRestorationVolumeSchema,
   nfmSaltmarshAreaSchema,
   nfmSaltmarshLengthSchema,
   nfmSandDuneAreaSchema,
@@ -33,8 +35,12 @@ import {
   nfmSemiNaturalGrasslandAfterSchema,
   nfmWoodlandLandUseBeforeSchema,
   nfmWoodlandLandUseAfterSchema,
+  nfmWoodlandForTimberHarvestingBeforeSchema,
+  nfmWoodlandForTimberHarvestingAfterSchema,
   nfmMountainMoorsAndHeathBeforeSchema,
   nfmMountainMoorsAndHeathAfterSchema,
+  nfmPeatlandDegradedBeforeSchema,
+  nfmPeatlandDegradedAfterSchema,
   nfmPeatlandRestorationBeforeSchema,
   nfmPeatlandRestorationAfterSchema,
   nfmRiversWetlandsFreshwaterBeforeSchema,
@@ -47,6 +53,7 @@ import {
   nfmWoodlandSchema,
   nfmHeadwaterDrainageSchema,
   nfmRunoffManagementSchema,
+  nfmFloodplainWetlandRestorationSchema,
   nfmSaltmarshSchema,
   nfmSandDuneSchema,
   nfmLandUseEnclosedArableFarmlandSchema,
@@ -54,7 +61,9 @@ import {
   nfmLandUseEnclosedDairyingFarmlandSchema,
   nfmLandUseSemiNaturalGrasslandSchema,
   nfmLandUseWoodlandSchema,
+  nfmLandUseWoodlandForTimberHarvestingSchema,
   nfmLandUseMountainMoorsAndHeathSchema,
+  nfmLandUsePeatlandDegradedSchema,
   nfmLandUsePeatlandRestorationSchema,
   nfmLandUseRiversWetlandsFreshwaterSchema,
   nfmLandUseCoastalMarginsSchema,
@@ -133,15 +142,14 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('River Restoration Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
-      expect(result.value).toBe(null)
+      expect(result.error).toBeDefined()
     })
 
-    test('should allow undefined value', () => {
+    test('should reject undefined value', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(undefined)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -160,16 +168,16 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
-    test('should allow zero volume (AC: 0 treated same as empty)', () => {
+    test('should allow zero volume', () => {
       const result = nfmRiverRestorationVolumeSchema.validate(0)
       expect(result.error).toBeUndefined()
     })
   })
 
   describe('Leaky Barriers Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmLeakyBarriersVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -187,7 +195,7 @@ describe('NFM Schemas - Backend', () => {
       expect(result.error).toBeDefined()
     })
 
-    test('should allow zero volume (AC: 0 treated same as empty)', () => {
+    test('should allow zero volume', () => {
       const result = nfmLeakyBarriersVolumeSchema.validate(0)
       expect(result.error).toBeUndefined()
     })
@@ -247,6 +255,32 @@ describe('NFM Schemas - Backend', () => {
     })
   })
 
+  describe('Floodplain Wetland Restoration Area Schema', () => {
+    test('should validate valid area value', () => {
+      const result = nfmFloodplainWetlandRestorationAreaSchema.validate(8.5)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe('8.5')
+    })
+
+    test('should reject zero area', () => {
+      const result = nfmFloodplainWetlandRestorationAreaSchema.validate(0)
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('Floodplain Wetland Restoration Volume Schema', () => {
+    test('should reject null value', () => {
+      const result = nfmFloodplainWetlandRestorationVolumeSchema.validate(null)
+      expect(result.error).toBeDefined()
+    })
+
+    test('should validate valid volume value', () => {
+      const result = nfmFloodplainWetlandRestorationVolumeSchema.validate(45.25)
+      expect(result.error).toBeUndefined()
+      expect(result.value).toBe('45.25')
+    })
+  })
+
   describe('Offline Storage Area Schema', () => {
     test('should validate valid area value', () => {
       const result = nfmOfflineStorageAreaSchema.validate(1.5)
@@ -281,10 +315,9 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Offline Storage Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmOfflineStorageVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
-      expect(result.value).toBe(null)
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -366,9 +399,9 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Runoff Management Volume Schema', () => {
-    test('should allow null value', () => {
+    test('should reject null value', () => {
       const result = nfmRunoffManagementVolumeSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid volume value', () => {
@@ -400,14 +433,14 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Saltmarsh Length Schema', () => {
-    test('should allow null value (optional)', () => {
+    test('should reject null value', () => {
       const result = nfmSaltmarshLengthSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
-    test('should allow undefined value (optional)', () => {
+    test('should reject undefined value', () => {
       const result = nfmSaltmarshLengthSchema.validate(undefined)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid length value', () => {
@@ -444,9 +477,9 @@ describe('NFM Schemas - Backend', () => {
   })
 
   describe('Sand Dune Length Schema', () => {
-    test('should allow null value (optional)', () => {
+    test('should reject null value', () => {
       const result = nfmSandDuneLengthSchema.validate(null)
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should validate valid length value', () => {
@@ -634,6 +667,16 @@ describe('NFM Land Use Area Schemas', () => {
       requiredMessage: AFTER_REQUIRED_MESSAGE
     },
     {
+      name: 'nfmWoodlandForTimberHarvestingBefore',
+      schema: nfmWoodlandForTimberHarvestingBeforeSchema,
+      requiredMessage: BEFORE_REQUIRED_MESSAGE
+    },
+    {
+      name: 'nfmWoodlandForTimberHarvestingAfter',
+      schema: nfmWoodlandForTimberHarvestingAfterSchema,
+      requiredMessage: AFTER_REQUIRED_MESSAGE
+    },
+    {
       name: 'nfmMountainMoorsAndHeathBefore',
       schema: nfmMountainMoorsAndHeathBeforeSchema,
       requiredMessage: BEFORE_REQUIRED_MESSAGE
@@ -641,6 +684,16 @@ describe('NFM Land Use Area Schemas', () => {
     {
       name: 'nfmMountainMoorsAndHeathAfter',
       schema: nfmMountainMoorsAndHeathAfterSchema,
+      requiredMessage: AFTER_REQUIRED_MESSAGE
+    },
+    {
+      name: 'nfmPeatlandDegradedBefore',
+      schema: nfmPeatlandDegradedBeforeSchema,
+      requiredMessage: BEFORE_REQUIRED_MESSAGE
+    },
+    {
+      name: 'nfmPeatlandDegradedAfter',
+      schema: nfmPeatlandDegradedAfterSchema,
       requiredMessage: AFTER_REQUIRED_MESSAGE
     },
     {
@@ -720,12 +773,12 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null volume', () => {
+    test('should reject null volume', () => {
       const result = nfmRiverRestorationSchema.validate({
         nfmRiverRestorationArea: 10.5,
         nfmRiverRestorationVolume: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing area', () => {
@@ -746,13 +799,13 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null volume', () => {
+    test('should reject null volume', () => {
       const result = nfmLeakyBarriersSchema.validate({
         nfmLeakyBarriersLength: 5.5,
         nfmLeakyBarriersWidth: 2.5,
         nfmLeakyBarriersVolume: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing length', () => {
@@ -823,6 +876,23 @@ describe('NFM Composite Object Schemas', () => {
     })
   })
 
+  describe('nfmFloodplainWetlandRestorationSchema', () => {
+    test('should validate valid payload', () => {
+      const result = nfmFloodplainWetlandRestorationSchema.validate({
+        nfmFloodplainWetlandRestorationArea: 12.5,
+        nfmFloodplainWetlandRestorationVolume: 88.8
+      })
+      expect(result.error).toBeUndefined()
+    })
+
+    test('should reject missing required area', () => {
+      const result = nfmFloodplainWetlandRestorationSchema.validate({
+        nfmFloodplainWetlandRestorationVolume: 88.8
+      })
+      expect(result.error).toBeDefined()
+    })
+  })
+
   describe('nfmSaltmarshSchema', () => {
     test('should validate valid data', () => {
       const result = nfmSaltmarshSchema.validate({
@@ -832,12 +902,12 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null length', () => {
+    test('should reject null length', () => {
       const result = nfmSaltmarshSchema.validate({
         nfmSaltmarshArea: 6.6,
         nfmSaltmarshLength: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing area', () => {
@@ -855,12 +925,12 @@ describe('NFM Composite Object Schemas', () => {
       expect(result.error).toBeUndefined()
     })
 
-    test('should allow null length', () => {
+    test('should reject null length', () => {
       const result = nfmSandDuneSchema.validate({
         nfmSandDuneArea: 3.3,
         nfmSandDuneLength: null
       })
-      expect(result.error).toBeUndefined()
+      expect(result.error).toBeDefined()
     })
 
     test('should reject missing area', () => {
@@ -902,10 +972,22 @@ describe('NFM Composite Object Schemas', () => {
         afterField: 'nfmWoodlandLandUseAfter'
       },
       {
+        name: 'nfmLandUseWoodlandForTimberHarvestingSchema',
+        schema: nfmLandUseWoodlandForTimberHarvestingSchema,
+        beforeField: 'nfmWoodlandForTimberHarvestingBefore',
+        afterField: 'nfmWoodlandForTimberHarvestingAfter'
+      },
+      {
         name: 'nfmLandUseMountainMoorsAndHeathSchema',
         schema: nfmLandUseMountainMoorsAndHeathSchema,
         beforeField: 'nfmMountainMoorsAndHeathBefore',
         afterField: 'nfmMountainMoorsAndHeathAfter'
+      },
+      {
+        name: 'nfmLandUsePeatlandDegradedSchema',
+        schema: nfmLandUsePeatlandDegradedSchema,
+        beforeField: 'nfmPeatlandDegradedBefore',
+        afterField: 'nfmPeatlandDegradedAfter'
       },
       {
         name: 'nfmLandUsePeatlandRestorationSchema',

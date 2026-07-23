@@ -822,6 +822,44 @@ describe('buildNfmLandUseChanges — unknown land use type is skipped', () => {
     expect(payload.woodland_before).toBeNull()
     expect(payload.woodland_after).toBeNull()
   })
+
+  test('maps woodland_for_timber_harvesting before/after values to proposal payload', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_land_use_changes: [
+          {
+            landUseType: 'woodland_for_timber_harvesting',
+            areaBeforeHectares: 12.5,
+            areaAfterHectares: 7.25
+          }
+        ]
+      },
+      null
+    )
+
+    expect(payload.woodland_for_timber_harvesting_before).toBe(12.5)
+    expect(payload.woodland_for_timber_harvesting_after).toBe(7.25)
+  })
+
+  test('maps peatland_degraded before/after values to proposal payload', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_land_use_changes: [
+          {
+            landUseType: 'peatland_degraded',
+            areaBeforeHectares: 9,
+            areaAfterHectares: 4.5
+          }
+        ]
+      },
+      null
+    )
+
+    expect(payload.peatland_degraded_before).toBe(9)
+    expect(payload.peatland_degraded_after).toBe(4.5)
+  })
 })
 
 // ─── Alias field fallbacks ────────────────────────────────────────────────────
