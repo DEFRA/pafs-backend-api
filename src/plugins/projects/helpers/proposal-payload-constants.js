@@ -90,7 +90,11 @@ export const NFM_MEASURE_FIELD_MAP = {
     volume: 'runoff_attenuation_volume'
   },
   saltmarsh_management: { area: 'saltmarsh_area', length: 'saltmarsh_length' },
-  sand_dune_management: { area: 'sand_dune_area', length: 'sand_dune_length' }
+  sand_dune_management: { area: 'sand_dune_area', length: 'sand_dune_length' },
+  floodplain_wetland_restoration: {
+    area: 'floodplain_wetland_restoration_area',
+    volume: 'floodplain_wetland_restoration_volume'
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,15 +119,23 @@ export const NFM_LAND_USE_FIELD_MAP = {
     after: 'semi_natural_grassland_after'
   },
   woodland: { before: 'woodland_before', after: 'woodland_after' },
+  woodland_for_timber_harvesting: {
+    before: 'woodland_for_timber_harvesting_before',
+    after: 'woodland_for_timber_harvesting_after'
+  },
   mountain_moors_and_heath: {
     before: 'mountain_moors_before',
     after: 'mountain_moors_after'
+  },
+  peatland_degraded: {
+    before: 'peatland_degraded_before',
+    after: 'peatland_degraded_after'
   },
   peatland_restoration: {
     before: 'peatland_restoration_before',
     after: 'peatland_restoration_after'
   },
-  rivers_wetlands_and_freshwater_habitats: {
+  wetlands: {
     before: 'rivers_wetlands_before',
     after: 'rivers_wetlands_after'
   },

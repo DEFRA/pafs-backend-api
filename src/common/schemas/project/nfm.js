@@ -9,17 +9,21 @@ import {
 /**
  * Valid land use types for NFM land use change
  */
-const NFM_LAND_USE_TYPES = new Set([
+export const NFM_LAND_USE_TYPES = [
   'enclosed_arable_farmland',
   'enclosed_livestock_farmland',
   'enclosed_dairying_farmland',
   'semi_natural_grassland',
   'woodland',
+  'woodland_for_timber_harvesting',
   'mountain_moors_and_heath',
+  'peatland_degraded',
   'peatland_restoration',
-  'rivers_wetlands_and_freshwater_habitats',
+  'wetlands',
   'coastal_margins'
-])
+]
+
+const NFM_LAND_USE_TYPES_SET = new Set(NFM_LAND_USE_TYPES)
 
 /**
  * Maximum digits allowed for whole-number values — matches Decimal(20,2) DB column
@@ -79,6 +83,7 @@ const AREA_MESSAGES = {
 }
 
 const VOLUME_MESSAGES = {
+  required: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_REQUIRED,
   invalid: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_INVALID,
   precision: PROJECT_VALIDATION_MESSAGES.NFM_MEASURE_VOLUME_PRECISION
 }
@@ -147,20 +152,23 @@ const createRequiredPositiveSchema = (
     })
 
 /**
- * Factory: optional non-negative numeric field (volume in m³, optional length in km).
- * Accepts 0 as a valid value (AC: 0 treated same as empty/null).
+ * Factory: required non-negative numeric field for measure values.
+ * Accepts 0 as a valid value.
  */
-const createOptionalPositiveSchema = (label, { invalid, precision }) =>
+const createRequiredNonNegativeMeasureSchema = (
+  label,
+  { required, invalid, precision }
+) =>
   Joi.number()
     .unsafe()
     .min(0)
     .custom(maxTwoDecimalPlaces)
-    .allow(null)
-    .optional()
+    .required()
     .label(label)
     .messages({
       'number.base': invalid,
       'number.min': invalid,
+      'any.required': required,
       'number.precision': precision
     })
 
@@ -210,7 +218,7 @@ export const nfmLandUseChangeSchema = Joi.string()
       return helpers.error('string.empty')
     }
 
-    if (selected.some((item) => !NFM_LAND_USE_TYPES.has(item))) {
+    if (selected.some((item) => !NFM_LAND_USE_TYPES_SET.has(item))) {
       return helpers.error('any.invalid')
     }
 
@@ -287,10 +295,11 @@ export const nfmRiverRestorationAreaSchema = createRequiredPositiveSchema(
  * NFM River Restoration - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmRiverRestorationVolumeSchema = createOptionalPositiveSchema(
-  'nfmRiverRestorationVolume',
-  VOLUME_MESSAGES
-)
+export const nfmRiverRestorationVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmRiverRestorationVolume',
+    VOLUME_MESSAGES
+  )
 
 // --- Leaky Barriers ---
 
@@ -298,10 +307,11 @@ export const nfmRiverRestorationVolumeSchema = createOptionalPositiveSchema(
  * NFM Leaky Barriers - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmLeakyBarriersVolumeSchema = createOptionalPositiveSchema(
-  'nfmLeakyBarriersVolume',
-  VOLUME_MESSAGES
-)
+export const nfmLeakyBarriersVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmLeakyBarriersVolume',
+    VOLUME_MESSAGES
+  )
 
 /**
  * NFM Leaky Barriers - Length field schema
@@ -336,10 +346,11 @@ export const nfmOfflineStorageAreaSchema = createRequiredPositiveSchema(
  * NFM Offline Storage - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmOfflineStorageVolumeSchema = createOptionalPositiveSchema(
-  'nfmOfflineStorageVolume',
-  VOLUME_MESSAGES
-)
+export const nfmOfflineStorageVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmOfflineStorageVolume',
+    VOLUME_MESSAGES
+  )
 
 // --- Woodland ---
 
@@ -378,10 +389,33 @@ export const nfmRunoffManagementAreaSchema = createRequiredPositiveSchema(
  * NFM Runoff Management - Volume field schema
  * Database field: storage_volume_m3 (NUMERIC)
  */
-export const nfmRunoffManagementVolumeSchema = createOptionalPositiveSchema(
-  'nfmRunoffManagementVolume',
-  VOLUME_MESSAGES
-)
+export const nfmRunoffManagementVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmRunoffManagementVolume',
+    VOLUME_MESSAGES
+  )
+
+// --- Floodplain Wetland Restoration ---
+
+/**
+ * NFM Floodplain Wetland Restoration - Area field schema
+ * Database field: area_hectares (NUMERIC)
+ */
+export const nfmFloodplainWetlandRestorationAreaSchema =
+  createRequiredPositiveSchema(
+    'nfmFloodplainWetlandRestorationArea',
+    AREA_MESSAGES
+  )
+
+/**
+ * NFM Floodplain Wetland Restoration - Volume field schema
+ * Database field: storage_volume_m3 (NUMERIC)
+ */
+export const nfmFloodplainWetlandRestorationVolumeSchema =
+  createRequiredNonNegativeMeasureSchema(
+    'nfmFloodplainWetlandRestorationVolume',
+    VOLUME_MESSAGES
+  )
 
 // --- Saltmarsh ---
 
@@ -395,10 +429,10 @@ export const nfmSaltmarshAreaSchema = createRequiredPositiveSchema(
 )
 
 /**
- * NFM Saltmarsh - Length field schema (optional)
+ * NFM Saltmarsh - Length field schema
  * Database field: length_km (NUMERIC)
  */
-export const nfmSaltmarshLengthSchema = createOptionalPositiveSchema(
+export const nfmSaltmarshLengthSchema = createRequiredNonNegativeMeasureSchema(
   'nfmSaltmarshLength',
   LENGTH_MESSAGES
 )
@@ -415,10 +449,10 @@ export const nfmSandDuneAreaSchema = createRequiredPositiveSchema(
 )
 
 /**
- * NFM Sand Dune - Length field schema (optional)
+ * NFM Sand Dune - Length field schema
  * Database field: length_km (NUMERIC)
  */
-export const nfmSandDuneLengthSchema = createOptionalPositiveSchema(
+export const nfmSandDuneLengthSchema = createRequiredNonNegativeMeasureSchema(
   'nfmSandDuneLength',
   LENGTH_MESSAGES
 )
@@ -483,6 +517,18 @@ export const nfmWoodlandLandUseAfterSchema = createRequiredNonNegativeSchema(
   LAND_USE_AFTER_MESSAGES
 )
 
+export const nfmWoodlandForTimberHarvestingBeforeSchema =
+  createRequiredNonNegativeSchema(
+    'nfmWoodlandForTimberHarvestingBefore',
+    LAND_USE_BEFORE_MESSAGES
+  )
+
+export const nfmWoodlandForTimberHarvestingAfterSchema =
+  createRequiredNonNegativeSchema(
+    'nfmWoodlandForTimberHarvestingAfter',
+    LAND_USE_AFTER_MESSAGES
+  )
+
 export const nfmMountainMoorsAndHeathBeforeSchema =
   createRequiredNonNegativeSchema(
     'nfmMountainMoorsAndHeathBefore',
@@ -494,6 +540,16 @@ export const nfmMountainMoorsAndHeathAfterSchema =
     'nfmMountainMoorsAndHeathAfter',
     LAND_USE_AFTER_MESSAGES
   )
+
+export const nfmPeatlandDegradedBeforeSchema = createRequiredNonNegativeSchema(
+  'nfmPeatlandDegradedBefore',
+  LAND_USE_BEFORE_MESSAGES
+)
+
+export const nfmPeatlandDegradedAfterSchema = createRequiredNonNegativeSchema(
+  'nfmPeatlandDegradedAfter',
+  LAND_USE_AFTER_MESSAGES
+)
 
 export const nfmPeatlandRestorationBeforeSchema =
   createRequiredNonNegativeSchema(
@@ -589,6 +645,18 @@ export const nfmRunoffManagementSchema = Joi.object({
 })
 
 /**
+ * NFM Floodplain Wetland Restoration schema
+ * Validates area and volume for floodplain wetland restoration measures
+ * This data will be stored in pafs_core_nfm_measures table
+ */
+export const nfmFloodplainWetlandRestorationSchema = Joi.object({
+  nfmFloodplainWetlandRestorationArea:
+    nfmFloodplainWetlandRestorationAreaSchema,
+  nfmFloodplainWetlandRestorationVolume:
+    nfmFloodplainWetlandRestorationVolumeSchema
+})
+
+/**
  * NFM Saltmarsh schema
  * Validates area and length for saltmarsh or mudflat management measures
  * This data will be stored in pafs_core_nfm_measures table
@@ -633,9 +701,20 @@ export const nfmLandUseWoodlandSchema = Joi.object({
   nfmWoodlandLandUseAfter: nfmWoodlandLandUseAfterSchema
 })
 
+export const nfmLandUseWoodlandForTimberHarvestingSchema = Joi.object({
+  nfmWoodlandForTimberHarvestingBefore:
+    nfmWoodlandForTimberHarvestingBeforeSchema,
+  nfmWoodlandForTimberHarvestingAfter: nfmWoodlandForTimberHarvestingAfterSchema
+})
+
 export const nfmLandUseMountainMoorsAndHeathSchema = Joi.object({
   nfmMountainMoorsAndHeathBefore: nfmMountainMoorsAndHeathBeforeSchema,
   nfmMountainMoorsAndHeathAfter: nfmMountainMoorsAndHeathAfterSchema
+})
+
+export const nfmLandUsePeatlandDegradedSchema = Joi.object({
+  nfmPeatlandDegradedBefore: nfmPeatlandDegradedBeforeSchema,
+  nfmPeatlandDegradedAfter: nfmPeatlandDegradedAfterSchema
 })
 
 export const nfmLandUsePeatlandRestorationSchema = Joi.object({
