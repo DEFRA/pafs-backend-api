@@ -1,5 +1,5 @@
 import { PROJECT_VALIDATION_MESSAGES } from '../../../../../common/constants/project.js'
-import { NFM_LAND_USE_TYPES as NFM_SCHEMA_LAND_USE_TYPES } from '../../../../../common/schemas/project/nfm.js'
+export { NFM_LAND_USE_TYPES } from '../../../../../common/schemas/project/nfm.js'
 import {
   hasValue,
   MANDATORY_WL_TYPES,
@@ -65,10 +65,6 @@ export const NFM_MEASURE_CONFIGS = [
     requiredFields: ['areaHectares', 'storageVolumeM3']
   }
 ]
-
-// Reuse the canonical land use types from Joi validation schema
-// to avoid drift between validation layers.
-export const NFM_LAND_USE_TYPES = NFM_SCHEMA_LAND_USE_TYPES
 
 const LAND_USE_REQUIRED_FIELDS = ['areaBeforeHectares', 'areaAfterHectares']
 
