@@ -24,6 +24,21 @@ import {
   PASSWORD
 } from '../../../common/constants/index.js'
 
+// Builds the user DTO returned in both login and refresh responses.
+// Keeping the shape in one place prevents login and refresh from drifting.
+function buildUserResponse(user, areas) {
+  const areaFlags = getAreaTypeFlags(areas)
+  return {
+    id: Number(user.id),
+    email: user.email,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    admin: user.admin,
+    areas,
+    ...areaFlags
+  }
+}
+
 // Generated once at module load from a cryptographically random value.
 // Never hardcoded — rotates on every server restart. Used solely to
 // equalise bcrypt response time when a login email is not found, preventing
@@ -220,7 +235,6 @@ export class AuthService {
       signInAt: user.current_sign_in_at,
       signInIp: user.current_sign_in_ip
     })
-    const areaFlags = getAreaTypeFlags(areas)
 
     const accessToken = generateAccessToken(user, sessionId, areas)
     const refreshToken = generateRefreshToken(user, sessionId)
@@ -229,15 +243,7 @@ export class AuthService {
 
     return {
       success: true,
-      user: {
-        id: Number(user.id),
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        admin: user.admin,
-        areas,
-        ...areaFlags
-      },
+      user: buildUserResponse(user, areas),
       accessToken,
       refreshToken,
       expiresIn: config.get('auth.jwt.accessExpiresIn')
@@ -452,7 +458,6 @@ export class AuthService {
     // Fetch current area assignments so they are preserved in the refreshed token.
     // Users with no area rows (e.g. admin accounts) will receive an empty areas array.
     const areas = await fetchUserAreas(this.prisma, user.id)
-    const areaFlags = getAreaTypeFlags(areas)
     const newAccessToken = generateAccessToken(user, newSessionId, areas)
     const newRefreshToken = generateRefreshToken(user, newSessionId)
 
@@ -468,15 +473,7 @@ export class AuthService {
 
     return {
       success: true,
-      user: {
-        id: Number(user.id),
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        admin: user.admin,
-        areas,
-        ...areaFlags
-      },
+      user: buildUserResponse(user, areas),
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
       expiresIn: config.get('auth.jwt.accessExpiresIn')

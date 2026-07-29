@@ -26,7 +26,8 @@ describe('refresh route', () => {
       },
       prisma: {},
       server: {
-        logger: {}
+        logger: {},
+        invalidateAuthCacheForUser: vi.fn()
       }
     }
 
@@ -156,9 +157,40 @@ describe('refresh route', () => {
       expect(mockH.code).toHaveBeenCalledWith(HTTP_STATUS.OK)
     })
 
+    it('evicts the auth cache for the user on successful refresh', async () => {
+      const updatedUser = { id: 1, email: 'user@example.com' }
+      mockRefreshSession.mockResolvedValue({
+        success: true,
+        user: updatedUser,
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+        expiresIn: '15m'
+      })
+
+      await refreshRoute.handler(mockRequest, mockH)
+
+      expect(
+        mockRequest.server.invalidateAuthCacheForUser
+      ).toHaveBeenCalledWith(1)
+    })
+
+    it('does not evict the auth cache when refresh fails', async () => {
+      mockRefreshSession.mockResolvedValue({
+        success: false,
+        errorCode: AUTH_ERROR_CODES.TOKEN_EXPIRED_OR_INVALID
+      })
+
+      await refreshRoute.handler(mockRequest, mockH)
+
+      expect(
+        mockRequest.server.invalidateAuthCacheForUser
+      ).not.toHaveBeenCalled()
+    })
+
     it('calls AuthService with correct parameters', async () => {
       mockRefreshSession.mockResolvedValue({
         success: true,
+        user: { id: 1 },
         accessToken: 'token',
         refreshToken: 'refresh',
         expiresIn: '15m'
