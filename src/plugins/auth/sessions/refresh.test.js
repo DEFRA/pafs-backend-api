@@ -126,8 +126,20 @@ describe('refresh route', () => {
     })
 
     it('returns new tokens on successful refresh', async () => {
+      const updatedUser = {
+        id: 1,
+        email: 'user@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        admin: false,
+        areas: [],
+        isRma: false,
+        isPso: false,
+        isEa: false
+      }
       mockRefreshSession.mockResolvedValue({
         success: true,
+        user: updatedUser,
         accessToken: 'new-access-token',
         refreshToken: 'new-refresh-token',
         expiresIn: '15m'
@@ -136,6 +148,7 @@ describe('refresh route', () => {
       await refreshRoute.handler(mockRequest, mockH)
 
       expect(mockH.response).toHaveBeenCalledWith({
+        user: updatedUser,
         accessToken: 'new-access-token',
         refreshToken: 'new-refresh-token',
         expiresIn: '15m'

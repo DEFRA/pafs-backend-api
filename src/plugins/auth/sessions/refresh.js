@@ -36,6 +36,7 @@ const refresh = {
 
     return h
       .response({
+        user: result.user,
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         expiresIn: result.expiresIn

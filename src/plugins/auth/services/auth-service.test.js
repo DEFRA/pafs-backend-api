@@ -584,6 +584,9 @@ describe('AuthService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 1,
         email: 'test@example.com',
+        first_name: 'Test',
+        last_name: 'User',
+        admin: false,
         disabled: false,
         unique_session_id: 'session-123'
       })
@@ -595,12 +598,27 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('access-token')
       expect(result.refreshToken).toBe('refresh-token')
       expect(result.expiresIn).toBe('25m')
+      expect(result.user).toEqual({
+        id: 1,
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        admin: false,
+        areas: [],
+        primaryAreaType: null,
+        isRma: false,
+        isPso: false,
+        isEa: false
+      })
     })
 
     it('updates user session on successful refresh', async () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 1,
         email: 'test@example.com',
+        first_name: 'Test',
+        last_name: 'User',
+        admin: false,
         disabled: false,
         unique_session_id: 'session-123'
       })
@@ -630,6 +648,9 @@ describe('AuthService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 1,
         email: 'rma@example.com',
+        first_name: 'RMA',
+        last_name: 'User',
+        admin: false,
         disabled: false,
         unique_session_id: 'session-123'
       })
@@ -655,6 +676,9 @@ describe('AuthService', () => {
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue({
         id: 2,
         email: 'admin@example.com',
+        first_name: 'Admin',
+        last_name: 'User',
+        admin: true,
         disabled: false,
         unique_session_id: 'session-123'
       })

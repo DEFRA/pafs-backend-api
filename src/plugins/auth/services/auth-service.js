@@ -413,6 +413,9 @@ export class AuthService {
       select: {
         id: true,
         email: true,
+        first_name: true,
+        last_name: true,
+        admin: true,
         disabled: true,
         unique_session_id: true
       }
@@ -449,6 +452,7 @@ export class AuthService {
     // Fetch current area assignments so they are preserved in the refreshed token.
     // Users with no area rows (e.g. admin accounts) will receive an empty areas array.
     const areas = await fetchUserAreas(this.prisma, user.id)
+    const areaFlags = getAreaTypeFlags(areas)
     const newAccessToken = generateAccessToken(user, newSessionId, areas)
     const newRefreshToken = generateRefreshToken(user, newSessionId)
 
@@ -464,6 +468,15 @@ export class AuthService {
 
     return {
       success: true,
+      user: {
+        id: Number(user.id),
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        admin: user.admin,
+        areas,
+        ...areaFlags
+      },
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
       expiresIn: config.get('auth.jwt.accessExpiresIn')
