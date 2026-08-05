@@ -53,13 +53,13 @@ export const SPENDING_FUNDING_SOURCE_FIELDS = [
 ]
 
 /**
- * Validates a spend value: must be digits-only and at most 100 billion.
+ * Validates a spend value: must be digits-only; by default enforces the 100 billion cap.
  */
-const validateSpendString = (value, helpers) => {
+const validateSpendString = (value, helpers, { enforceMax = true } = {}) => {
   if (!DIGITS_ONLY_REGEX.test(value)) {
     return helpers.error('string.pattern.base')
   }
-  if (Number(value) > MAX_VALUE) {
+  if (enforceMax && Number(value) > MAX_VALUE) {
     return helpers.error('string.max')
   }
   return value
@@ -92,6 +92,28 @@ const createOptionalSpendSchema = (label) =>
         PROJECT_VALIDATION_MESSAGES.FUNDING_SOURCES_ESTIMATED_SPEND_INVALID,
       'string.max':
         PROJECT_VALIDATION_MESSAGES.FUNDING_SOURCES_ESTIMATED_SPEND_MAX_DIGITS
+    })
+
+/**
+ * Creates an optional spend value schema for aggregated totals (sums of
+ * individual named contributors, or the financial year total). Each individual
+ * contributor cell is already capped at 100 billion, but the rolled-up total is
+ * allowed to exceed it (e.g. two contributors of 100 billion each in one year).
+ */
+const createOptionalSumSpendSchema = (label) =>
+  Joi.string()
+    .trim()
+    .allow(null, '')
+    .optional()
+    .custom((value, helpers) =>
+      validateSpendString(value, helpers, { enforceMax: false })
+    )
+    .label(label)
+    .messages({
+      'string.base':
+        PROJECT_VALIDATION_MESSAGES.FUNDING_SOURCES_ESTIMATED_SPEND_INVALID,
+      'string.pattern.base':
+        PROJECT_VALIDATION_MESSAGES.FUNDING_SOURCES_ESTIMATED_SPEND_INVALID
     })
 
 const CONTRIBUTOR_TYPE_VALUES = [
@@ -331,13 +353,13 @@ export const fundingValueRowSchema = Joi.object({
   // Main sources
   fcermGia: createOptionalSpendSchema(FUNDING_SOURCE_OPTIONS.FCERM_GIA),
   localLevy: createOptionalSpendSchema(FUNDING_SOURCE_OPTIONS.LOCAL_LEVY),
-  publicContributions: createOptionalSpendSchema(
+  publicContributions: createOptionalSumSpendSchema(
     FUNDING_SOURCE_OPTIONS.PUBLIC_CONTRIBUTIONS
   ),
-  privateContributions: createOptionalSpendSchema(
+  privateContributions: createOptionalSumSpendSchema(
     FUNDING_SOURCE_OPTIONS.PRIVATE_CONTRIBUTIONS
   ),
-  otherEaContributions: createOptionalSpendSchema(
+  otherEaContributions: createOptionalSumSpendSchema(
     FUNDING_SOURCE_OPTIONS.OTHER_EA_CONTRIBUTIONS
   ),
   notYetIdentified: createOptionalSpendSchema(
@@ -371,7 +393,7 @@ export const fundingValueRowSchema = Joi.object({
   otherEaContributors: createContributorsArraySchema('other_ea_contributions'),
 
   // Financial year total (calculated by caller; validated as a spend string)
-  total: createOptionalSpendSchema('fundingSourceSpendingTotal')
+  total: createOptionalSumSpendSchema('fundingSourceSpendingTotal')
 }).options({ allowUnknown: false })
 
 /**
