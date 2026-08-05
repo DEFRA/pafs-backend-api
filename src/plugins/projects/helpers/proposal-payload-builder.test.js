@@ -328,6 +328,30 @@ describe('buildProposalPayload', () => {
     expect(payload.leaky_barriers_volume).toBeNull()
   })
 
+  test('maps floodplain_wetland_restoration area and volume to floodplain_restoration_* keys', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_measures: [
+          {
+            measureType: 'floodplain_wetland_restoration',
+            areaHectares: 8.5,
+            storageVolumeM3: 1200
+          }
+        ]
+      },
+      null
+    )
+    expect(payload.floodplain_restoration_area).toBe(8.5)
+    expect(payload.floodplain_restoration_volume).toBe(1200)
+  })
+
+  test('emits null for floodplain_restoration fields when no measures provided', () => {
+    const payload = buildProposalPayload(MINIMAL_PROJECT, null)
+    expect(payload.floodplain_restoration_area).toBeNull()
+    expect(payload.floodplain_restoration_volume).toBeNull()
+  })
+
   // ── NFM land use changes ──────────────────────────────────────────────────
 
   test('maps arable farmland before/after', () => {
@@ -590,19 +614,21 @@ describe('buildProposalPayload', () => {
   )
 
   test.each(['STU', 'STR'])(
-    '%s: still includes aspirational_gateway_1 and aspirational_gateway_4',
+    '%s: sets aspirational_gateway_0 to start date and nulls gateway_1',
     (projectType) => {
       const payload = buildProposalPayload(
         { ...FULL_PROJECT, projectType },
         null
       )
-      expect(payload.aspirational_gateway_1).toBe('03/2025')
+      expect(payload.aspirational_gateway_0).toBe('03/2025')
+      expect(payload.aspirational_gateway_1).toBeNull()
       expect(payload.aspirational_gateway_4).toBe('11/2027')
     }
   )
 
-  test('DEF preserves all gateway dates', () => {
+  test('DEF preserves all gateway dates and sets gateway_0 to null', () => {
     const payload = buildProposalPayload(FULL_PROJECT, null)
+    expect(payload.aspirational_gateway_0).toBeNull()
     expect(payload.aspirational_gateway_2).not.toBeNull()
     expect(payload.aspirational_gateway_3).not.toBeNull()
     expect(payload.aspirational_start_of_construction).not.toBeNull()
@@ -821,6 +847,44 @@ describe('buildNfmLandUseChanges — unknown land use type is skipped', () => {
     )
     expect(payload.woodland_before).toBeNull()
     expect(payload.woodland_after).toBeNull()
+  })
+
+  test('maps woodland_for_timber_harvesting before/after values to proposal payload', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_land_use_changes: [
+          {
+            landUseType: 'woodland_for_timber_harvesting',
+            areaBeforeHectares: 12.5,
+            areaAfterHectares: 7.25
+          }
+        ]
+      },
+      null
+    )
+
+    expect(payload.timber_harvesting_before).toBe(12.5)
+    expect(payload.timber_harvesting_after).toBe(7.25)
+  })
+
+  test('maps peatland_degraded before/after values to proposal payload', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_land_use_changes: [
+          {
+            landUseType: 'peatland_degraded',
+            areaBeforeHectares: 9,
+            areaAfterHectares: 4.5
+          }
+        ]
+      },
+      null
+    )
+
+    expect(payload.peatland_degraded_before).toBe(9)
+    expect(payload.peatland_degraded_after).toBe(4.5)
   })
 })
 
