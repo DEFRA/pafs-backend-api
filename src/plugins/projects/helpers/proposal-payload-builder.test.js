@@ -590,19 +590,21 @@ describe('buildProposalPayload', () => {
   )
 
   test.each(['STU', 'STR'])(
-    '%s: still includes aspirational_gateway_1 and aspirational_gateway_4',
+    '%s: sets aspirational_gateway_0 to start date and nulls gateway_1',
     (projectType) => {
       const payload = buildProposalPayload(
         { ...FULL_PROJECT, projectType },
         null
       )
-      expect(payload.aspirational_gateway_1).toBe('03/2025')
+      expect(payload.aspirational_gateway_0).toBe('03/2025')
+      expect(payload.aspirational_gateway_1).toBeNull()
       expect(payload.aspirational_gateway_4).toBe('11/2027')
     }
   )
 
-  test('DEF preserves all gateway dates', () => {
+  test('DEF preserves all gateway dates and sets gateway_0 to null', () => {
     const payload = buildProposalPayload(FULL_PROJECT, null)
+    expect(payload.aspirational_gateway_0).toBeNull()
     expect(payload.aspirational_gateway_2).not.toBeNull()
     expect(payload.aspirational_gateway_3).not.toBeNull()
     expect(payload.aspirational_start_of_construction).not.toBeNull()
