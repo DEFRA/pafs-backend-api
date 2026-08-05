@@ -178,6 +178,8 @@ export const proposalPayloadSchema = Joi.object({
   saltmarsh_length: nullableDecimal,
   sand_dune_area: nullableDecimal,
   sand_dune_length: nullableDecimal,
+  floodplain_restoration_area: nullableDecimal,
+  floodplain_restoration_volume: nullableDecimal,
 
   // NFM land use change — hectares (16 digits + 2 d.p.)
   farmland_arable_before: nullableDecimal,
@@ -190,8 +192,8 @@ export const proposalPayloadSchema = Joi.object({
   semi_natural_grassland_after: nullableDecimal,
   woodland_before: nullableDecimal,
   woodland_after: nullableDecimal,
-  woodland_for_timber_harvesting_before: nullableDecimal,
-  woodland_for_timber_harvesting_after: nullableDecimal,
+  timber_harvesting_before: nullableDecimal,
+  timber_harvesting_after: nullableDecimal,
   mountain_moors_before: nullableDecimal,
   mountain_moors_after: nullableDecimal,
   peatland_degraded_before: nullableDecimal,

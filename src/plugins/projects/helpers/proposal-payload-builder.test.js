@@ -328,6 +328,30 @@ describe('buildProposalPayload', () => {
     expect(payload.leaky_barriers_volume).toBeNull()
   })
 
+  test('maps floodplain_wetland_restoration area and volume to floodplain_restoration_* keys', () => {
+    const payload = buildProposalPayload(
+      {
+        ...MINIMAL_PROJECT,
+        pafs_core_nfm_measures: [
+          {
+            measureType: 'floodplain_wetland_restoration',
+            areaHectares: 8.5,
+            storageVolumeM3: 1200
+          }
+        ]
+      },
+      null
+    )
+    expect(payload.floodplain_restoration_area).toBe(8.5)
+    expect(payload.floodplain_restoration_volume).toBe(1200)
+  })
+
+  test('emits null for floodplain_restoration fields when no measures provided', () => {
+    const payload = buildProposalPayload(MINIMAL_PROJECT, null)
+    expect(payload.floodplain_restoration_area).toBeNull()
+    expect(payload.floodplain_restoration_volume).toBeNull()
+  })
+
   // ── NFM land use changes ──────────────────────────────────────────────────
 
   test('maps arable farmland before/after', () => {
@@ -840,8 +864,8 @@ describe('buildNfmLandUseChanges — unknown land use type is skipped', () => {
       null
     )
 
-    expect(payload.woodland_for_timber_harvesting_before).toBe(12.5)
-    expect(payload.woodland_for_timber_harvesting_after).toBe(7.25)
+    expect(payload.timber_harvesting_before).toBe(12.5)
+    expect(payload.timber_harvesting_after).toBe(7.25)
   })
 
   test('maps peatland_degraded before/after values to proposal payload', () => {
