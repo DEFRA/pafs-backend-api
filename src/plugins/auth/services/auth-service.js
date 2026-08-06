@@ -264,7 +264,6 @@ export class AuthService {
         encrypted_password: true,
         failed_attempts: true,
         locked_at: true,
-        last_sign_in_at: true,
         current_sign_in_at: true,
         current_sign_in_ip: true
       }
