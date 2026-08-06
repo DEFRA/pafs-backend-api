@@ -47,7 +47,7 @@ describe('AccountService', () => {
       updated_at: new Date('2024-01-02T10:00:00Z'),
       invitation_sent_at: new Date('2024-01-01T12:00:00Z'),
       invitation_accepted_at: new Date('2024-01-02T12:00:00Z'),
-      last_sign_in_at: new Date('2024-01-03T10:00:00Z')
+      current_sign_in_at: new Date('2024-01-03T10:00:00Z')
     }
 
     it('retrieves and formats account successfully', async () => {
@@ -78,7 +78,7 @@ describe('AccountService', () => {
           updated_at: true,
           invitation_sent_at: true,
           invitation_accepted_at: true,
-          last_sign_in_at: true
+          current_sign_in_at: true
         }
       })
 
@@ -226,7 +226,7 @@ describe('AccountService', () => {
         telephone_number: null,
         invitation_sent_at: null,
         invitation_accepted_at: null,
-        last_sign_in_at: null
+        current_sign_in_at: null
       }
 
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(accountWithNulls)
@@ -260,7 +260,7 @@ describe('AccountService', () => {
         status: 'pending',
         invitation_sent_at: null,
         invitation_accepted_at: null,
-        last_sign_in_at: null
+        current_sign_in_at: null
       }
 
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(pendingAccount)
@@ -538,7 +538,7 @@ describe('AccountService', () => {
           email: 'user1@test.com',
           first_name: 'John',
           last_name: 'Doe',
-          last_sign_in_at: oldDate,
+          current_sign_in_at: oldDate,
           created_at: new Date('2022-01-01')
         },
         {
@@ -546,7 +546,7 @@ describe('AccountService', () => {
           email: 'user2@test.com',
           first_name: 'Jane',
           last_name: 'Smith',
-          last_sign_in_at: oldDate,
+          current_sign_in_at: oldDate,
           created_at: new Date('2022-01-01')
         }
       ]
@@ -561,8 +561,8 @@ describe('AccountService', () => {
           status: { in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED] },
           disabled: false,
           OR: [
-            { last_sign_in_at: { lt: expect.any(Date) } },
-            { last_sign_in_at: null, created_at: { lt: expect.any(Date) } }
+            { current_sign_in_at: { lt: expect.any(Date) } },
+            { current_sign_in_at: null, created_at: { lt: expect.any(Date) } }
           ]
         },
         select: {
@@ -570,7 +570,7 @@ describe('AccountService', () => {
           email: true,
           first_name: true,
           last_name: true,
-          last_sign_in_at: true,
+          current_sign_in_at: true,
           created_at: true,
           updated_at: true
         }
@@ -636,7 +636,7 @@ describe('AccountService', () => {
         email: 'user3@test.com',
         first_name: 'Bob',
         last_name: 'Johnson',
-        last_sign_in_at: null,
+        current_sign_in_at: null,
         created_at: oldDate
       }
 
@@ -666,7 +666,7 @@ describe('AccountService', () => {
       await accountService.disableInactiveAccounts(365)
 
       const callArgs = mockPrisma.pafs_core_users.findMany.mock.calls[0][0]
-      const cutoffDate = callArgs.where.OR[0].last_sign_in_at.lt
+      const cutoffDate = callArgs.where.OR[0].current_sign_in_at.lt
 
       // Cutoff should be 365 days before current date
       const expectedCutoff = new Date('2024-01-15T10:00:00Z')
@@ -687,7 +687,7 @@ describe('AccountService', () => {
           email: 'inactive1@test.com',
           first_name: 'John',
           last_name: 'Doe',
-          last_sign_in_at: oldDate,
+          current_sign_in_at: oldDate,
           created_at: new Date('2022-01-01'),
           updated_at: new Date('2023-01-01')
         },
@@ -719,8 +719,8 @@ describe('AccountService', () => {
           status: { in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED] },
           disabled: false,
           OR: [
-            { last_sign_in_at: { lt: expect.any(Date) } },
-            { last_sign_in_at: null, created_at: { lt: expect.any(Date) } }
+            { current_sign_in_at: { lt: expect.any(Date) } },
+            { current_sign_in_at: null, created_at: { lt: expect.any(Date) } }
           ]
         },
         select: {
@@ -728,7 +728,7 @@ describe('AccountService', () => {
           email: true,
           first_name: true,
           last_name: true,
-          last_sign_in_at: true,
+          current_sign_in_at: true,
           created_at: true,
           updated_at: true
         }
@@ -768,7 +768,7 @@ describe('AccountService', () => {
           email: 'warning1@test.com',
           first_name: 'Warning',
           last_name: 'User1',
-          last_sign_in_at: new Date(warningCutoff.getTime() - 1000),
+          current_sign_in_at: new Date(warningCutoff.getTime() - 1000),
           created_at: new Date('2022-01-01'),
           updated_at: new Date('2024-01-01')
         },
@@ -777,7 +777,7 @@ describe('AccountService', () => {
           email: 'warning2@test.com',
           first_name: 'Warning',
           last_name: 'User2',
-          last_sign_in_at: null,
+          current_sign_in_at: null,
           created_at: new Date(warningCutoff.getTime() - 1000),
           updated_at: new Date('2024-01-01')
         }
@@ -926,7 +926,7 @@ describe('AccountService', () => {
           email: 'test@example.com',
           first_name: 'John',
           last_name: 'Doe',
-          last_sign_in_at: new Date('2024-01-01'),
+          current_sign_in_at: new Date('2024-01-01'),
           created_at: new Date('2023-01-01'),
           updated_at: new Date('2024-01-10')
         }
@@ -1032,7 +1032,7 @@ describe('AccountService', () => {
           email: true,
           first_name: true,
           last_name: true,
-          last_sign_in_at: true,
+          current_sign_in_at: true,
           created_at: true,
           updated_at: true,
           disabled: true,
@@ -1045,7 +1045,7 @@ describe('AccountService', () => {
         data: {
           inactivity_warning_sent_at: null,
           disabled: false,
-          last_sign_in_at: expect.any(Date),
+          current_sign_in_at: expect.any(Date),
           updated_at: expect.any(Date)
         }
       })
@@ -1211,7 +1211,7 @@ describe('AccountService', () => {
       expect(result.account.email).toBe('user@example.com')
     })
 
-    it('should reset last_sign_in_at to prevent immediate re-disable on login or by nightly scheduler', async () => {
+    it('should reset current_sign_in_at to prevent immediate re-disable on nightly scheduler', async () => {
       const disabledUser = {
         id: BigInt(1),
         email: 'user@example.com',
@@ -1219,7 +1219,7 @@ describe('AccountService', () => {
         last_name: 'Smith',
         disabled: true,
         status: ACCOUNT_STATUS.ACTIVE,
-        last_sign_in_at: new Date('2023-01-01') // over a year ago — would trigger inactivity check
+        current_sign_in_at: new Date('2023-01-01') // over a year ago — would trigger inactivity check
       }
 
       mockPrisma.pafs_core_users.findUnique.mockResolvedValue(disabledUser)
@@ -1233,7 +1233,7 @@ describe('AccountService', () => {
       const after = Date.now()
 
       const updateCall = mockPrisma.pafs_core_users.update.mock.calls[0][0]
-      const resetDate = updateCall.data.last_sign_in_at
+      const resetDate = updateCall.data.current_sign_in_at
 
       expect(resetDate).toBeInstanceOf(Date)
       expect(resetDate.getTime()).toBeGreaterThanOrEqual(before)

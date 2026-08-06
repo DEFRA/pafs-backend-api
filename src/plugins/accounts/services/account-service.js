@@ -23,7 +23,7 @@ export class AccountService {
       email: true,
       first_name: true,
       last_name: true,
-      last_sign_in_at: true,
+      current_sign_in_at: true,
       created_at: true,
       updated_at: true
     }
@@ -140,7 +140,7 @@ export class AccountService {
       email: account.email,
       firstName: account.first_name,
       lastName: account.last_name,
-      lastLoginAt: account.last_sign_in_at,
+      lastLoginAt: account.current_sign_in_at,
       createdAt: account.created_at,
       updatedAt: account.updated_at
     }
@@ -159,8 +159,8 @@ export class AccountService {
         status: { in: [ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.APPROVED] },
         disabled: false,
         OR: [
-          { last_sign_in_at: { lt: cutoffDate } },
-          { last_sign_in_at: null, created_at: { lt: cutoffDate } }
+          { current_sign_in_at: { lt: cutoffDate } },
+          { current_sign_in_at: null, created_at: { lt: cutoffDate } }
         ]
       },
       select: AccountService.accountSelectFields
@@ -246,15 +246,15 @@ export class AccountService {
         inactivity_warning_sent_at: null, // Haven't sent warning yet
         OR: [
           {
-            // Accounts with last login between warningDays and disableDays ago
-            last_sign_in_at: {
+            // Accounts with current login between warningDays and disableDays ago
+            current_sign_in_at: {
               lt: warningCutoffDate,
               gte: disableCutoffDate // Not yet at disable threshold
             }
           },
           {
             // Accounts never logged in, created between warningDays and disableDays ago
-            last_sign_in_at: null,
+            current_sign_in_at: null,
             created_at: {
               lt: warningCutoffDate,
               gte: disableCutoffDate
@@ -332,7 +332,7 @@ export class AccountService {
       data: {
         inactivity_warning_sent_at: null,
         disabled: false,
-        last_sign_in_at: now, // Reset inactivity clock so login check and nightly scheduler don't re-disable immediately
+        current_sign_in_at: now, // Reset inactivity clock so nightly scheduler doesn't re-disable immediately
         updated_at: now
       }
     })
