@@ -1,4 +1,4 @@
-import { sumOutcomes, yOrN } from '../fcerm1-presenter-utils.js'
+import { sumOutcomes, yOrN, toNumber } from '../fcerm1-presenter-utils.js'
 
 const FLOOD_OUTCOMES = 'pafs_core_flood_protection_outcomes'
 const FLOOD_2040_OUTCOMES = 'pafs_core_flood_protection2040_outcomes'
@@ -121,44 +121,64 @@ export const outcomesMixin = {
   // ── NFM habitats ──────────────────────────────────────────────────────────
 
   hectaresOfIntertidalHabitatCreatedOrEnhanced() {
-    return this._p.hectares_of_intertidal_habitat_created_or_enhanced ?? null
+    return toNumber(
+      this._p,
+      'hectares_of_intertidal_habitat_created_or_enhanced'
+    )
   },
   hectaresOfWoodlandHabitatCreatedOrEnhanced() {
-    return this._p.hectares_of_woodland_habitat_created_or_enhanced ?? null
+    return toNumber(this._p, 'hectares_of_woodland_habitat_created_or_enhanced')
   },
   hectaresOfWetWoodlandHabitatCreatedOrEnhanced() {
-    return this._p.hectares_of_wet_woodland_habitat_created_or_enhanced ?? null
+    return toNumber(
+      this._p,
+      'hectares_of_wet_woodland_habitat_created_or_enhanced'
+    )
   },
   hectaresOfWetlandOrWetGrasslandCreatedOrEnhanced() {
-    return (
-      this._p.hectares_of_wetland_or_wet_grassland_created_or_enhanced ?? null
+    return toNumber(
+      this._p,
+      'hectares_of_wetland_or_wet_grassland_created_or_enhanced'
     )
   },
   hectaresOfGrasslandHabitatCreatedOrEnhanced() {
-    return this._p.hectares_of_grassland_habitat_created_or_enhanced ?? null
+    return toNumber(
+      this._p,
+      'hectares_of_grassland_habitat_created_or_enhanced'
+    )
   },
   hectaresOfHeathlandCreatedOrEnhanced() {
-    return this._p.hectares_of_heathland_created_or_enhanced ?? null
+    return toNumber(this._p, 'hectares_of_heathland_created_or_enhanced')
   },
   hectaresOfPondOrLakeHabitatCreatedOrEnhanced() {
-    return this._p.hectares_of_pond_or_lake_habitat_created_or_enhanced ?? null
+    return toNumber(
+      this._p,
+      'hectares_of_pond_or_lake_habitat_created_or_enhanced'
+    )
   },
   hectaresOfArableLandLakeHabitatCreatedOrEnhanced() {
-    return (
-      this._p.hectares_of_arable_land_lake_habitat_created_or_enhanced ?? null
+    return toNumber(
+      this._p,
+      'hectares_of_arable_land_lake_habitat_created_or_enhanced'
     )
   },
   kilometresOfWatercourseEnhancedOrCreatedComprehensive() {
-    return (
-      this._p.kilometres_of_watercourse_enhanced_or_created_comprehensive ??
-      null
+    return toNumber(
+      this._p,
+      'kilometres_of_watercourse_enhanced_or_created_comprehensive'
     )
   },
   kilometresOfWatercourseEnhancedOrCreatedPartial() {
-    return this._p.kilometres_of_watercourse_enhanced_or_created_partial ?? null
+    return toNumber(
+      this._p,
+      'kilometres_of_watercourse_enhanced_or_created_partial'
+    )
   },
   kilometresOfWatercourseEnhancedOrCreatedSingle() {
-    return this._p.kilometres_of_watercourse_enhanced_or_created_single ?? null
+    return toNumber(
+      this._p,
+      'kilometres_of_watercourse_enhanced_or_created_single'
+    )
   },
   containsNaturalMeasures() {
     return yOrN(this._p.natural_flood_risk_measures_included)
@@ -167,6 +187,6 @@ export const outcomesMixin = {
     return this._p.nfm_selected_measures ?? null
   },
   naturalFloodRiskMeasuresCost() {
-    return this._p.natural_flood_risk_measures_cost ?? null
+    return toNumber(this._p, 'natural_flood_risk_measures_cost')
   }
 }

@@ -125,9 +125,9 @@ describe('fcerm1-columns', () => {
       })
     })
 
-    test('ends with column HP', () => {
+    test('ends with column HX', () => {
       const last = NEW_COLUMNS.at(-1)
-      expect(last.column).toBe('HP')
+      expect(last.column).toBe('HX')
     })
 
     test('every entry has column and field properties', () => {
@@ -166,10 +166,10 @@ describe('fcerm1-columns', () => {
       expect(fc?.field).toBe('urgencyDetails')
     })
 
-    test('NHM confidence columns HB-HD are present', () => {
-      const hb = NEW_COLUMNS.find((c) => c.column === 'HB')
-      const hc = NEW_COLUMNS.find((c) => c.column === 'HC')
-      const hd = NEW_COLUMNS.find((c) => c.column === 'HD')
+    test('NHM confidence columns HJ-HL are present', () => {
+      const hb = NEW_COLUMNS.find((c) => c.column === 'HJ')
+      const hc = NEW_COLUMNS.find((c) => c.column === 'HK')
+      const hd = NEW_COLUMNS.find((c) => c.column === 'HL')
       expect(hb?.field).toBe('nfmLandownerConsent')
       expect(hc?.field).toBe('nfmExperienceLevel')
       expect(hd?.field).toBe('nfmProjectReadiness')

@@ -157,11 +157,11 @@ export const NEW_COLUMNS = [
   { column: 'FB', field: 'urgencyReason' },
   { column: 'FC', field: 'urgencyDetails' },
 
-  // ── River and floodplain restoration (FD–FG) ─────────────────────────────
-  { column: 'FD', field: 'riverFloodplainArea' },
-  { column: 'FE', field: 'riverFloodplainVolume' },
-  { column: 'FF', field: 'riverFloodplainLength' },
-  { column: 'FG', field: 'riverFloodplainWidth' },
+  // ── Woodland (FD–FG) ──────────────────────────────────────────────────────
+  { column: 'FD', field: 'woodlandNfmArea' },
+  { column: 'FE', field: 'woodlandNfmVolume' },
+  { column: 'FF', field: 'woodlandNfmLength' },
+  { column: 'FG', field: 'woodlandNfmWidth' },
 
   // ── Leaky barriers and in-channel storage (FH–FK) ────────────────────────
   { column: 'FH', field: 'leakyBarriersArea' },
@@ -169,78 +169,88 @@ export const NEW_COLUMNS = [
   { column: 'FJ', field: 'leakyBarriersLength' },
   { column: 'FK', field: 'leakyBarriersWidth' },
 
-  // ── Offline storage areas (FL–FO) ─────────────────────────────────────────
-  { column: 'FL', field: 'offlineStorageArea' },
-  { column: 'FM', field: 'offlineStorageVolume' },
-  { column: 'FN', field: 'offlineStorageLength' },
-  { column: 'FO', field: 'offlineStorageWidth' },
+  // ── River restoration (FL–FO) ──────────────────────────────────────────────
+  { column: 'FL', field: 'riverFloodplainArea' },
+  { column: 'FM', field: 'riverFloodplainVolume' },
+  { column: 'FN', field: 'riverFloodplainLength' },
+  { column: 'FO', field: 'riverFloodplainWidth' },
 
-  // ── Woodland NFM (FP–FS) ──────────────────────────────────────────────────
-  { column: 'FP', field: 'woodlandNfmArea' },
-  { column: 'FQ', field: 'woodlandNfmVolume' },
-  { column: 'FR', field: 'woodlandNfmLength' },
-  { column: 'FS', field: 'woodlandNfmWidth' },
+  // ── Floodplain and floodplain wetland restoration (FP–FS) ────────────────
+  { column: 'FP', field: 'floodplainWetlandRestorationArea' },
+  { column: 'FQ', field: 'floodplainWetlandRestorationVolume' },
+  { column: 'FR', field: 'floodplainWetlandRestorationLength' },
+  { column: 'FS', field: 'floodplainWetlandRestorationWidth' },
 
-  // ── Headwater drainage management (FT–FW) ────────────────────────────────
-  { column: 'FT', field: 'headwaterDrainageArea' },
-  { column: 'FU', field: 'headwaterDrainageVolume' },
-  { column: 'FV', field: 'headwaterDrainageLength' },
-  { column: 'FW', field: 'headwaterDrainageWidth' },
+  // ── Runoff pathway management (FT–FW) ─────────────────────────────────────
+  { column: 'FT', field: 'runoffAttenuationArea' },
+  { column: 'FU', field: 'runoffAttenuationVolume' },
+  { column: 'FV', field: 'runoffAttenuationLength' },
+  { column: 'FW', field: 'runoffAttenuationWidth' },
 
-  // ── Runoff attenuation or management (FX–GA) ─────────────────────────────
-  { column: 'FX', field: 'runoffAttenuationArea' },
-  { column: 'FY', field: 'runoffAttenuationVolume' },
-  { column: 'FZ', field: 'runoffAttenuationLength' },
-  { column: 'GA', field: 'runoffAttenuationWidth' },
+  // ── Offline storage areas (FX–GA) ─────────────────────────────────────────
+  { column: 'FX', field: 'offlineStorageArea' },
+  { column: 'FY', field: 'offlineStorageVolume' },
+  { column: 'FZ', field: 'offlineStorageLength' },
+  { column: 'GA', field: 'offlineStorageWidth' },
 
-  // ── Saltmarsh or mudflat management (GB–GE) ──────────────────────────────
-  { column: 'GB', field: 'saltmarshArea' },
-  { column: 'GC', field: 'saltmarshVolume' },
-  { column: 'GD', field: 'saltmarshLength' },
-  { column: 'GE', field: 'saltmarshWidth' },
+  // ── Restored peatland (headwater drainage management) (GB–GE) ────────────
+  { column: 'GB', field: 'headwaterDrainageArea' },
+  { column: 'GC', field: 'headwaterDrainageVolume' },
+  { column: 'GD', field: 'headwaterDrainageLength' },
+  { column: 'GE', field: 'headwaterDrainageWidth' },
 
-  // ── Sand and dune management (GF–GI) ─────────────────────────────────────
-  { column: 'GF', field: 'sandDuneArea' },
-  { column: 'GG', field: 'sandDuneVolume' },
-  { column: 'GH', field: 'sandDuneLength' },
-  { column: 'GI', field: 'sandDuneWidth' },
+  // ── Saltmarsh or mudflat management (GF–GI) ──────────────────────────────
+  { column: 'GF', field: 'saltmarshArea' },
+  { column: 'GG', field: 'saltmarshVolume' },
+  { column: 'GH', field: 'saltmarshLength' },
+  { column: 'GI', field: 'saltmarshWidth' },
 
-  // ── Land-use changes — before/after areas (GJ–HA) ────────────────────────
-  { column: 'GJ', field: 'enclosedArableBefore' },
-  { column: 'GK', field: 'enclosedArableAfter' },
-  { column: 'GL', field: 'enclosedLivestockBefore' },
-  { column: 'GM', field: 'enclosedLivestockAfter' },
-  { column: 'GN', field: 'enclosedDairyingBefore' },
-  { column: 'GO', field: 'enclosedDairyingAfter' },
-  { column: 'GP', field: 'semiNaturalGrasslandBefore' },
-  { column: 'GQ', field: 'semiNaturalGrasslandAfter' },
-  { column: 'GR', field: 'woodlandLandUseBefore' },
-  { column: 'GS', field: 'woodlandLandUseAfter' },
-  { column: 'GT', field: 'mountainMoorsHeathBefore' },
-  { column: 'GU', field: 'mountainMoorsHeathAfter' },
-  { column: 'GV', field: 'peatlandRestorationBefore' },
-  { column: 'GW', field: 'peatlandRestorationAfter' },
-  { column: 'GX', field: 'riversWetlandsBefore' },
-  { column: 'GY', field: 'riversWetlandsAfter' },
-  { column: 'GZ', field: 'coastalMarginsBefore' },
-  { column: 'HA', field: 'coastalMarginsAfter' },
+  // ── Sand and dune management (GJ–GM) ─────────────────────────────────────
+  { column: 'GJ', field: 'sandDuneArea' },
+  { column: 'GK', field: 'sandDuneVolume' },
+  { column: 'GL', field: 'sandDuneLength' },
+  { column: 'GM', field: 'sandDuneWidth' },
 
-  // ── NHM confidence fields (HB–HD) ────────────────────────────────────────
-  { column: 'HB', field: 'nfmLandownerConsent' },
-  { column: 'HC', field: 'nfmExperienceLevel' },
-  { column: 'HD', field: 'nfmProjectReadiness' },
+  // ── Land-use changes — before/after areas (GN–HI) ────────────────────────
+  { column: 'GN', field: 'enclosedArableBefore' },
+  { column: 'GO', field: 'enclosedArableAfter' },
+  { column: 'GP', field: 'enclosedLivestockBefore' },
+  { column: 'GQ', field: 'enclosedLivestockAfter' },
+  { column: 'GR', field: 'enclosedDairyingBefore' },
+  { column: 'GS', field: 'enclosedDairyingAfter' },
+  { column: 'GT', field: 'semiNaturalGrasslandBefore' },
+  { column: 'GU', field: 'semiNaturalGrasslandAfter' },
+  { column: 'GV', field: 'woodlandLandUseBefore' },
+  { column: 'GW', field: 'woodlandLandUseAfter' },
+  { column: 'GX', field: 'woodlandForTimberHarvestingBefore' },
+  { column: 'GY', field: 'woodlandForTimberHarvestingAfter' },
+  { column: 'GZ', field: 'mountainMoorsHeathBefore' },
+  { column: 'HA', field: 'mountainMoorsHeathAfter' },
+  { column: 'HB', field: 'peatlandDegradedBefore' },
+  { column: 'HC', field: 'peatlandDegradedAfter' },
+  { column: 'HD', field: 'peatlandRestorationBefore' },
+  { column: 'HE', field: 'peatlandRestorationAfter' },
+  { column: 'HF', field: 'riversWetlandsBefore' },
+  { column: 'HG', field: 'riversWetlandsAfter' },
+  { column: 'HH', field: 'coastalMarginsBefore' },
+  { column: 'HI', field: 'coastalMarginsAfter' },
 
-  // ── Carbon impact (HE–HP) ─────────────────────────────────────────────────
-  { column: 'HE', field: 'carbonCostBuild' },
-  { column: 'HF', field: 'carbonCostOperation' },
-  { column: 'HG', field: 'carbonCostSequestered' },
-  { column: 'HH', field: 'carbonCostAvoided' },
-  { column: 'HI', field: 'carbonSavingsNetEconomicBenefit' },
-  { column: 'HJ', field: 'carbonOperationalCostForecast' },
-  { column: 'HK', field: 'carbonCapitalBaseline' },
-  { column: 'HL', field: 'carbonCapitalTarget' },
-  { column: 'HM', field: 'carbonOmBaseline' },
-  { column: 'HN', field: 'carbonOmTarget' },
-  { column: 'HO', field: 'netCarbonEstimate' },
-  { column: 'HP', field: 'netCarbonWithBlanksCalculated' }
+  // ── NHM confidence fields (HJ–HL) ────────────────────────────────────────
+  { column: 'HJ', field: 'nfmLandownerConsent' },
+  { column: 'HK', field: 'nfmExperienceLevel' },
+  { column: 'HL', field: 'nfmProjectReadiness' },
+
+  // ── Carbon impact (HM–HX) ─────────────────────────────────────────────────
+  { column: 'HM', field: 'carbonCostBuild' },
+  { column: 'HN', field: 'carbonCostOperation' },
+  { column: 'HO', field: 'carbonCostSequestered' },
+  { column: 'HP', field: 'carbonCostAvoided' },
+  { column: 'HQ', field: 'carbonSavingsNetEconomicBenefit' },
+  { column: 'HR', field: 'carbonOperationalCostForecast' },
+  { column: 'HS', field: 'carbonCapitalBaseline' },
+  { column: 'HT', field: 'carbonCapitalTarget' },
+  { column: 'HU', field: 'carbonOmBaseline' },
+  { column: 'HV', field: 'carbonOmTarget' },
+  { column: 'HW', field: 'netCarbonEstimate' },
+  { column: 'HX', field: 'netCarbonWithBlanksCalculated' }
 ]

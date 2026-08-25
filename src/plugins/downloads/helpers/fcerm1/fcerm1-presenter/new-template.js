@@ -348,22 +348,22 @@ export const newTemplateMixin = {
   // ── Risk & properties benefitting (GX–HF) ────────────────────────────────
 
   maintainingFloodProtection() {
-    return this._p.properties_benefit_maintaining_assets ?? null
+    return toNumber(this._p, 'properties_benefit_maintaining_assets')
   },
   reducingFloodRiskMajor() {
-    return this._p.properties_benefit_50_percent_reduction ?? null
+    return toNumber(this._p, 'properties_benefit_50_percent_reduction')
   },
   reducingFloodRiskMinor() {
-    return this._p.properties_benefit_less_50_percent_reduction ?? null
+    return toNumber(this._p, 'properties_benefit_less_50_percent_reduction')
   },
   increasingFloodResilience() {
-    return this._p.properties_benefit_individual_intervention ?? null
+    return toNumber(this._p, 'properties_benefit_individual_intervention')
   },
   maintainingCoastalAssets() {
-    return this._p.properties_benefit_maintaining_assets_coastal ?? null
+    return toNumber(this._p, 'properties_benefit_maintaining_assets_coastal')
   },
   reducingCoastalErosionRisk() {
-    return this._p.properties_benefit_investment_coastal_erosion ?? null
+    return toNumber(this._p, 'properties_benefit_investment_coastal_erosion')
   },
   currentFloodFluvialRisk() {
     const raw = this._p.current_flood_fluvial_risk

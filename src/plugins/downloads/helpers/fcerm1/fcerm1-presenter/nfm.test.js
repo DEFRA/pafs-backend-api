@@ -102,7 +102,7 @@ const MEASURE_CASES = [
   },
   {
     group: 'offlineStorage',
-    type: 'offline_storage_areas',
+    type: 'offline_storage',
     methods: [
       'offlineStorageArea',
       'offlineStorageVolume',
@@ -138,7 +138,7 @@ const MEASURE_CASES = [
   },
   {
     group: 'runoffAttenuation',
-    type: 'runoff_attenuation',
+    type: 'runoff_attenuation_management',
     methods: [
       'runoffAttenuationArea',
       'runoffAttenuationVolume',
@@ -150,7 +150,7 @@ const MEASURE_CASES = [
   },
   {
     group: 'saltmarsh',
-    type: 'saltmarsh_mudflat_management',
+    type: 'saltmarsh_management',
     methods: [
       'saltmarshArea',
       'saltmarshVolume',
@@ -171,6 +171,18 @@ const MEASURE_CASES = [
     ],
     fields: ['area_hectares', 'storage_volume_m3', 'length_km', 'width_m'],
     values: [7, 0, 1.8, 12]
+  },
+  {
+    group: 'floodplainWetlandRestoration',
+    type: 'floodplain_wetland_restoration',
+    methods: [
+      'floodplainWetlandRestorationArea',
+      'floodplainWetlandRestorationVolume',
+      'floodplainWetlandRestorationLength',
+      'floodplainWetlandRestorationWidth'
+    ],
+    fields: ['area_hectares', 'storage_volume_m3', 'length_km', 'width_m'],
+    values: [15, 400, null, null]
   }
 ]
 
@@ -262,11 +274,27 @@ const LAND_USE_CASES = [
   },
   {
     group: 'mountainMoorsHeath',
-    type: 'mountain_moors_heath',
+    type: 'mountain_moors_and_heath',
     beforeMethod: 'mountainMoorsHeathBefore',
     afterMethod: 'mountainMoorsHeathAfter',
     before: 30,
     after: 30
+  },
+  {
+    group: 'woodlandForTimberHarvesting',
+    type: 'woodland_for_timber_harvesting',
+    beforeMethod: 'woodlandForTimberHarvestingBefore',
+    afterMethod: 'woodlandForTimberHarvestingAfter',
+    before: 6,
+    after: 3
+  },
+  {
+    group: 'peatlandDegraded',
+    type: 'peatland_degraded',
+    beforeMethod: 'peatlandDegradedBefore',
+    afterMethod: 'peatlandDegradedAfter',
+    before: 9,
+    after: 4
   },
   {
     group: 'peatlandRestoration',
@@ -278,7 +306,7 @@ const LAND_USE_CASES = [
   },
   {
     group: 'riversWetlands',
-    type: 'rivers_wetlands_freshwater',
+    type: 'wetlands',
     beforeMethod: 'riversWetlandsBefore',
     afterMethod: 'riversWetlandsAfter',
     before: 2.5,

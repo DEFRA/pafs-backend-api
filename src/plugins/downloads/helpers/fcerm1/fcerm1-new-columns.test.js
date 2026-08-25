@@ -22,8 +22,8 @@ describe('fcerm1-new-columns', () => {
       })
     })
 
-    test('ends with column HP', () => {
-      expect(NEW_COLUMNS.at(-1).column).toBe('HP')
+    test('ends with column HX', () => {
+      expect(NEW_COLUMNS.at(-1).column).toBe('HX')
     })
 
     test('every entry has column and field properties', () => {
@@ -130,13 +130,13 @@ describe('fcerm1-new-columns', () => {
       expect(fc?.field).toBe('urgencyDetails')
     })
 
-    test('NHM confidence columns HB–HD are present (shifted from KG–KI)', () => {
-      const hb = NEW_COLUMNS.find((c) => c.column === 'HB')
-      const hc = NEW_COLUMNS.find((c) => c.column === 'HC')
-      const hd = NEW_COLUMNS.find((c) => c.column === 'HD')
-      expect(hb?.field).toBe('nfmLandownerConsent')
-      expect(hc?.field).toBe('nfmExperienceLevel')
-      expect(hd?.field).toBe('nfmProjectReadiness')
+    test('NHM confidence columns HJ–HL are present', () => {
+      const hj = NEW_COLUMNS.find((c) => c.column === 'HJ')
+      const hk = NEW_COLUMNS.find((c) => c.column === 'HK')
+      const hl = NEW_COLUMNS.find((c) => c.column === 'HL')
+      expect(hj?.field).toBe('nfmLandownerConsent')
+      expect(hk?.field).toBe('nfmExperienceLevel')
+      expect(hl?.field).toBe('nfmProjectReadiness')
     })
 
     test('percentProperties20PercentDeprived is at column EB', () => {
@@ -158,6 +158,104 @@ describe('fcerm1-new-columns', () => {
       const exportable = NEW_COLUMNS.filter((c) => c.export !== false)
       const letters = exportable.map((c) => c.column)
       expect(new Set(letters).size).toBe(letters.length)
+    })
+
+    test('NFM measures appear in the frontend option order: woodland, leaky barriers, river restoration, floodplain wetland restoration, runoff pathway management, offline storage, restored peatland, saltmarsh, sand dune', () => {
+      const measureAreaFields = [
+        'woodlandNfmArea',
+        'leakyBarriersArea',
+        'riverFloodplainArea',
+        'floodplainWetlandRestorationArea',
+        'runoffAttenuationArea',
+        'offlineStorageArea',
+        'headwaterDrainageArea',
+        'saltmarshArea',
+        'sandDuneArea'
+      ]
+      const positions = measureAreaFields.map((field) =>
+        NEW_COLUMNS.findIndex((c) => c.field === field)
+      )
+      expect(positions).toEqual([...positions].sort((a, b) => a - b))
+      expect(positions.every((p) => p !== -1)).toBe(true)
+    })
+
+    test('NFM land-use types appear in the frontend option order', () => {
+      const beforeFields = [
+        'enclosedArableBefore',
+        'enclosedLivestockBefore',
+        'enclosedDairyingBefore',
+        'semiNaturalGrasslandBefore',
+        'woodlandLandUseBefore',
+        'woodlandForTimberHarvestingBefore',
+        'mountainMoorsHeathBefore',
+        'peatlandDegradedBefore',
+        'peatlandRestorationBefore',
+        'riversWetlandsBefore',
+        'coastalMarginsBefore'
+      ]
+      const positions = beforeFields.map((field) =>
+        NEW_COLUMNS.findIndex((c) => c.field === field)
+      )
+      expect(positions).toEqual([...positions].sort((a, b) => a - b))
+      expect(positions.every((p) => p !== -1)).toBe(true)
+    })
+
+    test('floodplainWetlandRestoration fields are grouped with the other NFM measures, not appended at the end', () => {
+      const areaIdx = NEW_COLUMNS.findIndex(
+        (c) => c.field === 'floodplainWetlandRestorationArea'
+      )
+      const volumeIdx = NEW_COLUMNS.findIndex(
+        (c) => c.field === 'floodplainWetlandRestorationVolume'
+      )
+      const lengthIdx = NEW_COLUMNS.findIndex(
+        (c) => c.field === 'floodplainWetlandRestorationLength'
+      )
+      const widthIdx = NEW_COLUMNS.findIndex(
+        (c) => c.field === 'floodplainWetlandRestorationWidth'
+      )
+      const carbonIdx = NEW_COLUMNS.findIndex(
+        (c) => c.field === 'carbonCostBuild'
+      )
+      expect(areaIdx).toBeGreaterThan(-1)
+      expect(volumeIdx).toBe(areaIdx + 1)
+      expect(lengthIdx).toBe(areaIdx + 2)
+      expect(widthIdx).toBe(areaIdx + 3)
+      expect(areaIdx).toBeLessThan(carbonIdx)
+    })
+
+    test('floodplainWetlandRestoration has all four columns (area, volume, length, width) like the other NFM measures', () => {
+      const area = NEW_COLUMNS.find(
+        (c) => c.field === 'floodplainWetlandRestorationArea'
+      )
+      const volume = NEW_COLUMNS.find(
+        (c) => c.field === 'floodplainWetlandRestorationVolume'
+      )
+      const length = NEW_COLUMNS.find(
+        (c) => c.field === 'floodplainWetlandRestorationLength'
+      )
+      const width = NEW_COLUMNS.find(
+        (c) => c.field === 'floodplainWetlandRestorationWidth'
+      )
+      expect(area?.column).toBe('FP')
+      expect(volume?.column).toBe('FQ')
+      expect(length?.column).toBe('FR')
+      expect(width?.column).toBe('FS')
+    })
+
+    test('woodlandForTimberHarvesting and peatlandDegraded fields are grouped with the other land-use fields, not appended at the end', () => {
+      const carbonIdx = NEW_COLUMNS.findIndex(
+        (c) => c.field === 'carbonCostBuild'
+      )
+      for (const field of [
+        'woodlandForTimberHarvestingBefore',
+        'woodlandForTimberHarvestingAfter',
+        'peatlandDegradedBefore',
+        'peatlandDegradedAfter'
+      ]) {
+        const idx = NEW_COLUMNS.findIndex((c) => c.field === field)
+        expect(idx).toBeGreaterThan(-1)
+        expect(idx).toBeLessThan(carbonIdx)
+      }
     })
   })
 })
