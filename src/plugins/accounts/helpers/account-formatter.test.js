@@ -21,7 +21,7 @@ describe('Account Formatter', () => {
       expect(ACCOUNT_SELECT_FIELDS).toHaveProperty('disabled', true)
       expect(ACCOUNT_SELECT_FIELDS).toHaveProperty('created_at', true)
       expect(ACCOUNT_SELECT_FIELDS).toHaveProperty('updated_at', true)
-      expect(ACCOUNT_SELECT_FIELDS).toHaveProperty('last_sign_in_at', true)
+      expect(ACCOUNT_SELECT_FIELDS).toHaveProperty('current_sign_in_at', true)
     })
 
     it('does not include user areas in select (fetched separately)', () => {
@@ -124,7 +124,7 @@ describe('Account Formatter', () => {
       disabled: false,
       created_at: new Date('2024-01-01'),
       updated_at: new Date('2024-01-02'),
-      last_sign_in_at: new Date('2024-01-03'),
+      current_sign_in_at: new Date('2024-01-03'),
       invitation_sent_at: new Date('2024-01-01T12:00:00Z'),
       invitation_accepted_at: new Date('2024-01-02T12:00:00Z')
     }
@@ -250,7 +250,7 @@ describe('Account Formatter', () => {
         job_title: null,
         organisation: null,
         telephone_number: null,
-        last_sign_in_at: null,
+        current_sign_in_at: null,
         invitation_sent_at: null,
         invitation_accepted_at: null
       }
@@ -286,7 +286,7 @@ describe('Account Formatter', () => {
       const pendingAccount = {
         ...mockAccount,
         status: 'pending',
-        last_sign_in_at: null
+        current_sign_in_at: null
       }
 
       const result = formatAccount(pendingAccount, [])

@@ -61,7 +61,7 @@ describe('AccountFilterService', () => {
       disabled: false,
       created_at: new Date('2024-01-15'),
       updated_at: new Date('2024-06-20'),
-      last_sign_in_at: new Date('2024-04-20')
+      current_sign_in_at: new Date('2024-04-20')
     }
 
     it('returns active accounts with pagination', async () => {

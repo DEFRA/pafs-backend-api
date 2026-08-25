@@ -135,7 +135,7 @@ describe('session helper', () => {
       })
 
       const user = {
-        last_sign_in_at: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
+        current_sign_in_at: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
       }
 
       expect(shouldDisableAccount(user)).toBe(false)
@@ -144,7 +144,7 @@ describe('session helper', () => {
     })
 
     it('returns false if user has no last sign in', () => {
-      const user = { last_sign_in_at: null }
+      const user = { current_sign_in_at: null }
 
       expect(shouldDisableAccount(user)).toBe(false)
     })
@@ -153,7 +153,7 @@ describe('session helper', () => {
       const lastSignIn = new Date()
       vi.setSystemTime(lastSignIn)
 
-      const user = { last_sign_in_at: lastSignIn }
+      const user = { current_sign_in_at: lastSignIn }
 
       vi.advanceTimersByTime(366 * 24 * 60 * 60 * 1000)
 
@@ -164,7 +164,7 @@ describe('session helper', () => {
       const lastSignIn = new Date()
       vi.setSystemTime(lastSignIn)
 
-      const user = { last_sign_in_at: lastSignIn }
+      const user = { current_sign_in_at: lastSignIn }
 
       vi.advanceTimersByTime(50 * 24 * 60 * 60 * 1000)
 
