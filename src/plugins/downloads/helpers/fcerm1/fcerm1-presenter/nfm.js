@@ -11,12 +11,13 @@
 
 const NFM_RIVER_FLOODPLAIN = 'river_floodplain_restoration'
 const NFM_LEAKY_BARRIERS = 'leaky_barriers_in_channel_storage'
-const NFM_OFFLINE_STORAGE = 'offline_storage_areas'
+const NFM_OFFLINE_STORAGE = 'offline_storage'
 const NFM_WOODLAND = 'woodland'
 const NFM_HEADWATER_DRAINAGE = 'headwater_drainage_management'
-const NFM_RUNOFF_ATTENUATION = 'runoff_attenuation'
-const NFM_SALTMARSH = 'saltmarsh_mudflat_management'
+const NFM_RUNOFF_ATTENUATION = 'runoff_attenuation_management'
+const NFM_SALTMARSH = 'saltmarsh_management'
 const NFM_SAND_DUNE = 'sand_dune_management'
+const NFM_FLOODPLAIN_WETLAND_RESTORATION = 'floodplain_wetland_restoration'
 
 // ── Land-use type keys ────────────────────────────────────────────────────────
 
@@ -25,9 +26,11 @@ const LU_ENCLOSED_LIVESTOCK = 'enclosed_livestock_farmland'
 const LU_ENCLOSED_DAIRYING = 'enclosed_dairying_farmland'
 const LU_SEMI_NATURAL_GRASSLAND = 'semi_natural_grassland'
 const LU_WOODLAND = 'woodland'
-const LU_MOUNTAIN_MOORS_HEATH = 'mountain_moors_heath'
+const LU_WOODLAND_FOR_TIMBER_HARVESTING = 'woodland_for_timber_harvesting'
+const LU_MOUNTAIN_MOORS_HEATH = 'mountain_moors_and_heath'
+const LU_PEATLAND_DEGRADED = 'peatland_degraded'
 const LU_PEATLAND = 'peatland_restoration'
-const LU_RIVERS_WETLANDS = 'rivers_wetlands_freshwater'
+const LU_WETLANDS = 'wetlands'
 const LU_COASTAL_MARGINS = 'coastal_margins'
 
 // ── Lookup helpers ────────────────────────────────────────────────────────────
@@ -42,17 +45,20 @@ function findLandUse(landUseChanges, type) {
 
 function measureField(measures, type, field) {
   const row = findMeasure(measures, type)
-  return row ? (row[field] ?? null) : null
+  const value = row ? (row[field] ?? null) : null
+  return value == null ? null : Number(value)
 }
 
 function landUseBefore(landUseChanges, type) {
   const row = findLandUse(landUseChanges, type)
-  return row ? (row.area_before_hectares ?? null) : null
+  const value = row ? (row.area_before_hectares ?? null) : null
+  return value == null ? null : Number(value)
 }
 
 function landUseAfter(landUseChanges, type) {
   const row = findLandUse(landUseChanges, type)
-  return row ? (row.area_after_hectares ?? null) : null
+  const value = row ? (row.area_after_hectares ?? null) : null
+  return value == null ? null : Number(value)
 }
 
 // ── Mixin ─────────────────────────────────────────────────────────────────────
@@ -314,6 +320,37 @@ export const nfmMixin = {
     )
   },
 
+  // ── Floodplain and Floodplain Wetland Restoration ─────────────────────────
+
+  floodplainWetlandRestorationArea() {
+    return measureField(
+      this._p.pafs_core_nfm_measures,
+      NFM_FLOODPLAIN_WETLAND_RESTORATION,
+      'area_hectares'
+    )
+  },
+  floodplainWetlandRestorationVolume() {
+    return measureField(
+      this._p.pafs_core_nfm_measures,
+      NFM_FLOODPLAIN_WETLAND_RESTORATION,
+      'storage_volume_m3'
+    )
+  },
+  floodplainWetlandRestorationLength() {
+    return measureField(
+      this._p.pafs_core_nfm_measures,
+      NFM_FLOODPLAIN_WETLAND_RESTORATION,
+      'length_km'
+    )
+  },
+  floodplainWetlandRestorationWidth() {
+    return measureField(
+      this._p.pafs_core_nfm_measures,
+      NFM_FLOODPLAIN_WETLAND_RESTORATION,
+      'width_m'
+    )
+  },
+
   // ── Land-use changes (JM–KD) ──────────────────────────────────────────────
 
   enclosedArableBefore() {
@@ -370,6 +407,30 @@ export const nfmMixin = {
   woodlandLandUseAfter() {
     return landUseAfter(this._p.pafs_core_nfm_land_use_changes, LU_WOODLAND)
   },
+  woodlandForTimberHarvestingBefore() {
+    return landUseBefore(
+      this._p.pafs_core_nfm_land_use_changes,
+      LU_WOODLAND_FOR_TIMBER_HARVESTING
+    )
+  },
+  woodlandForTimberHarvestingAfter() {
+    return landUseAfter(
+      this._p.pafs_core_nfm_land_use_changes,
+      LU_WOODLAND_FOR_TIMBER_HARVESTING
+    )
+  },
+  peatlandDegradedBefore() {
+    return landUseBefore(
+      this._p.pafs_core_nfm_land_use_changes,
+      LU_PEATLAND_DEGRADED
+    )
+  },
+  peatlandDegradedAfter() {
+    return landUseAfter(
+      this._p.pafs_core_nfm_land_use_changes,
+      LU_PEATLAND_DEGRADED
+    )
+  },
   mountainMoorsHeathBefore() {
     return landUseBefore(
       this._p.pafs_core_nfm_land_use_changes,
@@ -389,16 +450,10 @@ export const nfmMixin = {
     return landUseAfter(this._p.pafs_core_nfm_land_use_changes, LU_PEATLAND)
   },
   riversWetlandsBefore() {
-    return landUseBefore(
-      this._p.pafs_core_nfm_land_use_changes,
-      LU_RIVERS_WETLANDS
-    )
+    return landUseBefore(this._p.pafs_core_nfm_land_use_changes, LU_WETLANDS)
   },
   riversWetlandsAfter() {
-    return landUseAfter(
-      this._p.pafs_core_nfm_land_use_changes,
-      LU_RIVERS_WETLANDS
-    )
+    return landUseAfter(this._p.pafs_core_nfm_land_use_changes, LU_WETLANDS)
   },
   coastalMarginsBefore() {
     return landUseBefore(

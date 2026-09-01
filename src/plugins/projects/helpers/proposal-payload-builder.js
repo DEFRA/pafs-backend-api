@@ -62,11 +62,14 @@ function buildGatewayDates(project) {
     project.projectType === PROJECT_TYPES.STU ||
     project.projectType === PROJECT_TYPES.STR
 
+  const startDate = formatDate(
+    project.startOutlineBusinessCaseMonth,
+    project.startOutlineBusinessCaseYear
+  )
+
   return {
-    aspirational_gateway_1: formatDate(
-      project.startOutlineBusinessCaseMonth,
-      project.startOutlineBusinessCaseYear
-    ),
+    aspirational_gateway_0: isSimplified ? startDate : null,
+    aspirational_gateway_1: isSimplified ? null : startDate,
     aspirational_gateway_2: isSimplified
       ? null
       : formatDate(
