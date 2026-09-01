@@ -165,7 +165,7 @@ describe('AuthService', () => {
         id: 1,
         email: 'test@example.com',
         status: 'active',
-        last_sign_in_at: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
+        current_sign_in_at: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
       })
       mockPrisma.pafs_core_users.update.mockResolvedValue({})
 
