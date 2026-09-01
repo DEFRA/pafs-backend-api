@@ -11,7 +11,7 @@ export const ACCOUNT_SELECT_FIELDS = {
   disabled: true,
   created_at: true,
   updated_at: true,
-  last_sign_in_at: true
+  current_sign_in_at: true
 }
 
 export const ACCOUNT_DETAIL_SELECT_FIELDS = {
@@ -60,7 +60,7 @@ export function formatAccount(account, areas = [], options = {}) {
     areas: areas.map(formatArea),
     createdAt: account.created_at,
     updatedAt: account.updated_at,
-    lastSignIn: account.last_sign_in_at
+    lastSignIn: account.current_sign_in_at
   }
 
   // Add invitation fields if requested (for detail view)

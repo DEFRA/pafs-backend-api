@@ -47,7 +47,7 @@ export function isAccountLocked(user) {
 
 /**
  * Check if account should be disabled due to inactivity
- * @param {Object} user - User object with last_sign_in_at field
+ * @param {Object} user - User object with current_sign_in_at field
  * @returns {boolean} True if account should be disabled
  */
 export function shouldDisableAccount(user) {
@@ -55,14 +55,14 @@ export function shouldDisableAccount(user) {
     return false
   }
 
-  if (!user.last_sign_in_at) {
+  if (!user.current_sign_in_at) {
     return false
   }
 
   const inactivityDays = config.get('auth.accountDisabling.inactivityDays')
   const inactivityMs = inactivityDays * 24 * 60 * 60 * 1000
   const disableThreshold =
-    new Date(user.last_sign_in_at).getTime() + inactivityMs
+    new Date(user.current_sign_in_at).getTime() + inactivityMs
 
   return Date.now() >= disableThreshold
 }
