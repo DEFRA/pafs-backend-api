@@ -1,7 +1,7 @@
 # PAFS Backend API
 
 [![License](https://img.shields.io/badge/license-OGL--UK--3.0-blue.svg)](http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3)
-[![Node.js](https://img.shields.io/badge/node-22-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-24-brightgreen.svg)](https://nodejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/postgresql-16-blue.svg)](https://www.postgresql.org/)
 [![Liquibase](https://img.shields.io/badge/liquibase-4.25-orange.svg)](https://www.liquibase.org/)
 [![CDP](https://img.shields.io/badge/CDP-Platform-green.svg)](https://github.com/DEFRA/cdp-documentation)
@@ -18,7 +18,7 @@ Backend API for the Project Application and Funding Service (PAFS) - RESTful API
 
 **Tech Stack:**
 
-- Node.js 22 + Hapi.js 21
+- Node.js 24 + Hapi.js 21
 - PostgreSQL 16 (Aurora Serverless V2) + Prisma ORM
 - Liquibase 4.25 for schema migrations
 - JWT authentication + bcrypt
@@ -48,7 +48,7 @@ Backend API for the Project Application and Funding Service (PAFS) - RESTful API
 
 ## Requirements
 
-**Node.js:** >= 22  
+**Node.js:** >= 24 (the repository uses the 24.22.1)
 **npm:** >= 11  
 **PostgreSQL:** >= 16  
 **Liquibase:** 4.25 (via Docker or standalone)
@@ -57,8 +57,8 @@ Backend API for the Project Application and Funding Service (PAFS) - RESTful API
 
 ```bash
 # Using nvm (recommended)
-nvm install 22
-nvm use 22
+nvm install 24
+nvm use 24
 ```
 
 **Install PostgreSQL:**
