@@ -48,7 +48,7 @@ Backend API for the Project Application and Funding Service (PAFS) - RESTful API
 
 ## Requirements
 
-**Node.js:** >= 24 (the repository uses 24.22.1)
+**Node.js:** >= 24 (the repository uses the 24.22.1)
 **npm:** >= 11  
 **PostgreSQL:** >= 16  
 **Liquibase:** 4.25 (via Docker or standalone)
